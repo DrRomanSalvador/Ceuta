@@ -1,5 +1,70 @@
 # =============================================================================
 # CEUTIA — SCIENTIFIC RED TEAM, FALSIFICATION & EPISTEMIC STRESS ENGINE
+#!/usr/bin/env python3
+"""🌍 Ceuta Ciudadano — Monitor de Riesgo IA"""
+
+import os, requests, json, numpy as np
+from datetime import datetime
+from flask import Flask, render_template_string
+
+app = Flask(__name__)
+
+CONFIG = {
+    'weights': {'capability_growth': 0.25, 'incident_count': 0.20, 
+                'governance_gap': 0.20, 'awareness_level': -0.15, 
+                'international_cooperation': -0.20},
+    'thresholds': {'green': 0.4, 'yellow': 0.6, 'orange': 0.75}
+}
+
+FUENTES = [
+    {'nombre': 'UN OHCHR', 'url': 'https://www.ohchr.org/api/press-releases', 'tipo': 'OFICIAL'},
+    {'nombre': 'arXiv', 'url': 'http://export.arxiv.org/api/query?search_query=all:ai', 'tipo': 'PREPRINT'},
+    {'nombre': 'GitHub', 'url': 'https://api.github.com/search/repositories?q=ai', 'tipo': 'SOCIAL'}
+]
+
+def sigmoid(x): return 1.0 / (1.0 + np.exp(-x))
+
+def get_data():
+    datos = {}
+    for f in FUENTES:
+        try:
+            r = requests.get(f['url'], timeout=10).json()
+            datos[f['nombre']] = len(r.get('items', r.get('results', [])))
+        except: datos[f['nombre']] = 0
+    return datos
+
+def calculate():
+    d = get_data()
+    ind = {
+        'capability_growth': min(d.get('GitHub',0)/1000, 1.0),
+        'incident_count': min(d.get('UN OHCHR',0)/50, 1.0),
+        'governance_gap': 1.0 - min(d.get('UN OHCHR',0)/100, 1.0),
+        'awareness_level': min((d.get('UN OHCHR',0)+d.get('arXiv',0))/200, 1.0),
+        'international_cooperation': min(d.get('GitHub',0)/2000, 1.0)
+    }
+    raw = sum(CONFIG['weights'][k] * ind.get(k, 0.5) for k in CONFIG['weights'])
+    r = sigmoid(raw)
+    n = len(ind)
+    se = np.sqrt(r*(1-r)/n) if n>=2 else 0.5
+    ci = [max(0,r-1.96*se), min(1,r+1.96*se)]
+    lv = 'GREEN' if r<CONFIG['thresholds']['green'] else 'YELLOW' if r<CONFIG['thresholds']['yellow'] else 'ORANGE' if r<CONFIG['thresholds']['orange'] else 'RED'
+    return {'risk': round(r,4), 'ci': [round(ci[0],4), round(ci[1],4)], 'level': lv, 'indicators': ind, 'ts': datetime.utcnow().isoformat()+'Z'}
+
+@app.route('/')
+def home():
+    r = calculate()
+    html = f"""<!DOCTYPE html><html><head><title>🌍 Ceuta</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>body{{font-family:sans-serif;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:2rem;margin:0}}.c{{max-width:600px;margin:0 auto}}.k{{background:rgba(255,255,255,.1);border-radius:15px;padding:2rem;margin:1.5rem 0}}.r{{font-size:4rem;font-weight:bold;text-align:center}}.g{{color:#27ae60}}.y{{color:#f39c12}}.o{{color:#e67e22}}.red{{color:#e74c3c}}.l{{text-align:center;font-size:1.5rem}}.f{{font-size:.8rem;opacity:.6;text-align:center;margin-top:2rem}}</style></head>
+<body><div class="c"><h1>🌍 Ceuta Ciudadano</h1>
+<div class="k"><h2>Riesgo</h2><div class="r {r['level'].lower()}">{r['risk']:.2f}</div><div class="l">{r['level']}</div><div class="l">IC 95%: [{r['ci'][0]:.2f},{r['ci'][1]:.2f}]</div></div>
+<div class="k"><h2>Fuentes</h2>{"".join(f"<div><strong>{f['nombre']}</strong> ({f['tipo']})<br><small>{f['url'][:60]}...</small></div><br>" for f in FUENTES)}</div>
+<div class="k"><h2>Verificar</h2><ol><li>¿Fuente oficial?</li><li>¿Múltiples fuentes?</li><li>¿Fecha reciente?</li><li>¿Evidencia?</li></ol></div>
+<div class="f">Actualizado: {r['ts']}<br>Clouding.OI</div></div></body></html>"""
+    return html
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
 
 from dataclasses import dataclass
 from enum import Enum

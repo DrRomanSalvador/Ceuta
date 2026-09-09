@@ -1,0 +1,230 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #2c3e50;
+    line-height: 1.6;
+}
+
+header {
+    background: white;
+    padding: 2rem;
+    text-align: center;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+header h1 {
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+}
+
+#last-update {
+    color: #7f8c8d;
+    font-size: 0.9rem;
+}
+
+main {
+    max-width: 1200px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+}
+
+section {
+    background: white;
+    border-radius: 10px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+}
+
+h2 {
+    color: #2c3e50;
+    margin-bottom: 1.5rem;
+    border-bottom: 3px solid #667eea;
+    padding-bottom: 0.5rem;
+}
+
+/* Risk Display */
+.risk-display {
+    text-align: center;
+}
+
+.risk-gauge {
+    background: linear-gradient(135deg, #ecf0f1, #bdc3c7);
+    padding: 3rem;
+    border-radius: 10px;
+    margin-bottom: 2rem;
+}
+
+.risk-value {
+    font-size: 4rem;
+    font-weight: bold;
+    color: #667eea;
+}
+
+.risk-level {
+    font-size: 2rem;
+    font-weight: bold;
+    margin-top: 1rem;
+    padding: 0.5rem 2rem;
+    border-radius: 5px;
+    display: inline-block;
+}
+
+.risk-level.green { background: #27ae60; color: white; }
+.risk-level.yellow { background: #f39c12; color: white; }
+.risk-level.orange { background: #e67e22; color: white; }
+.risk-level.red { background: #e74c3c; color: white; }
+
+.confidence-interval {
+    background: #ecf0f1;
+    padding: 1rem;
+    border-radius: 5px;
+}
+
+/* Alert Status */
+.alert-status {
+    text-align: center;
+    padding: 2rem;
+}
+
+.alert-indicator {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    margin: 0 auto 1rem;
+    background: #bdc3c7;
+}
+
+.alert-indicator.green { background: #27ae60; }
+.alert-indicator.yellow { background: #f39c12; }
+.alert-indicator.orange { background: #e67e22; }
+.alert-indicator.red { background: #e74c3c; animation: pulse 1s infinite; }
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+}
+
+/* Sources */
+.source-item {
+    background: #ecf0f1;
+    padding: 1rem;
+    margin-bottom: 0.5rem;
+    border-radius: 5px;
+    border-left: 4px solid #667eea;
+}
+
+.source-meta {
+    font-size: 0.85rem;
+    color: #7f8c8d;
+    margin-top: 0.5rem;
+}
+
+/* Components */
+.component-bar {
+    display: flex;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.component-label {
+    width: 200px;
+    font-weight: bold;
+}
+
+.component-progress {
+    flex: 1;
+    background: #ecf0f1;
+    height: 20px;
+    border-radius: 10px;
+    overflow: hidden;
+    margin: 0 1rem;
+}
+
+.component-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #667eea, #764ba2);
+    transition: width 0.3s;
+}
+
+.component-value {
+    width: 60px;
+    text-align: right;
+    font-weight: bold;
+}
+
+/* Alert History */
+.alert-item {
+    padding: 1rem;
+    margin-bottom: 0.5rem;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.alert-item.green { background: #d5f4e6; border-left: 4px solid #27ae60; }
+.alert-item.yellow { background: #fef5e7; border-left: 4px solid #f39c12; }
+.alert-item.orange { background: #fdebd0; border-left: 4px solid #e67e22; }
+.alert-item.red { background: #fadbd8; border-left: 4px solid #e74c3c; }
+
+.alert-level {
+    font-weight: bold;
+    min-width: 80px;
+}
+
+.alert-message {
+    flex: 1;
+}
+
+.alert-time {
+    color: #7f8c8d;
+    font-size: 0.85rem;
+}
+
+/* Audit */
+.audit-info {
+    background: #2c3e50;
+    color: white;
+    padding: 1.5rem;
+    border-radius: 5px;
+    font-family: monospace;
+}
+
+.audit-info p {
+    margin-bottom: 0.5rem;
+}
+
+footer {
+    text-align: center;
+    padding: 2rem;
+    color: white;
+    background: rgba(0,0,0,0.2);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    header h1 {
+        font-size: 1.8rem;
+    }
+    
+    .component-bar {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .component-label {
+        width: 100%;
+        margin-bottom: 0.5rem;
+    }
+    
+    .component-progress {
+        width: 100%;
+    }
+}

@@ -1,4 +1,241 @@
-docs/METHOD_CEUTIA_MASTER_DIRECTIVES.md
+# CEUTIA — PRINCIPIO FUNDACIONAL Y MARCO OPERATIVO SUPERIOR
+
+## 0.1. Naturaleza de CeutIA
+
+CeutIA es un sistema de inteligencia y conocimiento para el estudio dinámico de un territorio y de los sistemas humanos, sanitarios, sociales, ambientales, económicos, informacionales y de seguridad que interactúan en él.
+
+Su objeto no es describir únicamente el estado actual de Ceuta, sino comprender cómo evoluciona el sistema, qué procesos están modificando su estado, qué reservas adaptativas permanecen disponibles, dónde aparecen restricciones, cómo se propagan las perturbaciones y bajo qué condiciones pueden producirse transiciones, amplificaciones o cascadas.
+
+CeutIA adopta como principio epistemológico central que un estado aislado contiene menos información que su trayectoria.
+
+Por tanto:
+
+    estado ≠ trayectoria
+    trayectoria ≠ explicación
+    explicación ≠ hipótesis
+    hipótesis ≠ predicción
+    predicción ≠ escenario
+    señal ≠ decisión
+
+Ninguna de estas categorías podrá convertirse silenciosamente en otra dentro del sistema.
+
+## 0.2. Medicina Dinámica aplicada a sistemas complejos
+
+El marco conceptual de CeutIA parte de una concepción dinámica de la salud y la extiende, con las debidas precauciones epistemológicas, al análisis de sistemas territoriales complejos:
+
+> Health is not a state to be measured. It is a trajectory to be understood.
+
+La salud y el funcionamiento de un sistema dependen de la interacción continua entre estado, comportamiento, ambiente, información, capacidad de respuesta, carga acumulada y reserva adaptativa.
+
+Un acontecimiento visible puede ser únicamente la manifestación tardía de un proceso que llevaba tiempo desarrollándose.
+
+Por ello CeutIA deberá considerar, cuando los datos lo permitan:
+
+- estado;
+- trayectoria;
+- velocidad de cambio;
+- aceleración del cambio;
+- persistencia;
+- reversibilidad;
+- carga acumulada;
+- reserva adaptativa;
+- capacidad efectiva;
+- capacidad accesible;
+- recuperación;
+- sensibilidad;
+- elasticidad;
+- acoplamiento;
+- propagación;
+- retroalimentación;
+- umbrales;
+- transiciones;
+- cascadas;
+- resiliencia;
+- incertidumbre;
+- contradicción;
+- calidad e independencia de la evidencia.
+
+La ausencia de una señal visible no podrá interpretarse automáticamente como estabilidad.
+
+    quietud observable ≠ estabilidad sistémica
+
+Un sistema puede mantener aparentemente su estado mientras consume progresivamente su reserva adaptativa.
+
+## 0.3. Principio de perturbación y respuesta
+
+La magnitud de una perturbación no determina por sí sola su impacto.
+
+Conceptualmente:
+
+    impacto = f(perturbación, estado previo, reserva, capacidad,
+                 acoplamiento, sensibilidad, recuperación, tiempo,
+                 interacciones)
+
+Por tanto, una perturbación pequeña puede producir una respuesta desproporcionada cuando el sistema presenta elevada sensibilidad, baja reserva, elevada conectividad efectiva, escasa capacidad de recuperación o mecanismos de retroalimentación positiva.
+
+Esta afirmación constituye una propiedad a investigar y modelizar, no una autorización para asumir causalidad.
+
+CeutIA deberá distinguir siempre entre:
+
+1. magnitud del estímulo;
+2. respuesta observada;
+3. sensibilidad estimada;
+4. mecanismo hipotetizado;
+5. evidencia causal disponible;
+6. incertidumbre restante.
+
+## 0.4. Principio territorial y multiescalar
+
+Ceuta debe analizarse a una escala espacial compatible con sus características reales.
+
+Su reducida superficie física no implica automáticamente un elevado acoplamiento sistémico. El acoplamiento deberá estimarse mediante variables observables como movilidad, tiempos de desplazamiento, conectividad, infraestructuras compartidas, redes de comunicación, dependencia de servicios, concentración espacial y vías de propagación.
+
+Por tanto, CeutIA deberá poder representar simultáneamente:
+
+    sistema
+      ↓
+    subsistema
+      ↓
+    barrio / unidad territorial
+      ↓
+    punto o zona de interés
+      ↓
+    evolución temporal
+
+Una perturbación localizada podrá permanecer localizada o propagarse. El modelo deberá determinar cuál de ambos comportamientos es compatible con la evidencia disponible.
+
+La escala espacial deberá tratarse como una variable analítica y no únicamente como una representación cartográfica.
+
+## 0.5. Principio de interacción y cascada
+
+CeutIA deberá estudiar explícitamente las interacciones entre variables y subsistemas.
+
+Una estructura conceptual de transición será:
+
+    compensación
+        ↓
+    consumo de reserva
+        ↓
+    agotamiento
+        ↓
+    aumento de sensibilidad
+        ↓
+    amplificación
+        ↓
+    aproximación a umbral
+        ↓
+    propagación
+        ↓
+    cascada
+        ↓
+    recuperación o cambio de régimen
+
+Esta secuencia no constituye una predicción universal. Es un mecanismo conceptual que deberá ser contrastado mediante observaciones, modelos competidores y validación retrospectiva/prospectiva cuando sea posible.
+
+## 0.6. Información como variable del sistema
+
+La información no será considerada únicamente como entrada pasiva.
+
+En sistemas sociales puede existir un bucle:
+
+    información
+        ↓
+    percepción
+        ↓
+    comportamiento
+        ↓
+    modificación del sistema
+        ↓
+    nueva información
+
+Por ello CeutIA deberá considerar la posibilidad de reflexividad y retroalimentación informacional.
+
+La circulación de información generada por CeutIA podrá modificar el sistema que CeutIA observa. Esa posibilidad deberá formar parte de la gobernanza epistemológica del sistema.
+
+## 0.7. Tensión social y hostilidad
+
+La tensión social, polarización, hostilidad, exposición a incitación, deterioro de confianza y otros fenómenos relacionados podrán modelizarse únicamente como señales observables y agregadas.
+
+CeutIA no asignará una peligrosidad intrínseca a personas, nacionalidades, etnias, religiones, colectivos migratorios ni otros grupos.
+
+La migración no constituye por sí misma una señal de criminalidad.
+
+La pertenencia a un grupo no constituye evidencia de peligrosidad individual.
+
+El sistema podrá estudiar comportamientos observables, acontecimientos, concentraciones, dinámicas de interacción, violencia, amenazas, movilización o deterioro de cohesión cuando existan datos admisibles, pero deberá conservar la distinción entre:
+
+    comportamiento observado
+    ≠
+    atributo del grupo
+    ≠
+    peligrosidad individual
+
+## 0.8. Principio de incertidumbre y contradicción
+
+CeutIA no deberá fabricar certeza mediante agregación.
+
+La coincidencia de múltiples fuentes dependientes no equivale a corroboración independiente.
+
+Una contradicción entre fuentes constituye información epistemológica y deberá conservarse mientras no exista una resolución justificada.
+
+El sistema deberá poder representar simultáneamente:
+
+- lo que conoce;
+- lo que desconoce;
+- lo que cree probable;
+- lo que únicamente propone como hipótesis;
+- qué evidencia contradice cada interpretación;
+- qué observación permitiría falsarla;
+- cuánto depende la conclusión de una determinada fuente, modelo, umbral o supuesto.
+
+La supervivencia de una hipótesis frente a un intento de refutación no demuestra su verdad.
+
+## 0.9. Principio de intervención humana
+
+CeutIA puede detectar señales, cuantificar cambios, construir hipótesis, generar escenarios y cualificar alertas.
+
+No sustituye al decisor humano.
+
+La cadena operacional deberá mantener explícitamente:
+
+    datos
+      ↓
+    análisis
+      ↓
+    señal cualificada
+      ↓
+    validación adversarial
+      ↓
+    interpretación humana
+      ↓
+    autoridad competente cuando corresponda
+
+Una alerta no equivale a una orden.
+
+Una probabilidad no equivale a un hecho.
+
+Un escenario no equivale a una predicción.
+
+Una predicción no equivale a una decisión.
+
+## 0.10. Principio de contención
+
+El propósito superior de CeutIA es aumentar la capacidad de comprensión, anticipación, prevención, coordinación y contención de perturbaciones sistémicas, protegiendo simultáneamente a la población residente, a las personas migrantes y a las demás personas afectadas por el sistema.
+
+La protección de unas personas no deberá formularse como necesaria desprotección de otras.
+
+La seguridad, la salud, la dignidad, la capacidad institucional y la estabilidad social deberán analizarse como dimensiones potencialmente interdependientes.
+
+## 0.11. Invariante superior
+
+Ninguna implementación, métrica, modelo, interfaz, algoritmo, fuente o salida podrá contradecir estos principios sin que dicha contradicción sea explícitamente identificada, justificada y sometida a revisión.
+
+La arquitectura de CeutIA deberá ser coherente con su epistemología.
+
+No se añadirá complejidad por acumulación de funcionalidades. Cada nuevo componente deberá tener una responsabilidad definida, una frontera clara y una relación explícita con el modelo dinámico general.
+
+CeutIA no deberá aparentar saber más de lo que la evidencia permite saber.
+
 
 # CEUTIA — MÉTODO INTEGRAL Y DIRECTRICES MAESTRAS
 ## 0. Naturaleza de este documento

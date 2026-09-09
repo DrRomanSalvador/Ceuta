@@ -590,3 +590,22 @@ if __name__ == '__main__':
             risk_result = calculate_risk(indicators)
             fuentes_strat = estratificar_fuentes()
             informe =
+TELEGRAM_BOT_TOKEN=tu_token_aqui
+REUTERS_API_KEY=tu_api_key_aqui
+# Instalar
+pip install -r requirements.txt
+
+# Web app
+python ceuta_completo.py --web
+
+# Telegram bot
+python ceuta_completo.py --bot
+
+# Monitor continuo
+python ceuta_completo.py
+
+# Una vez
+python ceuta_completo.py --once
+
+# Backtest
+python ceuta_completo.py --backtest

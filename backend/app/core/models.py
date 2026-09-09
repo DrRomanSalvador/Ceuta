@@ -1,3 +1,684 @@
+# ---------------------------------------------------------------------------
+# CeutIA — Multidimensional territorial state
+# ---------------------------------------------------------------------------
+
+@dataclass(frozen=True, slots=True)
+class TerritorialState:
+    """
+    Multidimensional state of a territorial system.
+
+    The model deliberately avoids collapsing heterogeneous dimensions into
+    a single opaque risk score.
+
+    Each dimension remains separately observable and auditable.
+    """
+
+    timestamp: datetime
+    units: tuple[str, ...]
+    variables: Mapping[str, tuple[float, ...]]
+    area_km2: float | None = None
+    adjacency_matrix: tuple[tuple[float, ...], ...] | None = None
+    travel_time_matrix: tuple[tuple[float, ...], ...] | None = None
+    uncertainty: Mapping[str, Uncertainty] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        if self.timestamp.tzinfo is None:
+            raise ModelInputError(
+                "TerritorialState timestamp must be timezone-aware."
+            )
+
+        if not self.units:
+            raise ModelInputError("TerritorialState requires territorial units.")
+
+        if len(set(self.units)) != len(self.units):
+            raise ModelInputError("Territorial units must be unique.")
+
+        n = len(self.units)
+
+        for variable, values in self.variables.items():
+            if len(values) != n:
+                raise ModelInputError(
+                    f"Variable {variable!r} must contain one value per "
+                    "territorial unit."
+                )
+
+            for index, value in enumerate(values):
+                _finite(
+                    value,
+                    f"variables[{variable!r}][{index}]",
+                )
+
+        if self.area_km2 is not None:
+            _positive(self.area_km2, "area_km2")
+
+        if self.adjacency_matrix is not None:
+            _validate_square_matrix(
+                self.adjacency_matrix,
+                n,
+                "adjacency_matrix",
+            )
+
+        if self.travel_time_matrix is not None:
+            _validate_square_matrix(
+                self.travel_time_matrix,
+                n,
+                "travel_time_matrix",
+            )
+
+    def vector(self, variable: str) -> np.ndarray:
+        """Return a variable as a numerical vector."""
+
+        if variable not in self.variables:
+            raise ModelInputError(
+                f"Unknown territorial variable: {variable!r}"
+            )
+
+        return np.asarray(self.variables[variable], dtype=float)
+
+    def mean(self, variable: str) -> float:
+        return float(np.mean(self.vector(variable)))
+
+    def maximum(self, variable: str) -> float:
+        return float(np.max(self.vector(variable)))
+
+    def minimum(self, variable: str) -> float:
+        return float(np.min(self.vector(variable)))
+
+
+def _validate_square_matrix(
+    matrix: Sequence[Sequence[float]],
+    size: int,
+    name: str,
+) -> None:
+    array = np.asarray(matrix, dtype=float)
+
+    if array.shape != (size, size):
+        raise ModelInputError(
+            f"{name} must have shape ({size}, {size})."
+        )
+
+    if not np.all(np.isfinite(array)):
+        raise ModelInputError(
+            f"{name} must contain only finite values."
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class TerritorialTransition:
+    """
+    Change between two territorial states.
+
+    Captures state change without assigning causality.
+    """
+
+    previous: TerritorialState
+    current: TerritorialState
+
+    def __post_init__(self) -> None:
+        if self.previous.units != self.current.units:
+            raise ModelInputError(
+                "Territorial states must use the same territorial units."
+            )
+
+        if self.current.timestamp <= self.previous.timestamp:
+            raise ModelInputError(
+                "Current state must occur after previous state."
+            )
+
+    @property
+    def duration_seconds(self) -> float:
+        return (
+            self.current.timestamp - self.previous.timestamp
+        ).total_seconds()
+
+    def delta(self, variable: str) -> np.ndarray:
+        previous = self.previous.vector(variable)
+        current = self.current.vector(variable)
+
+        return current - previous
+
+    def rate(self, variable: str) -> np.ndarray:
+        if self.duration_seconds <= 0:
+            raise ModelInputError(
+                "Transition duration must be positive."
+            )
+
+        return self.delta(variable) / self.duration_seconds
+
+
+@dataclass(frozen=True, slots=True)
+class CoupledSystemState:
+    """
+    System state represented as interacting territorial/subsystem nodes.
+
+    The interaction matrix is structural. Its presence does not establish
+    causality.
+    """
+
+    timestamp: datetime
+    node_ids: tuple[str, ...]
+    state_vector: tuple[float, ...]
+    coupling_matrix: tuple[tuple[float, ...], ...]
+    node_uncertainty: tuple[Uncertainty | None, ...] = ()
+
+    def __post_init__(self) -> None:
+        if self.timestamp.tzinfo is None:
+            raise ModelInputError(
+                "CoupledSystemState timestamp must be timezone-aware."
+            )
+
+        n = len(self.node_ids)
+
+        if n == 0:
+            raise ModelInputError(
+                "CoupledSystemState requires at least one node."
+            )
+
+        if len(set(self.node_ids)) != n:
+            raise ModelInputError(
+                "node_ids must be unique."
+            )
+
+        if len(self.state_vector) != n:
+            raise ModelInputError(
+                "state_vector and node_ids must have the same length."
+            )
+
+        for index, value in enumerate(self.state_vector):
+            _finite(value, f"state_vector[{index}]")
+
+        _validate_square_matrix(
+            self.coupling_matrix,
+            n,
+            "coupling_matrix",
+        )
+
+        if self.node_uncertainty and len(self.node_uncertainty) != n:
+            raise ModelInputError(
+                "node_uncertainty must match node_ids length."
+            )
+
+    @property
+    def spectral_radius(self) -> float:
+        return coupling_spectral_radius(self.coupling_matrix)
+
+    @property
+    def mean_coupling(self) -> float:
+        matrix = np.asarray(
+            self.coupling_matrix,
+            dtype=float,
+        )
+
+        if matrix.size == 0:
+            return 0.0
+
+        return float(np.mean(np.abs(matrix)))
+
+    @property
+    def maximum_coupling(self) -> float:
+        matrix = np.asarray(
+            self.coupling_matrix,
+            dtype=float,
+        )
+
+        return float(np.max(np.abs(matrix)))
+
+
+@dataclass(frozen=True, slots=True)
+class SystemPressureState:
+    """
+    Separate representation of system pressure dimensions.
+
+    Pressure is multidimensional and must not be reduced automatically to
+    one universal 'risk score'.
+    """
+
+    demand: float
+    capacity: float
+    adaptive_reserve: float
+    sensitivity: float
+    coupling: float
+    propagation: float
+    social_tension: float
+    information_pressure: float
+    recovery_capacity: float
+
+    def __post_init__(self) -> None:
+        for name, value in (
+            ("demand", self.demand),
+            ("capacity", self.capacity),
+            ("adaptive_reserve", self.adaptive_reserve),
+            ("sensitivity", self.sensitivity),
+            ("coupling", self.coupling),
+            ("propagation", self.propagation),
+            ("social_tension", self.social_tension),
+            ("information_pressure", self.information_pressure),
+            ("recovery_capacity", self.recovery_capacity),
+        ):
+            _nonnegative(value, name)
+
+    @property
+    def demand_capacity_ratio(self) -> float:
+        if self.capacity == 0:
+            if self.demand == 0:
+                return 0.0
+            return float("inf")
+
+        return self.demand / self.capacity
+
+    @property
+    def reserve_fraction(self) -> float:
+        if self.capacity == 0:
+            return 0.0
+
+        return min(
+            max(self.adaptive_reserve / self.capacity, 0.0),
+            1.0,
+        )
+
+    @property
+    def systemic_susceptibility(self) -> float:
+        return compound_systemic_susceptibility(
+            sensitivity=self.sensitivity,
+            reserve_fraction_remaining=self.reserve_fraction,
+            coupling=self.coupling,
+            propagation=self.propagation,
+            recovery_capacity=self.recovery_capacity,
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class CascadeState:
+    """
+    Representation of propagation through a coupled system.
+
+    This describes propagation structure. It does not claim that a cascade
+    will occur.
+    """
+
+    active_nodes: tuple[str, ...]
+    newly_activated_nodes: tuple[str, ...]
+    generation: int
+    branching_factor: float
+    propagation_ratio: float
+    cumulative_amplification: float
+    threshold_breaches: int = 0
+
+    def __post_init__(self) -> None:
+        if self.generation < 0:
+            raise ModelInputError(
+                "generation cannot be negative."
+            )
+
+        _nonnegative(
+            self.branching_factor,
+            "branching_factor",
+        )
+
+        _nonnegative(
+            self.propagation_ratio,
+            "propagation_ratio",
+        )
+
+        _nonnegative(
+            self.cumulative_amplification,
+            "cumulative_amplification",
+        )
+
+        if self.threshold_breaches < 0:
+            raise ModelInputError(
+                "threshold_breaches cannot be negative."
+            )
+
+    @property
+    def has_propagation(self) -> bool:
+        return bool(self.newly_activated_nodes)
+
+    @property
+    def supercritical_structure(self) -> bool:
+        """
+        Structural indicator only.
+
+        A branching factor > 1 means that the observed propagation process
+        generated more than one secondary event per event on average.
+
+        It is not a probability of future cascade.
+        """
+
+        return self.branching_factor > 1.0
+
+
+@dataclass(frozen=True, slots=True)
+class SocialTensionState:
+    """
+    Aggregate social-tension representation.
+
+    The model accepts observable signals rather than assigning an intrinsic
+    hostility value to a nationality, ethnicity, religion, migrant status,
+    neighbourhood population or other protected group.
+    """
+
+    timestamp: datetime
+    hostility_signal: float
+    hostility_velocity: float
+    polarization: float
+    disagreement_entropy: float
+    incitement_exposure: float
+    trust_erosion_signal: float
+    uncertainty: Uncertainty | None = None
+
+    def __post_init__(self) -> None:
+        if self.timestamp.tzinfo is None:
+            raise ModelInputError(
+                "SocialTensionState timestamp must be timezone-aware."
+            )
+
+        for name, value in (
+            ("hostility_signal", self.hostility_signal),
+            ("hostility_velocity", self.hostility_velocity),
+            ("polarization", self.polarization),
+            ("disagreement_entropy", self.disagreement_entropy),
+            ("incitement_exposure", self.incitement_exposure),
+            ("trust_erosion_signal", self.trust_erosion_signal),
+        ):
+            _nonnegative(value, name)
+
+    @property
+    def composite_signal(self) -> float:
+        """
+        Descriptive aggregate of observable tension dimensions.
+
+        This is not a measure of the moral character or dangerousness of
+        individuals or groups.
+        """
+
+        components = np.asarray(
+            [
+                self.hostility_signal,
+                self.hostility_velocity,
+                self.polarization,
+                self.disagreement_entropy,
+                self.incitement_exposure,
+                self.trust_erosion_signal,
+            ],
+            dtype=float,
+        )
+
+        return float(np.mean(components))
+
+
+@dataclass(frozen=True, slots=True)
+class ResilienceState:
+    """
+    Dynamic resilience representation.
+
+    Resilience is treated as a trajectory, not a binary property.
+    """
+
+    reserve_fraction: float
+    recovery_capacity: float
+    recovery_rate: float
+    recovery_time_seconds: float | None
+    redundancy: float
+    bottleneck_dependence: float
+
+    def __post_init__(self) -> None:
+        for name, value in (
+            ("reserve_fraction", self.reserve_fraction),
+            ("recovery_capacity", self.recovery_capacity),
+            ("recovery_rate", self.recovery_rate),
+            ("redundancy", self.redundancy),
+            ("bottleneck_dependence", self.bottleneck_dependence),
+        ):
+            _nonnegative(value, name)
+
+        if self.recovery_time_seconds is not None:
+            _nonnegative(
+                self.recovery_time_seconds,
+                "recovery_time_seconds",
+            )
+
+    @property
+    def fragility_indicator(self) -> float:
+        """
+        Descriptive structural fragility.
+
+        Higher bottleneck dependence and lower reserve/redundancy increase
+        structural fragility.
+        """
+
+        denominator = (
+            max(self.reserve_fraction, 1e-12)
+            * max(self.redundancy, 1e-12)
+        )
+
+        return self.bottleneck_dependence / denominator
+
+
+@dataclass(frozen=True, slots=True)
+class DynamicRiskSignal:
+    """
+    Qualified analytical signal.
+
+    `severity` is intentionally not represented here as a probability.
+    The signal records the structural conditions that justify further
+    human/validation attention.
+    """
+
+    signal_id: str
+    timestamp: datetime
+    scope: ModelScope
+    dimensions: Mapping[str, float]
+    triggers: tuple[str, ...]
+    uncertainty: Mapping[str, Uncertainty]
+    epistemic_status: EpistemicType = EpistemicType.DERIVED_SIGNAL
+    requires_adversarial_validation: bool = True
+    requires_human_interpretation: bool = True
+
+    def __post_init__(self) -> None:
+        if not self.signal_id.strip():
+            raise ModelInputError(
+                "signal_id cannot be empty."
+            )
+
+        if self.timestamp.tzinfo is None:
+            raise ModelInputError(
+                "DynamicRiskSignal timestamp must be timezone-aware."
+            )
+
+        for name, value in self.dimensions.items():
+            _finite(value, f"dimensions[{name!r}]")
+
+        if not self.triggers:
+            raise ModelInputError(
+                "A qualified signal requires at least one explicit trigger."
+            )
+
+        if self.epistemic_status in {
+            EpistemicType.PREDICTION,
+            EpistemicType.SCENARIO,
+        } and not self.requires_adversarial_validation:
+            raise ModelEpistemicError(
+                "Predictions and scenarios cannot bypass adversarial validation."
+            )
+
+
+def build_system_pressure_state(
+    *,
+    demand: float,
+    capacity: float,
+    adaptive_reserve: float,
+    sensitivity: float,
+    coupling: float,
+    propagation: float,
+    social_tension: float,
+    information_pressure: float,
+    recovery_capacity: float,
+) -> SystemPressureState:
+    """
+    Construct the multidimensional pressure state.
+
+    No universal weighting is introduced here.
+    """
+
+    return SystemPressureState(
+        demand=_nonnegative(demand, "demand"),
+        capacity=_nonnegative(capacity, "capacity"),
+        adaptive_reserve=_nonnegative(
+            adaptive_reserve,
+            "adaptive_reserve",
+        ),
+        sensitivity=_nonnegative(
+            sensitivity,
+            "sensitivity",
+        ),
+        coupling=_nonnegative(
+            coupling,
+            "coupling",
+        ),
+        propagation=_nonnegative(
+            propagation,
+            "propagation",
+        ),
+        social_tension=_nonnegative(
+            social_tension,
+            "social_tension",
+        ),
+        information_pressure=_nonnegative(
+            information_pressure,
+            "information_pressure",
+        ),
+        recovery_capacity=_nonnegative(
+            recovery_capacity,
+            "recovery_capacity",
+        ),
+    )
+
+
+def detect_dynamic_pressure(
+    pressure: SystemPressureState,
+    *,
+    demand_capacity_threshold: float = 1.0,
+    reserve_threshold: float = 0.25,
+    sensitivity_threshold: float = 1.0,
+    propagation_threshold: float = 1.0,
+    social_tension_threshold: float = 1.0,
+) -> tuple[str, ...]:
+    """
+    Detect structural pressure conditions.
+
+    The function produces interpretable triggers rather than a single
+    opaque score.
+    """
+
+    _positive(
+        demand_capacity_threshold,
+        "demand_capacity_threshold",
+    )
+    _nonnegative(
+        reserve_threshold,
+        "reserve_threshold",
+    )
+    _positive(
+        sensitivity_threshold,
+        "sensitivity_threshold",
+    )
+    _positive(
+        propagation_threshold,
+        "propagation_threshold",
+    )
+    _positive(
+        social_tension_threshold,
+        "social_tension_threshold",
+    )
+
+    triggers: list[str] = []
+
+    if pressure.demand_capacity_ratio >= demand_capacity_threshold:
+        triggers.append("CAPACITY_PRESSURE")
+
+    if pressure.reserve_fraction <= reserve_threshold:
+        triggers.append("LOW_ADAPTIVE_RESERVE")
+
+    if pressure.sensitivity >= sensitivity_threshold:
+        triggers.append("HIGH_RESPONSE_SENSITIVITY")
+
+    if pressure.propagation >= propagation_threshold:
+        triggers.append("HIGH_PROPAGATION_STRUCTURE")
+
+    if pressure.social_tension >= social_tension_threshold:
+        triggers.append("ELEVATED_SOCIAL_TENSION_SIGNAL")
+
+    if pressure.information_pressure > 0:
+        triggers.append("INFORMATION_SYSTEM_PRESSURE")
+
+    return tuple(triggers)
+
+
+def build_dynamic_risk_signal(
+    *,
+    signal_id: str,
+    timestamp: datetime,
+    scope: ModelScope,
+    pressure: SystemPressureState,
+    additional_dimensions: Mapping[str, float] | None = None,
+) -> DynamicRiskSignal | None:
+    """
+    Convert structural pressure into a qualified analytical signal.
+
+    No signal is emitted when no explicit structural trigger exists.
+    """
+
+    triggers = detect_dynamic_pressure(pressure)
+
+    if not triggers:
+        return None
+
+    dimensions: dict[str, float] = {
+        "demand_capacity_ratio": pressure.demand_capacity_ratio,
+        "reserve_fraction": pressure.reserve_fraction,
+        "sensitivity": pressure.sensitivity,
+        "coupling": pressure.coupling,
+        "propagation": pressure.propagation,
+        "social_tension": pressure.social_tension,
+        "information_pressure": pressure.information_pressure,
+        "recovery_capacity": pressure.recovery_capacity,
+        "systemic_susceptibility": pressure.systemic_susceptibility,
+    }
+
+    if additional_dimensions:
+        for name, value in additional_dimensions.items():
+            dimensions[name] = _finite(
+                value,
+                f"additional_dimensions[{name!r}]",
+            )
+
+    return DynamicRiskSignal(
+        signal_id=signal_id,
+        timestamp=timestamp,
+        scope=scope,
+        dimensions=dimensions,
+        triggers=triggers,
+        uncertainty={},
+    )
+
+
+# Extend the public API without replacing the previous exports.
+__all__.extend(
+    [
+        "TerritorialState",
+        "TerritorialTransition",
+        "CoupledSystemState",
+        "SystemPressureState",
+        "CascadeState",
+        "SocialTensionState",
+        "ResilienceState",
+        "DynamicRiskSignal",
+        "build_system_pressure_state",
+        "detect_dynamic_pressure",
+        "build_dynamic_risk_signal",
+    ]
+)
 """
 CeutIA — Dynamic Systems Model Layer.
 

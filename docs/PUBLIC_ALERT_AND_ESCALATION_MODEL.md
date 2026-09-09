@@ -1,10 +1,3 @@
-Sí. Lo haría como un documento nuclear de la arquitectura PUBLIC, no como un simple protocolo de alertas. Tiene que unir inteligencia epidemiológica, sistemas dinámicos, epistemología, detección temprana, apoyo sanitario/psicosocial, gestión de información, evaluación de riesgo y supervisión humana.
-
-He incorporado evidencia de OMS/EWAR, NIST AI RMF, normativa europea de IA, literatura sobre transiciones críticas, carga alostática, sueño, migración y salud, evaluación del riesgo de violencia, comunicación de riesgos e infodemia. Por ejemplo, la OMS estructura EWAR precisamente alrededor de la detección temprana, evaluación y respuesta; NIST exige validez, seguridad, explicabilidad, privacidad, trazabilidad y gestión del sesgo; y el AI Act europeo establece límites especialmente relevantes para sistemas que pretendan inferir riesgo criminal de personas. 
-
-El archivo quedaría así:
-
-docs/PUBLIC_ALERT_AND_ESCALATION_MODEL.md
 
 # CeutIA — PUBLIC ALERT AND ESCALATION MODEL
 ## Modelo de detección, evaluación, alerta, intervención preventiva y escalamiento humano
@@ -3480,6 +3473,3 @@ No convertir una persona en un perfil.
 No convertir una alerta en una decisión automática.
 
 Y no esperar a que el sistema colapse para empezar a observarlo.
-
-Este documento ya deja fijado algo importante que antes estaba disperso: **CeutIA puede detectar señales que tengan relevancia para seguridad sin convertirse en una herramienta de perfilado criminal**. La diferencia está en que detecta eventos, patrones observables y trayectorias, conserva la incertidumbre y entrega una alerta explicable a una persona que decide qué hacer. Esto es además coherente con las restricciones actuales del AI Act y con los principios de supervisión humana y trazabilidad del NIST. [oai_citation:1‡EUR-Lex](https://eur-lex.europa.eu/eli/reg/2024/1689/2026-07-27/eng?utm_source=chatgpt.com)
-También he integrado la parte sanitaria como realmente la habías definido: **interacción adaptativa de prevención y apoyo**, no un cuestionario de 30 enfermedades ni un sistema diagnóstico automático. Y he hecho que la salud individual pueda alimentar inteligencia poblacional solamente mediante una capa explícita de agregación y protección de privacidad. La evidencia sobre carga alostática, sueño y estrés respalda que esas variables tengan un lugar dentro del modelo dinámico, pero no que se utilicen como diagnósticos individuales automáticos. [oai_citation:2‡pubmed.ncbi.nlm.nih.gov](https://pubmed.ncbi.nlm.nih.gov/32799204/?utm_source=chatgpt.com)

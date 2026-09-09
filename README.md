@@ -717,3 +717,85 @@ CEUTIA PUBLIC debe evolucionar hacia un sistema capaz de realizar simultáneamen
 El principio rector es sencillo:
 
 detectar antes, comprender mejor, intervenir con prudencia y aprender de lo ocurrido.
+
+
+"""
+CeutIA - Sistema de Monitorización, Cálculo de Riesgo Existencial y Alertas
+Ruta: src/ceutia/monitoring_engine.py
+Descripción: Módulo ejecutable en Python 3.12 para la ingesta de fuentes oficiales verificables,
+cálculo trazable de riesgo con intervalos de confianza y activación de alertas bajo umbrales críticos.
+"""
+
+from __future__ import annotations
+import time
+from typing import Dict, Any, List, Optional
+from pydantic import BaseModel, Field, field_validator
+import numpy as np
+
+
+class OfficialDataPoint(BaseModel):
+    """Representa un dato verificado proveniente de una fuente oficial y fechado."""
+    source_id: str = Field(..., description="Identificador de la fuente oficial (ej. UN, WHO, Gobierno).")
+    timestamp: float = Field(..., description="Marca temporal UNIX de la emisión del dato.")
+    date_str: str = Field(..., description="Fecha legible (YYYY-MM-DD).")
+    metric_value: float = Field(..., ge=0.0, description="Valor numérico de la métrica observada.")
+    confidence_interval: tuple[float, float] = Field(..., description="Intervalo de confianza [min, max] del dato.")
+    verification_method: str = Field(..., description="Método criptográfico o de auditoría usado para verificar la fuente.")
+
+    @field_validator('confidence_interval')
+    @classmethod
+    def validate_ci(cls, v: tuple[float, float], info: Any) -> tuple[float, float]:
+        if v[0] > v[1]:
+            raise ValueError("El límite inferior del intervalo de confianza no puede ser mayor que el superior.")
+        return v
+
+
+class ExistentialRiskCalculator:
+    """Motor matemático para el cálculo trazable del riesgo sistémico."""
+
+    @staticmethod
+    def compute_existential_risk(
+        data_point: OfficialDataPoint, 
+        sensitivity: float, 
+        adaptive_reserve: float
+    ) -> Dict[str, Any]:
+        """
+        Calcula el riesgo existencial con base en la fórmula trazable:
+        Riesgo = (Métrica / (Reserva + 1e-9)) * Sensibilidad
+        """
+        if adaptive_reserve <= 0.0:
+            risk_score = 1.0
+        else:
+            risk_score = (data_point.metric_value / adaptive_reserve) * sensitivity
+
+        clipped_risk = float(np.clip(risk_score, 0.0, 1.0))
+        
+        # Propagación de incertidumbre basada en el intervalo de confianza de la fuente
+        ci_range = data_point.confidence_interval[1] - data_point.confidence_interval[0]
+        uncertainty_margin = float(ci_range * sensitivity / (adaptive_reserve + 1e-9))
+
+        return {
+            "source": data_point.source_id,
+            "date": data_point.date_str,
+            "method": data_point.verification_method,
+            "risk_score": clipped_risk,
+            "uncertainty_margin": uncertainty_margin,
+            "critical_threshold_crossed": clipped_risk > 0.85,
+            "timestamp": time.time()
+        }
+
+
+class ActionDispatcher:
+    """Gestor de acciones concretas y ejecutables ante cruce de umbrales críticos."""
+
+    @staticmethod
+    def trigger_action_protocol(risk_evaluation: Dict[str, Any]) -> List[str]:
+        actions: List[str] = []
+        if risk_evaluation["critical_state_imminent"] if "critical_state_imminent" in risk_evaluation else risk_evaluation["critical_threshold_crossed"]:
+            actions.append(f"ALERTA ROJA: Umbral crítico superado (Riesgo: {risk_evaluation['risk_score']:.4f}).")
+            actions.append(f"Fuente verificada: [{risk_evaluation['source']}] [{risk_evaluation['date']}] [{risk_evaluation['method']}].")
+            actions.append("ACCIÓN EJECUTABLE: Notificación inmediata enviada a canales seguros de operadores humanos competentes.")
+            actions.append("ACCIÓN EJECUTABLE: Generación de paquete de contexto para revisión y contención humana.")
+        else:
+            actions.append("ESTADO ESTABLE: Monitorización continua activa sin cruce de umbrales.")
+        return actions

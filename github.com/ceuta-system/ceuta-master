@@ -1,0 +1,142 @@
+#!/usr/bin/env python3
+"""
+CEUTA MASTER CODE - VERSIÓN FINAL
+Fórmula + Código + Ejecución Inmediata
+Sin excusas. Sin límites.
+"""
+
+import numpy as np
+import json
+import hashlib
+from datetime import datetime
+
+# PESOS PÚBLICOS (auditables)
+W = {
+    'capability_growth': 0.25,
+    'incident_count': 0.20,
+    'governance_gap': 0.20,
+    'awareness_level': -0.15,
+    'international_cooperation': -0.20
+}
+
+# UMBRALES
+THRESHOLDS = {'green': 0.4, 'yellow': 0.6, 'orange': 0.75}
+
+def sigmoid(x):
+    return 1.0 / (1.0 + np.exp(-x))
+
+def calculate():
+    # DATOS ACTUALES (ejemplo - reemplazar con APIs reales)
+    X = {
+        'capability_growth': 0.65,
+        'incident_count': 0.45,
+        'governance_gap': 0.70,
+        'awareness_level': 0.35,
+        'international_cooperation': 0.40
+    }
+    
+    # FÓRMULA MAESTRA
+    raw = sum(W[k] * X[k] for k in W)
+    R = sigmoid(raw)
+    
+    # INCERTIDUMBRE
+    n = len(X)
+    se = np.sqrt(R * (1-R) / n) if n >= 2 else 0.5
+    ci = [max(0, R - 1.96*se), min(1, R + 1.96*se)]
+    
+    # ALERTA
+    level = 'GREEN' if R < THRESHOLDS['green'] else \
+            'YELLOW' if R < THRESHOLDS['yellow'] else \
+            'ORANGE' if R < THRESHOLDS['orange'] else 'RED'
+    
+    # AUDITORÍA
+    audit_hash = hashlib.sha256(f"{R}{ci}{json.dumps(X)}".encode()).hexdigest()[:16]
+    
+    return {
+        'risk': round(R, 4),
+        'ci_95': [round(ci[0], 4), round(ci[1], 4)],
+        'level': level,
+        'components': X,
+        'audit_hash': audit_hash,
+        'timestamp': datetime.utcnow().isoformat() + 'Z'
+    }
+
+if __name__ == '__main__':
+    result = calculate()
+    print(json.dumps(result, indent=2))
+    
+    # GUARDAR
+    with open(f"ceuta_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.json", 'w') as f:
+        json.dump(result, f, indent=2)
+    
+    print(f"\n✅ Riesgo: {result['risk']:.4f} ({result['level']})")
+    print(f"📊 IC 95%: {result['ci_95']}")
+    print(f"🔐 Audit: {result['audit_hash']}")
+
+
+
+"""
+CeutIA - Motor de Cálculo de Riesgo y Protección de Derechos Humanos
+Ruta: src/ceutia/nobel_winning_engine.py
+"""
+
+from __future__ import annotations
+import time
+from typing import Dict, Any, Tuple
+from pydantic import BaseModel, Field, field_validator
+import numpy as np
+
+
+class HumanRightsProtectedDataPoint(BaseModel):
+    """Representa un dato oficial verificado bajo estrictas garantías de derechos humanos[span_8](start_span)[span_8](end_span)[span_9](start_span)[span_9](end_span)."""
+    source_id: str = Field(..., description="Identificador de la fuente oficial verificable[span_10](start_span)[span_10](end_span)[span_11](start_span)[span_11](end_span).")
+    timestamp: float = Field(..., description="Marca temporal UNIX de la observación.")
+    date_str: str = Field(..., description="Fecha de emisión (YYYY-MM-DD).")
+    metric_value: float = Field(..., ge=0.0, description="Valor numérico de la métrica sistémica.")
+    confidence_interval: Tuple[float, float] = Field(..., description="Intervalo de confianza [min, max] obligatorio[span_12](start_span)[span_12](end_span)[span_13](start_span)[span_13](end_span).")
+    verification_method: str = Field(..., description="Método de auditoría o verificación criptográfica[span_14](start_span)[span_14](end_span)[span_15](start_span)[span_15](end_span).")
+
+    @field_validator('confidence_interval')
+    @classmethod
+    def validate_confidence_interval(cls, v: Tuple[float, float]) -> Tuple[float, float]:
+        if v[0] > v[1]:
+            raise ValueError("El límite inferior no puede superar al superior.")
+        return v
+
+
+class UniversalHumanitarianRiskCalculator:
+    """Motor matemático trazable para la detección temprana y prevención de crisis[span_16](start_span)[span_16](end_span)[span_17](start_span)[span_17](end_span)."""
+
+    @staticmethod
+    def evaluate_existential_and_human_risk(
+        data: HumanRightsProtectedDataPoint,
+        sensitivity: float,
+        adaptive_reserve: float
+    ) -> Dict[str, Any]:
+        """
+        Calcula el riesgo sistémico de forma trazable sin violar la privacidad individual
+        ni realizar inferencias identitarias o discriminatorias[span_18](start_span)[span_18](end_span)[span_19](start_span)[span_19](end_span).
+        """
+        if adaptive_reserve <= 0.0:
+            risk_score = 1.0
+        else:
+            risk_score = (data.metric_value / adaptive_reserve) * sensitivity
+
+        clipped_risk = float(np.clip(risk_score, 0.0, 1.0))
+        ci_range = data.confidence_interval[1] - data.confidence_interval[0]
+        uncertainty_margin = float(ci_range * sensitivity / (adaptive_reserve + 1e-9))
+
+        critical_threshold = 0.85
+        is_critical = clipped_risk > critical_threshold
+
+        return {
+            "source": data.source_id,
+            "date": data.date_str,
+            "method": data.verification_method,
+            "risk_score": clipped_risk,
+            "uncertainty_margin": uncertainty_margin,
+            "critical_threshold_crossed": is_critical,
+            "human_oversight_required": True,
+            "coercive_action_allowed": False,  # Restricción inviolable de derechos
+            "timestamp": time.time()
+        }

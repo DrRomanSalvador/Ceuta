@@ -1,4 +1,175 @@
-"""
+class DiscourseMode(str, Enum):
+    FACTUAL = "FACTUAL"
+    CAUTIOUS = "CAUTIOUS"
+    CONTRADICTORY = "CONTRADICTORY"
+    SIGNAL = "SIGNAL"
+    HYPOTHESIS = "HYPOTHESIS"
+    PREDICTIVE = "PREDICTIVE"
+    SCENARIO = "SCENARIO"
+    UNKNOWN = "UNKNOWN"
+
+
+@dataclass(frozen=True, slots=True)
+class DiscoursePolicy:
+    mode: DiscourseMode
+
+    state_as_fact_allowed: bool
+    inference_allowed: bool
+    hypothesis_allowed: bool
+    prediction_allowed: bool
+    probability_allowed: bool
+
+    must_show_uncertainty: bool
+    must_show_sources: bool
+    must_show_contradictions: bool
+
+    prohibited_phrases: tuple[str, ...]
+
+
+def build_discourse_policy(
+    claim: EpistemicClaim,
+    *,
+    probability_calibrated: bool = False,
+) -> DiscoursePolicy:
+
+    level = claim.level
+
+    if level == ClaimEpistemicLevel.CORROBORATED_FACT:
+        return DiscoursePolicy(
+            mode=DiscourseMode.FACTUAL,
+            state_as_fact_allowed=True,
+            inference_allowed=True,
+            hypothesis_allowed=True,
+            prediction_allowed=False,
+            probability_allowed=False,
+            must_show_uncertainty=False,
+            must_show_sources=True,
+            must_show_contradictions=False,
+            prohibited_phrases=(
+                "demuestra causalidad",
+                "sin ninguna duda",
+            ),
+        )
+
+    if level == ClaimEpistemicLevel.VERIFIED_FACT:
+        return DiscoursePolicy(
+            mode=DiscourseMode.CAUTIOUS,
+            state_as_fact_allowed=True,
+            inference_allowed=True,
+            hypothesis_allowed=True,
+            prediction_allowed=False,
+            probability_allowed=False,
+            must_show_uncertainty=True,
+            must_show_sources=True,
+            must_show_contradictions=False,
+            prohibited_phrases=(
+                "demuestra causalidad",
+                "es seguro",
+            ),
+        )
+
+    if level == ClaimEpistemicLevel.CONTRADICTORY:
+        return DiscoursePolicy(
+            mode=DiscourseMode.CONTRADICTORY,
+            state_as_fact_allowed=False,
+            inference_allowed=False,
+            hypothesis_allowed=True,
+            prediction_allowed=False,
+            probability_allowed=False,
+            must_show_uncertainty=True,
+            must_show_sources=True,
+            must_show_contradictions=True,
+            prohibited_phrases=(
+                "está demostrado",
+                "es indiscutible",
+            ),
+        )
+
+    if level == ClaimEpistemicLevel.SIGNAL:
+        return DiscoursePolicy(
+            mode=DiscourseMode.SIGNAL,
+            state_as_fact_allowed=False,
+            inference_allowed=False,
+            hypothesis_allowed=True,
+            prediction_allowed=False,
+            probability_allowed=False,
+            must_show_uncertainty=True,
+            must_show_sources=True,
+            must_show_contradictions=True,
+            prohibited_phrases=(
+                "es un hecho",
+                "está confirmado",
+                "demuestra",
+            ),
+        )
+
+    if level == ClaimEpistemicLevel.HYPOTHESIS:
+        return DiscoursePolicy(
+            mode=DiscourseMode.HYPOTHESIS,
+            state_as_fact_allowed=False,
+            inference_allowed=True,
+            hypothesis_allowed=True,
+            prediction_allowed=False,
+            probability_allowed=False,
+            must_show_uncertainty=True,
+            must_show_sources=True,
+            must_show_contradictions=True,
+            prohibited_phrases=(
+                "es cierto",
+                "está demostrado",
+            ),
+        )
+
+    if level == ClaimEpistemicLevel.PREDICTION:
+        return DiscoursePolicy(
+            mode=DiscourseMode.PREDICTIVE,
+            state_as_fact_allowed=False,
+            inference_allowed=True,
+            hypothesis_allowed=True,
+            prediction_allowed=True,
+            probability_allowed=probability_calibrated,
+            must_show_uncertainty=True,
+            must_show_sources=True,
+            must_show_contradictions=True,
+            prohibited_phrases=(
+                "va a ocurrir",
+                "ocurrirá con certeza",
+            ),
+        )
+
+    if level == ClaimEpistemicLevel.SCENARIO:
+        return DiscoursePolicy(
+            mode=DiscourseMode.SCENARIO,
+            state_as_fact_allowed=False,
+            inference_allowed=True,
+            hypothesis_allowed=True,
+            prediction_allowed=False,
+            probability_allowed=False,
+            must_show_uncertainty=True,
+            must_show_sources=True,
+            must_show_contradictions=True,
+            prohibited_phrases=(
+                "va a suceder",
+                "sucederá",
+            ),
+        )
+
+    return DiscoursePolicy(
+        mode=DiscourseMode.UNKNOWN,
+        state_as_fact_allowed=False,
+        inference_allowed=False,
+        hypothesis_allowed=False,
+        prediction_allowed=False,
+        probability_allowed=False,
+        must_show_uncertainty=True,
+        must_show_sources=True,
+        must_show_contradictions=True,
+        prohibited_phrases=(
+            "es un hecho",
+            "está confirmado",
+            "probabilidad",
+        ),
+    )"""
 CEUTIA PUBLIC — Epistemic Validation Engine.
 
 Deterministic validation primitives for protecting the epistemic integrity

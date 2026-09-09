@@ -1,3 +1,318 @@
+Para hacerlo realmente sólido, no lo resolvería con una sola función de “informe de riesgos”. Lo convertiría en una propiedad estructural de CeutIA: ningún resultado puede saltarse la cadena epistemológica ni la separación PUBLIC/PRIVATE.
+
+La arquitectura perfecta, dentro de lo técnicamente razonable, sería esta:
+
+                         CEUTIA
+                           │
+                 ┌─────────▼─────────┐
+                 │  INGESTA DE DATOS │
+                 │ procedencia       │
+                 │ fecha/hora        │
+                 │ granularidad      │
+                 │ calidad           │
+                 └─────────┬─────────┘
+                           │
+                           ▼
+                 ┌───────────────────┐
+                 │ EPISTEMOLOGÍA     │
+                 │                   │
+                 │ afirmaciones      │
+                 │ evidencia         │
+                 │ independencia     │
+                 │ corroboración     │
+                 │ contradicciones   │
+                 │ incertidumbre     │
+                 └─────────┬─────────┘
+                           │
+                           ▼
+                 ┌───────────────────┐
+                 │ MÉTRICAS          │
+                 │                   │
+                 │ estado            │
+                 │ trayectoria        │
+                 │ velocidad         │
+                 │ aceleración        │
+                 │ reserva            │
+                 │ capacidad         │
+                 │ concentración      │
+                 │ acoplamiento       │
+                 │ propagación        │
+                 │ umbrales           │
+                 └─────────┬─────────┘
+                           │
+                           ▼
+                 ┌───────────────────┐
+                 │ MODELOS            │
+                 │                   │
+                 │ temporales         │
+                 │ espaciales         │
+                 │ epidemiológicos    │
+                 │ redes              │
+                 │ colas              │
+                 │ dinámica sistemas  │
+                 │ causales           │
+                 │ escenarios         │
+                 └─────────┬─────────┘
+                           │
+                           ▼
+              ┌──────────────────────────┐
+              │ HIPÓTESIS COMPETIDORAS   │
+              │                          │
+              │ H1 ─┐                    │
+              │ H2 ─┼─► evidencia        │
+              │ H3 ─┘    contraevidencia │
+              │          falsación       │
+              └────────────┬─────────────┘
+                           │
+                           ▼
+                 ┌───────────────────┐
+                 │ ADVERSARIAL /     │
+                 │ RED TEAM          │
+                 │                   │
+                 │ leakage           │
+                 │ sesgos            │
+                 │ dependencia       │
+                 │ sensibilidad      │
+                 │ robustez          │
+                 │ escenarios límite │
+                 │ feedback          │
+                 │ causalidad        │
+                 └─────────┬─────────┘
+                           │
+                           ▼
+                 ┌───────────────────┐
+                 │ RISK ENGINE       │
+                 │                   │
+                 │ vulnerabilidad    │
+                 │ exposición        │
+                 │ presión           │
+                 │ capacidad         │
+                 │ sensibilidad      │
+                 │ propagación       │
+                 │ reversibilidad    │
+                 │ incertidumbre     │
+                 └─────────┬─────────┘
+                           │
+                           ▼
+                 ┌───────────────────┐
+                 │ RISK REPORT       │
+                 │                   │
+                 │ evidencia         │
+                 │ riesgos           │
+                 │ escenarios        │
+                 │ contradicciones   │
+                 │ incertidumbre     │
+                 │ falsaciones       │
+                 │ limitaciones      │
+                 │ evolución         │
+                 └─────────┬─────────┘
+                           │
+                    ╔══════▼══════╗
+                    ║   PRIVATE   ║
+                    ║    OWNER    ║
+                    ╚═════════════╝
+
+Hay seis reglas que yo convertiría en invariantes de código.
+
+1. Ningún riesgo sin procedencia.
+
+Cada riesgo tiene que poder responder:
+
+¿Qué dato lo originó?
+¿Qué fuentes lo sustentan?
+¿Son independientes?
+¿Cuándo fueron observadas?
+¿En qué territorio?
+¿Qué transformación matemática se hizo?
+¿Qué modelo intervino?
+¿Qué supuestos utiliza?
+¿Qué incertidumbre tiene?
+
+Si no puede reconstruirse esa cadena, el riesgo no puede promocionarse a riesgo operativo.
+
+2. Ningún número se convierte automáticamente en riesgo.
+
+Por ejemplo:
+
+aumento de incidentes
+        ↓
+métrica
+        ↓
+anomalía
+        ↓
+hipótesis
+        ↓
+validación
+        ↓
+riesgo potencial
+
+Nunca:
+
+dato → "riesgo alto"
+
+Esto es especialmente importante para variables como migración, violencia, hostilidad o tensión social.
+
+3. Las contradicciones se conservan.
+
+CeutIA debería tener explícitamente algo equivalente a:
+
+ContradictionRecord
+
+con:
+
+claim_a
+claim_b
+source_a
+source_b
+independence
+temporal_scope
+spatial_scope
+severity
+resolution_status
+possible_explanations
+uncertainty
+
+Y una contradicción no resuelta debería aparecer en el informe PRIVATE.
+
+4. Ninguna hipótesis gana simplemente porque haya más fuentes.
+
+Cinco medios que reproducen la misma agencia no son cinco evidencias independientes.
+
+La confianza debería depender, entre otras cosas, de:
+
+calidad
+× independencia
+× corroboración
+× validez temporal
+× validez espacial
+× consistencia
+× validación
+× calibración
+
+y penalizar:
+
+dependencia
+contradicción
+missingness
+drift
+incertidumbre
+sesgo
+
+5. El sistema tiene que intentar destruir sus propias conclusiones.
+
+Para cada riesgo relevante:
+
+RIESGO
+  ↓
+¿qué tendría que ser falso para que desaparezca?
+  ↓
+pruebas de refutación
+  ↓
+sensibilidad
+  ↓
+modelos alternativos
+  ↓
+hipótesis competidoras
+  ↓
+escenarios extremos
+  ↓
+resultado
+
+Y aquí conservaría una regla que ya definimos:
+
+Que una conclusión sobreviva a una prueba de refutación no demuestra que sea verdadera; sólo indica que esa prueba concreta no logró refutarla.
+
+6. PRIVATE no debe ser simplemente una copia de PUBLIC.
+
+Debe existir una barrera real:
+
+                    ┌──────────────┐
+                    │   INTERNAL   │
+                    └──────┬───────┘
+                           │
+                     evaluación
+                           │
+                    ┌──────▼───────┐
+                    │   PRIVATE    │
+                    │     OWNER     │
+                    └──────┬───────┘
+                           │
+                  transformación
+                  + autorización
+                           │
+                    ┌──────▼───────┐
+                    │    PUBLIC    │
+                    └──────────────┘
+
+No:
+
+database → LLM → PUBLIC
+
+porque eso permitiría que un modelo reconstruyera información que la arquitectura pretendía ocultar.
+
+Y añadiría una propiedad especialmente importante:
+
+PRIVATE debe ser capaz de decir “no sabemos”.
+
+El informe debería distinguir como mínimo:
+
+OBSERVADO
+CALCULADO
+INFERIDO
+HIPÓTESIS
+PREDICCIÓN
+ESCENARIO
+CONTRADICCIÓN
+NO DETERMINABLE
+
+Nunca mezclar esas categorías.
+
+Finalmente, para la teoría que estás construyendo, el informe de riesgos no debería limitarse a una lista de amenazas. Debería describir el estado dinámico del sistema:
+
+ESTADO
+↓
+TRAYECTORIA
+↓
+VELOCIDAD
+↓
+ACELERACIÓN
+↓
+CARGA
+↓
+RESERVA ADAPTATIVA
+↓
+CAPACIDAD
+↓
+ACOPLAMIENTO
+↓
+SENSIBILIDAD
+↓
+PROPAGACIÓN
+↓
+UMBRAL
+↓
+RECUPERACIÓN
+↓
+ESCENARIOS
+
+Eso es mucho más potente que un dashboard de “riesgo bajo/medio/alto”.
+
+Y hay una última salvaguarda que considero imprescindible: el riesgo no debe depender de una única fórmula de CeutIA. Cuando una conclusión importante dependa demasiado de un parámetro, denominador, ventana temporal, fuente, modelo o umbral, el propio sistema debe marcar esa dependencia como fragilidad epistemológica.
+
+Así CeutIA no sería simplemente un sistema que calcula riesgos.
+
+Sería un sistema que intenta responder simultáneamente:
+
+Qué está ocurriendo.
+Cómo está cambiando.
+Por qué podría estar cambiando.
+Qué podría ocurrir después.
+Qué otras explicaciones compiten.
+Cuánto sabemos realmente.
+Qué podría hacer que estuviéramos equivocados.
+Y qué riesgos emergen si la trayectoria continúa.
+
+Eso es lo que yo convertiría ahora en la especificación técnica del Risk & Epistemic Reporting Layer, antes de seguir añadiendo fórmulas aisladas a metrics.py.
 # ============================================================
 # CeutIA — Dynamic Systems Theory Core
 # Additive block for backend/app/core/metrics.py

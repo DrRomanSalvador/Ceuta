@@ -1,0 +1,2330 @@
+[
+  {
+    "symbol": "MetricDefinition",
+    "count": 3,
+    "locations": [
+      {
+        "line": 46,
+        "kind": "class"
+      },
+      {
+        "line": 12767,
+        "kind": "class"
+      },
+      {
+        "line": 14839,
+        "kind": "class"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "cascade_amplification",
+    "count": 3,
+    "locations": [
+      {
+        "line": 1062,
+        "kind": "def"
+      },
+      {
+        "line": 10112,
+        "kind": "def"
+      },
+      {
+        "line": 12151,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "coupling_strength",
+    "count": 3,
+    "locations": [
+      {
+        "line": 908,
+        "kind": "def"
+      },
+      {
+        "line": 5217,
+        "kind": "def"
+      },
+      {
+        "line": 10015,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "effective_capacity",
+    "count": 3,
+    "locations": [
+      {
+        "line": 6607,
+        "kind": "def"
+      },
+      {
+        "line": 10054,
+        "kind": "def"
+      },
+      {
+        "line": 12067,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "prevalence",
+    "count": 3,
+    "locations": [
+      {
+        "line": 5979,
+        "kind": "def"
+      },
+      {
+        "line": 10934,
+        "kind": "def"
+      },
+      {
+        "line": 13417,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "recovery_fraction",
+    "count": 3,
+    "locations": [
+      {
+        "line": 1490,
+        "kind": "def"
+      },
+      {
+        "line": 6816,
+        "kind": "def"
+      },
+      {
+        "line": 11664,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "synchronization_index",
+    "count": 3,
+    "locations": [
+      {
+        "line": 5271,
+        "kind": "def"
+      },
+      {
+        "line": 10025,
+        "kind": "def"
+      },
+      {
+        "line": 12027,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "CalibrationBin",
+    "count": 2,
+    "locations": [
+      {
+        "line": 13202,
+        "kind": "class"
+      },
+      {
+        "line": 15192,
+        "kind": "class"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "ConfusionMatrix",
+    "count": 2,
+    "locations": [
+      {
+        "line": 13017,
+        "kind": "class"
+      },
+      {
+        "line": 15005,
+        "kind": "class"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "DynamicStateSummary",
+    "count": 2,
+    "locations": [
+      {
+        "line": 10254,
+        "kind": "class"
+      },
+      {
+        "line": 12352,
+        "kind": "class"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "EarlyWarningSignal",
+    "count": 2,
+    "locations": [
+      {
+        "line": 10228,
+        "kind": "class"
+      },
+      {
+        "line": 12341,
+        "kind": "class"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "EvidenceLevel",
+    "count": 2,
+    "locations": [
+      {
+        "line": 12757,
+        "kind": "class"
+      },
+      {
+        "line": 14822,
+        "kind": "class"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "MetricDomain",
+    "count": 2,
+    "locations": [
+      {
+        "line": 12685,
+        "kind": "class"
+      },
+      {
+        "line": 14746,
+        "kind": "class"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "MetricError",
+    "count": 2,
+    "locations": [
+      {
+        "line": 12794,
+        "kind": "class"
+      },
+      {
+        "line": 14882,
+        "kind": "class"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "MetricInputError",
+    "count": 2,
+    "locations": [
+      {
+        "line": 12798,
+        "kind": "class"
+      },
+      {
+        "line": 14886,
+        "kind": "class"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "MetricKind",
+    "count": 2,
+    "locations": [
+      {
+        "line": 12745,
+        "kind": "class"
+      },
+      {
+        "line": 14811,
+        "kind": "class"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "MetricNotPermittedError",
+    "count": 2,
+    "locations": [
+      {
+        "line": 12806,
+        "kind": "class"
+      },
+      {
+        "line": 14894,
+        "kind": "class"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "MetricNotValidatedError",
+    "count": 2,
+    "locations": [
+      {
+        "line": 12802,
+        "kind": "class"
+      },
+      {
+        "line": 14890,
+        "kind": "class"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "OutputChannel",
+    "count": 2,
+    "locations": [
+      {
+        "line": 12739,
+        "kind": "class"
+      },
+      {
+        "line": 14799,
+        "kind": "class"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "ValidationStatus",
+    "count": 2,
+    "locations": [
+      {
+        "line": 12729,
+        "kind": "class"
+      },
+      {
+        "line": 14787,
+        "kind": "class"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "_as_float_array",
+    "count": 2,
+    "locations": [
+      {
+        "line": 12815,
+        "kind": "def"
+      },
+      {
+        "line": 14914,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "_validate_nonnegative_scalar",
+    "count": 2,
+    "locations": [
+      {
+        "line": 93,
+        "kind": "def"
+      },
+      {
+        "line": 6438,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "_validate_positive_scalar",
+    "count": 2,
+    "locations": [
+      {
+        "line": 84,
+        "kind": "def"
+      },
+      {
+        "line": 6430,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "_validate_probabilities",
+    "count": 2,
+    "locations": [
+      {
+        "line": 12832,
+        "kind": "def"
+      },
+      {
+        "line": 15125,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "_validate_same_length",
+    "count": 2,
+    "locations": [
+      {
+        "line": 102,
+        "kind": "def"
+      },
+      {
+        "line": 12826,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "accumulated_load",
+    "count": 2,
+    "locations": [
+      {
+        "line": 241,
+        "kind": "def"
+      },
+      {
+        "line": 6492,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "accuracy",
+    "count": 2,
+    "locations": [
+      {
+        "line": 13076,
+        "kind": "def"
+      },
+      {
+        "line": 15071,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "adaptive_reserve",
+    "count": 2,
+    "locations": [
+      {
+        "line": 293,
+        "kind": "def"
+      },
+      {
+        "line": 6680,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "amplification_gain",
+    "count": 2,
+    "locations": [
+      {
+        "line": 5469,
+        "kind": "def"
+      },
+      {
+        "line": 10102,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "assert_metric_executable",
+    "count": 2,
+    "locations": [
+      {
+        "line": 14408,
+        "kind": "def"
+      },
+      {
+        "line": 15756,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "assert_output_permitted",
+    "count": 2,
+    "locations": [
+      {
+        "line": 14422,
+        "kind": "def"
+      },
+      {
+        "line": 15777,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "attack_rate",
+    "count": 2,
+    "locations": [
+      {
+        "line": 10959,
+        "kind": "def"
+      },
+      {
+        "line": 13423,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "autocorrelation",
+    "count": 2,
+    "locations": [
+      {
+        "line": 10477,
+        "kind": "def"
+      },
+      {
+        "line": 12997,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "balanced_accuracy",
+    "count": 2,
+    "locations": [
+      {
+        "line": 13082,
+        "kind": "def"
+      },
+      {
+        "line": 15085,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "bottleneck_ratio",
+    "count": 2,
+    "locations": [
+      {
+        "line": 10181,
+        "kind": "def"
+      },
+      {
+        "line": 12253,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "brier_score",
+    "count": 2,
+    "locations": [
+      {
+        "line": 13135,
+        "kind": "def"
+      },
+      {
+        "line": 15138,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "calibration_bins",
+    "count": 2,
+    "locations": [
+      {
+        "line": 13210,
+        "kind": "def"
+      },
+      {
+        "line": 15200,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "calibration_slope",
+    "count": 2,
+    "locations": [
+      {
+        "line": 10881,
+        "kind": "def"
+      },
+      {
+        "line": 13269,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "capacity_reserve",
+    "count": 2,
+    "locations": [
+      {
+        "line": 10072,
+        "kind": "def"
+      },
+      {
+        "line": 12097,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "cascade_depth",
+    "count": 2,
+    "locations": [
+      {
+        "line": 1077,
+        "kind": "def"
+      },
+      {
+        "line": 5509,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "coefficient_of_variation",
+    "count": 2,
+    "locations": [
+      {
+        "line": 9797,
+        "kind": "def"
+      },
+      {
+        "line": 12873,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "confusion_matrix_binary",
+    "count": 2,
+    "locations": [
+      {
+        "line": 13033,
+        "kind": "def"
+      },
+      {
+        "line": 15012,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "correlation",
+    "count": 2,
+    "locations": [
+      {
+        "line": 9955,
+        "kind": "def"
+      },
+      {
+        "line": 11924,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "coupling_change",
+    "count": 2,
+    "locations": [
+      {
+        "line": 5227,
+        "kind": "def"
+      },
+      {
+        "line": 12039,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "covariance",
+    "count": 2,
+    "locations": [
+      {
+        "line": 9942,
+        "kind": "def"
+      },
+      {
+        "line": 11909,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "effective_sample_size",
+    "count": 2,
+    "locations": [
+      {
+        "line": 4117,
+        "kind": "def"
+      },
+      {
+        "line": 10455,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "expected_calibration_error",
+    "count": 2,
+    "locations": [
+      {
+        "line": 13240,
+        "kind": "def"
+      },
+      {
+        "line": 15251,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "f1_score",
+    "count": 2,
+    "locations": [
+      {
+        "line": 13086,
+        "kind": "def"
+      },
+      {
+        "line": 15089,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "first_difference",
+    "count": 2,
+    "locations": [
+      {
+        "line": 12942,
+        "kind": "def"
+      },
+      {
+        "line": 15327,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "get_advanced_metric_definition",
+    "count": 2,
+    "locations": [
+      {
+        "line": 10317,
+        "kind": "def"
+      },
+      {
+        "line": 12558,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "get_metric_definition",
+    "count": 2,
+    "locations": [
+      {
+        "line": 14401,
+        "kind": "def"
+      },
+      {
+        "line": 15746,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "gini_coefficient",
+    "count": 2,
+    "locations": [
+      {
+        "line": 5847,
+        "kind": "def"
+      },
+      {
+        "line": 11066,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "growth_rate",
+    "count": 2,
+    "locations": [
+      {
+        "line": 12928,
+        "kind": "def"
+      },
+      {
+        "line": 15308,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "hysteresis_gap",
+    "count": 2,
+    "locations": [
+      {
+        "line": 9926,
+        "kind": "def"
+      },
+      {
+        "line": 11865,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "incidence_rate",
+    "count": 2,
+    "locations": [
+      {
+        "line": 10946,
+        "kind": "def"
+      },
+      {
+        "line": 13411,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "integrated_brier_score",
+    "count": 2,
+    "locations": [
+      {
+        "line": 11372,
+        "kind": "def"
+      },
+      {
+        "line": 13321,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "kurtosis_excess",
+    "count": 2,
+    "locations": [
+      {
+        "line": 9786,
+        "kind": "def"
+      },
+      {
+        "line": 11561,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "lagged_correlation",
+    "count": 2,
+    "locations": [
+      {
+        "line": 9976,
+        "kind": "def"
+      },
+      {
+        "line": 11947,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "log_loss",
+    "count": 2,
+    "locations": [
+      {
+        "line": 13145,
+        "kind": "def"
+      },
+      {
+        "line": 15163,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "mae",
+    "count": 2,
+    "locations": [
+      {
+        "line": 13117,
+        "kind": "def"
+      },
+      {
+        "line": 14952,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "matthews_correlation_coefficient",
+    "count": 2,
+    "locations": [
+      {
+        "line": 13093,
+        "kind": "def"
+      },
+      {
+        "line": 15101,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "median_absolute_deviation",
+    "count": 2,
+    "locations": [
+      {
+        "line": 10376,
+        "kind": "def"
+      },
+      {
+        "line": 12888,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "morans_i",
+    "count": 2,
+    "locations": [
+      {
+        "line": 4241,
+        "kind": "def"
+      },
+      {
+        "line": 10776,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "mse",
+    "count": 2,
+    "locations": [
+      {
+        "line": 13106,
+        "kind": "def"
+      },
+      {
+        "line": 14923,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "negative_predictive_value",
+    "count": 2,
+    "locations": [
+      {
+        "line": 13069,
+        "kind": "def"
+      },
+      {
+        "line": 15062,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "normalized_entropy",
+    "count": 2,
+    "locations": [
+      {
+        "line": 10437,
+        "kind": "def"
+      },
+      {
+        "line": 13561,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "normalized_hhi",
+    "count": 2,
+    "locations": [
+      {
+        "line": 10153,
+        "kind": "def"
+      },
+      {
+        "line": 12223,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "odds_ratio",
+    "count": 2,
+    "locations": [
+      {
+        "line": 11027,
+        "kind": "def"
+      },
+      {
+        "line": 13398,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "positive_predictive_value",
+    "count": 2,
+    "locations": [
+      {
+        "line": 13062,
+        "kind": "def"
+      },
+      {
+        "line": 15053,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "prohibit_unvalidated_risk_probability",
+    "count": 2,
+    "locations": [
+      {
+        "line": 14450,
+        "kind": "def"
+      },
+      {
+        "line": 15847,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "propagation_depth",
+    "count": 2,
+    "locations": [
+      {
+        "line": 10122,
+        "kind": "def"
+      },
+      {
+        "line": 12180,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "propagation_ratio",
+    "count": 2,
+    "locations": [
+      {
+        "line": 1024,
+        "kind": "def"
+      },
+      {
+        "line": 5446,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "quantile",
+    "count": 2,
+    "locations": [
+      {
+        "line": 10396,
+        "kind": "def"
+      },
+      {
+        "line": 12881,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "r_squared",
+    "count": 2,
+    "locations": [
+      {
+        "line": 13124,
+        "kind": "def"
+      },
+      {
+        "line": 14969,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "rate",
+    "count": 2,
+    "locations": [
+      {
+        "line": 12920,
+        "kind": "def"
+      },
+      {
+        "line": 15288,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "recovery_time",
+    "count": 2,
+    "locations": [
+      {
+        "line": 9826,
+        "kind": "def"
+      },
+      {
+        "line": 11633,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "regime_distance",
+    "count": 2,
+    "locations": [
+      {
+        "line": 10191,
+        "kind": "def"
+      },
+      {
+        "line": 12276,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "relative_risk",
+    "count": 2,
+    "locations": [
+      {
+        "line": 11002,
+        "kind": "def"
+      },
+      {
+        "line": 13386,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "require_population_context",
+    "count": 2,
+    "locations": [
+      {
+        "line": 14443,
+        "kind": "def"
+      },
+      {
+        "line": 15817,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "require_validated_metric",
+    "count": 2,
+    "locations": [
+      {
+        "line": 14430,
+        "kind": "def"
+      },
+      {
+        "line": 15801,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "resilience_loss",
+    "count": 2,
+    "locations": [
+      {
+        "line": 10663,
+        "kind": "def"
+      },
+      {
+        "line": 11686,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "rmse",
+    "count": 2,
+    "locations": [
+      {
+        "line": 13113,
+        "kind": "def"
+      },
+      {
+        "line": 14940,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "rolling_autocorrelation",
+    "count": 2,
+    "locations": [
+      {
+        "line": 3219,
+        "kind": "def"
+      },
+      {
+        "line": 13603,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "rolling_variance",
+    "count": 2,
+    "locations": [
+      {
+        "line": 3194,
+        "kind": "def"
+      },
+      {
+        "line": 13596,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "second_difference",
+    "count": 2,
+    "locations": [
+      {
+        "line": 12946,
+        "kind": "def"
+      },
+      {
+        "line": 15339,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "sensitivity",
+    "count": 2,
+    "locations": [
+      {
+        "line": 13048,
+        "kind": "def"
+      },
+      {
+        "line": 15035,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "skewness",
+    "count": 2,
+    "locations": [
+      {
+        "line": 9775,
+        "kind": "def"
+      },
+      {
+        "line": 11548,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "spatial_weighted_mean",
+    "count": 2,
+    "locations": [
+      {
+        "line": 4189,
+        "kind": "def"
+      },
+      {
+        "line": 10737,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "specificity",
+    "count": 2,
+    "locations": [
+      {
+        "line": 13055,
+        "kind": "def"
+      },
+      {
+        "line": 15044,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "standardized_anomaly",
+    "count": 2,
+    "locations": [
+      {
+        "line": 12902,
+        "kind": "def"
+      },
+      {
+        "line": 15387,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "standardized_mortality_ratio",
+    "count": 2,
+    "locations": [
+      {
+        "line": 10989,
+        "kind": "def"
+      },
+      {
+        "line": 13433,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "territorial_amplification_factor",
+    "count": 2,
+    "locations": [
+      {
+        "line": 2385,
+        "kind": "def"
+      },
+      {
+        "line": 17316,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "territorial_bottleneck_migration",
+    "count": 2,
+    "locations": [
+      {
+        "line": 2511,
+        "kind": "def"
+      },
+      {
+        "line": 16792,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "territorial_bottleneck_share",
+    "count": 2,
+    "locations": [
+      {
+        "line": 1975,
+        "kind": "def"
+      },
+      {
+        "line": 16759,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "territorial_compound_shock_breadth",
+    "count": 2,
+    "locations": [
+      {
+        "line": 2948,
+        "kind": "def"
+      },
+      {
+        "line": 17228,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "territorial_concentration_hhi",
+    "count": 2,
+    "locations": [
+      {
+        "line": 1863,
+        "kind": "def"
+      },
+      {
+        "line": 16271,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "territorial_cospatial_burden",
+    "count": 2,
+    "locations": [
+      {
+        "line": 2149,
+        "kind": "def"
+      },
+      {
+        "line": 16925,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "territorial_cospatial_overlap",
+    "count": 2,
+    "locations": [
+      {
+        "line": 2171,
+        "kind": "def"
+      },
+      {
+        "line": 16896,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "territorial_cross_pressure",
+    "count": 2,
+    "locations": [
+      {
+        "line": 2443,
+        "kind": "def"
+      },
+      {
+        "line": 16941,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "territorial_cross_pressure_breadth",
+    "count": 2,
+    "locations": [
+      {
+        "line": 2468,
+        "kind": "def"
+      },
+      {
+        "line": 16964,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "territorial_entropy",
+    "count": 2,
+    "locations": [
+      {
+        "line": 1871,
+        "kind": "def"
+      },
+      {
+        "line": 16283,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "territorial_excess_demand",
+    "count": 2,
+    "locations": [
+      {
+        "line": 1958,
+        "kind": "def"
+      },
+      {
+        "line": 16713,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "territorial_hotspot_persistence",
+    "count": 2,
+    "locations": [
+      {
+        "line": 2811,
+        "kind": "def"
+      },
+      {
+        "line": 17523,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "territorial_hotspot_share",
+    "count": 2,
+    "locations": [
+      {
+        "line": 2006,
+        "kind": "def"
+      },
+      {
+        "line": 17500,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "territorial_hotspot_turnover",
+    "count": 2,
+    "locations": [
+      {
+        "line": 2830,
+        "kind": "def"
+      },
+      {
+        "line": 17548,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "territorial_load_transfer",
+    "count": 2,
+    "locations": [
+      {
+        "line": 2538,
+        "kind": "def"
+      },
+      {
+        "line": 16813,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "territorial_load_transfer_concentration",
+    "count": 2,
+    "locations": [
+      {
+        "line": 2553,
+        "kind": "def"
+      },
+      {
+        "line": 16837,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "territorial_local_reserve",
+    "count": 2,
+    "locations": [
+      {
+        "line": 2324,
+        "kind": "def"
+      },
+      {
+        "line": 17125,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "territorial_multi_pressure_score",
+    "count": 2,
+    "locations": [
+      {
+        "line": 2200,
+        "kind": "def"
+      },
+      {
+        "line": 17018,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "territorial_pressure_breadth",
+    "count": 2,
+    "locations": [
+      {
+        "line": 2239,
+        "kind": "def"
+      },
+      {
+        "line": 17051,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "territorial_pressure_breadth_fraction",
+    "count": 2,
+    "locations": [
+      {
+        "line": 2263,
+        "kind": "def"
+      },
+      {
+        "line": 17069,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "territorial_pressure_dependence",
+    "count": 2,
+    "locations": [
+      {
+        "line": 2295,
+        "kind": "def"
+      },
+      {
+        "line": 17083,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "territorial_recovery_fraction",
+    "count": 2,
+    "locations": [
+      {
+        "line": 2987,
+        "kind": "def"
+      },
+      {
+        "line": 17676,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "territorial_recovery_heterogeneity",
+    "count": 2,
+    "locations": [
+      {
+        "line": 3012,
+        "kind": "def"
+      },
+      {
+        "line": 17704,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "territorial_reserve_depletion",
+    "count": 2,
+    "locations": [
+      {
+        "line": 2339,
+        "kind": "def"
+      },
+      {
+        "line": 17133,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "territorial_response_elasticity",
+    "count": 2,
+    "locations": [
+      {
+        "line": 2409,
+        "kind": "def"
+      },
+      {
+        "line": 17269,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "territorial_response_sensitivity",
+    "count": 2,
+    "locations": [
+      {
+        "line": 2354,
+        "kind": "def"
+      },
+      {
+        "line": 17242,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "territorial_saturation_fraction",
+    "count": 2,
+    "locations": [
+      {
+        "line": 1992,
+        "kind": "def"
+      },
+      {
+        "line": 16777,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "territorial_share",
+    "count": 2,
+    "locations": [
+      {
+        "line": 1848,
+        "kind": "def"
+      },
+      {
+        "line": 16254,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "territorial_spatial_propagation",
+    "count": 2,
+    "locations": [
+      {
+        "line": 2568,
+        "kind": "def"
+      },
+      {
+        "line": 16851,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "territorial_spatial_synchronization",
+    "count": 2,
+    "locations": [
+      {
+        "line": 2601,
+        "kind": "def"
+      },
+      {
+        "line": 16881,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "territorial_total",
+    "count": 2,
+    "locations": [
+      {
+        "line": 1838,
+        "kind": "def"
+      },
+      {
+        "line": 16246,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "threshold_distance",
+    "count": 2,
+    "locations": [
+      {
+        "line": 716,
+        "kind": "def"
+      },
+      {
+        "line": 3508,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "threshold_exceedance_rate",
+    "count": 2,
+    "locations": [
+      {
+        "line": 10580,
+        "kind": "def"
+      },
+      {
+        "line": 13628,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "utilization",
+    "count": 2,
+    "locations": [
+      {
+        "line": 12962,
+        "kind": "def"
+      },
+      {
+        "line": 15356,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "validate_advanced_metric_registry",
+    "count": 2,
+    "locations": [
+      {
+        "line": 10325,
+        "kind": "def"
+      },
+      {
+        "line": 12568,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  },
+  {
+    "symbol": "validate_registry_integrity",
+    "count": 2,
+    "locations": [
+      {
+        "line": 14458,
+        "kind": "def"
+      },
+      {
+        "line": 16045,
+        "kind": "def"
+      }
+    ],
+    "semantics": "PENDING_ANALYSIS",
+    "classification": "PENDING",
+    "decision": "PENDING",
+    "canonical_names": []
+  }
+]
+
+JSON ES:
+{
+  "symbol": "adaptive_reserve",
+  "count": 2,
+  "locations": [
+    {"line": 293, "kind": "def"},
+    {"line": 6680, "kind": "def"}
+  ],
+  "semantics": "PENDING_ANALYSIS",
+  "classification": "PENDING",
+  "decision": "PENDING",
+  "canonical_names": []
+}

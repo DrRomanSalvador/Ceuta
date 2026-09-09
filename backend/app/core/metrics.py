@@ -1,4 +1,1938 @@
 # =============================================================================
+# CeutIA — MÉTRICAS DE TRANSICIÓN, EARLY WARNING, EXTREMOS, ESPACIO-TIEMPO
+#         E INCERTIDUMBRE
+# =============================================================================
+#
+# Capa exclusivamente métrica.
+#
+# Estas funciones cuantifican propiedades observables o derivadas de datos.
+# No constituyen por sí mismas modelos causales, predicciones calibradas,
+# diagnósticos ni decisiones operativas.
+#
+# Principio:
+# fenómeno → variable → dinámica observable → métrica
+#
+# =============================================================================
+
+
+def lag_autocorrelation(
+    values: Sequence[float] | np.ndarray,
+    *,
+    lag: int = 1,
+) -> float:
+    """
+    Autocorrelación de una trayectoria para un desfase determinado.
+    """
+    x = _as_float_array(values, name="values")
+
+    if lag < 1 or lag >= x.size:
+        raise MetricInputError(
+            "lag debe ser >= 1 y menor que el número de observaciones"
+        )
+
+    left = x[:-lag]
+    right = x[lag:]
+
+    if np.std(left) == 0 or np.std(right) == 0:
+        raise MetricInputError(
+            "No puede calcularse autocorrelación con varianza cero"
+        )
+
+    return float(np.corrcoef(left, right)[0, 1])
+
+
+def lag1_autocorrelation(
+    values: Sequence[float] | np.ndarray,
+) -> float:
+    """Autocorrelación de primer orden."""
+    return lag_autocorrelation(values, lag=1)
+
+
+def rolling_variance(
+    values: Sequence[float] | np.ndarray,
+    *,
+    window: int,
+) -> np.ndarray:
+    """Varianza móvil de una trayectoria."""
+    x = _as_float_array(values, name="values")
+
+    if window < 2 or window > x.size:
+        raise MetricInputError(
+            "window debe estar entre 2 y el número de observaciones"
+        )
+
+    return np.asarray(
+        [
+            np.var(
+                x[i - window + 1:i + 1],
+                ddof=1,
+            )
+            for i in range(window - 1, x.size)
+        ],
+        dtype=float,
+    )
+
+
+def rolling_autocorrelation(
+    values: Sequence[float] | np.ndarray,
+    *,
+    window: int,
+    lag: int = 1,
+) -> np.ndarray:
+    """Autocorrelación móvil."""
+    x = _as_float_array(values, name="values")
+
+    if window < lag + 2:
+        raise MetricInputError(
+            "window debe ser suficientemente grande para el lag solicitado"
+        )
+
+    if window > x.size:
+        raise MetricInputError(
+            "window no puede superar el número de observaciones"
+        )
+
+    result: list[float] = []
+
+    for end in range(window, x.size + 1):
+        segment = x[end - window:end]
+        result.append(
+            lag_autocorrelation(
+                segment,
+                lag=lag,
+            )
+        )
+
+    return np.asarray(result, dtype=float)
+
+
+def variance_trend(
+    values: Sequence[float] | np.ndarray,
+    *,
+    window: int,
+) -> float:
+    """
+    Tendencia de la varianza móvil.
+
+    Valor positivo:
+        incremento de variabilidad.
+
+    Valor negativo:
+        reducción de variabilidad.
+    """
+    variance = rolling_variance(
+        values,
+        window=window,
+    )
+
+    if variance.size < 2:
+        return 0.0
+
+    return dynamic_slope(variance)
+
+
+def autocorrelation_trend(
+    values: Sequence[float] | np.ndarray,
+    *,
+    window: int,
+    lag: int = 1,
+) -> float:
+    """Tendencia temporal de la autocorrelación móvil."""
+    autocorrelation = rolling_autocorrelation(
+        values,
+        window=window,
+        lag=lag,
+    )
+
+    if autocorrelation.size < 2:
+        return 0.0
+
+    return dynamic_slope(autocorrelation)
+
+
+def critical_slowing_down_index(
+    values: Sequence[float] | np.ndarray,
+    *,
+    window: int,
+) -> float:
+    """
+    Indicador compuesto descriptivo de aproximación a pérdida de recuperación.
+
+    Combina tendencia de autocorrelación y tendencia de varianza.
+
+    No demuestra una transición crítica.
+    """
+    ac_trend = autocorrelation_trend(
+        values,
+        window=window,
+    )
+
+    variance = variance_trend(
+        values,
+        window=window,
+    )
+
+    scale = max(
+        abs(ac_trend),
+        abs(variance),
+        1e-15,
+    )
+
+    return float(
+        (max(ac_trend, 0.0) + max(variance, 0.0))
+        / scale
+    )
+
+
+def recovery_time_from_threshold(
+    values: Sequence[float] | np.ndarray,
+    *,
+    baseline: float,
+    threshold: float,
+) -> int | None:
+    """
+    Tiempo de recuperación hasta volver a una banda alrededor del baseline.
+
+    threshold representa una tolerancia absoluta.
+    """
+    x = _as_float_array(values, name="values")
+
+    baseline = float(baseline)
+    threshold = _validate_nonnegative_scalar(
+        threshold,
+        name="threshold",
+    )
+
+    if not np.isfinite(baseline):
+        raise MetricInputError(
+            "baseline debe ser finito"
+        )
+
+    distance = np.abs(x - baseline)
+
+    if np.all(distance <= threshold):
+        return 0
+
+    disturbed = np.flatnonzero(distance > threshold)
+
+    if disturbed.size == 0:
+        return 0
+
+    start = int(disturbed[0])
+
+    for index in range(start + 1, x.size):
+        if np.all(
+            distance[index:] <= threshold
+        ):
+            return index - start
+
+    return None
+
+
+def recovery_rate_from_trajectory(
+    values: Sequence[float] | np.ndarray,
+    *,
+    baseline: float,
+) -> float:
+    """
+    Velocidad media de recuperación desde el mínimo observado hacia baseline.
+    """
+    x = _as_float_array(values, name="values")
+
+    baseline = float(baseline)
+
+    if not np.isfinite(baseline):
+        raise MetricInputError(
+            "baseline debe ser finito"
+        )
+
+    minimum_index = int(np.argmin(x))
+    minimum_value = float(x[minimum_index])
+
+    if minimum_index >= x.size - 1:
+        return 0.0
+
+    remaining_steps = x.size - 1 - minimum_index
+    recovered = float(x[-1] - minimum_value)
+
+    if remaining_steps <= 0:
+        return 0.0
+
+    return float(recovered / remaining_steps)
+
+
+def recovery_fraction_from_trajectory(
+    values: Sequence[float] | np.ndarray,
+    *,
+    baseline: float,
+) -> float:
+    """
+    Fracción de recuperación desde el mínimo hasta el valor final.
+
+    0 = ninguna recuperación.
+    1 = recuperación completa hasta baseline.
+    >1 = sobrepaso del baseline.
+    """
+    x = _as_float_array(values, name="values")
+
+    baseline = float(baseline)
+
+    if not np.isfinite(baseline):
+        raise MetricInputError(
+            "baseline debe ser finito"
+        )
+
+    minimum = float(np.min(x))
+    denominator = baseline - minimum
+
+    if denominator == 0:
+        return 0.0
+
+    return float(
+        (x[-1] - minimum) / denominator
+    )
+
+
+def flickering_index(
+    values: Sequence[float] | np.ndarray,
+    *,
+    threshold: float,
+) -> float:
+    """
+    Frecuencia normalizada de cruces de un umbral.
+    """
+    x = _as_float_array(values, name="values")
+
+    threshold = float(threshold)
+
+    if not np.isfinite(threshold):
+        raise MetricInputError(
+            "threshold debe ser finito"
+        )
+
+    if x.size < 2:
+        return 0.0
+
+    states = x >= threshold
+    crossings = np.sum(states[1:] != states[:-1])
+
+    return float(
+        crossings / (x.size - 1)
+    )
+
+
+def threshold_crossing_rate(
+    values: Sequence[float] | np.ndarray,
+    *,
+    threshold: float,
+) -> float:
+    """Tasa de cruces de un umbral."""
+    return flickering_index(
+        values,
+        threshold=threshold,
+    )
+
+
+def time_near_threshold(
+    values: Sequence[float] | np.ndarray,
+    *,
+    threshold: float,
+    tolerance: float,
+) -> float:
+    """
+    Fracción de observaciones próximas a un umbral.
+    """
+    x = _as_float_array(values, name="values")
+
+    threshold = float(threshold)
+    tolerance = _validate_nonnegative_scalar(
+        tolerance,
+        name="tolerance",
+    )
+
+    if not np.isfinite(threshold):
+        raise MetricInputError(
+            "threshold debe ser finito"
+        )
+
+    return float(
+        np.mean(
+            np.abs(x - threshold) <= tolerance
+        )
+    )
+
+
+def threshold_distance(
+    value: float,
+    threshold: float,
+    *,
+    scale: float = 1.0,
+) -> float:
+    """
+    Distancia normalizada entre un estado y un umbral.
+    """
+    value = float(value)
+    threshold = float(threshold)
+    scale = _validate_positive_scalar(
+        scale,
+        name="scale",
+    )
+
+    if not np.isfinite(value) or not np.isfinite(threshold):
+        raise MetricInputError(
+            "value y threshold deben ser finitos"
+        )
+
+    return float(
+        abs(value - threshold) / scale
+    )
+
+
+def threshold_approach_rate(
+    values: Sequence[float] | np.ndarray,
+    *,
+    threshold: float,
+) -> float:
+    """
+    Velocidad media de aproximación al umbral.
+
+    Valores positivos indican aproximación cuando la distancia al umbral
+    disminuye.
+    """
+    x = _as_float_array(values, name="values")
+    threshold = float(threshold)
+
+    if not np.isfinite(threshold):
+        raise MetricInputError(
+            "threshold debe ser finito"
+        )
+
+    distance = np.abs(x - threshold)
+
+    if distance.size < 2:
+        return 0.0
+
+    return float(
+        -dynamic_slope(distance)
+    )
+
+
+def threshold_persistence(
+    values: Sequence[float] | np.ndarray,
+    *,
+    threshold: float,
+) -> int:
+    """
+    Número de observaciones consecutivas recientes por encima del umbral.
+    """
+    x = _as_float_array(values, name="values")
+    threshold = float(threshold)
+
+    if not np.isfinite(threshold):
+        raise MetricInputError(
+            "threshold debe ser finito"
+        )
+
+    count = 0
+
+    for value in reversed(x):
+        if value >= threshold:
+            count += 1
+        else:
+            break
+
+    return int(count)
+
+
+def regime_persistence(
+    states: Sequence[int | str],
+) -> float:
+    """
+    Proporción de observaciones pertenecientes al estado modal.
+    """
+    if not states:
+        raise MetricInputError(
+            "states no puede estar vacío"
+        )
+
+    values = list(states)
+    counts = Counter(values)
+
+    return float(
+        max(counts.values()) / len(values)
+    )
+
+
+def regime_transition_count(
+    states: Sequence[int | str],
+) -> int:
+    """Número de cambios de régimen observados."""
+    if len(states) < 2:
+        return 0
+
+    return int(
+        sum(
+            left != right
+            for left, right in zip(
+                states[:-1],
+                states[1:],
+            )
+        )
+    )
+
+
+def regime_transition_rate(
+    states: Sequence[int | str],
+) -> float:
+    """Tasa de transición entre estados."""
+    if len(states) < 2:
+        return 0.0
+
+    return float(
+        regime_transition_count(states)
+        / (len(states) - 1)
+    )
+
+
+def state_flickering(
+    states: Sequence[int | str],
+) -> float:
+    """
+    Medida de alternancia rápida entre estados.
+    """
+    return regime_transition_rate(states)
+
+
+def overshoot_ratio(
+    peak: float,
+    baseline: float,
+) -> float:
+    """
+    Sobrepaso relativo respecto al baseline.
+    """
+    peak = float(peak)
+    baseline = _validate_positive_scalar(
+        baseline,
+        name="baseline",
+    )
+
+    if not np.isfinite(peak):
+        raise MetricInputError(
+            "peak debe ser finito"
+        )
+
+    return float(
+        max(peak - baseline, 0.0) / baseline
+    )
+
+
+def recovery_overshoot(
+    values: Sequence[float] | np.ndarray,
+    *,
+    baseline: float,
+) -> float:
+    """Máximo sobrepaso posterior respecto al baseline."""
+    x = _as_float_array(values, name="values")
+    baseline = float(baseline)
+
+    if not np.isfinite(baseline):
+        raise MetricInputError(
+            "baseline debe ser finito"
+        )
+
+    return float(
+        max(
+            np.max(x) - baseline,
+            0.0,
+        )
+    )
+
+
+def extreme_quantile(
+    values: Sequence[float] | np.ndarray,
+    *,
+    quantile_level: float = 0.95,
+) -> float:
+    """Cuantil extremo descriptivo."""
+    if not 0 < quantile_level < 1:
+        raise MetricInputError(
+            "quantile_level debe estar entre 0 y 1"
+        )
+
+    return float(
+        np.quantile(
+            _as_float_array(values, name="values"),
+            quantile_level,
+        )
+    )
+
+
+def exceedance_count(
+    values: Sequence[float] | np.ndarray,
+    *,
+    threshold: float,
+) -> int:
+    """Número de observaciones que superan un umbral."""
+    x = _as_float_array(values, name="values")
+    threshold = float(threshold)
+
+    if not np.isfinite(threshold):
+        raise MetricInputError(
+            "threshold debe ser finito"
+        )
+
+    return int(
+        np.sum(x >= threshold)
+    )
+
+
+def exceedance_rate(
+    values: Sequence[float] | np.ndarray,
+    *,
+    threshold: float,
+) -> float:
+    """Proporción de observaciones que superan un umbral."""
+    x = _as_float_array(values, name="values")
+
+    if x.size == 0:
+        return 0.0
+
+    return float(
+        exceedance_count(
+            x,
+            threshold=threshold,
+        ) / x.size
+    )
+
+
+def mean_exceedance(
+    values: Sequence[float] | np.ndarray,
+    *,
+    threshold: float,
+) -> float:
+    """
+    Exceso medio sobre un umbral, condicionado a superar dicho umbral.
+    """
+    x = _as_float_array(values, name="values")
+    threshold = float(threshold)
+
+    if not np.isfinite(threshold):
+        raise MetricInputError(
+            "threshold debe ser finito"
+        )
+
+    excess = x[x >= threshold] - threshold
+
+    if excess.size == 0:
+        return 0.0
+
+    return float(np.mean(excess))
+
+
+def cumulative_exceedance(
+    values: Sequence[float] | np.ndarray,
+    *,
+    threshold: float,
+) -> float:
+    """Carga acumulada por encima de un umbral."""
+    x = _as_float_array(values, name="values")
+    threshold = float(threshold)
+
+    if not np.isfinite(threshold):
+        raise MetricInputError(
+            "threshold debe ser finito"
+        )
+
+    return float(
+        np.sum(
+            np.maximum(
+                x - threshold,
+                0.0,
+            )
+        )
+    )
+
+
+def peak_over_threshold_duration(
+    values: Sequence[float] | np.ndarray,
+    *,
+    threshold: float,
+) -> int:
+    """Duración total por encima de un umbral."""
+    return exceedance_count(
+        values,
+        threshold=threshold,
+    )
+
+
+def compound_shock_burden(
+    shock_series: Sequence[Sequence[float]] | np.ndarray,
+    *,
+    weights: Sequence[float] | np.ndarray | None = None,
+) -> float:
+    """
+    Carga integrada de perturbaciones simultáneas.
+
+    La ponderación debe especificarse explícitamente si las dimensiones
+    tienen diferente significado o escala.
+    """
+    x = np.asarray(shock_series, dtype=float)
+
+    if x.ndim != 2:
+        raise MetricInputError(
+            "shock_series debe ser una matriz 2D"
+        )
+
+    if not np.all(np.isfinite(x)):
+        raise MetricInputError(
+            "shock_series contiene valores no finitos"
+        )
+
+    if np.any(x < 0):
+        raise MetricInputError(
+            "shock_series debe ser no negativa"
+        )
+
+    if weights is None:
+        w = np.ones(x.shape[1], dtype=float)
+    else:
+        w = _as_float_array(
+            weights,
+            name="weights",
+        )
+
+        if w.size != x.shape[1]:
+            raise MetricInputError(
+                "weights debe tener una entrada por dimensión"
+            )
+
+        if np.any(w < 0) or np.sum(w) <= 0:
+            raise MetricInputError(
+                "weights debe ser no negativo y tener suma positiva"
+            )
+
+    w = w / np.sum(w)
+
+    return float(
+        np.mean(
+            np.sum(x * w, axis=1)
+        )
+    )
+
+
+def shock_coincidence_rate(
+    shock_matrix: Sequence[Sequence[float]] | np.ndarray,
+    *,
+    threshold: float,
+) -> float:
+    """
+    Fracción temporal de observaciones en las que al menos dos perturbaciones
+    superan simultáneamente el umbral.
+    """
+    x = np.asarray(shock_matrix, dtype=float)
+
+    if x.ndim != 2:
+        raise MetricInputError(
+            "shock_matrix debe ser una matriz 2D"
+        )
+
+    if x.shape[1] < 2:
+        return 0.0
+
+    threshold = float(threshold)
+
+    if not np.isfinite(threshold):
+        raise MetricInputError(
+            "threshold debe ser finito"
+        )
+
+    simultaneous = np.sum(
+        x >= threshold,
+        axis=1,
+    )
+
+    return float(
+        np.mean(simultaneous >= 2)
+    )
+
+
+def shock_dimension_breadth(
+    shock_matrix: Sequence[Sequence[float]] | np.ndarray,
+    *,
+    threshold: float,
+) -> float:
+    """
+    Número medio normalizado de dimensiones perturbadas simultáneamente.
+    """
+    x = np.asarray(shock_matrix, dtype=float)
+
+    if x.ndim != 2 or x.shape[1] == 0:
+        raise MetricInputError(
+            "shock_matrix debe ser una matriz 2D no vacía"
+        )
+
+    threshold = float(threshold)
+
+    if not np.isfinite(threshold):
+        raise MetricInputError(
+            "threshold debe ser finito"
+        )
+
+    return float(
+        np.mean(
+            np.sum(x >= threshold, axis=1)
+            / x.shape[1]
+        )
+    )
+
+
+def intershock_interval(
+    event_times: Sequence[float] | np.ndarray,
+) -> np.ndarray:
+    """Intervalos entre eventos consecutivos."""
+    times = _as_float_array(
+        event_times,
+        name="event_times",
+    )
+
+    if times.size < 2:
+        return np.asarray([], dtype=float)
+
+    differences = np.diff(times)
+
+    if np.any(differences <= 0):
+        raise MetricInputError(
+            "event_times debe estar estrictamente ordenado"
+        )
+
+    return differences
+
+
+def mean_intershock_interval(
+    event_times: Sequence[float] | np.ndarray,
+) -> float:
+    """Intervalo medio entre perturbaciones."""
+    intervals = intershock_interval(event_times)
+
+    if intervals.size == 0:
+        return 0.0
+
+    return float(np.mean(intervals))
+
+
+def uncertainty_interval_width(
+    lower: float,
+    upper: float,
+) -> float:
+    """Anchura absoluta de un intervalo de incertidumbre."""
+    lower = float(lower)
+    upper = float(upper)
+
+    if not np.isfinite(lower) or not np.isfinite(upper):
+        raise MetricInputError(
+            "Los límites deben ser finitos"
+        )
+
+    if upper < lower:
+        raise MetricInputError(
+            "upper debe ser >= lower"
+        )
+
+    return float(upper - lower)
+
+
+def relative_uncertainty_width(
+    estimate: float,
+    lower: float,
+    upper: float,
+) -> float:
+    """Anchura de incertidumbre relativa al valor estimado."""
+    estimate = float(estimate)
+
+    if not np.isfinite(estimate):
+        raise MetricInputError(
+            "estimate debe ser finito"
+        )
+
+    width = uncertainty_interval_width(
+        lower,
+        upper,
+    )
+
+    denominator = abs(estimate)
+
+    if denominator == 0:
+        return float("inf") if width > 0 else 0.0
+
+    return float(width / denominator)
+
+
+def interval_containment(
+    values: Sequence[float] | np.ndarray,
+    *,
+    lower: float,
+    upper: float,
+) -> float:
+    """Proporción de observaciones contenidas en un intervalo."""
+    x = _as_float_array(values, name="values")
+
+    if upper < lower:
+        raise MetricInputError(
+            "upper debe ser >= lower"
+        )
+
+    return float(
+        np.mean(
+            (x >= lower) & (x <= upper)
+        )
+    )
+
+
+def bootstrap_mean_interval(
+    values: Sequence[float] | np.ndarray,
+    *,
+    confidence: float = 0.95,
+    iterations: int = 2000,
+    random_seed: int = 42,
+) -> tuple[float, float]:
+    """
+    Intervalo bootstrap percentil para la media.
+
+    El intervalo cuantifica incertidumbre muestral bajo el procedimiento
+    bootstrap; no constituye validación externa ni garantía frecuentista
+    universal.
+    """
+    x = _as_float_array(values, name="values")
+
+    if x.size < 2:
+        raise MetricInputError(
+            "Se requieren al menos dos observaciones"
+        )
+
+    if not 0 < confidence < 1:
+        raise MetricInputError(
+            "confidence debe estar entre 0 y 1"
+        )
+
+    if iterations < 100:
+        raise MetricInputError(
+            "iterations debe ser >= 100"
+        )
+
+    rng = np.random.default_rng(random_seed)
+
+    indices = rng.integers(
+        0,
+        x.size,
+        size=(iterations, x.size),
+    )
+
+    bootstrap_means = np.mean(
+        x[indices],
+        axis=1,
+    )
+
+    alpha = 1.0 - confidence
+
+    return (
+        float(np.quantile(bootstrap_means, alpha / 2)),
+        float(np.quantile(bootstrap_means, 1.0 - alpha / 2)),
+    )
+
+
+def coefficient_of_uncertainty(
+    standard_error: float,
+    estimate: float,
+) -> float:
+    """Error estándar relativo al valor estimado."""
+    standard_error = _validate_nonnegative_scalar(
+        standard_error,
+        name="standard_error",
+    )
+    estimate = float(estimate)
+
+    if not np.isfinite(estimate):
+        raise MetricInputError(
+            "estimate debe ser finito"
+        )
+
+    if estimate == 0:
+        return float("inf") if standard_error > 0 else 0.0
+
+    return float(
+        standard_error / abs(estimate)
+    )
+
+
+def probability_entropy(
+    probabilities: Sequence[float] | np.ndarray,
+) -> float:
+    """Entropía de una distribución probabilística."""
+    return information_entropy(probabilities)
+
+
+def effective_sample_size(
+    weights: Sequence[float] | np.ndarray,
+) -> float:
+    """
+    Tamaño muestral efectivo de un conjunto ponderado.
+    """
+    w = _as_nonnegative_array(
+        weights,
+        name="weights",
+    )
+
+    total = float(np.sum(w))
+
+    if total <= 0:
+        raise MetricInputError(
+            "weights debe tener suma positiva"
+        )
+
+    normalized = w / total
+
+    denominator = float(
+        np.sum(normalized**2)
+    )
+
+    if denominator == 0:
+        return 0.0
+
+    return float(
+        1.0 / denominator
+    )
+
+
+def weighted_missingness_rate(
+    observed_weights: Sequence[float] | np.ndarray,
+    total_weights: Sequence[float] | np.ndarray,
+) -> float:
+    """
+    Tasa de ausencia ponderada por importancia de observación.
+    """
+    observed = _as_nonnegative_array(
+        observed_weights,
+        name="observed_weights",
+    )
+    total = _as_nonnegative_array(
+        total_weights,
+        name="total_weights",
+    )
+
+    _validate_same_length(observed, total)
+
+    denominator = float(np.sum(total))
+
+    if denominator <= 0:
+        raise MetricInputError(
+            "total_weights debe tener suma positiva"
+        )
+
+    if np.any(observed > total):
+        raise MetricInputError(
+            "observed_weights no puede superar total_weights"
+        )
+
+    return float(
+        1.0 - np.sum(observed) / denominator
+    )
+
+
+# =============================================================================
+# MÉTRICAS ESPACIALES
+# =============================================================================
+
+
+def spatial_weighted_mean(
+    values: Sequence[float] | np.ndarray,
+    weights: Sequence[float] | np.ndarray,
+) -> float:
+    """Media espacial ponderada."""
+    x = _as_float_array(values, name="values")
+    w = _as_nonnegative_array(
+        weights,
+        name="weights",
+    )
+
+    _validate_same_length(x, w)
+
+    total = float(np.sum(w))
+
+    if total <= 0:
+        raise MetricInputError(
+            "weights debe tener suma positiva"
+        )
+
+    return float(
+        np.sum(x * w) / total
+    )
+
+
+def spatial_dispersion(
+    values: Sequence[float] | np.ndarray,
+    weights: Sequence[float] | np.ndarray,
+) -> float:
+    """Dispersión espacial ponderada."""
+    x = _as_float_array(values, name="values")
+    w = _as_nonnegative_array(
+        weights,
+        name="weights",
+    )
+
+    _validate_same_length(x, w)
+
+    total = float(np.sum(w))
+
+    if total <= 0:
+        raise MetricInputError(
+            "weights debe tener suma positiva"
+        )
+
+    mean_value = np.sum(x * w) / total
+
+    return float(
+        np.sum(w * (x - mean_value) ** 2) / total
+    )
+
+
+def morans_i(
+    values: Sequence[float] | np.ndarray,
+    spatial_weights: Sequence[Sequence[float]] | np.ndarray,
+) -> float:
+    """
+    I de Moran.
+
+    La matriz de pesos espaciales debe estar definida previamente y representar
+    explícitamente la estructura de vecindad utilizada.
+    """
+    x = _as_float_array(values, name="values")
+    w = np.asarray(
+        spatial_weights,
+        dtype=float,
+    )
+
+    if w.ndim != 2 or w.shape[0] != w.shape[1]:
+        raise MetricInputError(
+            "spatial_weights debe ser una matriz cuadrada"
+        )
+
+    if w.shape[0] != x.size:
+        raise MetricInputError(
+            "spatial_weights debe corresponder a values"
+        )
+
+    if not np.all(np.isfinite(w)):
+        raise MetricInputError(
+            "spatial_weights contiene valores no finitos"
+        )
+
+    centered = x - np.mean(x)
+    denominator = float(
+        np.sum(centered**2)
+    )
+
+    if denominator == 0:
+        raise MetricInputError(
+            "values no puede tener varianza cero"
+        )
+
+    weight_sum = float(np.sum(w))
+
+    if weight_sum == 0:
+        raise MetricInputError(
+            "La matriz espacial debe contener pesos"
+        )
+
+    numerator = float(
+        np.sum(
+            w * np.outer(centered, centered)
+        )
+    )
+
+    n = x.size
+
+    return float(
+        (n / weight_sum)
+        * (numerator / denominator)
+    )
+
+
+def gearys_c(
+    values: Sequence[float] | np.ndarray,
+    spatial_weights: Sequence[Sequence[float]] | np.ndarray,
+) -> float:
+    """C de Geary."""
+    x = _as_float_array(values, name="values")
+    w = np.asarray(
+        spatial_weights,
+        dtype=float,
+    )
+
+    if w.ndim != 2 or w.shape[0] != w.shape[1]:
+        raise MetricInputError(
+            "spatial_weights debe ser una matriz cuadrada"
+        )
+
+    if w.shape[0] != x.size:
+        raise MetricInputError(
+            "spatial_weights debe corresponder a values"
+        )
+
+    weight_sum = float(np.sum(w))
+
+    if weight_sum == 0:
+        raise MetricInputError(
+            "La matriz espacial debe contener pesos"
+        )
+
+    centered = x - np.mean(x)
+    denominator = float(
+        np.sum(centered**2)
+    )
+
+    if denominator == 0:
+        raise MetricInputError(
+            "values no puede tener varianza cero"
+        )
+
+    numerator = float(
+        np.sum(
+            w
+            * (
+                x[:, None] - x[None, :]
+            ) ** 2
+        )
+    )
+
+    n = x.size
+
+    return float(
+        ((n - 1) / (2.0 * weight_sum))
+        * (numerator / denominator)
+    )
+
+
+def spatial_autocorrelation_strength(
+    values: Sequence[float] | np.ndarray,
+    spatial_weights: Sequence[Sequence[float]] | np.ndarray,
+) -> float:
+    """Magnitud absoluta de la autocorrelación espacial."""
+    return float(
+        abs(
+            morans_i(
+                values,
+                spatial_weights,
+            )
+        )
+    )
+
+
+def spatial_concentration(
+    values: Sequence[float] | np.ndarray,
+) -> float:
+    """
+    Concentración espacial de una cantidad no negativa.
+    """
+    return distribution_concentration(values)
+
+
+def spatial_inequality(
+    values: Sequence[float] | np.ndarray,
+) -> float:
+    """Desigualdad espacial mediante Gini."""
+    return gini_coefficient(values)
+
+
+def space_time_concentration(
+    values: Sequence[Sequence[float]] | np.ndarray,
+) -> float:
+    """
+    Concentración conjunta espacio-temporal.
+
+    La matriz representa tiempo × unidades espaciales.
+    """
+    x = _as_nonnegative_array(
+        values,
+        name="values",
+    )
+
+    if x.ndim != 2:
+        raise MetricInputError(
+            "values debe ser una matriz 2D"
+        )
+
+    flattened = x.reshape(-1)
+
+    return distribution_concentration(flattened)
+
+
+def space_time_burstiness(
+    values: Sequence[Sequence[float]] | np.ndarray,
+) -> float:
+    """
+    Burstiness de una señal espacio-temporal agregada.
+    """
+    x = _as_nonnegative_array(
+        values,
+        name="values",
+    )
+
+    if x.ndim != 2:
+        raise MetricInputError(
+            "values debe ser una matriz 2D"
+        )
+
+    return burstiness_index(
+        np.sum(x, axis=1)
+    )
+
+
+# =============================================================================
+# MÉTRICAS INTEGRATIVAS BIOPSICOSOCIALES Y DE SALUD
+# =============================================================================
+
+
+def multidimensional_health_burden(
+    dimensions: Sequence[float] | np.ndarray,
+    weights: Sequence[float] | np.ndarray,
+) -> float:
+    """
+    Carga multidimensional de salud.
+
+    Los pesos deben proceder de un protocolo explícito; no se asume que todas
+    las dimensiones tengan igual importancia.
+    """
+    x = _as_nonnegative_array(
+        dimensions,
+        name="dimensions",
+    )
+    w = _as_nonnegative_array(
+        weights,
+        name="weights",
+    )
+
+    _validate_same_length(x, w)
+
+    return weighted_systemic_load(
+        x,
+        w,
+    )
+
+
+def biopsychosocial_load(
+    biological_load: float,
+    psychological_load: float,
+    social_load: float,
+    *,
+    weights: Sequence[float] | np.ndarray | None = None,
+) -> float:
+    """
+    Carga biopsicosocial integrada.
+
+    No representa un diagnóstico ni un score clínico universal.
+    """
+    values = np.asarray(
+        [
+            biological_load,
+            psychological_load,
+            social_load,
+        ],
+        dtype=float,
+    )
+
+    if np.any(values < 0) or not np.all(np.isfinite(values)):
+        raise MetricInputError(
+            "Las cargas biopsicosociales deben ser finitas y no negativas"
+        )
+
+    if weights is None:
+        weights_array = np.ones(3, dtype=float)
+    else:
+        weights_array = _as_nonnegative_array(
+            weights,
+            name="weights",
+        )
+
+    _validate_same_length(
+        values,
+        weights_array,
+    )
+
+    return weighted_systemic_load(
+        values,
+        weights_array,
+    )
+
+
+def biopsychosocial_reserve(
+    biological_reserve: float,
+    psychological_reserve: float,
+    social_reserve: float,
+    *,
+    weights: Sequence[float] | np.ndarray | None = None,
+) -> float:
+    """Reserva adaptativa biopsicosocial integrada."""
+    values = np.asarray(
+        [
+            biological_reserve,
+            psychological_reserve,
+            social_reserve,
+        ],
+        dtype=float,
+    )
+
+    if np.any(values < 0) or not np.all(np.isfinite(values)):
+        raise MetricInputError(
+            "Las reservas deben ser finitas y no negativas"
+        )
+
+    if weights is None:
+        weights_array = np.ones(3, dtype=float)
+    else:
+        weights_array = _as_nonnegative_array(
+            weights,
+            name="weights",
+        )
+
+    return weighted_systemic_load(
+        values,
+        weights_array,
+    )
+
+
+def sleep_stress_interaction(
+    sleep_impairment: float,
+    stress_load: float,
+) -> float:
+    """Producto normalizado de deterioro del sueño y carga de estrés."""
+    sleep = _validate_nonnegative_scalar(
+        sleep_impairment,
+        name="sleep_impairment",
+    )
+    stress = _validate_nonnegative_scalar(
+        stress_load,
+        name="stress_load",
+    )
+
+    return float(
+        sleep * stress
+    )
+
+
+def trauma_sleep_interaction(
+    trauma_load: float,
+    sleep_impairment: float,
+) -> float:
+    """Interacción descriptiva entre carga traumática y deterioro del sueño."""
+    return sleep_stress_interaction(
+        trauma_load,
+        sleep_impairment,
+    )
+
+
+def cumulative_health_burden(
+    values: Sequence[float] | np.ndarray,
+    *,
+    dt: float = 1.0,
+) -> float:
+    """Carga sanitaria acumulada mediante integración trapezoidal."""
+    x = _as_nonnegative_array(
+        values,
+        name="values",
+    )
+
+    if dt <= 0:
+        raise MetricInputError(
+            "dt debe ser positivo"
+        )
+
+    if x.size < 2:
+        return 0.0
+
+    return float(
+        np.trapezoid(x, dx=dt)
+    )
+
+
+def functional_deterioration(
+    baseline: float,
+    current: float,
+) -> float:
+    """Deterioro funcional relativo respecto al baseline."""
+    baseline = _validate_positive_scalar(
+        baseline,
+        name="baseline",
+    )
+    current = _validate_nonnegative_scalar(
+        current,
+        name="current",
+    )
+
+    return float(
+        (baseline - current) / baseline
+    )
+
+
+def functional_recovery(
+    baseline: float,
+    nadir: float,
+    current: float,
+) -> float:
+    """
+    Recuperación funcional desde el nadir hacia baseline.
+    """
+    baseline = float(baseline)
+    nadir = float(nadir)
+    current = float(current)
+
+    if not all(
+        np.isfinite(value)
+        for value in (baseline, nadir, current)
+    ):
+        raise MetricInputError(
+            "Los valores deben ser finitos"
+        )
+
+    denominator = baseline - nadir
+
+    if denominator == 0:
+        return 0.0
+
+    return float(
+        (current - nadir) / denominator
+    )
+
+
+def allostatic_load_trajectory(
+    values: Sequence[float] | np.ndarray,
+) -> dict[str, float]:
+    """
+    Resumen longitudinal de una trayectoria de carga alostática.
+
+    No modifica la definición clínica de allostatic load.
+    """
+    x = _as_float_array(
+        values,
+        name="values",
+    )
+
+    if np.any(x < 0):
+        raise MetricInputError(
+            "allostatic load no puede ser negativa"
+        )
+
+    return {
+        "mean": float(np.mean(x)),
+        "maximum": float(np.max(x)),
+        "minimum": float(np.min(x)),
+        "slope": (
+            float(dynamic_slope(x))
+            if x.size > 1
+            else 0.0
+        ),
+        "acceleration": (
+            float(dynamic_acceleration(x))
+            if x.size > 2
+            else 0.0
+        ),
+        "cumulative_burden": float(
+            np.sum(x)
+        ),
+    }
+
+
+def wellbeing_trajectory_slope(
+    values: Sequence[float] | np.ndarray,
+) -> float:
+    """Pendiente longitudinal de bienestar."""
+    return dynamic_slope(values)
+
+
+def stress_trajectory_slope(
+    values: Sequence[float] | np.ndarray,
+) -> float:
+    """Pendiente longitudinal de estrés."""
+    return dynamic_slope(values)
+
+
+def recovery_reserve_ratio(
+    current_reserve: float,
+    required_reserve: float,
+) -> float:
+    """Reserva disponible respecto a la reserva requerida."""
+    current = _validate_nonnegative_scalar(
+        current_reserve,
+        name="current_reserve",
+    )
+    required = _validate_positive_scalar(
+        required_reserve,
+        name="required_reserve",
+    )
+
+    return float(
+        current / required
+    )
+
+
+# =============================================================================
+# MÉTRICAS INTEGRATIVAS DE GESTIÓN
+# =============================================================================
+
+
+def detection_decision_action_latency(
+    detection_time: float,
+    decision_time: float,
+    action_time: float,
+) -> tuple[float, float, float]:
+    """
+    Descompone el ciclo operativo en:
+        detección → decisión
+        decisión → acción
+        detección → acción
+    """
+    detection_to_decision = decision_latency(
+        detection_time,
+        decision_time,
+    )
+
+    decision_to_action = intervention_latency(
+        decision_time,
+        action_time,
+    )
+
+    detection_to_action = response_time(
+        detection_time,
+        action_time,
+    )
+
+    return (
+        detection_to_decision,
+        decision_to_action,
+        detection_to_action,
+    )
+
+
+def response_capacity_ratio(
+    completed_actions: float,
+    required_actions: float,
+) -> float:
+    """Capacidad efectiva de respuesta respecto a necesidad."""
+    completed = _validate_nonnegative_scalar(
+        completed_actions,
+        name="completed_actions",
+    )
+    required = _validate_positive_scalar(
+        required_actions,
+        name="required_actions",
+    )
+
+    return float(
+        completed / required
+    )
+
+
+def coordination_coverage(
+    coordinated_units: float,
+    active_units: float,
+) -> float:
+    """Proporción de unidades activas coordinadas."""
+    coordinated = _validate_nonnegative_scalar(
+        coordinated_units,
+        name="coordinated_units",
+    )
+    active = _validate_positive_scalar(
+        active_units,
+        name="active_units",
+    )
+
+    if coordinated > active:
+        raise MetricInputError(
+            "coordinated_units no puede superar active_units"
+        )
+
+    return float(
+        coordinated / active
+    )
+
+
+def coordination_redundancy(
+    active_channels: float,
+    critical_channels: float,
+) -> float:
+    """
+    Canales activos por canal considerado crítico.
+    """
+    active = _validate_nonnegative_scalar(
+        active_channels,
+        name="active_channels",
+    )
+    critical = _validate_positive_scalar(
+        critical_channels,
+        name="critical_channels",
+    )
+
+    return float(
+        active / critical
+    )
+
+
+def response_debt(
+    required_response: float,
+    delivered_response: float,
+) -> float:
+    """Déficit acumulado de respuesta."""
+    required = _validate_nonnegative_scalar(
+        required_response,
+        name="required_response",
+    )
+    delivered = _validate_nonnegative_scalar(
+        delivered_response,
+        name="delivered_response",
+    )
+
+    return float(
+        max(required - delivered, 0.0)
+    )
+
+
+def sustainable_throughput(
+    completed: float,
+    duration: float,
+) -> float:
+    """Rendimiento sostenible durante una ventana temporal."""
+    return throughput_rate(
+        completed,
+        duration,
+    )
+
+
+def saturation_time(
+    utilization_series: Sequence[float] | np.ndarray,
+    *,
+    threshold: float = 1.0,
+) -> int | None:
+    """Primera observación en la que la utilización alcanza saturación."""
+    x = _as_float_array(
+        utilization_series,
+        name="utilization_series",
+    )
+
+    threshold = float(threshold)
+
+    if not np.isfinite(threshold):
+        raise MetricInputError(
+            "threshold debe ser finito"
+        )
+
+    indices = np.flatnonzero(x >= threshold)
+
+    if indices.size == 0:
+        return None
+
+    return int(indices[0])
+
+
+def desaturation_time(
+    utilization_series: Sequence[float] | np.ndarray,
+    *,
+    threshold: float = 1.0,
+) -> int | None:
+    """Primera observación posterior a saturación por debajo del umbral."""
+    x = _as_float_array(
+        utilization_series,
+        name="utilization_series",
+    )
+
+    threshold = float(threshold)
+
+    if not np.isfinite(threshold):
+        raise MetricInputError(
+            "threshold debe ser finito"
+        )
+
+    saturated = np.flatnonzero(x >= threshold)
+
+    if saturated.size == 0:
+        return None
+
+    start = int(saturated[0])
+
+    for index in range(start + 1, x.size):
+        if x[index] < threshold:
+            return index - start
+
+    return None
+
+
+def capacity_utilization_series(
+    demand: Sequence[float] | np.ndarray,
+    capacity: Sequence[float] | np.ndarray,
+) -> np.ndarray:
+    """Utilización temporal demanda/capacidad."""
+    d = _as_nonnegative_array(
+        demand,
+        name="demand",
+    )
+    c = _as_nonnegative_array(
+        capacity,
+        name="capacity",
+    )
+
+    _validate_same_length(d, c)
+
+    if np.any(c <= 0):
+        raise MetricInputError(
+            "capacity debe ser estrictamente positiva"
+        )
+
+    return d / c
+
+
+def peak_utilization(
+    demand: Sequence[float] | np.ndarray,
+    capacity: Sequence[float] | np.ndarray,
+) -> float:
+    """Máxima utilización observada."""
+    return float(
+        np.max(
+            capacity_utilization_series(
+                demand,
+                capacity,
+            )
+        )
+    )
+
+
+def utilization_variability(
+    demand: Sequence[float] | np.ndarray,
+    capacity: Sequence[float] | np.ndarray,
+) -> float:
+    """Variabilidad de la utilización temporal."""
+    utilization = capacity_utilization_series(
+        demand,
+        capacity,
+    )
+
+    return float(
+        np.std(
+            utilization,
+            ddof=1,
+        )
+    ) if utilization.size > 1 else 0.0
+
+
+# =============================================================================
+# REGISTRO DE LA ITERACIÓN
+# =============================================================================
+
+
+TRANSITION_EXTREME_SPATIOTEMPORAL_METRICS: Final[tuple[str, ...]] = (
+    "lag_autocorrelation",
+    "lag1_autocorrelation",
+    "rolling_variance",
+    "rolling_autocorrelation",
+    "variance_trend",
+    "autocorrelation_trend",
+    "critical_slowing_down_index",
+    "recovery_time_from_threshold",
+    "recovery_rate_from_trajectory",
+    "recovery_fraction_from_trajectory",
+    "flickering_index",
+    "threshold_crossing_rate",
+    "time_near_threshold",
+    "threshold_distance",
+    "threshold_approach_rate",
+    "threshold_persistence",
+    "regime_persistence",
+    "regime_transition_count",
+    "regime_transition_rate",
+    "state_flickering",
+    "overshoot_ratio",
+    "recovery_overshoot",
+    "extreme_quantile",
+    "exceedance_count",
+    "exceedance_rate",
+    "mean_exceedance",
+    "cumulative_exceedance",
+    "peak_over_threshold_duration",
+    "compound_shock_burden",
+    "shock_coincidence_rate",
+    "shock_dimension_breadth",
+    "intershock_interval",
+    "mean_intershock_interval",
+    "uncertainty_interval_width",
+    "relative_uncertainty_width",
+    "interval_containment",
+    "bootstrap_mean_interval",
+    "coefficient_of_uncertainty",
+    "probability_entropy",
+    "effective_sample_size",
+    "weighted_missingness_rate",
+    "spatial_weighted_mean",
+    "spatial_dispersion",
+    "morans_i",
+    "gearys_c",
+    "spatial_autocorrelation_strength",
+    "spatial_concentration",
+    "spatial_inequality",
+    "space_time_concentration",
+    "space_time_burstiness",
+    "multidimensional_health_burden",
+    "biopsychosocial_load",
+    "biopsychosocial_reserve",
+    "sleep_stress_interaction",
+    "trauma_sleep_interaction",
+    "cumulative_health_burden",
+    "functional_deterioration",
+    "functional_recovery",
+    "allostatic_load_trajectory",
+    "wellbeing_trajectory_slope",
+    "stress_trajectory_slope",
+    "recovery_reserve_ratio",
+    "detection_decision_action_latency",
+    "response_capacity_ratio",
+    "coordination_coverage",
+    "coordination_redundancy",
+    "response_debt",
+    "sustainable_throughput",
+    "saturation_time",
+    "desaturation_time",
+    "capacity_utilization_series",
+    "peak_utilization",
+    "utilization_variability",
+)
+
+
+TRANSITION_EXTREME_SPATIOTEMPORAL_INVARIANTS: Final[tuple[str, ...]] = (
+    "El aumento de autocorrelación o varianza es una señal compatible con determinados procesos de desaceleración crítica, no una prueba de transición crítica.",
+    "Un early warning debe conservar horizonte temporal, ventana, umbral y método de cálculo.",
+    "La proximidad a un umbral sólo es interpretable si el umbral tiene significado independiente del propio indicador.",
+    "Un cruce de umbral no demuestra que exista un cambio de régimen.",
+    "Flickering y persistencia describen la trayectoria observada y no demuestran mecanismos subyacentes.",
+    "Las métricas de extremos dependen del periodo de observación y del régimen estadístico.",
+    "Un exceso sobre un umbral no equivale a un evento clínico, social o estratégico.",
+    "Los shocks coincidentes no demuestran que exista una causa común.",
+    "La incertidumbre debe conservarse junto con la estimación y no ocultarse mediante un único valor.",
+    "Un intervalo bootstrap cuantifica incertidumbre muestral bajo sus supuestos; no sustituye validación externa.",
+    "La autocorrelación espacial depende de la matriz de pesos espaciales elegida.",
+    "Moran's I y Geary's C describen estructura espacial y no identifican causalidad espacial.",
+    "La concentración espacial puede reflejar estructura poblacional, denominadores, exposición o medición.",
+    "Una métrica espacio-temporal requiere conservar simultáneamente escala temporal y unidad espacial.",
+    "Una carga biopsicosocial integrada no constituye un diagnóstico ni un estándar clínico universal.",
+    "La integración de dimensiones clínicas requiere especificar pesos, escalas, población y finalidad.",
+    "Una trayectoria de allostatic load no debe interpretarse sin conocer sus componentes y umbrales.",
+    "Una intervención posterior a un cambio temporal no demuestra por sí sola efecto causal.",
+    "La saturación observada depende de cómo se haya definido y medido la capacidad.",
+    "La capacidad nominal, efectiva, accesible y sostenible son magnitudes distintas.",
+    "La deuda de respuesta describe déficit operativo y no atribuye responsabilidad causal.",
+    "La utilización agregada puede ocultar cuellos de botella internos.",
+)
+
+
+__all__.extend(
+    TRANSITION_EXTREME_SPATIOTEMPORAL_METRICS
+)
+# =============================================================================
 # CeutIA — MÉTRICAS DE INTERACCIÓN, PROPAGACIÓN, INFORMACIÓN Y ESTRUCTURA
 # =============================================================================
 #

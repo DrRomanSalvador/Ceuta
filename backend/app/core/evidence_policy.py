@@ -824,3 +824,282 @@ __all__ = [
     "validate_scientific_hypothesis",
     "validate_source_independence",
 ]
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from typing import Iterable, Optional
+
+
+@dataclass(frozen=True, slots=True)
+class SourceVerification:
+    """
+    Resultado de la evaluación epistemológica de una fuente.
+
+    Importante:
+    - No determina la verdad absoluta.
+    - Determina qué uso epistemológico es admisible.
+    """
+
+    source_id: str
+    source_class: SourceClass
+
+    url: Optional[str]
+    publisher: Optional[str]
+
+    published_at: Optional[datetime]
+    retrieved_at: datetime
+
+    provenance_verified: bool
+    freshness_verified: bool
+    independence_assessed: bool
+
+    source_quality: float
+    admissible_for_factual_claim: bool
+    admissible_for_scientific_claim: bool
+    admissible_as_signal: bool
+
+    limitations: tuple[str, ...] = field(default_factory=tuple)
+
+    @property
+    def epistemic_level(self) -> str:
+        if self.admissible_for_scientific_claim:
+            return "SCIENTIFIC_EVIDENCE"
+
+        if self.admissible_for_factual_claim:
+            return "VERIFIED_SOURCE"
+
+        if self.admissible_as_signal:
+            return "SIGNAL_ONLY"
+
+        return "NON_ADMISSIBLE"
+
+
+@dataclass(frozen=True, slots=True)
+class EvidenceBundleAssessment:
+    """
+    Evaluación conjunta de varias fuentes.
+
+    La cantidad de fuentes no equivale a independencia.
+    """
+
+    evidence_ids: tuple[str, ...]
+
+    independent_sources: int
+    corroborating_sources: int
+    contradictory_sources: int
+
+    independence_score: float
+    corroboration_score: float
+    contradiction_score: float
+
+    epistemic_confidence: float
+
+    status: str
+    limitations: tuple[str, ...] = field(default_factory=tuple)
+
+
+def _bounded(value: float) -> float:
+    return max(0.0, min(1.0, float(value)))
+
+
+def assess_source_for_claim(
+    *,
+    source_id: str,
+    source_class: SourceClass,
+    url: Optional[str] = None,
+    publisher: Optional[str] = None,
+    published_at: Optional[datetime] = None,
+    retrieved_at: Optional[datetime] = None,
+    provenance_verified: bool = False,
+    freshness_verified: bool = False,
+    independence_assessed: bool = False,
+) -> SourceVerification:
+    """
+    Determina el uso epistemológico permitido de una fuente.
+    """
+
+    retrieved_at = retrieved_at or datetime.now(timezone.utc)
+
+    factual = source_class in {
+        SourceClass.OFFICIAL_INSTITUTION,
+        SourceClass.INTERNATIONAL_ORGANIZATION,
+        SourceClass.PUBMED,
+        SourceClass.PEER_REVIEWED,
+        SourceClass.SYSTEMATIC_REVIEW,
+        SourceClass.META_ANALYSIS,
+        SourceClass.CLINICAL_TRIAL,
+        SourceClass.REPUTABLE_MEDIA,
+    }
+
+    scientific = source_class in {
+        SourceClass.PUBMED,
+        SourceClass.PEER_REVIEWED,
+        SourceClass.SYSTEMATIC_REVIEW,
+        SourceClass.META_ANALYSIS,
+        SourceClass.CLINICAL_TRIAL,
+    }
+
+    signal = source_class in {
+        SourceClass.SOCIAL_MEDIA,
+        SourceClass.CITIZEN_TESTIMONY,
+        SourceClass.REPUTABLE_MEDIA,
+    }
+
+    limitations: list[str] = []
+
+    if not provenance_verified:
+        limitations.append("PROVENANCE_NOT_VERIFIED")
+
+    if not freshness_verified:
+        limitations.append("FRESHNESS_NOT_VERIFIED")
+
+    if not independence_assessed:
+        limitations.append("INDEPENDENCE_NOT_ASSESSED")
+
+    if source_class == SourceClass.SOCIAL_MEDIA:
+        limitations.append("SOCIAL_MEDIA_IS_SIGNAL_NOT_FACT")
+
+    if source_class == SourceClass.CITIZEN_TESTIMONY:
+        limitations.append("TESTIMONY_REQUIRES_CORROBORATION")
+
+    if source_class == SourceClass.AI_GENERATED:
+        factual = False
+        scientific = False
+        signal = False
+        limitations.append("AI_GENERATED_CONTENT_IS_NOT_PRIMARY_EVIDENCE")
+
+    quality = 0.0
+
+    if provenance_verified:
+        quality += 0.25
+
+    if freshness_verified:
+        quality += 0.20
+
+    if independence_assessed:
+        quality += 0.15
+
+    if source_class in {
+        SourceClass.OFFICIAL_INSTITUTION,
+        SourceClass.INTERNATIONAL_ORGANIZATION,
+    }:
+        quality += 0.25
+
+    if scientific:
+        quality += 0.25
+
+    if source_class == SourceClass.REPUTABLE_MEDIA:
+        quality += 0.10
+
+    return SourceVerification(
+        source_id=source_id,
+        source_class=source_class,
+        url=url,
+        publisher=publisher,
+        published_at=published_at,
+        retrieved_at=retrieved_at,
+        provenance_verified=provenance_verified,
+        freshness_verified=freshness_verified,
+        independence_assessed=independence_assessed,
+        source_quality=_bounded(quality),
+        admissible_for_factual_claim=(
+            factual
+            and provenance_verified
+        ),
+        admissible_for_scientific_claim=(
+            scientific
+            and provenance_verified
+        ),
+        admissible_as_signal=signal,
+        limitations=tuple(limitations),
+    )
+
+
+def assess_evidence_bundle(
+    sources: Iterable[SourceVerification],
+    *,
+    contradictory_sources: int = 0,
+) -> EvidenceBundleAssessment:
+    """
+    Evalúa un conjunto de evidencias sin confundir repetición con corroboración.
+    """
+
+    items = tuple(sources)
+
+    if not items:
+        return EvidenceBundleAssessment(
+            evidence_ids=(),
+            independent_sources=0,
+            corroborating_sources=0,
+            contradictory_sources=contradictory_sources,
+            independence_score=0.0,
+            corroboration_score=0.0,
+            contradiction_score=1.0 if contradictory_sources else 0.0,
+            epistemic_confidence=0.0,
+            status="NO_EVIDENCE",
+            limitations=("NO_EVIDENCE_AVAILABLE",),
+        )
+
+    independent = sum(
+        1 for item in items
+        if item.independence_assessed
+    )
+
+    corroborating = sum(
+        1 for item in items
+        if item.admissible_for_factual_claim
+    )
+
+    independence_score = _bounded(
+        independent / max(len(items), 1)
+    )
+
+    corroboration_score = _bounded(
+        corroborating / max(len(items), 1)
+    )
+
+    contradiction_score = _bounded(
+        contradictory_sources / max(len(items), 1)
+    )
+
+    mean_quality = sum(
+        item.source_quality for item in items
+    ) / len(items)
+
+    confidence = _bounded(
+        mean_quality
+        * (0.5 + 0.5 * independence_score)
+        * (1.0 - 0.5 * contradiction_score)
+    )
+
+    if contradictory_sources:
+        status = "CONTRADICTORY"
+
+    elif confidence >= 0.75:
+        status = "STRONG"
+
+    elif confidence >= 0.50:
+        status = "MODERATE"
+
+    elif confidence > 0:
+        status = "WEAK"
+
+    else:
+        status = "UNVERIFIED"
+
+    return EvidenceBundleAssessment(
+        evidence_ids=tuple(item.source_id for item in items),
+        independent_sources=independent,
+        corroborating_sources=corroborating,
+        contradictory_sources=contradictory_sources,
+        independence_score=independence_score,
+        corroboration_score=corroboration_score,
+        contradiction_score=contradiction_score,
+        epistemic_confidence=confidence,
+        status=status,
+        limitations=tuple(
+            limitation
+            for item in items
+            for limitation in item.limitations
+        ),
+    )
+

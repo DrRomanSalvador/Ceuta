@@ -4,6 +4,32 @@ README.md
 
 CEUTIA PUBLIC
 
+# 🌍 Sistema Ceuta - Monitor de Riesgo Existencial
+
+Sistema de monitorización continua de riesgo existencial de IA con:
+
+- ✅ Datos de fuentes oficiales verificadas
+- ✅ Fórmulas matemáticas auditables
+- ✅ Intervalos de confianza cuantificados
+- ✅ Alertas en tiempo real
+- ✅ Dashboard interactivo
+- ✅ API REST para integración
+
+## Instalación Rápida
+
+```bash
+# Clonar repositorio
+git clone [https://github.com/tu-usuario/ceuta-system.git](https://github.com/tu-usuario/ceuta-system.git)
+cd ceuta-system
+
+# Docker (recomendado)
+docker-compose up -d
+
+# Acceder
+# API: http://localhost:8000
+# Dashboard: http://localhost:3000
+
+
 CEUTIA PUBLIC es una plataforma de inteligencia, conocimiento, prevención y promoción de la salud centrada en Ceuta.
 
 Su finalidad es comprender la evolución de un sistema territorial complejo, detectar cambios relevantes antes de que se conviertan en crisis y proporcionar a las personas información y acompañamiento orientados a preservar su bienestar y reducir la escalada de situaciones adversas.

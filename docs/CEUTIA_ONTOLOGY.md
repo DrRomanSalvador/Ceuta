@@ -1,3 +1,223 @@
+# CEUTIA — ONTOLOGÍA FUNDAMENTAL
+
+## 0. Principio ontológico superior
+
+CeutIA deberá distinguir estrictamente entre aquello que existe u ocurre en el mundo, aquello que se observa, aquello que se deriva matemáticamente de las observaciones y aquello que el sistema propone como interpretación, hipótesis, predicción o escenario.
+
+Estas categorías no son intercambiables.
+
+La arquitectura ontológica fundamental es:
+
+    REALIDAD
+       ↓
+    OBSERVACIÓN
+       ↓
+    DATO
+       ↓
+    AFIRMACIÓN
+       ↓
+    SEÑAL DERIVADA
+       ↓
+    INTERPRETACIÓN
+       ↓
+    HIPÓTESIS
+       ↓
+    PREDICCIÓN
+       ↓
+    ESCENARIO
+       ↓
+    DECISIÓN HUMANA
+
+El flujo anterior no implica que cada elemento conduzca necesariamente al siguiente. Representa una separación epistemológica obligatoria.
+
+## 0.1. Realidad
+
+La realidad es aquello que ocurre independientemente de la representación informática de CeutIA.
+
+CeutIA no tiene acceso directo a la realidad.
+
+Opera sobre observaciones imperfectas de ella.
+
+## 0.2. Observación
+
+Una observación es un registro de algo observado mediante una fuente, sensor, organismo, persona, sistema administrativo, estudio, publicación u otro mecanismo de adquisición.
+
+Una observación debe conservar, cuando sea posible:
+
+- origen;
+- timestamp;
+- localización o escala espacial;
+- método de adquisición;
+- precisión;
+- incertidumbre;
+- contexto;
+- posibles sesgos;
+- independencia respecto de otras observaciones.
+
+## 0.3. Dato
+
+Un dato es una representación estructurada de una observación.
+
+Dato no significa verdad.
+
+La existencia de un dato demuestra, en primer término, que existe un registro con determinadas características.
+
+## 0.4. Afirmación
+
+Una afirmación es una proposición que puede ser verdadera, falsa, incompleta o indeterminada.
+
+Toda afirmación relevante deberá poder rastrearse hacia las observaciones y fuentes que la sustentan.
+
+## 0.5. Señal derivada
+
+Una señal derivada es el resultado de aplicar una transformación matemática, estadística o computacional a datos u observaciones.
+
+Ejemplos:
+
+- velocidad de cambio;
+- aceleración;
+- anomalía;
+- concentración;
+- utilización;
+- reserva;
+- sensibilidad;
+- propagación;
+- dependencia espacial;
+- cambio de régimen.
+
+Una señal derivada no adquiere automáticamente significado causal por haber sido calculada correctamente.
+
+## 0.6. Interpretación
+
+Una interpretación asigna significado analítico a una o varias señales.
+
+Debe permanecer diferenciada de la observación y conservar sus supuestos.
+
+## 0.7. Hipótesis
+
+Una hipótesis es una explicación provisional susceptible de contraste.
+
+Toda hipótesis operacional deberá especificar:
+
+- proposición;
+- evidencia a favor;
+- evidencia en contra;
+- supuestos;
+- predicciones derivadas;
+- mecanismo propuesto;
+- observaciones que podrían falsarla;
+- hipótesis competidoras.
+
+## 0.8. Predicción
+
+Una predicción es una afirmación sobre una observación futura definida mediante:
+
+- variable objetivo;
+- horizonte temporal;
+- población/territorio;
+- modelo;
+- incertidumbre;
+- criterio de evaluación.
+
+Una predicción sin horizonte y criterio de evaluación no constituye una predicción operacionalmente evaluable.
+
+## 0.9. Escenario
+
+Un escenario es una trayectoria condicional bajo un conjunto explícito de supuestos.
+
+Un escenario no debe presentarse como predicción.
+
+Su forma conceptual es:
+
+    si A + B + C,
+    entonces el sistema podría evolucionar hacia X.
+
+## 0.10. Estado y trayectoria
+
+El estado representa las variables relevantes en un momento.
+
+La trayectoria representa su evolución temporal.
+
+Por tanto:
+
+    estado ≠ trayectoria
+
+y:
+
+    Δestado/Δt ≠ estado
+
+CeutIA deberá conservar ambos niveles.
+
+## 0.11. Carga, reserva y capacidad
+
+Carga: presión acumulada o instantánea sobre un sistema.
+
+Reserva: margen disponible antes de que la capacidad efectiva resulte insuficiente.
+
+Capacidad: cantidad de respuesta potencial disponible bajo unas condiciones determinadas.
+
+Deberá distinguirse entre:
+
+    capacidad nominal
+    capacidad efectiva
+    capacidad accesible
+    capacidad disponible en tiempo real
+    capacidad de recuperación
+
+## 0.12. Sensibilidad, acoplamiento y propagación
+
+Sensibilidad describe cuánto cambia una respuesta ante una variación del estímulo.
+
+Acoplamiento describe la estructura de interacción entre componentes.
+
+Propagación describe la transmisión de una perturbación o cambio entre componentes.
+
+Ninguno de estos conceptos implica por sí mismo causalidad ni predicción de resultados extremos.
+
+## 0.13. Umbral y cascada
+
+Un umbral representa una región o condición en la que la respuesta del sistema puede cambiar cualitativamente.
+
+Una cascada representa una secuencia de propagaciones entre componentes.
+
+La detección de proximidad a un umbral no demuestra que vaya a producirse una transición.
+
+## 0.14. Evidencia e independencia
+
+La fuerza epistemológica de una conclusión no dependerá únicamente del número de fuentes.
+
+Deberá considerarse la independencia efectiva entre ellas.
+
+Cinco fuentes que reproducen la misma fuente primaria no equivalen a cinco evidencias independientes.
+
+## 0.15. Incertidumbre
+
+La incertidumbre deberá conservarse como una propiedad explícita del conocimiento.
+
+No podrá eliminarse simplemente para producir una salida más clara.
+
+## 0.16. Contradicción
+
+Una contradicción es una incompatibilidad entre afirmaciones, observaciones, modelos o fuentes.
+
+La contradicción no deberá ocultarse mediante selección arbitraria.
+
+Mientras permanezca sin resolver, deberá formar parte del estado epistemológico de CeutIA.
+
+## 0.17. Principio ontológico de seguridad
+
+CeutIA no podrá convertir:
+
+    grupo → peligrosidad individual
+    nacionalidad → criminalidad
+    migración → amenaza
+    señal → culpabilidad
+    correlación → causalidad
+    escenario → predicción
+    predicción → hecho
+    índice → diagnóstico
+
+Toda transformación de este tipo será ontológicamente inválida.
 
 # CEUTIA Ontology
 ## 1. Purpose

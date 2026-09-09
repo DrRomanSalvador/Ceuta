@@ -1,3 +1,240 @@
+# CEUTIA — PRINCIPIO ARQUITECTÓNICO SUPERIOR
+
+## 0. Arquitectura dinámica por responsabilidades
+
+CeutIA se construye como un sistema de capas con responsabilidades separadas.
+
+La arquitectura no debe entenderse como una cadena lineal de simples filtros, sino como un sistema de transformación controlada del conocimiento:
+
+    DATOS
+       ↓
+    ESTADO
+       ↓
+    MÉTRICAS
+       ↓
+    MODELOS DINÁMICOS
+       ↓
+    HIPÓTESIS / PREDICCIONES / ESCENARIOS
+       ↓
+    VALIDACIÓN ADVERSARIAL
+       ↓
+    SEÑAL CUALIFICADA
+       ↓
+    INFORMATION BOUNDARY
+       ↓
+    SALIDA AUTORIZADA
+
+Cada capa debe poder determinar:
+
+1. qué recibe;
+2. qué transforma;
+3. qué produce;
+4. qué incertidumbre conserva;
+5. qué información no puede producir;
+6. qué capa tiene autoridad para utilizar su salida.
+
+## 0.1. `metrics.py` — matemática
+
+`metrics.py` constituye la capa matemática fundamental.
+
+Su responsabilidad es calcular métricas, índices, funciones y primitivas matemáticas formalmente definidas.
+
+No debe decidir qué significa una métrica en un contexto estratégico concreto.
+
+No debe convertir automáticamente una métrica en una alerta.
+
+No debe realizar decisiones de seguridad.
+
+Principio:
+
+    MÉTRICA = transformación matemática definida
+
+## 0.2. `models.py` — integración dinámica
+
+`models.py` integra las métricas en modelos de estado y evolución.
+
+Debe representar:
+
+- estado;
+- trayectoria;
+- carga;
+- reserva;
+- capacidad;
+- sensibilidad;
+- perturbaciones;
+- acoplamiento;
+- propagación;
+- cascadas;
+- recuperación;
+- resiliencia;
+- territorio;
+- dimensión temporal;
+- información;
+- señales agregadas de tensión social;
+- hipótesis;
+- predicciones;
+- escenarios;
+- incertidumbre.
+
+Principio:
+
+    MODELO = estructura de interacción y evolución
+
+No deberá confundirse modelo con verdad.
+
+## 0.3. `adversarial_validation.py` — intento de refutación
+
+La validación adversarial intenta encontrar razones por las que una conclusión, señal o modelo podría estar equivocado.
+
+Debe comprobar, cuando corresponda:
+
+- procedencia;
+- independencia;
+- corroboración;
+- contradicciones;
+- leakage;
+- deriva;
+- estabilidad temporal;
+- estabilidad espacial;
+- robustez;
+- sensibilidad;
+- dependencia de umbral;
+- dependencia del denominador;
+- dependencia del modelo;
+- dependencia del prior;
+- confusión causal;
+- selección;
+- eventos raros;
+- retroalimentación;
+- contaminación por intervención;
+- escenarios extremos;
+- hipótesis competidoras;
+- falsabilidad;
+- seguridad;
+- privacidad;
+- automatización indebida.
+
+Principio:
+
+    VALIDACIÓN = intento sistemático de encontrar por qué el resultado podría fallar
+
+La supervivencia de una prueba adversarial no convierte automáticamente una conclusión en verdadera.
+
+## 0.4. `information_boundary.py` — control de circulación
+
+`information_boundary.py` controla qué información puede cruzar las fronteras PUBLIC, INTERNAL, OWNER y RESTRICTED.
+
+PUBLIC no debe poder leer directamente inteligencia interna, privada o restringida. La información interna no puede convertirse en información pública mediante serialización implícita. Las degradaciones de clasificación requieren autorización explícita y las transformaciones que crucen fronteras deben ser auditables. metrics.py
+
+El límite actual ya establece, entre otras invariantes, que el riesgo individual y la inteligencia estratégica no constituyen salidas públicas directas y que una salida pública requiere comprobaciones explícitas de privacidad, seguridad, epistemología y reidentificación. metrics.py
+
+Principio:
+
+    INFORMATION BOUNDARY = control de qué conocimiento puede llegar a qué actor
+
+## 0.5. `security/` — seguridad técnica
+
+La capa `security/` protege la infraestructura y sus recursos.
+
+Debe mantenerse diferenciada de:
+
+- epistemología;
+- modelización;
+- validación científica;
+- clasificación de información;
+- interpretación estratégica.
+
+Seguridad técnica y seguridad epistemológica son complementarias, pero no equivalentes.
+
+## 0.6. Separación PUBLIC / PRIVATE
+
+PUBLIC y PRIVATE no son simplemente dos interfaces del mismo conjunto de datos.
+
+Son dominios con diferentes permisos, información disponible y reglas de salida.
+
+La inteligencia privada puede utilizar información que no puede exponerse públicamente.
+
+La salida pública debe ser una transformación explícitamente autorizada, no una copia de la inteligencia interna.
+
+## 0.7. Separación entre persona y sistema
+
+La arquitectura podrá recibir información procedente de interacciones individuales, pero deberá distinguir:
+
+    persona
+    ↓
+    interacción individual
+    ↓
+    señal de bienestar / necesidad
+    ↓
+    agregación o análisis poblacional legítimo
+    ↓
+    señal sistémica
+
+No se utilizará una interacción individual como mecanismo encubierto de vigilancia.
+
+La información individual de bienestar y la inteligencia territorial deberán mantener fronteras explícitas.
+
+## 0.8. Seguridad operacional
+
+CeutIA puede generar una señal cualificada que requiera revisión humana.
+
+La cadena correcta será:
+
+    CeutIA
+       ↓
+    señal
+       ↓
+    validación
+       ↓
+    interpretación humana
+       ↓
+    autoridad competente
+
+CeutIA no ejecutará autónomamente acciones coercitivas, policiales o de seguridad sobre personas.
+
+## 0.9. Regla de no contradicción arquitectónica
+
+Todo nuevo módulo deberá ser compatible con:
+
+- la ontología de CeutIA;
+- el modelo dinámico;
+- la política de evidencia;
+- la validación adversarial;
+- la separación PUBLIC/PRIVATE;
+- la seguridad técnica;
+- la protección de datos;
+- la supervisión humana.
+
+Cuando una nueva funcionalidad contradiga una invariante existente, deberá detenerse su integración hasta resolver explícitamente la contradicción.
+
+La arquitectura debe crecer por integración coherente, no por acumulación de funcionalidades.
+
+## 0.10. Principio de mínima complejidad suficiente
+
+CeutIA no debe multiplicar módulos cuando una responsabilidad puede pertenecer legítimamente a un componente existente.
+
+La complejidad debe residir principalmente en los modelos y estructuras internas, no en una proliferación innecesaria de archivos y capas.
+
+Cada nuevo módulo requiere una justificación arquitectónica independiente.
+
+## 0.11. Principio final
+
+La arquitectura de CeutIA debe permitir que el sistema diga:
+
+    esto se observa;
+    esto se deriva;
+    esto se interpreta;
+    esto se plantea como hipótesis;
+    esto se predice;
+    esto constituye un escenario;
+    esto es incierto;
+    esto contradice otra evidencia;
+    esto no ha sido validado;
+    esto requiere revisión humana;
+    esto no puede salir de PRIVATE.
+
+La capacidad de distinguir estas categorías es una propiedad fundamental del sistema, no una característica secundaria de presentación.
+
 # CEUTIA — SYSTEM ARCHITECTURE
 Version: 1.0
 Status: Normative architecture

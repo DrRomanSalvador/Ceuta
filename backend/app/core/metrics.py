@@ -1,3 +1,1764 @@
+# Añadir al final de backend/app/core/metrics.py, antes de __all__ si existe.
+# Si __all__ ya está al final, insertar este bloque antes de ella.
+
+# ---------------------------------------------------------------------------
+# Métricas dinámicas adicionales de CeutIA
+# ---------------------------------------------------------------------------
+
+def skewness(values: Sequence[float] | np.ndarray) -> float:
+    """Asimetría de una distribución."""
+    arr = _as_float_array(values, name="values")
+    _require_at_least_two(arr, "values")
+    mean = float(np.mean(arr))
+    std = float(np.std(arr, ddof=0))
+    if std == 0.0:
+        raise MetricInputError("Skewness indefinida para una distribución constante")
+    return float(np.mean(((arr - mean) / std) ** 3))
+
+
+def kurtosis_excess(values: Sequence[float] | np.ndarray) -> float:
+    """Curtosis en exceso (Fisher)."""
+    arr = _as_float_array(values, name="values")
+    _require_at_least_two(arr, "values")
+    mean = float(np.mean(arr))
+    std = float(np.std(arr, ddof=0))
+    if std == 0.0:
+        raise MetricInputError("Curtosis indefinida para una distribución constante")
+    return float(np.mean(((arr - mean) / std) ** 4) - 3.0)
+
+
+def coefficient_of_variation(
+    values: Sequence[float] | np.ndarray,
+) -> float:
+    """Coeficiente de variación: desviación estándar / media."""
+    arr = _as_float_array(values, name="values")
+    _require_at_least_two(arr, "values")
+    mean = float(np.mean(arr))
+    if mean == 0.0:
+        raise MetricInputError("Coeficiente de variación indefinido con media cero")
+    return float(np.std(arr, ddof=1) / abs(mean))
+
+
+def rolling_coefficient_of_variation(
+    values: Sequence[float] | np.ndarray,
+    window: int,
+) -> np.ndarray:
+    """Coeficiente de variación móvil para detectar cambios de estabilidad."""
+    arr = _as_float_array(values, name="values")
+    if window < 2:
+        raise MetricInputError("window debe ser >= 2")
+    if arr.size < window:
+        raise MetricInputError("La serie es menor que window")
+
+    result = np.empty(arr.size - window + 1, dtype=float)
+    for i in range(result.size):
+        result[i] = coefficient_of_variation(arr[i : i + window])
+    return result
+
+
+def recovery_time(
+    times: Sequence[float] | np.ndarray,
+    values: Sequence[float] | np.ndarray,
+    *,
+    baseline: float,
+    tolerance: float,
+    direction: str = "absolute",
+) -> float | None:
+    """
+    Tiempo necesario para regresar al intervalo de recuperación alrededor
+    del baseline después de una perturbación.
+
+    Devuelve None si la recuperación no aparece en la serie.
+    """
+    t = _as_float_array(times, name="times")
+    x = _as_float_array(values, name="values")
+    _validate_same_length(t, x)
+
+    if t.size < 2:
+        raise MetricInputError("Se requieren al menos dos observaciones")
+    if tolerance < 0:
+        raise MetricInputError("tolerance debe ser >= 0")
+    if np.any(np.diff(t) < 0):
+        raise MetricInputError("times debe estar ordenado ascendentemente")
+
+    deviation = np.abs(x - baseline)
+
+    if direction == "absolute":
+        outside = deviation > tolerance
+    elif direction == "above":
+        outside = x > baseline + tolerance
+    elif direction == "below":
+        outside = x < baseline - tolerance
+    else:
+        raise MetricInputError(
+            "direction debe ser 'absolute', 'above' o 'below'"
+        )
+
+    disturbed = np.flatnonzero(outside)
+    if disturbed.size == 0:
+        return 0.0
+
+    start = int(disturbed[0])
+    for i in range(start, x.size):
+        if not outside[i]:
+            return float(t[i] - t[start])
+
+    return None
+
+
+def recovery_ratio_dynamic(
+    baseline: float,
+    minimum_after_event: float,
+    recovered_value: float,
+) -> float:
+    """
+    Recuperación relativa respecto a la pérdida producida por el evento.
+    """
+    loss = baseline - minimum_after_event
+    if loss == 0.0:
+        raise MetricInputError("No existe pérdida para calcular recuperación")
+    return float((recovered_value - minimum_after_event) / loss)
+
+
+def dynamic_slope(
+    times: Sequence[float] | np.ndarray,
+    values: Sequence[float] | np.ndarray,
+) -> float:
+    """Pendiente lineal global de una trayectoria."""
+    t = _as_float_array(times, name="times")
+    x = _as_float_array(values, name="values")
+    _validate_same_length(t, x)
+
+    if t.size < 2:
+        raise MetricInputError("Se requieren al menos dos observaciones")
+
+    centered_t = t - np.mean(t)
+    denominator = float(np.sum(centered_t**2))
+    if denominator == 0.0:
+        raise MetricInputError("Los tiempos deben contener variación")
+
+    return float(np.sum(centered_t * (x - np.mean(x))) / denominator)
+
+
+def dynamic_acceleration(
+    times: Sequence[float] | np.ndarray,
+    values: Sequence[float] | np.ndarray,
+) -> float:
+    """Cambio de la velocidad de la trayectoria mediante ajuste cuadrático."""
+    t = _as_float_array(times, name="times")
+    x = _as_float_array(values, name="values")
+    _validate_same_length(t, x)
+
+    if t.size < 3:
+        raise MetricInputError("Se requieren al menos tres observaciones")
+
+    coefficients = np.polyfit(t, x, 2)
+    return float(2.0 * coefficients[0])
+
+
+def hysteresis_gap(
+    upward_values: Sequence[float] | np.ndarray,
+    downward_values: Sequence[float] | np.ndarray,
+) -> float:
+    """
+    Diferencia media entre trayectorias de subida y bajada.
+
+    No demuestra por sí misma histéresis causal; cuantifica separación
+    entre trayectorias observadas.
+    """
+    up = _as_float_array(upward_values, name="upward_values")
+    down = _as_float_array(downward_values, name="downward_values")
+    _validate_same_length(up, down)
+    return float(np.mean(np.abs(up - down)))
+
+
+def covariance(
+    x: Sequence[float] | np.ndarray,
+    y: Sequence[float] | np.ndarray,
+) -> float:
+    """Covarianza muestral."""
+    left = _as_float_array(x, name="x")
+    right = _as_float_array(y, name="y")
+    _validate_same_length(left, right)
+    if left.size < 2:
+        raise MetricInputError("Se requieren al menos dos observaciones")
+    return float(np.cov(left, right, ddof=1)[0, 1])
+
+
+def correlation(
+    x: Sequence[float] | np.ndarray,
+    y: Sequence[float] | np.ndarray,
+) -> float:
+    """Correlación de Pearson."""
+    left = _as_float_array(x, name="x")
+    right = _as_float_array(y, name="y")
+    _validate_same_length(left, right)
+
+    if left.size < 2:
+        raise MetricInputError("Se requieren al menos dos observaciones")
+
+    left_std = float(np.std(left, ddof=1))
+    right_std = float(np.std(right, ddof=1))
+
+    if left_std == 0.0 or right_std == 0.0:
+        raise MetricInputError("Correlación indefinida para una variable constante")
+
+    return float(np.corrcoef(left, right)[0, 1])
+
+
+def lagged_correlation(
+    x: Sequence[float] | np.ndarray,
+    y: Sequence[float] | np.ndarray,
+    lag: int,
+) -> float:
+    """
+    Correlación entre x(t) e y(t+lag).
+
+    lag > 0: x precede a y.
+    """
+    left = _as_float_array(x, name="x")
+    right = _as_float_array(y, name="y")
+    _validate_same_length(left, right)
+
+    if lag >= left.size or lag <= -left.size:
+        raise MetricInputError("lag fuera del rango de la serie")
+
+    if lag > 0:
+        return correlation(left[:-lag], right[lag:])
+    if lag < 0:
+        shift = abs(lag)
+        return correlation(left[shift:], right[:-shift])
+    return correlation(left, right)
+
+
+def interaction_effect(
+    observed_joint: float,
+    expected_additive: float,
+) -> float:
+    """
+    Desviación respecto a un efecto aditivo esperado.
+
+    No constituye identificación causal por sí sola.
+    """
+    if not (isfinite(observed_joint) and isfinite(expected_additive)):
+        raise MetricInputError("Los valores deben ser finitos")
+    return float(observed_joint - expected_additive)
+
+
+def coupling_strength(
+    x: Sequence[float] | np.ndarray,
+    y: Sequence[float] | np.ndarray,
+    *,
+    lag: int = 0,
+) -> float:
+    """Magnitud absoluta de la asociación temporal entre dos variables."""
+    return abs(lagged_correlation(x, y, lag))
+
+
+def synchronization_index(
+    series: Sequence[Sequence[float] | np.ndarray],
+) -> float:
+    """
+    Sincronización media absoluta entre múltiples series normalizadas.
+
+    Devuelve 0 si no existe sincronización lineal y 1 si las trayectorias
+    presentan correlación lineal perfecta en magnitud.
+    """
+    arrays = [_as_float_array(item, name="series") for item in series]
+
+    if len(arrays) < 2:
+        raise MetricInputError("Se requieren al menos dos series")
+
+    length = arrays[0].size
+    if length < 2:
+        raise MetricInputError("Cada serie debe contener al menos dos observaciones")
+
+    if any(item.size != length for item in arrays):
+        raise MetricInputError("Todas las series deben tener la misma longitud")
+
+    correlations: list[float] = []
+    for i in range(len(arrays)):
+        for j in range(i + 1, len(arrays)):
+            correlations.append(abs(correlation(arrays[i], arrays[j])))
+
+    return float(np.mean(correlations))
+
+
+def effective_capacity(
+    nominal_capacity: float,
+    availability: float,
+    efficiency: float,
+) -> float:
+    """
+    Capacidad efectiva = capacidad nominal × disponibilidad × eficiencia.
+    """
+    if nominal_capacity < 0:
+        raise MetricInputError("nominal_capacity debe ser >= 0")
+    if not 0.0 <= availability <= 1.0:
+        raise MetricInputError("availability debe estar entre 0 y 1")
+    if not 0.0 <= efficiency <= 1.0:
+        raise MetricInputError("efficiency debe estar entre 0 y 1")
+
+    return float(nominal_capacity * availability * efficiency)
+
+
+def capacity_reserve(
+    effective_capacity_value: float,
+    demand: float,
+) -> float:
+    """Reserva absoluta de capacidad."""
+    if effective_capacity_value < 0 or demand < 0:
+        raise MetricInputError("Capacidad y demanda deben ser >= 0")
+    return float(effective_capacity_value - demand)
+
+
+def time_to_exhaustion(
+    current_reserve: float,
+    depletion_rate: float,
+) -> float | None:
+    """
+    Tiempo estimado hasta agotamiento de la reserva bajo tasa constante.
+
+    No debe interpretarse como predicción si la tasa no es estable.
+    """
+    if current_reserve < 0:
+        raise MetricInputError("current_reserve debe ser >= 0")
+    if depletion_rate < 0:
+        raise MetricInputError("depletion_rate debe ser >= 0")
+
+    if depletion_rate == 0.0:
+        return None
+
+    return float(current_reserve / depletion_rate)
+
+
+def amplification_gain(
+    input_change: float,
+    output_change: float,
+) -> float:
+    """Ganancia absoluta de una perturbación."""
+    if input_change == 0.0:
+        raise MetricInputError("input_change no puede ser cero")
+    return float(abs(output_change / input_change))
+
+
+def cascade_amplification(
+    initial_impact: float,
+    final_impact: float,
+) -> float:
+    """Relación entre impacto final e impacto inicial."""
+    if initial_impact == 0.0:
+        raise MetricInputError("initial_impact no puede ser cero")
+    return float(final_impact / initial_impact)
+
+
+def propagation_depth(
+    graph,
+    source,
+    *,
+    target=None,
+) -> int | None:
+    """
+    Distancia mínima de propagación en un grafo NetworkX.
+
+    Requiere un objeto compatible con NetworkX.
+    """
+    import networkx as nx
+
+    if source not in graph:
+        raise MetricInputError("source no existe en el grafo")
+
+    if target is not None:
+        if target not in graph:
+            raise MetricInputError("target no existe en el grafo")
+        try:
+            return int(nx.shortest_path_length(graph, source, target))
+        except nx.NetworkXNoPath:
+            return None
+
+    distances = nx.single_source_shortest_path_length(graph, source)
+    if not distances:
+        return 0
+
+    return int(max(distances.values()))
+
+
+def normalized_hhi(weights: Sequence[float] | np.ndarray) -> float:
+    """
+    HHI normalizado para concentración de recursos/demanda.
+
+    0 = distribución uniforme.
+    1 = concentración máxima.
+    """
+    arr = _as_float_array(weights, name="weights")
+
+    if arr.size < 2:
+        raise MetricInputError("Se requieren al menos dos componentes")
+    if np.any(arr < 0):
+        raise MetricInputError("Los pesos no pueden ser negativos")
+
+    total = float(np.sum(arr))
+    if total <= 0.0:
+        raise MetricInputError("La suma de pesos debe ser positiva")
+
+    shares = arr / total
+    hhi = float(np.sum(shares**2))
+    minimum = 1.0 / arr.size
+
+    if minimum == 1.0:
+        return 0.0
+
+    return float((hhi - minimum) / (1.0 - minimum))
+
+
+def bottleneck_ratio(
+    demand: float,
+    capacity: float,
+) -> float:
+    """Demanda/capacidad; >1 indica exceso de demanda sobre capacidad."""
+    if demand < 0 or capacity <= 0:
+        raise MetricInputError("demand >= 0 y capacity > 0 son obligatorios")
+    return float(demand / capacity)
+
+
+def regime_distance(
+    current_state: Sequence[float] | np.ndarray,
+    reference_state: Sequence[float] | np.ndarray,
+) -> float:
+    """Distancia euclídea entre estados normalizados en el mismo espacio."""
+    current = _as_float_array(current_state, name="current_state")
+    reference = _as_float_array(reference_state, name="reference_state")
+    _validate_same_length(current, reference)
+    return float(np.linalg.norm(current - reference))
+
+
+def state_velocity(
+    times: Sequence[float] | np.ndarray,
+    states: Sequence[Sequence[float] | np.ndarray],
+) -> np.ndarray:
+    """
+    Velocidad aproximada del estado multidimensional mediante diferencias
+    finitas.
+    """
+    t = _as_float_array(times, name="times")
+    x = np.asarray(states, dtype=float)
+
+    if x.ndim != 2:
+        raise MetricInputError("states debe ser una matriz 2D")
+    if x.shape[0] != t.size:
+        raise MetricInputError("times y states deben tener la misma longitud")
+    if t.size < 2:
+        raise MetricInputError("Se requieren al menos dos estados")
+
+    dt = np.diff(t)
+    if np.any(dt <= 0):
+        raise MetricInputError("times debe ser estrictamente creciente")
+
+    return np.diff(x, axis=0) / dt[:, None]
+
+
+@dataclass(frozen=True, slots=True)
+class EarlyWarningSignal:
+    """Resultado descriptivo de una señal temprana."""
+
+    metric_id: str
+    value: float
+    baseline: float
+    deviation: float
+    threshold: float
+    direction: str
+    triggered: bool
+    uncertainty: float | None = None
+
+    def validate(self) -> None:
+        if not self.metric_id.strip():
+            raise MetricInputError("metric_id no puede estar vacío")
+        if self.threshold < 0:
+            raise MetricInputError("threshold debe ser >= 0")
+        if self.direction not in {"above", "below", "absolute"}:
+            raise MetricInputError(
+                "direction debe ser 'above', 'below' o 'absolute'"
+            )
+        if self.uncertainty is not None and self.uncertainty < 0:
+            raise MetricInputError("uncertainty debe ser >= 0")
+
+
+@dataclass(frozen=True, slots=True)
+class DynamicStateSummary:
+    """Resumen matemático de una trayectoria sin interpretación causal."""
+
+    level: float
+    slope: float
+    acceleration: float
+    variability: float
+    reserve: float | None = None
+    recovery_time: float | None = None
+    coupling: float | None = None
+    regime_distance: float | None = None
+
+    def validate(self) -> None:
+        values = (
+            self.level,
+            self.slope,
+            self.acceleration,
+            self.variability,
+        )
+        if not all(isfinite(value) for value in values):
+            raise MetricInputError("DynamicStateSummary contiene valores no finitos")
+
+        optional = (
+            self.reserve,
+            self.recovery_time,
+            self.coupling,
+            self.regime_distance,
+        )
+        if any(value is not None and not isfinite(value) for value in optional):
+            raise MetricInputError(
+                "DynamicStateSummary contiene valores opcionales no finitos"
+            )
+
+
+ADVANCED_METRIC_REGISTRY: Final[Mapping[str, str]] = {
+    "skewness": "Asimetría de distribución.",
+    "kurtosis_excess": "Curtosis en exceso.",
+    "coefficient_of_variation": "Variabilidad relativa.",
+    "rolling_coefficient_of_variation": "Variabilidad relativa móvil.",
+    "recovery_time": "Tiempo de recuperación tras perturbación.",
+    "recovery_ratio_dynamic": "Proporción de recuperación tras perturbación.",
+    "dynamic_slope": "Velocidad media de cambio.",
+    "dynamic_acceleration": "Aceleración de la trayectoria.",
+    "hysteresis_gap": "Separación entre trayectorias dependientes de la historia.",
+    "covariance": "Covariación entre variables.",
+    "correlation": "Asociación lineal contemporánea.",
+    "lagged_correlation": "Asociación temporal con retardo.",
+    "interaction_effect": "Desviación respecto a una expectativa aditiva.",
+    "coupling_strength": "Magnitud de acoplamiento temporal.",
+    "synchronization_index": "Sincronización entre múltiples series.",
+    "effective_capacity": "Capacidad operativa efectiva.",
+    "capacity_reserve": "Reserva de capacidad.",
+    "time_to_exhaustion": "Tiempo estimado hasta agotamiento bajo tasa constante.",
+    "amplification_gain": "Ganancia de una perturbación.",
+    "cascade_amplification": "Amplificación entre impacto inicial y final.",
+    "propagation_depth": "Profundidad de propagación en red.",
+    "normalized_hhi": "Concentración normalizada.",
+    "bottleneck_ratio": "Relación demanda/capacidad.",
+    "regime_distance": "Distancia entre estados.",
+    "state_velocity": "Velocidad multidimensional del estado.",
+}
+
+
+def get_advanced_metric_definition(metric_id: str) -> str:
+    """Obtiene la definición descriptiva de una métrica avanzada."""
+    try:
+        return ADVANCED_METRIC_REGISTRY[metric_id]
+    except KeyError as exc:
+        raise MetricError(f"Métrica avanzada no registrada: {metric_id}") from exc
+
+
+def validate_advanced_metric_registry() -> None:
+    """Comprueba la integridad mínima del registro avanzado."""
+    for metric_id, description in ADVANCED_METRIC_REGISTRY.items():
+        if not metric_id.strip():
+            raise MetricError("Existe un metric_id vacío")
+        if not description.strip():
+            raise MetricError(f"Métrica sin descripción: {metric_id}")
+
+
+validate_advanced_metric_registry()
+
+__all__.extend(
+    [
+        "skewness",
+        "kurtosis_excess",
+        "coefficient_of_variation",
+        "rolling_coefficient_of_variation",
+        "recovery_time",
+        "recovery_ratio_dynamic",
+        "dynamic_slope",
+        "dynamic_acceleration",
+        "hysteresis_gap",
+        "covariance",
+        "correlation",
+        "lagged_correlation",
+        "interaction_effect",
+        "coupling_strength",
+        "synchronization_index",
+        "effective_capacity",
+        "capacity_reserve",
+        "time_to_exhaustion",
+        "amplification_gain",
+        "cascade_amplification",
+        "propagation_depth",
+        "normalized_hhi",
+        "bottleneck_ratio",
+        "regime_distance",
+        "state_velocity",
+        "EarlyWarningSignal",
+        "DynamicStateSummary",
+        "ADVANCED_METRIC_REGISTRY",
+        "get_advanced_metric_definition",
+        "validate_advanced_metric_registry",
+    ]
+)
+
+# ---------------------------------------------------------------------------
+# Métricas avanzadas II — incertidumbre, estabilidad, persistencia,
+# extremos, dependencia espacial y validación de modelos
+# ---------------------------------------------------------------------------
+
+def median_absolute_deviation(
+    values: Sequence[float] | np.ndarray,
+) -> float:
+    """Desviación absoluta mediana respecto a la mediana."""
+    arr = _as_float_array(values, name="values")
+    _require_at_least_two(arr, "values")
+    median = float(np.median(arr))
+    return float(np.median(np.abs(arr - median)))
+
+
+def interquartile_range(
+    values: Sequence[float] | np.ndarray,
+) -> float:
+    """Rango intercuartílico."""
+    arr = _as_float_array(values, name="values")
+    _require_at_least_two(arr, "values")
+    q75, q25 = np.percentile(arr, [75.0, 25.0])
+    return float(q75 - q25)
+
+
+def quantile(
+    values: Sequence[float] | np.ndarray,
+    q: float,
+) -> float:
+    """Cuantil q de una distribución."""
+    arr = _as_float_array(values, name="values")
+    _require_at_least_two(arr, "values")
+
+    if not 0.0 <= q <= 1.0:
+        raise MetricInputError("q debe estar entre 0 y 1")
+
+    return float(np.quantile(arr, q))
+
+
+def entropy_from_probabilities(
+    probabilities: Sequence[float] | np.ndarray,
+    *,
+    base: float = 2.0,
+) -> float:
+    """Entropía de Shannon de una distribución de probabilidades."""
+    prob = _as_float_array(probabilities, name="probabilities")
+
+    if prob.size == 0:
+        raise MetricInputError("La distribución no puede estar vacía")
+    if np.any(prob < 0.0):
+        raise MetricInputError("Las probabilidades no pueden ser negativas")
+    if not np.isfinite(prob).all():
+        raise MetricInputError("Las probabilidades deben ser finitas")
+    if base <= 0.0 or base == 1.0:
+        raise MetricInputError("base debe ser positiva y distinta de 1")
+
+    total = float(np.sum(prob))
+    if total <= 0.0:
+        raise MetricInputError("La suma de probabilidades debe ser positiva")
+
+    normalized = prob / total
+    positive = normalized[normalized > 0.0]
+
+    return float(-np.sum(positive * np.log(positive)) / np.log(base))
+
+
+def normalized_entropy(
+    probabilities: Sequence[float] | np.ndarray,
+) -> float:
+    """Entropía normalizada entre 0 y 1."""
+    prob = _as_float_array(probabilities, name="probabilities")
+
+    if prob.size < 2:
+        raise MetricInputError("Se requieren al menos dos categorías")
+
+    entropy = entropy_from_probabilities(prob)
+    maximum = float(np.log2(prob.size))
+
+    if maximum == 0.0:
+        return 0.0
+
+    return float(entropy / maximum)
+
+
+def effective_sample_size(
+    weights: Sequence[float] | np.ndarray,
+) -> float:
+    """
+    Tamaño muestral efectivo para pesos no negativos.
+    """
+    w = _as_float_array(weights, name="weights")
+
+    if w.size == 0:
+        raise MetricInputError("weights no puede estar vacío")
+    if np.any(w < 0.0):
+        raise MetricInputError("Los pesos no pueden ser negativos")
+
+    denominator = float(np.sum(w**2))
+    total = float(np.sum(w))
+
+    if total <= 0.0 or denominator <= 0.0:
+        raise MetricInputError("Los pesos deben contener al menos un valor positivo")
+
+    return float(total**2 / denominator)
+
+
+def autocorrelation(
+    values: Sequence[float] | np.ndarray,
+    lag: int = 1,
+) -> float:
+    """Autocorrelación de Pearson a un retardo determinado."""
+    arr = _as_float_array(values, name="values")
+    _require_at_least_two(arr, "values")
+
+    if lag <= 0 or lag >= arr.size:
+        raise MetricInputError("lag debe estar entre 1 y n-1")
+
+    return correlation(arr[:-lag], arr[lag:])
+
+
+def partial_autocorrelation_proxy(
+    values: Sequence[float] | np.ndarray,
+    lag: int = 1,
+) -> float:
+    """
+    Proxy simple de autocorrelación parcial mediante regresión lineal.
+
+    No sustituye una estimación estadística especializada de PACF.
+    """
+    arr = _as_float_array(values, name="values")
+    _require_at_least_two(arr, "values")
+
+    if lag <= 0 or lag >= arr.size:
+        raise MetricInputError("lag debe estar entre 1 y n-1")
+
+    y = arr[lag:]
+    predictors = np.column_stack(
+        [arr[lag - j - 1 : arr.size - j - 1] for j in range(lag)]
+    )
+
+    design = np.column_stack([np.ones(predictors.shape[0]), predictors])
+    coefficients, *_ = np.linalg.lstsq(design, y, rcond=None)
+
+    fitted = design @ coefficients
+    residual = y - fitted
+
+    variance = float(np.var(residual))
+    if variance == 0.0:
+        return 1.0
+
+    return float(
+        np.corrcoef(
+            predictors[:, -1],
+            residual,
+        )[0, 1]
+    )
+
+
+def persistence_length(
+    values: Sequence[float] | np.ndarray,
+    *,
+    threshold: float = 0.0,
+) -> int:
+    """
+    Longitud máxima de una secuencia consecutiva por encima o por debajo
+    del umbral.
+    """
+    arr = _as_float_array(values, name="values")
+
+    if arr.size == 0:
+        raise MetricInputError("values no puede estar vacío")
+
+    above = arr > threshold
+    below = arr < threshold
+
+    def longest_run(mask: np.ndarray) -> int:
+        longest = current = 0
+        for item in mask:
+            if bool(item):
+                current += 1
+                longest = max(longest, current)
+            else:
+                current = 0
+        return longest
+
+    return max(longest_run(above), longest_run(below))
+
+
+def threshold_exceedance_count(
+    values: Sequence[float] | np.ndarray,
+    threshold: float,
+    *,
+    direction: str = "above",
+) -> int:
+    """Número de observaciones que superan un umbral."""
+    arr = _as_float_array(values, name="values")
+
+    if direction == "above":
+        return int(np.sum(arr > threshold))
+    if direction == "below":
+        return int(np.sum(arr < threshold))
+    if direction == "absolute":
+        return int(np.sum(np.abs(arr) > abs(threshold)))
+
+    raise MetricInputError(
+        "direction debe ser 'above', 'below' o 'absolute'"
+    )
+
+
+def threshold_exceedance_rate(
+    values: Sequence[float] | np.ndarray,
+    threshold: float,
+    *,
+    direction: str = "above",
+) -> float:
+    """Proporción de observaciones que superan un umbral."""
+    arr = _as_float_array(values, name="values")
+
+    if arr.size == 0:
+        raise MetricInputError("values no puede estar vacío")
+
+    return float(
+        threshold_exceedance_count(
+            arr,
+            threshold,
+            direction=direction,
+        )
+        / arr.size
+    )
+
+
+def mean_excess_over_threshold(
+    values: Sequence[float] | np.ndarray,
+    threshold: float,
+) -> float:
+    """Exceso medio sobre un umbral para observaciones superiores."""
+    arr = _as_float_array(values, name="values")
+    excess = arr[arr > threshold] - threshold
+
+    if excess.size == 0:
+        return 0.0
+
+    return float(np.mean(excess))
+
+
+def maximum_drawdown(
+    values: Sequence[float] | np.ndarray,
+) -> float:
+    """
+    Máxima caída relativa desde un máximo histórico de la trayectoria.
+    """
+    arr = _as_float_array(values, name="values")
+    _require_at_least_two(arr, "values")
+
+    running_max = np.maximum.accumulate(arr)
+
+    if np.any(running_max == 0.0):
+        raise MetricInputError(
+            "maximum_drawdown relativo indefinido cuando el máximo es cero"
+        )
+
+    drawdowns = (running_max - arr) / np.abs(running_max)
+    return float(np.max(drawdowns))
+
+
+def state_stability(
+    values: Sequence[float] | np.ndarray,
+) -> float:
+    """
+    Índice descriptivo inverso de variabilidad relativa.
+
+    Valores mayores indican menor variabilidad alrededor de la media.
+    No representa estabilidad estructural por sí mismo.
+    """
+    cv = coefficient_of_variation(values)
+    return float(1.0 / (1.0 + cv))
+
+
+def perturbation_recovery_fraction(
+    baseline: float,
+    perturbed: float,
+    recovered: float,
+) -> float:
+    """Fracción de la perturbación original que ha sido recuperada."""
+    perturbation = perturbed - baseline
+
+    if perturbation == 0.0:
+        raise MetricInputError("No existe perturbación inicial")
+
+    return float((recovered - perturbed) / (baseline - perturbed))
+
+
+def resilience_loss(
+    baseline: float,
+    minimum: float,
+) -> float:
+    """Pérdida absoluta de estado respecto al baseline."""
+    return float(abs(baseline - minimum))
+
+
+def resilience_loss_relative(
+    baseline: float,
+    minimum: float,
+) -> float:
+    """Pérdida relativa respecto al baseline."""
+    if baseline == 0.0:
+        raise MetricInputError("baseline no puede ser cero")
+
+    return float(abs(baseline - minimum) / abs(baseline))
+
+
+def area_under_curve(
+    times: Sequence[float] | np.ndarray,
+    values: Sequence[float] | np.ndarray,
+) -> float:
+    """Integral trapezoidal de una trayectoria."""
+    t = _as_float_array(times, name="times")
+    x = _as_float_array(values, name="values")
+    _validate_same_length(t, x)
+
+    if t.size < 2:
+        raise MetricInputError("Se requieren al menos dos observaciones")
+    if np.any(np.diff(t) < 0.0):
+        raise MetricInputError("times debe estar ordenado")
+
+    return float(np.trapezoid(x, t))
+
+
+def cumulative_exposure(
+    times: Sequence[float] | np.ndarray,
+    exposure: Sequence[float] | np.ndarray,
+) -> float:
+    """Carga acumulada de exposición en el tiempo."""
+    return area_under_curve(times, exposure)
+
+
+def lagged_effect_integral(
+    times: Sequence[float] | np.ndarray,
+    input_values: Sequence[float] | np.ndarray,
+    output_values: Sequence[float] | np.ndarray,
+    lag: int,
+) -> float:
+    """
+    Integral del producto entre una entrada retardada y una respuesta.
+
+    Es una medida descriptiva de acoplamiento temporal, no una prueba causal.
+    """
+    t = _as_float_array(times, name="times")
+    x = _as_float_array(input_values, name="input_values")
+    y = _as_float_array(output_values, name="output_values")
+
+    _validate_same_length(t, x)
+    _validate_same_length(t, y)
+
+    if lag < 0 or lag >= x.size:
+        raise MetricInputError("lag fuera del rango válido")
+
+    if lag == 0:
+        return area_under_curve(t, x * y)
+
+    return area_under_curve(
+        t[lag:],
+        x[:-lag] * y[lag:],
+    )
+
+
+def spatial_weighted_mean(
+    values: Sequence[float] | np.ndarray,
+    weights: Sequence[float] | np.ndarray,
+) -> float:
+    """Media ponderada espacial."""
+    x = _as_float_array(values, name="values")
+    w = _as_float_array(weights, name="weights")
+    _validate_same_length(x, w)
+
+    if np.any(w < 0.0):
+        raise MetricInputError("weights no puede contener valores negativos")
+
+    total = float(np.sum(w))
+    if total <= 0.0:
+        raise MetricInputError("La suma de pesos debe ser positiva")
+
+    return float(np.sum(x * w) / total)
+
+
+def spatial_weighted_variance(
+    values: Sequence[float] | np.ndarray,
+    weights: Sequence[float] | np.ndarray,
+) -> float:
+    """Varianza ponderada espacial."""
+    x = _as_float_array(values, name="values")
+    w = _as_float_array(weights, name="weights")
+    _validate_same_length(x, w)
+
+    if np.any(w < 0.0):
+        raise MetricInputError("weights no puede contener valores negativos")
+
+    total = float(np.sum(w))
+    if total <= 0.0:
+        raise MetricInputError("La suma de pesos debe ser positiva")
+
+    mean = float(np.sum(x * w) / total)
+    return float(np.sum(w * (x - mean) ** 2) / total)
+
+
+def morans_i(
+    values: Sequence[float] | np.ndarray,
+    weights_matrix: Sequence[Sequence[float]] | np.ndarray,
+) -> float:
+    """
+    I de Moran global.
+
+    Mide autocorrelación espacial bajo una matriz de pesos previamente
+    especificada. No implica causalidad.
+    """
+    x = _as_float_array(values, name="values")
+    w = np.asarray(weights_matrix, dtype=float)
+
+    if x.ndim != 1:
+        raise MetricInputError("values debe ser un vector")
+    if w.ndim != 2 or w.shape[0] != w.shape[1]:
+        raise MetricInputError("weights_matrix debe ser cuadrada")
+    if w.shape[0] != x.size:
+        raise MetricInputError(
+            "weights_matrix y values deben tener dimensiones compatibles"
+        )
+
+    centered = x - np.mean(x)
+    denominator = float(np.sum(centered**2))
+    weight_sum = float(np.sum(w))
+
+    if denominator == 0.0:
+        raise MetricInputError("Moran's I indefinido para valores constantes")
+    if weight_sum == 0.0:
+        raise MetricInputError("La matriz de pesos no puede tener suma cero")
+
+    numerator = float(centered @ w @ centered)
+
+    return float((x.size / weight_sum) * (numerator / denominator))
+
+
+def spatial_concentration_index(
+    values: Sequence[float] | np.ndarray,
+) -> float:
+    """
+    Concentración relativa de una distribución espacial no negativa.
+    """
+    arr = _as_float_array(values, name="values")
+
+    if np.any(arr < 0.0):
+        raise MetricInputError("values debe ser no negativo")
+
+    total = float(np.sum(arr))
+    if total <= 0.0:
+        raise MetricInputError("La suma debe ser positiva")
+
+    shares = arr / total
+    return float(np.sum(shares**2))
+
+
+def source_independence_adjusted_evidence(
+    evidence_weights: Sequence[float] | np.ndarray,
+    independence_weights: Sequence[float] | np.ndarray,
+) -> float:
+    """
+    Evidencia ponderada por independencia de fuentes.
+
+    No transforma fuentes dependientes en independientes; reduce su peso
+    efectivo cuando la independencia estimada es baja.
+    """
+    evidence = _as_float_array(evidence_weights, name="evidence_weights")
+    independence = _as_float_array(
+        independence_weights,
+        name="independence_weights",
+    )
+    _validate_same_length(evidence, independence)
+
+    if np.any(evidence < 0.0):
+        raise MetricInputError("evidence_weights no puede ser negativo")
+    if np.any((independence < 0.0) | (independence > 1.0)):
+        raise MetricInputError(
+            "independence_weights debe estar entre 0 y 1"
+        )
+
+    effective = evidence * independence
+    total = float(np.sum(evidence))
+
+    if total == 0.0:
+        return 0.0
+
+    return float(np.sum(effective) / total)
+
+
+def brier_skill_score(
+    y_true: Sequence[int] | np.ndarray,
+    probabilities: Sequence[float] | np.ndarray,
+    reference_probabilities: Sequence[float] | np.ndarray,
+) -> float:
+    """Brier Skill Score respecto a un modelo de referencia."""
+    model_brier = brier_score(y_true, probabilities)
+    reference_brier = brier_score(y_true, reference_probabilities)
+
+    if reference_brier == 0.0:
+        raise MetricInputError(
+            "El Brier del modelo de referencia no puede ser cero"
+        )
+
+    return float(1.0 - model_brier / reference_brier)
+
+
+def calibration_slope(
+    y_true: Sequence[int] | np.ndarray,
+    probabilities: Sequence[float] | np.ndarray,
+) -> float:
+    """
+    Pendiente de calibración aproximada mediante regresión logística
+    sobre el logit de la probabilidad predicha.
+    """
+    truth = _validate_binary(y_true, name="y_true")
+    prob = _validate_probabilities(probabilities)
+
+    _validate_same_length(truth, prob)
+
+    epsilon = np.finfo(float).eps
+    clipped = np.clip(prob, epsilon, 1.0 - epsilon)
+    logits = np.log(clipped / (1.0 - clipped))
+
+    design = np.column_stack([np.ones(logits.size), logits])
+
+    coefficients = np.linalg.lstsq(
+        design,
+        truth,
+        rcond=None,
+    )[0]
+
+    return float(coefficients[1])
+
+
+def calibration_intercept(
+    y_true: Sequence[int] | np.ndarray,
+    probabilities: Sequence[float] | np.ndarray,
+) -> float:
+    """Intercepto de calibración aproximado."""
+    truth = _validate_binary(y_true, name="y_true")
+    prob = _validate_probabilities(probabilities)
+
+    _validate_same_length(truth, prob)
+
+    epsilon = np.finfo(float).eps
+    clipped = np.clip(prob, epsilon, 1.0 - epsilon)
+    logits = np.log(clipped / (1.0 - clipped))
+
+    design = np.column_stack([np.ones(logits.size), logits])
+
+    coefficients = np.linalg.lstsq(
+        design,
+        truth,
+        rcond=None,
+    )[0]
+
+    return float(coefficients[0])
+
+
+def prevalence(
+    outcomes: Sequence[int] | np.ndarray,
+) -> float:
+    """Prevalencia/proporción de positivos."""
+    binary = _validate_binary(outcomes, name="outcomes")
+
+    if binary.size == 0:
+        raise MetricInputError("outcomes no puede estar vacío")
+
+    return float(np.mean(binary))
+
+
+def incidence_rate(
+    events: float,
+    population_time: float,
+) -> float:
+    """Tasa de incidencia por unidad de tiempo-persona."""
+    if events < 0.0:
+        raise MetricInputError("events debe ser >= 0")
+    if population_time <= 0.0:
+        raise MetricInputError("population_time debe ser > 0")
+
+    return float(events / population_time)
+
+
+def attack_rate(
+    cases: float,
+    population_at_risk: float,
+) -> float:
+    """Tasa de ataque acumulada."""
+    if cases < 0.0:
+        raise MetricInputError("cases debe ser >= 0")
+    if population_at_risk <= 0.0:
+        raise MetricInputError(
+            "population_at_risk debe ser > 0"
+        )
+    if cases > population_at_risk:
+        raise MetricInputError(
+            "cases no puede superar population_at_risk"
+        )
+
+    return float(cases / population_at_risk)
+
+
+def excess_rate(
+    observed: float,
+    expected: float,
+) -> float:
+    """Exceso relativo respecto al valor esperado."""
+    if expected == 0.0:
+        raise MetricInputError("expected no puede ser cero")
+
+    return float((observed - expected) / abs(expected))
+
+
+def standardized_mortality_ratio(
+    observed: float,
+    expected: float,
+) -> float:
+    """SMR = observado / esperado."""
+    if observed < 0.0 or expected <= 0.0:
+        raise MetricInputError(
+            "observed >= 0 y expected > 0 son obligatorios"
+        )
+
+    return float(observed / expected)
+
+
+def relative_risk(
+    exposed_cases: float,
+    exposed_total: float,
+    unexposed_cases: float,
+    unexposed_total: float,
+) -> float:
+    """Riesgo relativo entre expuestos y no expuestos."""
+    if exposed_total <= 0.0 or unexposed_total <= 0.0:
+        raise MetricInputError("Los denominadores deben ser > 0")
+    if exposed_cases < 0.0 or unexposed_cases < 0.0:
+        raise MetricInputError("Los casos no pueden ser negativos")
+    if exposed_cases > exposed_total or unexposed_cases > unexposed_total:
+        raise MetricInputError("Los casos no pueden superar los totales")
+
+    exposed_risk = exposed_cases / exposed_total
+    unexposed_risk = unexposed_cases / unexposed_total
+
+    if unexposed_risk == 0.0:
+        raise MetricInputError(
+            "Riesgo relativo indefinido cuando el riesgo no expuesto es cero"
+        )
+
+    return float(exposed_risk / unexposed_risk)
+
+
+def odds_ratio(
+    exposed_cases: float,
+    exposed_non_cases: float,
+    unexposed_cases: float,
+    unexposed_non_cases: float,
+) -> float:
+    """Odds ratio de una tabla 2×2."""
+    values = (
+        exposed_cases,
+        exposed_non_cases,
+        unexposed_cases,
+        unexposed_non_cases,
+    )
+
+    if any(value < 0.0 for value in values):
+        raise MetricInputError("Los recuentos no pueden ser negativos")
+
+    denominator = exposed_non_cases * unexposed_cases
+
+    if denominator == 0.0:
+        raise MetricInputError("Odds ratio indefinido")
+
+    return float(
+        (exposed_cases * unexposed_non_cases) / denominator
+    )
+
+
+def attributable_fraction(
+    relative_risk_value: float,
+) -> float:
+    """Fracción atribuible entre expuestos a partir del riesgo relativo."""
+    if relative_risk_value < 0.0:
+        raise MetricInputError("relative_risk debe ser >= 0")
+
+    return float(
+        (relative_risk_value - 1.0) / relative_risk_value
+    )
+
+
+def gini_coefficient(
+    values: Sequence[float] | np.ndarray,
+) -> float:
+    """Coeficiente de Gini para valores no negativos."""
+    arr = _as_float_array(values, name="values")
+
+    if arr.size < 2:
+        raise MetricInputError("Se requieren al menos dos observaciones")
+    if np.any(arr < 0.0):
+        raise MetricInputError("values debe ser no negativo")
+
+    total = float(np.sum(arr))
+    if total == 0.0:
+        return 0.0
+
+    sorted_values = np.sort(arr)
+    n = sorted_values.size
+    index = np.arange(1, n + 1)
+
+    return float(
+        (2.0 * np.sum(index * sorted_values))
+        / (n * total)
+        - (n + 1.0) / n
+    )
+
+
+def lorenz_area(
+    values: Sequence[float] | np.ndarray,
+) -> float:
+    """Área bajo la curva de Lorenz."""
+    arr = _as_float_array(values, name="values")
+
+    if arr.size < 2:
+        raise MetricInputError("Se requieren al menos dos observaciones")
+    if np.any(arr < 0.0):
+        raise MetricInputError("values debe ser no negativo")
+
+    total = float(np.sum(arr))
+    if total == 0.0:
+        return 0.5
+
+    sorted_values = np.sort(arr)
+    cumulative = np.cumsum(sorted_values) / total
+    cumulative = np.concatenate([[0.0], cumulative])
+
+    x = np.linspace(0.0, 1.0, arr.size + 1)
+
+    return float(np.trapezoid(cumulative, x))
+
+
+def hazard_ratio_from_hazards(
+    hazard_exposed: float,
+    hazard_reference: float,
+) -> float:
+    """Razón instantánea de riesgos entre dos grupos."""
+    if hazard_exposed < 0.0 or hazard_reference <= 0.0:
+        raise MetricInputError(
+            "hazard_exposed >= 0 y hazard_reference > 0"
+        )
+
+    return float(hazard_exposed / hazard_reference)
+
+
+def cumulative_hazard(
+    times: Sequence[float] | np.ndarray,
+    hazards: Sequence[float] | np.ndarray,
+) -> float:
+    """Hazard acumulado mediante integración trapezoidal."""
+    t = _as_float_array(times, name="times")
+    h = _as_float_array(hazards, name="hazards")
+
+    _validate_same_length(t, h)
+
+    if t.size < 2:
+        raise MetricInputError("Se requieren al menos dos observaciones")
+    if np.any(h < 0.0):
+        raise MetricInputError("hazards no puede contener valores negativos")
+
+    return area_under_curve(t, h)
+
+
+def survival_from_cumulative_hazard(
+    cumulative_hazard_value: float,
+) -> float:
+    """Supervivencia S(t)=exp(-H(t))."""
+    if cumulative_hazard_value < 0.0:
+        raise MetricInputError(
+            "cumulative_hazard debe ser >= 0"
+        )
+
+    return float(np.exp(-cumulative_hazard_value))
+
+
+def probability_of_failure(
+    survival_probability: float,
+) -> float:
+    """Probabilidad complementaria de fallo."""
+    if not 0.0 <= survival_probability <= 1.0:
+        raise MetricInputError(
+            "survival_probability debe estar entre 0 y 1"
+        )
+
+    return float(1.0 - survival_probability)
+
+
+def prediction_interval_width(
+    lower: Sequence[float] | np.ndarray,
+    upper: Sequence[float] | np.ndarray,
+) -> float:
+    """Anchura media de intervalos predictivos."""
+    low = _as_float_array(lower, name="lower")
+    high = _as_float_array(upper, name="upper")
+    _validate_same_length(low, high)
+
+    if np.any(high < low):
+        raise MetricInputError(
+            "upper no puede ser menor que lower"
+        )
+
+    return float(np.mean(high - low))
+
+
+def empirical_coverage(
+    y_true: Sequence[float] | np.ndarray,
+    lower: Sequence[float] | np.ndarray,
+    upper: Sequence[float] | np.ndarray,
+) -> float:
+    """Cobertura empírica de un intervalo predictivo."""
+    truth = _as_float_array(y_true, name="y_true")
+    low = _as_float_array(lower, name="lower")
+    high = _as_float_array(upper, name="upper")
+
+    _validate_same_length(truth, low)
+    _validate_same_length(truth, high)
+
+    if np.any(high < low):
+        raise MetricInputError(
+            "upper no puede ser menor que lower"
+        )
+
+    return float(np.mean((truth >= low) & (truth <= high)))
+
+
+def mean_absolute_scaled_error(
+    y_true: Sequence[float] | np.ndarray,
+    y_pred: Sequence[float] | np.ndarray,
+    training_series: Sequence[float] | np.ndarray,
+) -> float:
+    """MASE para series temporales."""
+    truth = _as_float_array(y_true, name="y_true")
+    pred = _as_float_array(y_pred, name="y_pred")
+    training = _as_float_array(training_series, name="training_series")
+
+    _validate_same_length(truth, pred)
+
+    if training.size < 2:
+        raise MetricInputError(
+            "training_series requiere al menos dos observaciones"
+        )
+
+    scale = float(np.mean(np.abs(np.diff(training))))
+
+    if scale == 0.0:
+        raise MetricInputError(
+            "Escala de referencia cero en MASE"
+        )
+
+    return float(np.mean(np.abs(truth - pred)) / scale)
+
+
+def directional_accuracy(
+    y_true: Sequence[float] | np.ndarray,
+    y_pred: Sequence[float] | np.ndarray,
+) -> float:
+    """Exactitud de la dirección del cambio."""
+    truth = _as_float_array(y_true, name="y_true")
+    pred = _as_float_array(y_pred, name="y_pred")
+
+    _validate_same_length(truth, pred)
+
+    if truth.size < 2:
+        raise MetricInputError("Se requieren al menos dos observaciones")
+
+    actual_direction = np.sign(np.diff(truth))
+    predicted_direction = np.sign(np.diff(pred))
+
+    return float(np.mean(actual_direction == predicted_direction))
+
+
+def lead_time(
+    event_time: float,
+    detection_time: float,
+) -> float:
+    """Tiempo de anticipación entre detección y evento."""
+    if detection_time > event_time:
+        raise MetricInputError(
+            "La detección no puede ocurrir después del evento"
+        )
+
+    return float(event_time - detection_time)
+
+
+def false_alarm_rate(
+    false_alarms: int,
+    non_events: int,
+) -> float:
+    """Tasa de falsas alarmas."""
+    if false_alarms < 0 or non_events < 0:
+        raise MetricInputError("Los recuentos no pueden ser negativos")
+    if non_events == 0:
+        raise MetricInputError("non_events debe ser > 0")
+
+    return float(false_alarms / non_events)
+
+
+def threat_score(
+    hits: int,
+    false_alarms: int,
+    misses: int,
+) -> float:
+    """Critical Success Index / Threat Score."""
+    values = (hits, false_alarms, misses)
+
+    if any(value < 0 for value in values):
+        raise MetricInputError("Los recuentos no pueden ser negativos")
+
+    denominator = hits + false_alarms + misses
+
+    if denominator == 0:
+        raise MetricInputError("Threat Score indefinido")
+
+    return float(hits / denominator)
+
+
+def fowlkes_mallows_index(
+    cm: ConfusionMatrix,
+) -> float:
+    """Índice de Fowlkes-Mallows."""
+    precision = positive_predictive_value(cm)
+    recall = sensitivity(cm)
+
+    return float(np.sqrt(precision * recall))
+
+
+def prevalence_threshold_adjusted_ppv(
+    sensitivity_value: float,
+    specificity_value: float,
+    prevalence_value: float,
+) -> float:
+    """
+    PPV teórico bajo sensibilidad, especificidad y prevalencia especificadas.
+    """
+    for name, value in (
+        ("sensitivity", sensitivity_value),
+        ("specificity", specificity_value),
+        ("prevalence", prevalence_value),
+    ):
+        if not 0.0 <= value <= 1.0:
+            raise MetricInputError(
+                f"{name} debe estar entre 0 y 1"
+            )
+
+    numerator = sensitivity_value * prevalence_value
+    denominator = numerator + (
+        (1.0 - specificity_value)
+        * (1.0 - prevalence_value)
+    )
+
+    if denominator == 0.0:
+        raise MetricInputError(
+            "PPV indefinido para estos parámetros"
+        )
+
+    return float(numerator / denominator)
+
+
+def net_benefit(
+    true_positives: int,
+    false_positives: int,
+    population: int,
+    threshold_probability: float,
+) -> float:
+    """
+    Net Benefit simplificado para evaluación de decisiones.
+    """
+    if population <= 0:
+        raise MetricInputError("population debe ser > 0")
+    if true_positives < 0 or false_positives < 0:
+        raise MetricInputError("Los recuentos no pueden ser negativos")
+    if not 0.0 < threshold_probability < 1.0:
+        raise MetricInputError(
+            "threshold_probability debe estar entre 0 y 1"
+        )
+
+    return float(
+        true_positives / population
+        - (
+            false_positives / population
+        )
+        * (
+            threshold_probability
+            / (1.0 - threshold_probability)
+        )
+    )
+
+
+def integrated_brier_score(
+    observed: Sequence[float] | np.ndarray,
+    predicted: Sequence[float] | np.ndarray,
+) -> float:
+    """
+    Brier score medio para probabilidades/valores binarios a lo largo
+    de múltiples horizontes.
+    """
+    truth = np.asarray(observed, dtype=float)
+    pred = np.asarray(predicted, dtype=float)
+
+    if truth.shape != pred.shape:
+        raise MetricInputError(
+            "observed y predicted deben tener la misma forma"
+        )
+
+    if truth.ndim != 2:
+        raise MetricInputError(
+            "Las entradas deben ser matrices [observaciones, horizontes]"
+        )
+
+    if np.any((truth < 0.0) | (truth > 1.0)):
+        raise MetricInputError(
+            "observed debe estar entre 0 y 1"
+        )
+    if np.any((pred < 0.0) | (pred > 1.0)):
+        raise MetricInputError(
+            "predicted debe estar entre 0 y 1"
+        )
+
+    return float(np.mean((pred - truth) ** 2))
+
+
+def monte_carlo_standard_error(
+    samples: Sequence[float] | np.ndarray,
+) -> float:
+    """Error estándar de Monte Carlo."""
+    arr = _as_float_array(samples, name="samples")
+    _require_at_least_two(arr, "samples")
+
+    return float(np.std(arr, ddof=1) / np.sqrt(arr.size))
+
+
+def monte_carlo_confidence_interval(
+    samples: Sequence[float] | np.ndarray,
+    confidence: float = 0.95,
+) -> tuple[float, float]:
+    """Intervalo empírico por cuantiles de Monte Carlo."""
+    arr = _as_float_array(samples, name="samples")
+    _require_at_least_two(arr, "samples")
+
+    if not 0.0 < confidence < 1.0:
+        raise MetricInputError(
+            "confidence debe estar entre 0 y 1"
+        )
+
+    alpha = 1.0 - confidence
+
+    return (
+        float(np.quantile(arr, alpha / 2.0)),
+        float(np.quantile(arr, 1.0 - alpha / 2.0)),
+    )
+
+
+def value_at_risk(
+    losses: Sequence[float] | np.ndarray,
+    confidence: float = 0.95,
+) -> float:
+    """Cuantil de pérdida para un nivel de confianza dado."""
+    return quantile(losses, confidence)
+
+
+def expected_shortfall(
+    losses: Sequence[float] | np.ndarray,
+    confidence: float = 0.95,
+) -> float:
+    """Pérdida media condicionada a superar VaR."""
+    arr = _as_float_array(losses, name="losses")
+    _require_at_least_two(arr, "losses")
+
+    if not 0.0 < confidence < 1.0:
+        raise MetricInputError(
+            "confidence debe estar entre 0 y 1"
+        )
+
+    var = value_at_risk(arr, confidence)
+    tail = arr[arr >= var]
+
+    if tail.size == 0:
+        return float(var)
+
+    return float(np.mean(tail))
+
+
+__all__.extend(
+    [
+        "median_absolute_deviation",
+        "interquartile_range",
+        "quantile",
+        "entropy_from_probabilities",
+        "normalized_entropy",
+        "effective_sample_size",
+        "autocorrelation",
+        "partial_autocorrelation_proxy",
+        "persistence_length",
+        "threshold_exceedance_count",
+        "threshold_exceedance_rate",
+        "mean_excess_over_threshold",
+        "maximum_drawdown",
+        "state_stability",
+        "perturbation_recovery_fraction",
+        "resilience_loss",
+        "resilience_loss_relative",
+        "area_under_curve",
+        "cumulative_exposure",
+        "lagged_effect_integral",
+        "spatial_weighted_mean",
+        "spatial_weighted_variance",
+        "morans_i",
+        "spatial_concentration_index",
+        "source_independence_adjusted_evidence",
+        "brier_skill_score",
+        "calibration_slope",
+        "calibration_intercept",
+        "prevalence",
+        "incidence_rate",
+        "attack_rate",
+        "excess_rate",
+        "standardized_mortality_ratio",
+        "relative_risk",
+        "odds_ratio",
+        "attributable_fraction",
+        "gini_coefficient",
+        "lorenz_area",
+        "hazard_ratio_from_hazards",
+        "cumulative_hazard",
+        "survival_from_cumulative_hazard",
+        "probability_of_failure",
+        "prediction_interval_width",
+        "empirical_coverage",
+        "mean_absolute_scaled_error",
+        "directional_accuracy",
+        "lead_time",
+        "false_alarm_rate",
+        "threat_score",
+        "fowlkes_mallows_index",
+        "prevalence_threshold_adjusted_ppv",
+        "net_benefit",
+        "integrated_brier_score",
+        "monte_carlo_standard_error",
+        "monte_carlo_confidence_interval",
+        "value_at_risk",
+        "expected_shortfall",
+    ]
+)
+
+
 """# ===========================================================================
 # CEUTIA — MÉTRICAS AVANZADAS DE DINÁMICA, RESILIENCIA E INTERACCIÓN
 # ===========================================================================

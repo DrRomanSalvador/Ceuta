@@ -14418,3 +14418,2170 @@ __all__ = [
     "utilization",
     "validate_registry_integrity",
 ]
+
+# =============================================================================
+# CEUTIA — MÉTRICAS TERRITORIALES, MULTIESCALA Y DE SENSIBILIDAD SISTÉMICA
+# =============================================================================
+#
+# Esta sección amplía la capa matemática con:
+#
+#   1. distribución espacial
+#   2. concentración y desigualdad territorial
+#   3. dependencia espacial
+#   4. co-localización de fenómenos
+#   5. presión multidimensional
+#   6. capacidad y reserva locales
+#   7. cuellos de botella territoriales
+#   8. propagación y difusión
+#   9. perturbaciones compuestas
+#  10. sensibilidad y elasticidad
+#  11. amplificación y amortiguación
+#  12. no linealidad
+#  13. umbrales y proximidad crítica
+#  14. persistencia y turnover de hotspots
+#  15. heterogeneidad de recuperación
+#  16. métricas espacio-temporales
+#  17. desigualdad de distribución
+#  18. métricas de exposición y accesibilidad
+#  19. información espacial
+#  20. métricas de cascada territorial
+#
+# Convenciones:
+#
+#   x_i       = magnitud en unidad territorial i
+#   x_it      = magnitud en unidad i en tiempo t
+#   W_ij      = peso espacial entre i y j
+#   D_i       = demanda local
+#   C_i       = capacidad local
+#   R_i       = reserva local
+#   P_ik      = presión k en unidad i
+#
+# Estas métricas describen estados y relaciones observables.
+# No constituyen por sí mismas modelos causales ni predicciones individuales.
+# =============================================================================
+
+
+def _validate_territorial_vector(
+    values: Sequence[float] | np.ndarray,
+    *,
+    name: str,
+    nonnegative: bool = False,
+) -> np.ndarray:
+    arr = _as_float_array(values, name=name)
+    if nonnegative and np.any(arr < 0.0):
+        raise MetricInputError(f"{name} debe ser no negativo")
+    return arr
+
+
+def _validate_spatial_matrix(
+    weights: Sequence[Sequence[float]] | np.ndarray,
+    n: int,
+) -> np.ndarray:
+    w = np.asarray(weights, dtype=float)
+
+    if w.ndim != 2 or w.shape != (n, n):
+        raise MetricInputError("weights debe tener dimensión (n, n)")
+    if not np.all(np.isfinite(w)):
+        raise MetricInputError("weights contiene valores no finitos")
+    if np.any(w < 0.0):
+        raise MetricInputError("weights no puede contener valores negativos")
+
+    w = w.copy()
+    np.fill_diagonal(w, 0.0)
+
+    if float(np.sum(w)) <= 0.0:
+        raise MetricInputError("weights debe contener al menos una conexión")
+
+    return w
+
+
+def territorial_total(
+    values: Sequence[float] | np.ndarray,
+) -> float:
+    """Carga, demanda, exposición o eventos territoriales totales."""
+    arr = _validate_territorial_vector(values, name="values", nonnegative=True)
+    return float(np.sum(arr))
+
+
+def territorial_share(
+    values: Sequence[float] | np.ndarray,
+) -> np.ndarray:
+    """
+    Participación territorial:
+
+        s_i = x_i / Σ_j x_j
+    """
+    arr = _validate_territorial_vector(values, name="values", nonnegative=True)
+    total = float(np.sum(arr))
+
+    if total <= 0.0:
+        raise MetricInputError("El total territorial debe ser positivo")
+
+    return arr / total
+
+
+def territorial_concentration_hhi(
+    values: Sequence[float] | np.ndarray,
+) -> float:
+    """
+    Índice de concentración de Herfindahl-Hirschman:
+
+        HHI = Σ_i s_i²
+    """
+    shares = territorial_share(values)
+    return float(np.sum(shares**2))
+
+
+def territorial_entropy(
+    values: Sequence[float] | np.ndarray,
+    *,
+    base: float = np.e,
+) -> float:
+    """
+    Entropía territorial:
+
+        H = -Σ_i s_i log_b(s_i)
+    """
+    shares = territorial_share(values)
+
+    if base <= 0.0 or base == 1.0:
+        raise MetricInputError("base debe ser positiva y distinta de 1")
+
+    positive = shares[shares > 0.0]
+
+    return float(-np.sum(positive * np.log(positive)) / np.log(base))
+
+
+def territorial_normalized_entropy(
+    values: Sequence[float] | np.ndarray,
+) -> float:
+    """
+    Entropía territorial normalizada:
+
+        H_norm = H / log(n)
+    """
+    arr = _validate_territorial_vector(values, name="values", nonnegative=True)
+
+    if arr.size < 2:
+        return 1.0
+
+    h = territorial_entropy(arr)
+
+    return float(h / log(arr.size))
+
+
+def territorial_effective_number_of_units(
+    values: Sequence[float] | np.ndarray,
+) -> float:
+    """
+    Número efectivo de unidades:
+
+        N_eff = 1 / HHI
+    """
+    hhi = territorial_concentration_hhi(values)
+
+    if hhi <= 0.0:
+        raise MetricInputError("HHI inválido")
+
+    return float(1.0 / hhi)
+
+
+def territorial_max_share(
+    values: Sequence[float] | np.ndarray,
+) -> float:
+    """Mayor participación territorial: max(s_i)."""
+    return float(np.max(territorial_share(values)))
+
+
+def territorial_top_k_share(
+    values: Sequence[float] | np.ndarray,
+    k: int,
+) -> float:
+    """
+    Concentración acumulada de las k unidades principales:
+
+        TopK = Σ_{i∈Top(k)} s_i
+    """
+    arr = _validate_territorial_vector(values, name="values", nonnegative=True)
+
+    if k < 1 or k > arr.size:
+        raise MetricInputError("k incompatible con el número de unidades")
+
+    shares = np.sort(territorial_share(arr))[::-1]
+
+    return float(np.sum(shares[:k]))
+
+
+def territorial_gini(
+    values: Sequence[float] | np.ndarray,
+) -> float:
+    """
+    Coeficiente de Gini:
+
+        G = Σ_i Σ_j |x_i-x_j| / (2 n Σ_i x_i)
+    """
+    arr = _validate_territorial_vector(values, name="values", nonnegative=True)
+
+    total = float(np.sum(arr))
+
+    if total <= 0.0:
+        raise MetricInputError("La suma debe ser positiva")
+
+    n = arr.size
+    differences = np.abs(arr[:, None] - arr[None, :])
+
+    return float(np.sum(differences) / (2.0 * n * total))
+
+
+def territorial_theil(
+    values: Sequence[float] | np.ndarray,
+) -> float:
+    """
+    Índice de Theil T:
+
+        T = (1/n) Σ_i (x_i/μ) log(x_i/μ)
+    """
+    arr = _validate_territorial_vector(values, name="values", nonnegative=True)
+
+    mean_value = float(np.mean(arr))
+
+    if mean_value <= 0.0:
+        raise MetricInputError("La media debe ser positiva")
+
+    ratio = arr / mean_value
+    positive = ratio > 0.0
+
+    return float(np.mean(ratio[positive] * np.log(ratio[positive])))
+
+
+def territorial_mean(
+    values: Sequence[float] | np.ndarray,
+) -> float:
+    """Media territorial."""
+    return float(np.mean(_validate_territorial_vector(values, name="values")))
+
+
+def territorial_variance(
+    values: Sequence[float] | np.ndarray,
+) -> float:
+    """Varianza transversal entre unidades territoriales."""
+    return float(np.var(_validate_territorial_vector(values, name="values"), ddof=1))
+
+
+def territorial_coefficient_of_variation(
+    values: Sequence[float] | np.ndarray,
+) -> float:
+    """CV territorial = σ / |μ|."""
+    arr = _validate_territorial_vector(values, name="values")
+    mean_value = float(np.mean(arr))
+
+    if mean_value == 0.0:
+        raise MetricInputError("CV indefinido con media 0")
+
+    return float(np.std(arr, ddof=1) / abs(mean_value))
+
+
+def territorial_z_scores(
+    values: Sequence[float] | np.ndarray,
+) -> np.ndarray:
+    """Estandarización transversal territorial."""
+    arr = _validate_territorial_vector(values, name="values")
+    sd = float(np.std(arr, ddof=1))
+
+    if sd == 0.0:
+        raise MetricInputError("No se puede estandarizar una variable constante")
+
+    return (arr - float(np.mean(arr))) / sd
+
+
+def territorial_spatial_lag(
+    values: Sequence[float] | np.ndarray,
+    weights: Sequence[Sequence[float]] | np.ndarray,
+) -> np.ndarray:
+    """
+    Rezago espacial:
+
+        L_i = Σ_j w_ij x_j / Σ_j w_ij
+    """
+    x = _validate_territorial_vector(values, name="values")
+    w = _validate_spatial_matrix(weights, x.size)
+
+    row_sum = np.sum(w, axis=1)
+
+    return (w @ x) / row_sum
+
+
+def territorial_spatial_gradient(
+    values: Sequence[float] | np.ndarray,
+    weights: Sequence[Sequence[float]] | np.ndarray,
+) -> np.ndarray:
+    """
+    Gradiente espacial:
+
+        G_i = x_i - L_i
+    """
+    x = _validate_territorial_vector(values, name="values")
+
+    return x - territorial_spatial_lag(x, weights)
+
+
+def territorial_spatial_gradient_magnitude(
+    values: Sequence[float] | np.ndarray,
+    weights: Sequence[Sequence[float]] | np.ndarray,
+) -> float:
+    """Magnitud media |G_i|."""
+    gradient = territorial_spatial_gradient(values, weights)
+
+    return float(np.mean(np.abs(gradient)))
+
+
+def territorial_morans_i(
+    values: Sequence[float] | np.ndarray,
+    weights: Sequence[Sequence[float]] | np.ndarray,
+) -> float:
+    """
+    I de Moran global:
+
+        I = (n / S0)
+            · [Σ_i Σ_j w_ij z_i z_j]
+            / [Σ_i z_i²]
+
+    No implica causalidad.
+    """
+    x = _validate_territorial_vector(values, name="values")
+    w = _validate_spatial_matrix(weights, x.size)
+
+    z = x - float(np.mean(x))
+    denominator = float(np.sum(z**2))
+
+    if denominator == 0.0:
+        raise MetricInputError("La variable territorial tiene varianza nula")
+
+    s0 = float(np.sum(w))
+
+    return float(
+        (x.size / s0)
+        * ((z @ w @ z) / denominator)
+    )
+
+
+def territorial_gearys_c(
+    values: Sequence[float] | np.ndarray,
+    weights: Sequence[Sequence[float]] | np.ndarray,
+) -> float:
+    """
+    C de Geary:
+
+        C =
+        [(n-1)/(2S0)]
+        · [Σ_i Σ_j w_ij (x_i-x_j)²]
+        / [Σ_i (x_i-x̄)²]
+    """
+    x = _validate_territorial_vector(values, name="values")
+    w = _validate_spatial_matrix(weights, x.size)
+
+    denominator = float(np.sum((x - np.mean(x)) ** 2))
+
+    if denominator == 0.0:
+        raise MetricInputError("La variable territorial tiene varianza nula")
+
+    differences = (x[:, None] - x[None, :]) ** 2
+    numerator = float(np.sum(w * differences))
+    s0 = float(np.sum(w))
+
+    return float(
+        ((x.size - 1.0) / (2.0 * s0))
+        * (numerator / denominator)
+    )
+
+
+def territorial_local_spatial_association(
+    values: Sequence[float] | np.ndarray,
+    weights: Sequence[Sequence[float]] | np.ndarray,
+) -> np.ndarray:
+    """
+    Asociación espacial local simplificada:
+
+        LISA_i = z_i · Σ_j w_ij z_j / Σ_j w_ij
+    """
+    z = territorial_z_scores(values)
+    lag = territorial_spatial_lag(z, weights)
+
+    return z * lag
+
+
+def territorial_spatial_concentration(
+    values: Sequence[float] | np.ndarray,
+    weights: Sequence[Sequence[float]] | np.ndarray,
+) -> float:
+    """
+    Concentración espacial basada en la diferencia entre unidades
+    y sus vecinos.
+    """
+    gradient = territorial_spatial_gradient(values, weights)
+    scale = float(np.std(values, ddof=0))
+
+    if scale == 0.0:
+        return 0.0
+
+    return float(np.mean(np.abs(gradient)) / scale)
+
+
+def territorial_distance_weighted_exposure(
+    exposure: Sequence[float] | np.ndarray,
+    distances: Sequence[float] | np.ndarray,
+    *,
+    decay: float = 1.0,
+) -> float:
+    """
+    Exposición ponderada por distancia:
+
+        E_d = Σ_i E_i exp(-α d_i) / Σ_i exp(-α d_i)
+    """
+    e = _validate_territorial_vector(exposure, name="exposure", nonnegative=True)
+    d = _validate_territorial_vector(distances, name="distances", nonnegative=True)
+    _validate_same_length(e, d)
+
+    if decay < 0.0:
+        raise MetricInputError("decay debe ser no negativo")
+
+    weights = np.exp(-decay * d)
+
+    if np.sum(weights) == 0.0:
+        raise MetricInputError("Pesos espaciales inválidos")
+
+    return float(np.sum(e * weights) / np.sum(weights))
+
+
+def territorial_accessibility_index(
+    population: Sequence[float] | np.ndarray,
+    travel_time: Sequence[float] | np.ndarray,
+    *,
+    decay: float = 1.0,
+) -> float:
+    """
+    Accesibilidad gravitacional simplificada:
+
+        A = Σ_i P_i exp(-α t_i) / Σ_i P_i
+    """
+    p = _validate_territorial_vector(population, name="population", nonnegative=True)
+    t = _validate_territorial_vector(travel_time, name="travel_time", nonnegative=True)
+    _validate_same_length(p, t)
+
+    if decay < 0.0:
+        raise MetricInputError("decay debe ser no negativo")
+
+    total_population = float(np.sum(p))
+
+    if total_population <= 0.0:
+        raise MetricInputError("population debe tener suma positiva")
+
+    return float(np.sum(p * np.exp(-decay * t)) / total_population)
+
+
+def territorial_service_coverage(
+    population: Sequence[float] | np.ndarray,
+    covered_population: Sequence[float] | np.ndarray,
+) -> np.ndarray:
+    """
+    Cobertura local:
+
+        Coverage_i = covered_i / population_i
+    """
+    p = _validate_territorial_vector(population, name="population", nonnegative=True)
+    c = _validate_territorial_vector(
+        covered_population,
+        name="covered_population",
+        nonnegative=True,
+    )
+    _validate_same_length(p, c)
+
+    if np.any(c > p):
+        raise MetricInputError("covered_population no puede superar population")
+
+    if np.any(p <= 0.0):
+        raise MetricInputError("population debe ser positiva en todas las unidades")
+
+    return c / p
+
+
+def territorial_coverage_gap(
+    population: Sequence[float] | np.ndarray,
+    covered_population: Sequence[float] | np.ndarray,
+) -> np.ndarray:
+    """Brecha local de cobertura = 1 - cobertura."""
+    return 1.0 - territorial_service_coverage(population, covered_population)
+
+
+def territorial_demand_per_capacity(
+    demand: Sequence[float] | np.ndarray,
+    capacity: Sequence[float] | np.ndarray,
+) -> np.ndarray:
+    """
+    Utilización local:
+
+        U_i = D_i / C_i
+    """
+    d = _validate_territorial_vector(demand, name="demand", nonnegative=True)
+    c = _validate_territorial_vector(capacity, name="capacity", nonnegative=True)
+    _validate_same_length(d, c)
+
+    if np.any(c <= 0.0):
+        raise MetricInputError("capacity debe ser positiva")
+
+    return d / c
+
+
+def territorial_capacity_reserve(
+    demand: Sequence[float] | np.ndarray,
+    capacity: Sequence[float] | np.ndarray,
+) -> np.ndarray:
+    """
+    Reserva absoluta:
+
+        R_i = C_i - D_i
+    """
+    d = _validate_territorial_vector(demand, name="demand", nonnegative=True)
+    c = _validate_territorial_vector(capacity, name="capacity", nonnegative=True)
+    _validate_same_length(d, c)
+
+    return c - d
+
+
+def territorial_capacity_reserve_fraction(
+    demand: Sequence[float] | np.ndarray,
+    capacity: Sequence[float] | np.ndarray,
+) -> np.ndarray:
+    """
+    Reserva relativa:
+
+        R_i* = (C_i-D_i)/C_i = 1-U_i
+    """
+    utilization_values = territorial_demand_per_capacity(demand, capacity)
+
+    return 1.0 - utilization_values
+
+
+def territorial_excess_demand(
+    demand: Sequence[float] | np.ndarray,
+    capacity: Sequence[float] | np.ndarray,
+) -> np.ndarray:
+    """Exceso local max(D_i-C_i, 0)."""
+    reserve = territorial_capacity_reserve(demand, capacity)
+
+    return np.maximum(-reserve, 0.0)
+
+
+def territorial_capacity_debt(
+    demand: Sequence[float] | np.ndarray,
+    capacity: Sequence[float] | np.ndarray,
+) -> float:
+    """
+    Deuda territorial de capacidad:
+
+        CD = Σ_i max(D_i-C_i, 0)
+    """
+    return float(np.sum(territorial_excess_demand(demand, capacity)))
+
+
+def territorial_bottleneck_index(
+    demand: Sequence[float] | np.ndarray,
+    capacity: Sequence[float] | np.ndarray,
+) -> int:
+    """Unidad territorial con mayor utilización."""
+    utilization_values = territorial_demand_per_capacity(demand, capacity)
+
+    return int(np.argmax(utilization_values))
+
+
+def territorial_bottleneck_ratio(
+    demand: Sequence[float] | np.ndarray,
+    capacity: Sequence[float] | np.ndarray,
+) -> float:
+    """
+    Presión del cuello de botella:
+
+        B = max_i(D_i/C_i)
+    """
+    utilization_values = territorial_demand_per_capacity(demand, capacity)
+
+    return float(np.max(utilization_values))
+
+
+def territorial_bottleneck_share(
+    demand: Sequence[float] | np.ndarray,
+    capacity: Sequence[float] | np.ndarray,
+) -> float:
+    """
+    Fracción del déficit total atribuible al mayor déficit:
+
+        B_s = max(E_i) / Σ_i E_i
+    """
+    excess = territorial_excess_demand(demand, capacity)
+    total = float(np.sum(excess))
+
+    if total == 0.0:
+        return 0.0
+
+    return float(np.max(excess) / total)
+
+
+def territorial_saturation_fraction(
+    demand: Sequence[float] | np.ndarray,
+    capacity: Sequence[float] | np.ndarray,
+    *,
+    threshold: float = 1.0,
+) -> float:
+    """Fracción de unidades con D_i/C_i >= threshold."""
+    if threshold <= 0.0:
+        raise MetricInputError("threshold debe ser positivo")
+
+    utilization_values = territorial_demand_per_capacity(demand, capacity)
+
+    return float(np.mean(utilization_values >= threshold))
+
+
+def territorial_bottleneck_migration(
+    previous_demand: Sequence[float] | np.ndarray,
+    previous_capacity: Sequence[float] | np.ndarray,
+    current_demand: Sequence[float] | np.ndarray,
+    current_capacity: Sequence[float] | np.ndarray,
+) -> int | None:
+    """
+    Detecta cambio de localización del cuello de botella.
+    """
+    previous = territorial_bottleneck_index(
+        previous_demand,
+        previous_capacity,
+    )
+    current = territorial_bottleneck_index(
+        current_demand,
+        current_capacity,
+    )
+
+    return None if previous == current else current
+
+
+def territorial_load_transfer(
+    previous: Sequence[float] | np.ndarray,
+    current: Sequence[float] | np.ndarray,
+) -> np.ndarray:
+    """
+    Cambio territorial:
+
+        ΔL_i = L_i(t) - L_i(t-1)
+    """
+    old = _validate_territorial_vector(previous, name="previous")
+    new = _validate_territorial_vector(current, name="current")
+    _validate_same_length(old, new)
+
+    return new - old
+
+
+def territorial_positive_load_transfer(
+    previous: Sequence[float] | np.ndarray,
+    current: Sequence[float] | np.ndarray,
+) -> np.ndarray:
+    """Sólo incrementos positivos de carga."""
+    return np.maximum(territorial_load_transfer(previous, current), 0.0)
+
+
+def territorial_load_transfer_concentration(
+    previous: Sequence[float] | np.ndarray,
+    current: Sequence[float] | np.ndarray,
+) -> float:
+    """HHI de la transferencia positiva de carga."""
+    transfer = territorial_positive_load_transfer(previous, current)
+    total = float(np.sum(transfer))
+
+    if total == 0.0:
+        return 0.0
+
+    return territorial_concentration_hhi(transfer)
+
+
+def territorial_spatial_propagation(
+    previous: Sequence[float] | np.ndarray,
+    current: Sequence[float] | np.ndarray,
+    weights: Sequence[Sequence[float]] | np.ndarray,
+) -> float:
+    """
+    Propagación espacial descriptiva:
+
+        Prop =
+        Σ_i Δx_i^+ · L_i(x_t-1)
+        /
+        Σ_i Δx_i^+
+    """
+    old = _validate_territorial_vector(previous, name="previous", nonnegative=True)
+    new = _validate_territorial_vector(current, name="current", nonnegative=True)
+    _validate_same_length(old, new)
+
+    increase = np.maximum(new - old, 0.0)
+    total_increase = float(np.sum(increase))
+
+    if total_increase == 0.0:
+        return 0.0
+
+    old_scale = max(float(np.max(old)), 1e-12)
+    normalized_old = old / old_scale
+    neighbor_signal = territorial_spatial_lag(normalized_old, weights)
+
+    return float(np.sum(increase * neighbor_signal) / total_increase)
+
+
+def territorial_spatial_synchronization(
+    first: Sequence[float] | np.ndarray,
+    second: Sequence[float] | np.ndarray,
+) -> float:
+    """Correlación transversal entre dos fenómenos territoriales."""
+    a = _validate_territorial_vector(first, name="first")
+    b = _validate_territorial_vector(second, name="second")
+    _validate_same_length(a, b)
+
+    if np.std(a, ddof=0) == 0.0 or np.std(b, ddof=0) == 0.0:
+        raise MetricInputError("No existe variabilidad territorial suficiente")
+
+    return float(np.corrcoef(a, b)[0, 1])
+
+
+def territorial_cospatial_overlap(
+    first: Sequence[float] | np.ndarray,
+    second: Sequence[float] | np.ndarray,
+    *,
+    quantile: float = 0.90,
+) -> float:
+    """
+    Jaccard de hotspots:
+
+        J = |A ∩ B| / |A ∪ B|
+    """
+    a = _validate_territorial_vector(first, name="first")
+    b = _validate_territorial_vector(second, name="second")
+    _validate_same_length(a, b)
+
+    if not 0.0 < quantile < 1.0:
+        raise MetricInputError("quantile debe estar entre 0 y 1")
+
+    hotspot_a = a >= np.quantile(a, quantile)
+    hotspot_b = b >= np.quantile(b, quantile)
+
+    union = hotspot_a | hotspot_b
+
+    if not np.any(union):
+        return 0.0
+
+    return float(np.sum(hotspot_a & hotspot_b) / np.sum(union))
+
+
+def territorial_cospatial_burden(
+    first: Sequence[float] | np.ndarray,
+    second: Sequence[float] | np.ndarray,
+) -> float:
+    """
+    Co-localización ponderada:
+
+        CB = Σ_i s_i · q_i
+    """
+    a = _validate_territorial_vector(first, name="first", nonnegative=True)
+    b = _validate_territorial_vector(second, name="second", nonnegative=True)
+    _validate_same_length(a, b)
+
+    return float(np.sum(territorial_share(a) * territorial_share(b)))
+
+
+def territorial_cross_pressure(
+    first: Sequence[float] | np.ndarray,
+    second: Sequence[float] | np.ndarray,
+) -> np.ndarray:
+    """
+    Interacción multiplicativa normalizada:
+
+        CP_i =
+        (x_i / x̄) · (y_i / ȳ)
+    """
+    a = _validate_territorial_vector(first, name="first", nonnegative=True)
+    b = _validate_territorial_vector(second, name="second", nonnegative=True)
+    _validate_same_length(a, b)
+
+    mean_a = float(np.mean(a))
+    mean_b = float(np.mean(b))
+
+    if mean_a <= 0.0 or mean_b <= 0.0:
+        raise MetricInputError("Las medias deben ser positivas")
+
+    return (a / mean_a) * (b / mean_b)
+
+
+def territorial_cross_pressure_breadth(
+    first: Sequence[float] | np.ndarray,
+    second: Sequence[float] | np.ndarray,
+    *,
+    threshold: float = 1.0,
+) -> float:
+    """Fracción territorial con CP_i >= threshold."""
+    if threshold <= 0.0:
+        raise MetricInputError("threshold debe ser positivo")
+
+    cross = territorial_cross_pressure(first, second)
+
+    return float(np.mean(cross >= threshold))
+
+
+def territorial_multi_pressure_matrix(
+    pressures: Sequence[Sequence[float]] | np.ndarray,
+) -> np.ndarray:
+    """
+    Matriz territorial:
+
+        P = [p_i,k]
+
+    filas = unidades territoriales
+    columnas = dimensiones de presión
+    """
+    matrix = np.asarray(pressures, dtype=float)
+
+    if matrix.ndim != 2:
+        raise MetricInputError("pressures debe ser una matriz 2D")
+    if matrix.shape[0] == 0 or matrix.shape[1] == 0:
+        raise MetricInputError("pressures no puede estar vacía")
+    if not np.all(np.isfinite(matrix)):
+        raise MetricInputError("pressures contiene valores no finitos")
+    if np.any(matrix < 0.0):
+        raise MetricInputError("pressures debe ser no negativa")
+
+    return matrix
+
+
+def territorial_multi_pressure_zscores(
+    pressures: Sequence[Sequence[float]] | np.ndarray,
+) -> np.ndarray:
+    """Z-score territorial independiente para cada dimensión."""
+    matrix = territorial_multi_pressure_matrix(pressures)
+    mean_values = np.mean(matrix, axis=0)
+    std_values = np.std(matrix, axis=0, ddof=1)
+
+    if np.any(std_values == 0.0):
+        raise MetricInputError("Una dimensión tiene varianza territorial nula")
+
+    return (matrix - mean_values) / std_values
+
+
+def territorial_multi_pressure_score(
+    pressures: Sequence[Sequence[float]] | np.ndarray,
+    weights: Sequence[float] | np.ndarray | None = None,
+) -> np.ndarray:
+    """
+    Perfil integrado:
+
+        S_i = Σ_k w_k z_i,k
+        con Σ_k w_k = 1
+    """
+    z = territorial_multi_pressure_zscores(pressures)
+
+    if weights is None:
+        w = np.ones(z.shape[1], dtype=float) / z.shape[1]
+    else:
+        w = _as_float_array(weights, name="weights")
+
+        if w.size != z.shape[1]:
+            raise MetricInputError("weights no coincide con las dimensiones")
+
+        if np.any(w < 0.0):
+            raise MetricInputError("weights debe ser no negativa")
+
+        total = float(np.sum(w))
+
+        if total <= 0.0:
+            raise MetricInputError("weights debe tener suma positiva")
+
+        w = w / total
+
+    return z @ w
+
+
+def territorial_pressure_breadth(
+    pressures: Sequence[Sequence[float]] | np.ndarray,
+    *,
+    threshold: float = 1.0,
+) -> np.ndarray:
+    """
+    Número de dimensiones que superan simultáneamente un umbral:
+
+        B_i = Σ_k I(z_i,k >= θ)
+    """
+    if threshold < 0.0:
+        raise MetricInputError("threshold debe ser no negativo")
+
+    z = territorial_multi_pressure_zscores(pressures)
+
+    return np.sum(z >= threshold, axis=1).astype(float)
+
+
+def territorial_pressure_breadth_fraction(
+    pressures: Sequence[Sequence[float]] | np.ndarray,
+    *,
+    threshold: float = 1.0,
+) -> np.ndarray:
+    """B_i / K."""
+    z = territorial_multi_pressure_zscores(pressures)
+
+    return territorial_pressure_breadth(
+        z,
+        threshold=threshold,
+    ) / z.shape[1]
+
+
+def territorial_pressure_dependence(
+    pressures: Sequence[Sequence[float]] | np.ndarray,
+) -> float:
+    """
+    Dependencia media absoluta entre dimensiones:
+
+        D = mean(|r_jk|)
+    """
+    matrix = territorial_multi_pressure_matrix(pressures)
+
+    if matrix.shape[1] < 2:
+        return 0.0
+
+    correlation = np.corrcoef(matrix, rowvar=False)
+    upper = correlation[np.triu_indices(correlation.shape[0], k=1)]
+
+    return float(np.mean(np.abs(upper)))
+
+
+def territorial_pressure_concentration(
+    pressures: Sequence[Sequence[float]] | np.ndarray,
+) -> float:
+    """Concentración territorial de la carga multidimensional."""
+    score = territorial_multi_pressure_score(pressures)
+
+    shifted = score - np.min(score) + 1e-12
+
+    return territorial_concentration_hhi(shifted)
+
+
+def territorial_pressure_hotspot(
+    pressures: Sequence[Sequence[float]] | np.ndarray,
+    *,
+    threshold: float = 1.0,
+) -> np.ndarray:
+    """Fracción de dimensiones elevadas simultáneamente por unidad."""
+    return territorial_pressure_breadth_fraction(
+        pressures,
+        threshold=threshold,
+    )
+
+
+def territorial_local_reserve(
+    capacity: Sequence[float] | np.ndarray,
+    load: Sequence[float] | np.ndarray,
+) -> np.ndarray:
+    """Reserva absoluta R_i = C_i-L_i."""
+    return territorial_capacity_reserve(load, capacity)
+
+
+def territorial_reserve_depletion(
+    reserve_before: Sequence[float] | np.ndarray,
+    reserve_after: Sequence[float] | np.ndarray,
+) -> np.ndarray:
+    """
+    Depleción:
+
+        ΔR_i = R_i(before) - R_i(after)
+    """
+    before = _validate_territorial_vector(
+        reserve_before,
+        name="reserve_before",
+        nonnegative=True,
+    )
+    after = _validate_territorial_vector(
+        reserve_after,
+        name="reserve_after",
+        nonnegative=True,
+    )
+    _validate_same_length(before, after)
+
+    return before - after
+
+
+def territorial_reserve_depletion_fraction(
+    reserve_before: Sequence[float] | np.ndarray,
+    reserve_after: Sequence[float] | np.ndarray,
+) -> np.ndarray:
+    """Depleción relativa de reserva."""
+    before = _validate_territorial_vector(
+        reserve_before,
+        name="reserve_before",
+        nonnegative=True,
+    )
+    after = _validate_territorial_vector(
+        reserve_after,
+        name="reserve_after",
+        nonnegative=True,
+    )
+    _validate_same_length(before, after)
+
+    if np.any(before <= 0.0):
+        raise MetricInputError("reserve_before debe ser positiva")
+
+    return (before - after) / before
+
+
+def territorial_shock_intensity(
+    baseline: Sequence[float] | np.ndarray,
+    shocked: Sequence[float] | np.ndarray,
+) -> np.ndarray:
+    """
+    Intensidad relativa del shock:
+
+        S_i = |x_i^shock-x_i^base| / |x_i^base|
+    """
+    base = _validate_territorial_vector(
+        baseline,
+        name="baseline",
+    )
+    shock = _validate_territorial_vector(
+        shocked,
+        name="shocked",
+    )
+    _validate_same_length(base, shock)
+
+    if np.any(base == 0.0):
+        raise MetricInputError("baseline no puede contener ceros")
+
+    return np.abs(shock - base) / np.abs(base)
+
+
+def territorial_shock_direction(
+    baseline: Sequence[float] | np.ndarray,
+    shocked: Sequence[float] | np.ndarray,
+) -> np.ndarray:
+    """Dirección del shock: Δx_i."""
+    return territorial_load_transfer(baseline, shocked)
+
+
+def territorial_shock_breadth(
+    baseline: Sequence[float] | np.ndarray,
+    shocked: Sequence[float] | np.ndarray,
+    *,
+    threshold: float = 0.10,
+) -> float:
+    """Fracción territorial afectada por un shock >= threshold."""
+    intensity = territorial_shock_intensity(baseline, shocked)
+
+    if threshold < 0.0:
+        raise MetricInputError("threshold debe ser no negativo")
+
+    return float(np.mean(intensity >= threshold))
+
+
+def territorial_compound_shock_breadth(
+    shocks: Sequence[Sequence[float]] | np.ndarray,
+    *,
+    threshold: float = 1.0,
+) -> np.ndarray:
+    """
+    Número de dimensiones de shock elevadas simultáneamente.
+    """
+    return territorial_pressure_breadth(
+        shocks,
+        threshold=threshold,
+    )
+
+
+def territorial_response_sensitivity(
+    perturbation: Sequence[float] | np.ndarray,
+    response: Sequence[float] | np.ndarray,
+) -> np.ndarray:
+    """
+    Sensibilidad:
+
+        χ_i = ΔR_i / ΔP_i
+    """
+    p = _validate_territorial_vector(
+        perturbation,
+        name="perturbation",
+        nonnegative=True,
+    )
+    r = _validate_territorial_vector(
+        response,
+        name="response",
+        nonnegative=True,
+    )
+    _validate_same_length(p, r)
+
+    if np.any(p == 0.0):
+        raise MetricInputError("perturbation no puede contener ceros")
+
+    return r / p
+
+
+def territorial_response_elasticity(
+    baseline_perturbation: Sequence[float] | np.ndarray,
+    perturbed_perturbation: Sequence[float] | np.ndarray,
+    baseline_response: Sequence[float] | np.ndarray,
+    perturbed_response: Sequence[float] | np.ndarray,
+) -> np.ndarray:
+    """
+    Elasticidad:
+
+        E_i =
+        (%ΔR_i) / (%ΔP_i)
+    """
+    p0 = _validate_territorial_vector(
+        baseline_perturbation,
+        name="baseline_perturbation",
+        nonnegative=True,
+    )
+    p1 = _validate_territorial_vector(
+        perturbed_perturbation,
+        name="perturbed_perturbation",
+        nonnegative=True,
+    )
+    r0 = _validate_territorial_vector(
+        baseline_response,
+        name="baseline_response",
+        nonnegative=True,
+    )
+    r1 = _validate_territorial_vector(
+        perturbed_response,
+        name="perturbed_response",
+        nonnegative=True,
+    )
+
+    _validate_same_length(p0, p1, r0, r1)
+
+    if np.any(p0 <= 0.0) or np.any(r0 <= 0.0):
+        raise MetricInputError("Los valores basales deben ser positivos")
+
+    dp = (p1 - p0) / p0
+    dr = (r1 - r0) / r0
+
+    if np.any(dp == 0.0):
+        raise MetricInputError("La perturbación debe cambiar en todas las unidades")
+
+    return dr / dp
+
+
+def territorial_amplification_factor(
+    perturbation: Sequence[float] | np.ndarray,
+    response: Sequence[float] | np.ndarray,
+) -> np.ndarray:
+    """
+    Amplificación:
+
+        A_i = |ΔR_i| / |ΔP_i|
+    """
+    p = _validate_territorial_vector(
+        perturbation,
+        name="perturbation",
+        nonnegative=True,
+    )
+    r = _validate_territorial_vector(
+        response,
+        name="response",
+        nonnegative=True,
+    )
+    _validate_same_length(p, r)
+
+    if np.any(p == 0.0):
+        raise MetricInputError("perturbation no puede contener ceros")
+
+    return np.abs(r) / np.abs(p)
+
+
+def territorial_damping_factor(
+    perturbation: Sequence[float] | np.ndarray,
+    response: Sequence[float] | np.ndarray,
+) -> np.ndarray:
+    """
+    Amortiguación:
+
+        D_i = 1 / (1 + A_i)
+
+    donde A_i es la amplificación absoluta.
+    """
+    amplification = territorial_amplification_factor(
+        perturbation,
+        response,
+    )
+
+    return 1.0 / (1.0 + amplification)
+
+
+def territorial_small_stimulus_amplification(
+    perturbation: Sequence[float] | np.ndarray,
+    response: Sequence[float] | np.ndarray,
+    *,
+    quantile_level: float = 0.25,
+) -> float:
+    """
+    Respuesta media relativa ante el cuarto inferior de perturbaciones.
+
+    No es una probabilidad de evento.
+    """
+    p = _validate_territorial_vector(
+        perturbation,
+        name="perturbation",
+        nonnegative=True,
+    )
+    r = _validate_territorial_vector(
+        response,
+        name="response",
+        nonnegative=True,
+    )
+    _validate_same_length(p, r)
+
+    if not 0.0 < quantile_level < 1.0:
+        raise MetricInputError("quantile_level debe estar entre 0 y 1")
+
+    threshold = float(np.quantile(p, quantile_level))
+    mask = p <= threshold
+
+    if not np.any(mask):
+        raise MetricInputError("No existen observaciones de estímulo pequeño")
+
+    p_mean = float(np.mean(p[mask]))
+    r_mean = float(np.mean(r[mask]))
+
+    if p_mean == 0.0:
+        raise MetricInputError("La perturbación media no puede ser 0")
+
+    return float(r_mean / p_mean)
+
+
+def territorial_nonlinearity_residual_ratio(
+    perturbation: Sequence[float] | np.ndarray,
+    response: Sequence[float] | np.ndarray,
+) -> float:
+    """
+    Ajuste lineal local:
+
+        ΔR = β₀ + β₁ΔP + ε
+
+    y calcula:
+
+        NL = SD(ε) / SD(ΔR)
+
+    Valores altos indican mayor desviación respecto al ajuste lineal.
+    """
+    p = _validate_territorial_vector(
+        perturbation,
+        name="perturbation",
+    )
+    r = _validate_territorial_vector(
+        response,
+        name="response",
+    )
+    _validate_same_length(p, r)
+
+    if p.size < 3:
+        raise MetricInputError("Se requieren al menos tres observaciones")
+
+    dp = np.diff(p)
+    dr = np.diff(r)
+
+    if np.std(dp, ddof=0) == 0.0 or np.std(dr, ddof=0) == 0.0:
+        raise MetricInputError("No existe variabilidad suficiente")
+
+    beta = np.polyfit(dp, dr, 1)
+    predicted = beta[0] * dp + beta[1]
+    residual = dr - predicted
+
+    denominator = float(np.std(dr, ddof=0))
+
+    if denominator == 0.0:
+        return 0.0
+
+    return float(np.std(residual, ddof=0) / denominator)
+
+
+def territorial_threshold_distance(
+    values: Sequence[float] | np.ndarray,
+    thresholds: Sequence[float] | np.ndarray,
+) -> np.ndarray:
+    """
+    Distancia relativa al umbral:
+
+        d_i = (T_i-x_i)/T_i
+
+    d > 0: por debajo
+    d = 0: umbral
+    d < 0: superación
+    """
+    x = _validate_territorial_vector(values, name="values")
+    t = _validate_territorial_vector(
+        thresholds,
+        name="thresholds",
+        nonnegative=True,
+    )
+    _validate_same_length(x, t)
+
+    if np.any(t <= 0.0):
+        raise MetricInputError("thresholds debe ser positivo")
+
+    return (t - x) / t
+
+
+def territorial_threshold_breach_fraction(
+    values: Sequence[float] | np.ndarray,
+    thresholds: Sequence[float] | np.ndarray,
+) -> float:
+    """Fracción de unidades que supera su umbral."""
+    distance = territorial_threshold_distance(values, thresholds)
+
+    return float(np.mean(distance <= 0.0))
+
+
+def territorial_threshold_margin(
+    values: Sequence[float] | np.ndarray,
+    thresholds: Sequence[float] | np.ndarray,
+) -> float:
+    """
+    Margen mínimo territorial respecto al umbral:
+
+        M = min_i d_i
+    """
+    distance = territorial_threshold_distance(values, thresholds)
+
+    return float(np.min(distance))
+
+
+def territorial_hotspot_share(
+    values: Sequence[float] | np.ndarray,
+    *,
+    quantile_level: float = 0.90,
+) -> float:
+    """
+    Participación de la magnitud total localizada en el hotspot superior.
+    """
+    arr = _validate_territorial_vector(values, name="values", nonnegative=True)
+
+    if not 0.0 < quantile_level < 1.0:
+        raise MetricInputError("quantile_level debe estar entre 0 y 1")
+
+    threshold = float(np.quantile(arr, quantile_level))
+    hotspot = arr[arr >= threshold]
+    total = float(np.sum(arr))
+
+    if total == 0.0:
+        return 0.0
+
+    return float(np.sum(hotspot) / total)
+
+
+def territorial_hotspot_persistence(
+    values_by_time: Sequence[Sequence[float]] | np.ndarray,
+    *,
+    quantile_level: float = 0.90,
+) -> np.ndarray:
+    """
+    Persistencia de hotspot por unidad:
+
+        H_i = (1/T) Σ_t I(x_it >= Q_t)
+    """
+    matrix = np.asarray(values_by_time, dtype=float)
+
+    if matrix.ndim != 2:
+        raise MetricInputError("values_by_time debe ser una matriz 2D")
+    if not np.all(np.isfinite(matrix)):
+        raise MetricInputError("values_by_time contiene valores no finitos")
+    if not 0.0 < quantile_level < 1.0:
+        raise MetricInputError("quantile_level debe estar entre 0 y 1")
+
+    thresholds = np.quantile(matrix, quantile_level, axis=1)
+    hotspot = matrix >= thresholds[:, None]
+
+    return np.mean(hotspot, axis=0)
+
+
+def territorial_hotspot_turnover(
+    values_by_time: Sequence[Sequence[float]] | np.ndarray,
+    *,
+    quantile_level: float = 0.90,
+) -> float:
+    """
+    Turnover de hotspots:
+
+        TO = mean(
+            |H_t Δ H_(t-1)|
+            / |H_t ∪ H_(t-1)|
+        )
+    """
+    matrix = np.asarray(values_by_time, dtype=float)
+
+    if matrix.ndim != 2 or matrix.shape[0] < 2:
+        raise MetricInputError("Se requieren al menos dos periodos")
+    if not 0.0 < quantile_level < 1.0:
+        raise MetricInputError("quantile_level debe estar entre 0 y 1")
+
+    thresholds = np.quantile(matrix, quantile_level, axis=1)
+    hotspot = matrix >= thresholds[:, None]
+
+    turnovers: list[float] = []
+
+    for t in range(1, matrix.shape[0]):
+        previous = hotspot[t - 1]
+        current = hotspot[t]
+
+        union = previous | current
+
+        if np.any(union):
+            turnovers.append(float(np.sum(previous != current) / np.sum(union)))
+        else:
+            turnovers.append(0.0)
+
+    return float(np.mean(turnovers))
+
+
+def territorial_time_concentration(
+    values_by_time: Sequence[Sequence[float]] | np.ndarray,
+) -> np.ndarray:
+    """HHI territorial para cada instante."""
+    matrix = np.asarray(values_by_time, dtype=float)
+
+    if matrix.ndim != 2:
+        raise MetricInputError("values_by_time debe ser una matriz 2D")
+
+    return np.asarray(
+        [territorial_concentration_hhi(row) for row in matrix],
+        dtype=float,
+    )
+
+
+def territorial_time_entropy(
+    values_by_time: Sequence[Sequence[float]] | np.ndarray,
+) -> np.ndarray:
+    """Entropía territorial para cada instante."""
+    matrix = np.asarray(values_by_time, dtype=float)
+
+    if matrix.ndim != 2:
+        raise MetricInputError("values_by_time debe ser una matriz 2D")
+
+    return np.asarray(
+        [territorial_normalized_entropy(row) for row in matrix],
+        dtype=float,
+    )
+
+
+def territorial_spatiotemporal_breadth(
+    values_by_time: Sequence[Sequence[float]] | np.ndarray,
+    *,
+    threshold: float,
+) -> np.ndarray:
+    """
+    Número de unidades territoriales sobre el umbral en cada instante.
+    """
+    matrix = np.asarray(values_by_time, dtype=float)
+
+    if matrix.ndim != 2:
+        raise MetricInputError("values_by_time debe ser una matriz 2D")
+
+    return np.sum(matrix >= threshold, axis=1).astype(float)
+
+
+def territorial_spatiotemporal_breadth_fraction(
+    values_by_time: Sequence[Sequence[float]] | np.ndarray,
+    *,
+    threshold: float,
+) -> np.ndarray:
+    """Fracción territorial sobre el umbral en cada instante."""
+    matrix = np.asarray(values_by_time, dtype=float)
+
+    return territorial_spatiotemporal_breadth(
+        matrix,
+        threshold=threshold,
+    ) / matrix.shape[1]
+
+
+def territorial_spatiotemporal_concentration(
+    values_by_time: Sequence[Sequence[float]] | np.ndarray,
+) -> float:
+    """
+    Concentración media espacio-temporal:
+
+        C_ST = mean_t(HHI_t)
+    """
+    concentration = territorial_time_concentration(values_by_time)
+
+    return float(np.mean(concentration))
+
+
+def territorial_spatiotemporal_variability(
+    values_by_time: Sequence[Sequence[float]] | np.ndarray,
+) -> float:
+    """
+    Variabilidad espacio-temporal de la distribución:
+
+        V_ST = SD(HHI_t)
+    """
+    concentration = territorial_time_concentration(values_by_time)
+
+    if concentration.size < 2:
+        return 0.0
+
+    return float(np.std(concentration, ddof=1))
+
+
+def territorial_recovery_fraction(
+    baseline: Sequence[float] | np.ndarray,
+    nadir: Sequence[float] | np.ndarray,
+    current: Sequence[float] | np.ndarray,
+) -> np.ndarray:
+    """
+    Recuperación:
+
+        R_i =
+        (x_i,current - x_i,nadir)
+        /
+        (x_i,baseline - x_i,nadir)
+    """
+    b = _validate_territorial_vector(baseline, name="baseline")
+    n = _validate_territorial_vector(nadir, name="nadir")
+    c = _validate_territorial_vector(current, name="current")
+    _validate_same_length(b, n, c)
+
+    denominator = b - n
+
+    if np.any(denominator <= 0.0):
+        raise MetricInputError(
+            "baseline debe ser mayor que nadir"
+        )
+
+    return (c - n) / denominator
+
+
+def territorial_recovery_heterogeneity(
+    baseline: Sequence[float] | np.ndarray,
+    nadir: Sequence[float] | np.ndarray,
+    current: Sequence[float] | np.ndarray,
+) -> float:
+    """Desviación estándar de la recuperación entre unidades."""
+    recovery = territorial_recovery_fraction(
+        baseline,
+        nadir,
+        current,
+    )
+
+    return float(np.std(recovery, ddof=0))
+
+
+def territorial_recovery_concentration(
+    baseline: Sequence[float] | np.ndarray,
+    nadir: Sequence[float] | np.ndarray,
+    current: Sequence[float] | np.ndarray,
+) -> float:
+    """
+    Concentración de la recuperación positiva entre unidades.
+    """
+    recovery = np.maximum(
+        territorial_recovery_fraction(
+            baseline,
+            nadir,
+            current,
+        ),
+        0.0,
+    )
+
+    total = float(np.sum(recovery))
+
+    if total == 0.0:
+        return 0.0
+
+    return territorial_concentration_hhi(recovery)
+
+
+def territorial_recovery_asymmetry(
+    recovery_times: Sequence[float] | np.ndarray,
+) -> float:
+    """
+    Asimetría de tiempos de recuperación basada en skewness de Fisher.
+    """
+    arr = _validate_territorial_vector(
+        recovery_times,
+        name="recovery_times",
+        nonnegative=True,
+    )
+
+    if arr.size < 3:
+        raise MetricInputError("Se requieren al menos tres tiempos")
+
+    mean_value = float(np.mean(arr))
+    sd = float(np.std(arr, ddof=0))
+
+    if sd == 0.0:
+        return 0.0
+
+    return float(np.mean(((arr - mean_value) / sd) ** 3))
+
+
+def territorial_joint_threshold_breach(
+    values: Sequence[Sequence[float]] | np.ndarray,
+    thresholds: Sequence[float] | np.ndarray,
+) -> np.ndarray:
+    """
+    Número de dimensiones que superan simultáneamente sus umbrales.
+    """
+    matrix = territorial_multi_pressure_matrix(values)
+    t = _as_float_array(thresholds, name="thresholds")
+
+    if t.size != matrix.shape[1]:
+        raise MetricInputError("thresholds no coincide con las dimensiones")
+
+    return np.sum(matrix >= t[None, :], axis=1).astype(float)
+
+
+def territorial_joint_threshold_fraction(
+    values: Sequence[Sequence[float]] | np.ndarray,
+    thresholds: Sequence[float] | np.ndarray,
+) -> np.ndarray:
+    """Fracción de dimensiones que superan simultáneamente sus umbrales."""
+    matrix = territorial_multi_pressure_matrix(values)
+
+    return territorial_joint_threshold_breach(
+        matrix,
+        thresholds,
+    ) / matrix.shape[1]
+
+
+def territorial_cascade_depth(
+    initial_signal: Sequence[float] | np.ndarray,
+    final_signal: Sequence[float] | np.ndarray,
+    *,
+    threshold: float = 0.0,
+) -> int:
+    """
+    Profundidad descriptiva de propagación basada en capas de unidades
+    que pasan a estar activadas respecto a un estado inicial.
+
+    Esta función no infiere causalidad.
+    """
+    initial = _validate_territorial_vector(
+        initial_signal,
+        name="initial_signal",
+        nonnegative=True,
+    )
+    final = _validate_territorial_vector(
+        final_signal,
+        name="final_signal",
+        nonnegative=True,
+    )
+    _validate_same_length(initial, final)
+
+    initial_active = initial > threshold
+    final_active = final > threshold
+
+    newly_active = final_active & ~initial_active
+
+    if not np.any(newly_active):
+        return 0
+
+    return 1
+
+
+def territorial_cascade_amplification(
+    baseline: Sequence[float] | np.ndarray,
+    final: Sequence[float] | np.ndarray,
+) -> float:
+    """
+    Amplificación territorial total:
+
+        CA = Σ_i |Δx_i| / Σ_i |x_i,baseline|
+    """
+    base = _validate_territorial_vector(
+        baseline,
+        name="baseline",
+        nonnegative=True,
+    )
+    end = _validate_territorial_vector(
+        final,
+        name="final",
+        nonnegative=True,
+    )
+    _validate_same_length(base, end)
+
+    denominator = float(np.sum(np.abs(base)))
+
+    if denominator == 0.0:
+        raise MetricInputError("baseline no puede tener suma 0")
+
+    return float(np.sum(np.abs(end - base)) / denominator)
+
+
+def territorial_systemic_sensitivity_matrix(
+    perturbations: Sequence[Sequence[float]] | np.ndarray,
+    responses: Sequence[Sequence[float]] | np.ndarray,
+) -> np.ndarray:
+    """
+    Matriz de sensibilidad:
+
+        S_ij = Δresponse_i / Δperturbation_j
+
+    La dimensión i corresponde a la respuesta territorial y j al estímulo.
+    """
+    p = np.asarray(perturbations, dtype=float)
+    r = np.asarray(responses, dtype=float)
+
+    if p.ndim != 2 or r.ndim != 2:
+        raise MetricInputError("perturbations y responses deben ser matrices 2D")
+
+    if p.shape[0] != r.shape[0]:
+        raise MetricInputError(
+            "perturbations y responses deben compartir unidades territoriales"
+        )
+
+    if p.shape[0] < 1:
+        raise MetricInputError("No hay unidades territoriales")
+
+    p_scale = np.std(p, axis=0, ddof=1)
+
+    if np.any(p_scale == 0.0):
+        raise MetricInputError(
+            "Una perturbación no presenta variabilidad territorial"
+        )
+
+    r_scale = np.std(r, axis=0, ddof=1)
+
+    if np.any(r_scale == 0.0):
+        raise MetricInputError(
+            "Una respuesta no presenta variabilidad territorial"
+        )
+
+    standardized_p = (p - np.mean(p, axis=0)) / p_scale
+    standardized_r = (r - np.mean(r, axis=0)) / r_scale
+
+    return (standardized_p.T @ standardized_r) / max(p.shape[0] - 1, 1)
+
+
+def territorial_dependency_matrix(
+    variables: Sequence[Sequence[float]] | np.ndarray,
+) -> np.ndarray:
+    """
+    Matriz de dependencia empírica entre variables territoriales.
+    """
+    matrix = territorial_multi_pressure_matrix(variables)
+
+    if matrix.shape[1] < 2:
+        return np.ones((1, 1), dtype=float)
+
+    return np.corrcoef(matrix, rowvar=False)
+
+
+def territorial_effective_dimension(
+    variables: Sequence[Sequence[float]] | np.ndarray,
+) -> float:
+    """
+    Dimensión efectiva aproximada mediante eigenvalues de la matriz
+    de correlación:
+
+        D_eff =
+        (Σ λ_i)² / Σ λ_i²
+    """
+    correlation = territorial_dependency_matrix(variables)
+    eigenvalues = np.linalg.eigvalsh(correlation)
+    eigenvalues = np.maximum(eigenvalues, 0.0)
+
+    denominator = float(np.sum(eigenvalues**2))
+
+    if denominator == 0.0:
+        raise MetricInputError("Dimensión efectiva indefinida")
+
+    return float(np.sum(eigenvalues) ** 2 / denominator)
+
+
+def territorial_principal_component_concentration(
+    variables: Sequence[Sequence[float]] | np.ndarray,
+) -> float:
+    """
+    Proporción de varianza explicada por el primer componente principal:
+
+        PC1 = λ_max / Σ_i λ_i
+    """
+    correlation = territorial_dependency_matrix(variables)
+    eigenvalues = np.linalg.eigvalsh(correlation)
+    eigenvalues = np.maximum(eigenvalues, 0.0)
+
+    total = float(np.sum(eigenvalues))
+
+    if total == 0.0:
+        raise MetricInputError("Varianza total nula")
+
+    return float(np.max(eigenvalues) / total)
+
+
+def territorial_systemic_headroom(
+    demand: Sequence[float] | np.ndarray,
+    capacity: Sequence[float] | np.ndarray,
+) -> float:
+    """
+    Margen sistémico mínimo:
+
+        H = min_i(1-D_i/C_i)
+    """
+    reserve = territorial_capacity_reserve_fraction(
+        demand,
+        capacity,
+    )
+
+    return float(np.min(reserve))
+
+
+def territorial_systemic_headroom_mean(
+    demand: Sequence[float] | np.ndarray,
+    capacity: Sequence[float] | np.ndarray,
+) -> float:
+    """Margen medio territorial."""
+    reserve = territorial_capacity_reserve_fraction(
+        demand,
+        capacity,
+    )
+
+    return float(np.mean(reserve))
+
+
+def territorial_capacity_inequality(
+    capacity: Sequence[float] | np.ndarray,
+) -> float:
+    """Desigualdad territorial de capacidad mediante Gini."""
+    return territorial_gini(
+        _validate_territorial_vector(
+            capacity,
+            name="capacity",
+            nonnegative=True,
+        )
+    )
+
+
+def territorial_demand_inequality(
+    demand: Sequence[float] | np.ndarray,
+) -> float:
+    """Desigualdad territorial de demanda mediante Gini."""
+    return territorial_gini(
+        _validate_territorial_vector(
+            demand,
+            name="demand",
+            nonnegative=True,
+        )
+    )
+
+
+def territorial_exposure_inequality(
+    exposure: Sequence[float] | np.ndarray,
+) -> float:
+    """Desigualdad territorial de exposición mediante Gini."""
+    return territorial_gini(
+        _validate_territorial_vector(
+            exposure,
+            name="exposure",
+            nonnegative=True,
+        )
+    )
+
+
+def territorial_load_capacity_imbalance(
+    demand: Sequence[float] | np.ndarray,
+    capacity: Sequence[float] | np.ndarray,
+) -> float:
+    """
+    Desviación territorial del ratio demanda/capacidad:
+
+        I = SD(D_i/C_i)
+    """
+    utilization_values = territorial_demand_per_capacity(
+        demand,
+        capacity,
+    )
+
+    return float(np.std(utilization_values, ddof=0))
+
+
+def territorial_load_capacity_tail(
+    demand: Sequence[float] | np.ndarray,
+    capacity: Sequence[float] | np.ndarray,
+    *,
+    quantile_level: float = 0.90,
+) -> float:
+    """Cuantil alto de utilización territorial."""
+    if not 0.0 < quantile_level < 1.0:
+        raise MetricInputError("quantile_level debe estar entre 0 y 1")
+
+    utilization_values = territorial_demand_per_capacity(
+        demand,
+        capacity,
+    )
+
+    return float(np.quantile(utilization_values, quantile_level))
+
+
+def territorial_capacity_redundancy(
+    capacities: Sequence[float] | np.ndarray,
+) -> float:
+    """
+    Redundancia relativa:
+
+        R = 1 - max(C_i)/Σ_i C_i
+
+    Describe distribución de capacidad, no sustituibilidad funcional.
+    """
+    c = _validate_territorial_vector(
+        capacities,
+        name="capacities",
+        nonnegative=True,
+    )
+
+    total = float(np.sum(c))
+
+    if total <= 0.0:
+        raise MetricInputError("La capacidad total debe ser positiva")
+
+    return float(1.0 - np.max(c) / total)
+
+
+def territorial_single_point_dependency(
+    capacities: Sequence[float] | np.ndarray,
+) -> float:
+    """
+    Dependencia de la unidad dominante:
+
+        SPD = max(C_i) / Σ_i C_i
+    """
+    return 1.0 - territorial_capacity_redundancy(capacities)
+
+
+def territorial_observation_coverage(
+    observed: Sequence[float] | np.ndarray,
+    possible: Sequence[float] | np.ndarray,
+) -> np.ndarray:
+    """
+    Cobertura de observación:
+
+        O_i = observed_i / possible_i
+    """
+    obs = _validate_territorial_vector(
+        observed,
+        name="observed",
+        nonnegative=True,
+    )
+    pos = _validate_territorial_vector(
+        possible,
+        name="possible",
+        nonnegative=True,
+    )
+    _validate_same_length(obs, pos)
+
+    if np.any(pos <= 0.0):
+        raise MetricInputError("possible debe ser positiva")
+
+    if np.any(obs > pos):
+        raise MetricInputError("observed no puede superar possible")
+
+    return obs / pos
+
+
+def territorial_observation_gap(
+    observed: Sequence[float] | np.ndarray,
+    possible: Sequence[float] | np.ndarray,
+) -> np.ndarray:
+    """Brecha de observación = 1 - cobertura."""
+    return 1.0 - territorial_observation_coverage(
+        observed,
+        possible,
+    )
+
+
+def territorial_signal_to_noise(
+    signal: Sequence[float] | np.ndarray,
+    noise: Sequence[float] | np.ndarray,
+) -> np.ndarray:
+    """
+    Relación señal/ruido:
+
+        SNR_i = signal_i / noise_i
+    """
+    s = _validate_territorial_vector(signal, name="signal", nonnegative=True)
+    n = _validate_territorial_vector(noise, name="noise", nonnegative=True)
+    _validate_same_length(s, n)
+
+    if np.any(n <= 0.0):
+        raise MetricInputError("noise debe ser positiva")
+
+    return s / n
+
+
+def territorial_information_concentration(
+    information_volume: Sequence[float] | np.ndarray,
+) -> float:
+    """
+    Concentración territorial de información observada mediante HHI.
+    """
+    return territorial_concentration_hhi(
+        _validate_territorial_vector(
+            information_volume,
+            name="information_volume",
+            nonnegative=True,
+        )
+    )
+
+
+def territorial_data_coverage_weighted_mean(
+    values: Sequence[float] | np.ndarray,
+    coverage: Sequence[float] | np.ndarray,
+) -> float:
+    """
+    Media ponderada por cobertura:
+
+        μ_c = Σ_i x_i c_i / Σ_i c_i
+    """
+    x = _validate_territorial_vector(values, name="values")
+    c = _validate_territorial_vector(
+        coverage,
+        name="coverage",
+        nonnegative=True,
+    )
+    _validate_same_length(x, c)
+
+    if np.sum(c) <= 0.0:
+        raise MetricInputError("coverage debe tener suma positiva")
+
+    return float(np.sum(x * c) / np.sum(c))
+
+
+TERRITORIAL_SYSTEMIC_METRICS: Final[dict[str, object]] = {
+    "territorial_total": territorial_total,
+    "territorial_share": territorial_share,
+    "territorial_concentration_hhi": territorial_concentration_hhi,
+    "territorial_entropy": territorial_entropy,
+    "territorial_normalized_entropy": territorial_normalized_entropy,
+    "territorial_effective_number_of_units": territorial_effective_number_of_units,
+    "territorial_max_share": territorial_max_share,
+    "territorial_top_k_share": territorial_top_k_share,
+    "territorial_gini": territorial_gini,
+    "territorial_theil": territorial_theil,
+    "territorial_mean": territorial_mean,
+    "territorial_variance": territorial_variance,
+    "territorial_coefficient_of_variation": territorial_coefficient_of_variation,
+    "territorial_z_scores": territorial_z_scores,
+    "territorial_spatial_lag": territorial_spatial_lag,
+    "territorial_spatial_gradient": territorial_spatial_gradient,
+    "territorial_spatial_gradient_magnitude": territorial_spatial_gradient_magnitude,
+    "territorial_morans_i": territorial_morans_i,
+    "territorial_gearys_c": territorial_gearys_c,
+    "territorial_local_spatial_association": territorial_local_spatial_association,
+    "territorial_spatial_concentration": territorial_spatial_concentration,
+    "territorial_distance_weighted_exposure": territorial_distance_weighted_exposure,
+    "territorial_accessibility_index": territorial_accessibility_index,
+    "territorial_service_coverage": territorial_service_coverage,
+    "territorial_coverage_gap": territorial_coverage_gap,
+    "territorial_demand_per_capacity": territorial_demand_per_capacity,
+    "territorial_capacity_reserve": territorial_capacity_reserve,
+    "territorial_capacity_reserve_fraction": territorial_capacity_reserve_fraction,
+    "territorial_excess_demand": territorial_excess_demand,
+    "territorial_capacity_debt": territorial_capacity_debt,
+    "territorial_bottleneck_index": territorial_bottleneck_index,
+    "territorial_bottleneck_ratio": territorial_bottleneck_ratio,
+    "territorial_bottleneck_share": territorial_bottleneck_share,
+    "territorial_saturation_fraction": territorial_saturation_fraction,
+    "territorial_bottleneck_migration": territorial_bottleneck_migration,
+    "territorial_load_transfer": territorial_load_transfer,
+    "territorial_positive_load_transfer": territorial_positive_load_transfer,
+    "territorial_load_transfer_concentration": territorial_load_transfer_concentration,
+    "territorial_spatial_propagation": territorial_spatial_propagation,
+    "territorial_spatial_synchronization": territorial_spatial_synchronization,
+    "territorial_cospatial_overlap": territorial_cospatial_overlap,
+    "territorial_cospatial_burden": territorial_cospatial_burden,
+    "territorial_cross_pressure": territorial_cross_pressure,
+    "territorial_cross_pressure_breadth": territorial_cross_pressure_breadth,
+    "territorial_multi_pressure_matrix": territorial_multi_pressure_matrix,
+    "territorial_multi_pressure_zscores": territorial_multi_pressure_zscores,
+    "territorial_multi_pressure_score": territorial_multi_pressure_score,
+    "territorial_pressure_breadth": territorial_pressure_breadth,
+    "territorial_pressure_breadth_fraction": territorial_pressure_breadth_fraction,
+    "territorial_pressure_dependence": territorial_pressure_dependence,
+    "territorial_pressure_concentration": territorial_pressure_concentration,
+    "territorial_pressure_hotspot": territorial_pressure_hotspot,
+    "territorial_local_reserve": territorial_local_reserve,
+    "territorial_reserve_depletion": territorial_reserve_depletion,
+    "territorial_reserve_depletion_fraction": territorial_reserve_depletion_fraction,
+    "territorial_shock_intensity": territorial_shock_intensity,
+    "territorial_shock_direction": territorial_shock_direction,
+    "territorial_shock_breadth": territorial_shock_breadth,
+    "territorial_compound_shock_breadth": territorial_compound_shock_breadth,
+    "territorial_response_sensitivity": territorial_response_sensitivity,
+    "territorial_response_elasticity": territorial_response_elasticity,
+    "territorial_amplification_factor": territorial_amplification_factor,
+    "territorial_damping_factor": territorial_damping_factor,
+    "territorial_small_stimulus_amplification": territorial_small_stimulus_amplification,
+    "territorial_nonlinearity_residual_ratio": territorial_nonlinearity_residual_ratio,
+    "territorial_threshold_distance": territorial_threshold_distance,
+    "territorial_threshold_breach_fraction": territorial_threshold_breach_fraction,
+    "territorial_threshold_margin": territorial_threshold_margin,
+    "territorial_hotspot_share": territorial_hotspot_share,
+    "territorial_hotspot_persistence": territorial_hotspot_persistence,
+    "territorial_hotspot_turnover": territorial_hotspot_turnover,
+    "territorial_time_concentration": territorial_time_concentration,
+    "territorial_time_entropy": territorial_time_entropy,
+    "territorial_spatiotemporal_breadth": territorial_spatiotemporal_breadth,
+    "territorial_spatiotemporal_breadth_fraction": territorial_spatiotemporal_breadth_fraction,
+    "territorial_spatiotemporal_concentration": territorial_spatiotemporal_concentration,
+    "territorial_spatiotemporal_variability": territorial_spatiotemporal_variability,
+    "territorial_recovery_fraction": territorial_recovery_fraction,
+    "territorial_recovery_heterogeneity": territorial_recovery_heterogeneity,
+    "territorial_recovery_concentration": territorial_recovery_concentration,
+    "territorial_recovery_asymmetry": territorial_recovery_asymmetry,
+    "territorial_joint_threshold_breach": territorial_joint_threshold_breach,
+    "territorial_joint_threshold_fraction": territorial_joint_threshold_fraction,
+    "territorial_cascade_depth": territorial_cascade_depth,
+    "territorial_cascade_amplification": territorial_cascade_amplification,
+    "territorial_systemic_sensitivity_matrix": territorial_systemic_sensitivity_matrix,
+    "territorial_dependency_matrix": territorial_dependency_matrix,
+    "territorial_effective_dimension": territorial_effective_dimension,
+    "territorial_principal_component_concentration": territorial_principal_component_concentration,
+    "territorial_systemic_headroom": territorial_systemic_headroom,
+    "territorial_systemic_headroom_mean": territorial_systemic_headroom_mean,
+    "territorial_capacity_inequality": territorial_capacity_inequality,
+    "territorial_demand_inequality": territorial_demand_inequality,
+    "territorial_exposure_inequality": territorial_exposure_inequality,
+    "territorial_load_capacity_imbalance": territorial_load_capacity_imbalance,
+    "territorial_load_capacity_tail": territorial_load_capacity_tail,
+    "territorial_capacity_redundancy": territorial_capacity_redundancy,
+    "territorial_single_point_dependency": territorial_single_point_dependency,
+    "territorial_observation_coverage": territorial_observation_coverage,
+    "territorial_observation_gap": territorial_observation_gap,
+    "territorial_signal_to_noise": territorial_signal_to_noise,
+    "territorial_information_concentration": territorial_information_concentration,
+    "territorial_data_coverage_weighted_mean": territorial_data_coverage_weighted_mean,
+}
+
+
+TERRITORIAL_SYSTEMIC_INVARIANTS: Final[tuple[str, ...]] = (
+    "La concentración espacial describe la distribución de una variable, "
+    "no una peligrosidad inherente de las personas residentes.",
+    "La presencia de altercados, incendios, déficit de agua u otros eventos "
+    "en una zona no convierte a esa zona en una categoría de personas.",
+    "Co-localización no implica causalidad.",
+    "Correlación espacial no implica causalidad.",
+    "Moran y Geary dependen de la matriz W y de la definición de vecindad.",
+    "La escala espacial modifica los resultados y debe conservarse explícitamente.",
+    "La unidad territorial puede ser barrio, distrito, cuadrícula u otra unidad "
+    "operativa; no debe asumirse que el barrio sea siempre la escala correcta.",
+    "Los denominadores poblacionales y de exposición deben conservarse.",
+    "Una perturbación pequeña no implica por sí misma un resultado grave.",
+    "Una respuesta amplificada describe sensibilidad observada, no peligrosidad individual.",
+    "Una cascada observada no demuestra que vaya a repetirse.",
+    "Una presión multidimensional agregada no sustituye las variables originales.",
+    "La incertidumbre, cobertura y calidad de observación deben acompañar a toda "
+    "métrica territorial operacionalmente relevante.",
+    "Las métricas de violencia deben referirse a eventos observables y no a "
+    "nacionalidad, origen, etnia u otros atributos protegidos.",
+    "Las métricas territoriales no deben utilizarse para inferir peligrosidad individual.",
+    "Un hotspot depende de la variable, ventana temporal, umbral y escala espacial.",
+    "La ausencia de observación no equivale automáticamente a ausencia del fenómeno.",
+    "La amplificación no equivale a probabilidad.",
+    "La sensibilidad no equivale a causalidad.",
+    "La robustez de una métrica no implica verdad del mecanismo que pudiera explicarla.",
+)
+
+
+__all__.extend(TERRITORIAL_SYSTEMIC_METRICS.keys())

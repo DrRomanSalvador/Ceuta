@@ -1,3 +1,57 @@
+UBICACIÓN:
+backend/app/core/models.py
+
+INSERTAR:
+después de las definiciones de estado dinámico y antes de los contratos/serialización Pydantic.
+
+FÓRMULA:
+C_t = F(
+    X_t,
+    dX_t/dt,
+    d²X_t/dt²,
+    L_t,
+    R_t,
+    Γ_t,
+    Θ_t,
+    N_t,
+    E_t,
+    H_t,
+    U_t,
+    Q_t
+)
+
+donde:
+X  = estado
+L  = carga acumulada
+R  = reserva adaptativa
+Γ  = acoplamiento
+Θ  = umbrales
+N  = propagación/red
+E  = evidencia
+H  = hipótesis competidoras
+U  = incertidumbre
+Q  = calibración
+
+NO convertir C_t en un único “riesgo” opaco.
+
+SALIDA:
+O_t = (
+    estado,
+    trayectoria,
+    carga,
+    reserva,
+    acoplamiento,
+    umbrales,
+    cascada,
+    hipótesis,
+    predicciones,
+    escenarios,
+    incertidumbre,
+    evidencia,
+    contradicciones,
+    calibración
+)
+
 """
 CeutIA - Módulo de Monitorización y Cálculo de Riesgo Trazable
 Ruta: src/ceutia/monitoring_engine.py

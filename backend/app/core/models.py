@@ -1,3 +1,63 @@
+"""
+CeutIA - Módulo de Monitorización y Cálculo de Riesgo Trazable
+Ruta: src/ceutia/monitoring_engine.py
+"""
+
+from __future__ import annotations
+import time
+from typing import Dict, Any, List
+from pydantic import BaseModel, Field, field_validator
+import numpy as np
+
+
+class OfficialDataPoint(BaseModel):
+    """Representa un dato verificado proveniente de una fuente oficial[span_10](start_span)[span_10](end_span)[span_11](start_span)[span_11](end_span)."""
+    source_id: str = Field(..., description="Identificador de la fuente oficial.")
+    timestamp: float = Field(..., description="Marca temporal UNIX.")
+    date_str: str = Field(..., description="Fecha (YYYY-MM-DD).")
+    metric_value: float = Field(..., ge=0.0, description="Valor numérico observado.")
+    confidence_interval: tuple[float, float] = Field(..., description="Intervalo de confianza [min, max].")
+    verification_method: str = Field(..., description="Método de verificación de la fuente.")
+
+    @field_validator('confidence_interval')
+    @classmethod
+    def validate_ci(cls, v: tuple[float, float]) -> tuple[float, float]:
+        if v[0] > v[1]:
+            raise ValueError("El límite inferior no puede superar al superior.")
+        return v
+
+
+class ExistentialRiskCalculator:
+    """Motor matemático para el cálculo trazable del riesgo sistémico[span_12](start_span)[span_12](end_span)[span_13](start_span)[span_13](end_span)."""
+
+    @staticmethod
+    def compute_existential_risk(
+        data_point: OfficialDataPoint, 
+        sensitivity: float, 
+        adaptive_reserve: float
+    ) -> Dict[str, Any]:
+        """Calcula el riesgo con base en la métrica, reserva y sensibilidad[span_14](start_span)[span_14](end_span)[span_15](start_span)[span_15](end_span)."""
+        if adaptive_reserve <= 0.0:
+            risk_score = 1.0
+        else:
+            risk_score = (data_point.metric_value / adaptive_reserve) * sensitivity
+
+        clipped_risk = float(np.clip(risk_score, 0.0, 1.0))
+        ci_range = data_point.confidence_interval[1] - data_point.confidence_interval[0]
+        uncertainty_margin = float(ci_range * sensitivity / (adaptive_reserve + 1e-9))
+
+        return {
+            "source": data_point.source_id,
+            "date": data_point.date_str,
+            "method": data_point.verification_method,
+            "risk_score": clipped_risk,
+            "uncertainty_margin": uncertainty_margin,
+            "critical_threshold_crossed": clipped_risk > 0.85,
+            "timestamp": time.time()
+        }
+
+
+
 # ---------------------------------------------------------------------------
 # CeutIA — Multidimensional territorial state
 # ---------------------------------------------------------------------------

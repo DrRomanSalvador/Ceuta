@@ -1,4 +1,75 @@
+def local_vulnerability(
+    shock: float,
+    sensitivity: float,
+    reserve_margin: float,
+) -> float:
+    """
+    Vulnerabilidad local.
 
+    Valores:
+        0 = ausencia de vulnerabilidad
+        1 = vulnerabilidad máxima representada por el modelo.
+
+    reserve_margin debe estar normalizado y acotado en [0, 1].
+    """
+
+    shock = max(0.0, min(1.0, shock))
+    sensitivity = max(0.0, min(1.0, sensitivity))
+    reserve_margin = max(0.0, min(1.0, reserve_margin))
+
+    reserve_exhaustion = 1.0 - reserve_margin
+
+    return (
+        shock
+        * sensitivity
+        * reserve_exhaustion
+    )
+
+
+def propagation_potential(
+    coupling: float,
+    propagation: float,
+) -> float:
+    """
+    Potencial de propagación sistémica.
+    """
+
+    coupling = max(0.0, min(1.0, coupling))
+    propagation = max(0.0, min(1.0, propagation))
+
+    return coupling * propagation
+
+
+def systemic_risk_index(
+    *,
+    local_vulnerability_value: float,
+    propagation_value: float,
+    threshold_proximity: float,
+    recovery_capacity: float,
+) -> float:
+    """
+    Índice estructural, NO probabilidad.
+
+    El índice expresa configuración relativa del sistema.
+    """
+
+    local = max(0.0, min(1.0, local_vulnerability_value))
+    propagation = max(0.0, min(1.0, propagation_value))
+    threshold = max(0.0, min(1.0, threshold_proximity))
+    recovery = max(0.0, min(1.0, recovery_capacity))
+
+    recovery_loss = 1.0 - recovery
+
+    return max(
+        0.0,
+        min(
+            1.0,
+            local
+            * (0.5 + 0.5 * propagation)
+            * (0.5 + 0.5 * threshold)
+            * (0.5 + 0.5 * recovery_loss),
+        ),
+    )
 # ============================================================
 # CeutIA — Dynamic Systems Theory Core
 # Additive block for backend/app/core/metrics.py

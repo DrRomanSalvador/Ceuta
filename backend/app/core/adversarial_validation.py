@@ -1,7 +1,26 @@
 # =============================================================================
 # CEUTIA — SCIENTIFIC RED TEAM, FALSIFICATION & EPISTEMIC STRESS ENGINE
 # =============================================================================
-#
+#REGLA MATEMÁTICA:
+
+NO:
+
+Risk = Shock × Sensitivity × Reserve⁻¹ × Coupling × Propagation
+
+SÍ:
+
+V_local = f(Shock, Sensitivity, Reserve)
+P_propagation = g(Coupling, Network, Propagation)
+T_state = h(State, Thresholds)
+
+C_t = F(V_local, P_propagation, T_state,
+        Evidence, Hypotheses, Uncertainty, Calibration)
+
+porque vulnerabilidad local,
+potencial de propagación
+y cruce de umbral
+son mecanismos diferentes.
+
 # Esta capa NO demuestra que una conclusión sea verdadera.
 #
 # Su función es intentar encontrar condiciones bajo las cuales una conclusión:

@@ -1,4 +1,991 @@
 """
+CeutIA — Dynamic Systems Model Layer.
+
+This module integrates the mathematical primitives defined in metrics.py
+into dynamic system models.
+
+Responsibilities:
+- represent system state and trajectories;
+- integrate load, adaptive reserve and capacity;
+- represent perturbations and responses;
+- model coupling, propagation and cascade susceptibility;
+- represent territorial and temporal dynamics;
+- represent information and social-tension signals as system variables;
+- maintain explicit separation between observations, interpretations,
+  hypotheses, predictions and scenarios;
+- propagate uncertainty and epistemic limitations;
+- produce qualified analytical signals for subsequent validation.
+
+This module does NOT:
+- ingest external data;
+- establish scientific truth;
+- diagnose individuals;
+- predict individual criminality or dangerousness;
+- perform autonomous policing or security decisions;
+- determine who should be targeted;
+- bypass adversarial validation;
+- bypass information boundaries;
+- expose private intelligence directly to PUBLIC.
+
+Core principle:
+
+    State != trajectory != prediction != scenario.
+
+A system state describes what is observed at a given time.
+A trajectory describes how that state evolves.
+A hypothesis proposes an explanation.
+A prediction specifies an expected future observation with a defined
+horizon and uncertainty.
+A scenario describes a conditional future under explicit assumptions.
+
+No one of these representations may silently be converted into another.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from enum import StrEnum
+from math import exp, isfinite
+from typing import Mapping, Sequence
+
+import numpy as np
+
+
+class EpistemicType(StrEnum):
+    """Epistemic status of an analytical object."""
+
+    OBSERVATION = "observation"
+    DERIVED_SIGNAL = "derived_signal"
+    INTERPRETATION = "interpretation"
+    HYPOTHESIS = "hypothesis"
+    PREDICTION = "prediction"
+    SCENARIO = "scenario"
+
+
+class ModelScope(StrEnum):
+    """Level at which a model operates."""
+
+    SYSTEM = "system"
+    TERRITORIAL = "territorial"
+    POPULATION = "population"
+    SUBSYSTEM = "subsystem"
+    INDIVIDUAL_WELLBEING = "individual_wellbeing"
+
+
+class SignalDirection(StrEnum):
+    """Direction of change represented by a signal."""
+
+    DECREASING = "decreasing"
+    STABLE = "stable"
+    INCREASING = "increasing"
+    UNKNOWN = "unknown"
+
+
+class ModelError(ValueError):
+    """Base exception for invalid model construction or execution."""
+
+
+class ModelInputError(ModelError):
+    """Raised when model inputs are invalid."""
+
+
+class ModelEpistemicError(ModelError):
+    """Raised when epistemic categories are mixed incorrectly."""
+
+
+def _finite(value: float, name: str) -> float:
+    value = float(value)
+    if not isfinite(value):
+        raise ModelInputError(f"{name} must be finite.")
+    return value
+
+
+def _nonnegative(value: float, name: str) -> float:
+    value = _finite(value, name)
+    if value < 0:
+        raise ModelInputError(f"{name} must be non-negative.")
+    return value
+
+
+def _positive(value: float, name: str) -> float:
+    value = _finite(value, name)
+    if value <= 0:
+        raise ModelInputError(f"{name} must be positive.")
+    return value
+
+
+def _same_length(
+    left: Sequence[float],
+    right: Sequence[float],
+    *,
+    names: tuple[str, str],
+) -> None:
+    if len(left) != len(right):
+        raise ModelInputError(
+            f"{names[0]} and {names[1]} must have the same length."
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class Uncertainty:
+    """
+    Explicit uncertainty attached to a model quantity.
+
+    `value` is not a probability unless explicitly declared by the caller.
+    `lower` and `upper` represent an interval in the same units as the value.
+    """
+
+    value: float
+    lower: float | None = None
+    upper: float | None = None
+    confidence_level: float | None = None
+    method: str | None = None
+
+    def __post_init__(self) -> None:
+        _finite(self.value, "value")
+
+        if self.lower is not None:
+            _finite(self.lower, "lower")
+
+        if self.upper is not None:
+            _finite(self.upper, "upper")
+
+        if (
+            self.lower is not None
+            and self.upper is not None
+            and self.lower > self.upper
+        ):
+            raise ModelInputError("lower cannot exceed upper.")
+
+        if self.confidence_level is not None:
+            if not 0 < self.confidence_level < 1:
+                raise ModelInputError(
+                    "confidence_level must be between 0 and 1."
+                )
+
+
+@dataclass(frozen=True, slots=True)
+class SystemState:
+    """
+    Snapshot of the measurable/derived state of the system.
+
+    A state is not a diagnosis, prediction or causal explanation.
+    """
+
+    timestamp: datetime
+    variables: Mapping[str, float]
+    uncertainty: Mapping[str, Uncertainty] = field(default_factory=dict)
+    scope: ModelScope = ModelScope.SYSTEM
+
+    def __post_init__(self) -> None:
+        if self.timestamp.tzinfo is None:
+            raise ModelInputError("timestamp must be timezone-aware.")
+
+        for name, value in self.variables.items():
+            _finite(value, f"variables[{name!r}]")
+
+        for name, uncertainty in self.uncertainty.items():
+            if name not in self.variables:
+                raise ModelInputError(
+                    f"Uncertainty refers to unknown variable {name!r}."
+                )
+            if not isinstance(uncertainty, Uncertainty):
+                raise ModelInputError(
+                    f"Invalid uncertainty for variable {name!r}."
+                )
+
+
+@dataclass(frozen=True, slots=True)
+class DynamicTrajectory:
+    """Ordered trajectory of system states."""
+
+    states: tuple[SystemState, ...]
+
+    def __post_init__(self) -> None:
+        if not self.states:
+            raise ModelInputError("A trajectory requires at least one state.")
+
+        timestamps = [state.timestamp for state in self.states]
+
+        if timestamps != sorted(timestamps):
+            raise ModelInputError(
+                "Trajectory timestamps must be chronologically ordered."
+            )
+
+        if len(set(timestamps)) != len(timestamps):
+            raise ModelInputError(
+                "Trajectory timestamps must be unique."
+            )
+
+    @property
+    def start(self) -> SystemState:
+        return self.states[0]
+
+    @property
+    def end(self) -> SystemState:
+        return self.states[-1]
+
+    @property
+    def duration_seconds(self) -> float:
+        return (
+            self.end.timestamp - self.start.timestamp
+        ).total_seconds()
+
+
+@dataclass(frozen=True, slots=True)
+class Perturbation:
+    """External or internal perturbation applied to a system."""
+
+    timestamp: datetime
+    variables: Mapping[str, float]
+    duration_seconds: float | None = None
+    source: str | None = None
+
+    def __post_init__(self) -> None:
+        if self.timestamp.tzinfo is None:
+            raise ModelInputError("Perturbation timestamp must be timezone-aware.")
+
+        for name, value in self.variables.items():
+            _finite(value, f"variables[{name!r}]")
+
+        if self.duration_seconds is not None:
+            _nonnegative(self.duration_seconds, "duration_seconds")
+
+
+@dataclass(frozen=True, slots=True)
+class Response:
+    """Observed system response following a perturbation."""
+
+    perturbation_id: str
+    baseline: float
+    response: float
+    response_delta: float
+    sensitivity: float | None
+    elasticity: float | None
+    amplification: float | None
+    uncertainty: Uncertainty | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class Hypothesis:
+    """
+    Competing explanation for an observed system pattern.
+
+    A hypothesis must remain distinguishable from observation and prediction.
+    """
+
+    hypothesis_id: str
+    statement: str
+    prior: float | None = None
+    evidence_for: tuple[str, ...] = ()
+    evidence_against: tuple[str, ...] = ()
+    falsification_tests: tuple[str, ...] = ()
+    status: str = "active"
+
+    def __post_init__(self) -> None:
+        if not self.hypothesis_id.strip():
+            raise ModelInputError("hypothesis_id cannot be empty.")
+
+        if not self.statement.strip():
+            raise ModelInputError("statement cannot be empty.")
+
+        if self.prior is not None and not 0 <= self.prior <= 1:
+            raise ModelInputError("prior must be between 0 and 1.")
+
+        if not self.falsification_tests:
+            raise ModelEpistemicError(
+                "Every operational hypothesis requires at least one "
+                "explicit falsification test."
+            )
+
+
+@dataclass(frozen=True, slots=True)
+class Prediction:
+    """
+    Conditional future expectation.
+
+    A prediction must define:
+    - target;
+    - horizon;
+    - expected value or range;
+    - uncertainty;
+    - evaluation criterion.
+    """
+
+    prediction_id: str
+    target: str
+    horizon_seconds: float
+    expected_value: float
+    uncertainty: Uncertainty
+    evaluation_metric: str
+    issued_at: datetime
+
+    def __post_init__(self) -> None:
+        if not self.prediction_id.strip():
+            raise ModelInputError("prediction_id cannot be empty.")
+
+        if not self.target.strip():
+            raise ModelInputError("target cannot be empty.")
+
+        _positive(self.horizon_seconds, "horizon_seconds")
+        _finite(self.expected_value, "expected_value")
+
+        if self.issued_at.tzinfo is None:
+            raise ModelInputError("issued_at must be timezone-aware.")
+
+        if not self.evaluation_metric.strip():
+            raise ModelInputError(
+                "Predictions require an explicit evaluation metric."
+            )
+
+
+@dataclass(frozen=True, slots=True)
+class Scenario:
+    """
+    Conditional future configuration.
+
+    A scenario is not a prediction and must never be represented as one.
+    """
+
+    scenario_id: str
+    name: str
+    assumptions: tuple[str, ...]
+    expected_dynamics: Mapping[str, float]
+    horizon_seconds: float
+
+    def __post_init__(self) -> None:
+        if not self.scenario_id.strip():
+            raise ModelInputError("scenario_id cannot be empty.")
+
+        if not self.name.strip():
+            raise ModelInputError("name cannot be empty.")
+
+        if not self.assumptions:
+            raise ModelInputError(
+                "A scenario requires explicit assumptions."
+            )
+
+        _positive(self.horizon_seconds, "horizon_seconds")
+
+        for name, value in self.expected_dynamics.items():
+            _finite(value, f"expected_dynamics[{name!r}]")
+
+
+@dataclass(frozen=True, slots=True)
+class DynamicSystemModel:
+    """
+    Generic state-space representation of a CeutIA system.
+
+    Conceptual form:
+
+        X(t+1) = F(X(t), U(t), E(t), Θ(t)) + ε(t)
+
+    where:
+
+        X = system state
+        U = interventions/actions
+        E = external/internal perturbations
+        Θ = model parameters
+        ε = unexplained variation/noise
+
+    This representation is deliberately domain-agnostic.
+    """
+
+    model_id: str
+    name: str
+    scope: ModelScope
+    state_variables: tuple[str, ...]
+    parameters: Mapping[str, float] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        if not self.model_id.strip():
+            raise ModelInputError("model_id cannot be empty.")
+
+        if not self.name.strip():
+            raise ModelInputError("name cannot be empty.")
+
+        if not self.state_variables:
+            raise ModelInputError(
+                "At least one state variable is required."
+            )
+
+        if len(set(self.state_variables)) != len(self.state_variables):
+            raise ModelInputError(
+                "state_variables must be unique."
+            )
+
+        for name, value in self.parameters.items():
+            _finite(value, f"parameters[{name!r}]")
+
+    def validate_state(self, state: SystemState) -> None:
+        missing = set(self.state_variables) - set(state.variables)
+
+        if missing:
+            raise ModelInputError(
+                f"State is missing variables: {sorted(missing)}."
+            )
+
+    def state_vector(self, state: SystemState) -> np.ndarray:
+        self.validate_state(state)
+
+        return np.asarray(
+            [state.variables[name] for name in self.state_variables],
+            dtype=float,
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class DynamicSystemAssessment:
+    """
+    Integrated dynamic assessment.
+
+    The assessment keeps analytical layers separate rather than collapsing
+    them into a single opaque risk score.
+    """
+
+    timestamp: datetime
+    state: SystemState
+    trajectory_velocity: Mapping[str, float]
+    trajectory_acceleration: Mapping[str, float]
+    load: float | None
+    adaptive_reserve: float | None
+    capacity: float | None
+    sensitivity: float | None
+    propagation: float | None
+    cascade_susceptibility: float | None
+    information_feedback: float | None
+    social_tension_signal: float | None
+    uncertainty: Mapping[str, Uncertainty] = field(default_factory=dict)
+    observations: tuple[str, ...] = ()
+    interpretations: tuple[str, ...] = ()
+    hypotheses: tuple[Hypothesis, ...] = ()
+    predictions: tuple[Prediction, ...] = ()
+    scenarios: tuple[Scenario, ...] = ()
+
+    @property
+    def epistemic_types(self) -> tuple[EpistemicType, ...]:
+        types: list[EpistemicType] = []
+
+        if self.observations:
+            types.append(EpistemicType.OBSERVATION)
+
+        if (
+            self.trajectory_velocity
+            or self.trajectory_acceleration
+            or self.load is not None
+            or self.adaptive_reserve is not None
+            or self.capacity is not None
+        ):
+            types.append(EpistemicType.DERIVED_SIGNAL)
+
+        if self.interpretations:
+            types.append(EpistemicType.INTERPRETATION)
+
+        if self.hypotheses:
+            types.append(EpistemicType.HYPOTHESIS)
+
+        if self.predictions:
+            types.append(EpistemicType.PREDICTION)
+
+        if self.scenarios:
+            types.append(EpistemicType.SCENARIO)
+
+        return tuple(types)
+
+
+def trajectory_velocity(
+    trajectory: DynamicTrajectory,
+    variable: str,
+) -> float:
+    """Estimate the latest temporal rate of change."""
+
+    if len(trajectory.states) < 2:
+        return 0.0
+
+    previous = trajectory.states[-2]
+    current = trajectory.states[-1]
+
+    dt = (
+        current.timestamp - previous.timestamp
+    ).total_seconds()
+
+    if dt <= 0:
+        raise ModelInputError("Trajectory time interval must be positive.")
+
+    return (
+        current.variables[variable]
+        - previous.variables[variable]
+    ) / dt
+
+
+def trajectory_acceleration(
+    trajectory: DynamicTrajectory,
+    variable: str,
+) -> float:
+    """Estimate the latest second temporal difference."""
+
+    if len(trajectory.states) < 3:
+        return 0.0
+
+    a = trajectory.states[-3]
+    b = trajectory.states[-2]
+    c = trajectory.states[-1]
+
+    dt1 = (b.timestamp - a.timestamp).total_seconds()
+    dt2 = (c.timestamp - b.timestamp).total_seconds()
+
+    if dt1 <= 0 or dt2 <= 0:
+        raise ModelInputError("Trajectory intervals must be positive.")
+
+    v1 = (b.variables[variable] - a.variables[variable]) / dt1
+    v2 = (c.variables[variable] - b.variables[variable]) / dt2
+
+    return (v2 - v1) / ((dt1 + dt2) / 2.0)
+
+
+def adaptive_reserve_state(
+    capacity: float,
+    accumulated_load: float,
+) -> float:
+    """
+    Compute remaining adaptive reserve.
+
+        R = max(C - L, 0)
+
+    This is a state quantity, not a probability of failure.
+    """
+
+    capacity = _nonnegative(capacity, "capacity")
+    accumulated_load = _nonnegative(
+        accumulated_load,
+        "accumulated_load",
+    )
+
+    return max(capacity - accumulated_load, 0.0)
+
+
+def reserve_fraction(
+    reserve: float,
+    capacity: float,
+) -> float:
+    """Normalize adaptive reserve to available capacity."""
+
+    reserve = _nonnegative(reserve, "reserve")
+    capacity = _positive(capacity, "capacity")
+
+    return min(max(reserve / capacity, 0.0), 1.0)
+
+
+def shock_response_sensitivity(
+    shock: float,
+    response: float,
+    *,
+    epsilon: float = 1e-12,
+) -> float:
+    """
+    Local response sensitivity.
+
+        S = Δresponse / Δshock
+    """
+
+    shock = _finite(shock, "shock")
+    response = _finite(response, "response")
+
+    if abs(shock) <= epsilon:
+        raise ModelInputError(
+            "Sensitivity is undefined for a zero perturbation."
+        )
+
+    return response / shock
+
+
+def response_amplification(
+    shock: float,
+    response: float,
+    *,
+    epsilon: float = 1e-12,
+) -> float:
+    """
+    Absolute amplification ratio.
+
+        A = |Δresponse| / |Δshock|
+    """
+
+    shock = _finite(shock, "shock")
+    response = _finite(response, "response")
+
+    if abs(shock) <= epsilon:
+        raise ModelInputError(
+            "Amplification is undefined for a zero perturbation."
+        )
+
+    return abs(response) / abs(shock)
+
+
+def coupling_spectral_radius(
+    coupling_matrix: Sequence[Sequence[float]],
+) -> float:
+    """
+    Spectral radius of the system coupling matrix.
+
+    The spectral radius is a structural property of the interaction matrix.
+    It is not, by itself, a probability of cascade or mortality.
+    """
+
+    matrix = np.asarray(coupling_matrix, dtype=float)
+
+    if matrix.ndim != 2:
+        raise ModelInputError("coupling_matrix must be two-dimensional.")
+
+    if matrix.shape[0] != matrix.shape[1]:
+        raise ModelInputError("coupling_matrix must be square.")
+
+    if not np.all(np.isfinite(matrix)):
+        raise ModelInputError(
+            "coupling_matrix must contain only finite values."
+        )
+
+    eigenvalues = np.linalg.eigvals(matrix)
+
+    if eigenvalues.size == 0:
+        return 0.0
+
+    return float(np.max(np.abs(eigenvalues)))
+
+
+def branching_factor(
+    offspring_counts: Sequence[float],
+) -> float:
+    """
+    Mean secondary propagation generated by an event.
+
+    This is descriptive unless validated against an operational outcome.
+    """
+
+    values = np.asarray(offspring_counts, dtype=float)
+
+    if values.ndim != 1 or values.size == 0:
+        raise ModelInputError(
+            "offspring_counts must be a non-empty one-dimensional sequence."
+        )
+
+    if np.any(~np.isfinite(values)):
+        raise ModelInputError(
+            "offspring_counts must contain finite values."
+        )
+
+    if np.any(values < 0):
+        raise ModelInputError(
+            "offspring_counts cannot contain negative values."
+        )
+
+    return float(np.mean(values))
+
+
+def compound_systemic_susceptibility(
+    *,
+    sensitivity: float,
+    reserve_fraction_remaining: float,
+    coupling: float,
+    propagation: float,
+    recovery_capacity: float,
+) -> float:
+    """
+    Composite susceptibility to disproportionate system response.
+
+    The quantity is deliberately a susceptibility index, not a probability.
+
+    Higher sensitivity, coupling and propagation increase susceptibility.
+    Greater remaining reserve and recovery capacity reduce it.
+
+        S_c ∝ sensitivity × coupling × propagation
+              / (reserve × recovery)
+
+    No causal or predictive interpretation is permitted without validation.
+    """
+
+    sensitivity = _nonnegative(sensitivity, "sensitivity")
+    reserve_fraction_remaining = _nonnegative(
+        reserve_fraction_remaining,
+        "reserve_fraction_remaining",
+    )
+    coupling = _nonnegative(coupling, "coupling")
+    propagation = _nonnegative(propagation, "propagation")
+    recovery_capacity = _nonnegative(
+        recovery_capacity,
+        "recovery_capacity",
+    )
+
+    denominator = (
+        max(reserve_fraction_remaining, 1e-12)
+        * max(recovery_capacity, 1e-12)
+    )
+
+    return (
+        sensitivity
+        * coupling
+        * propagation
+        / denominator
+    )
+
+
+def information_feedback_sensitivity(
+    information_change: float,
+    system_change: float,
+    *,
+    epsilon: float = 1e-12,
+) -> float:
+    """
+    Estimate system response associated with an information change.
+
+        F_I = Δsystem / Δinformation
+
+    This does not establish that information caused the system change.
+    """
+
+    information_change = _finite(
+        information_change,
+        "information_change",
+    )
+    system_change = _finite(system_change, "system_change")
+
+    if abs(information_change) <= epsilon:
+        raise ModelInputError(
+            "Information feedback sensitivity is undefined for "
+            "zero information change."
+        )
+
+    return system_change / information_change
+
+
+def sigmoid_response(
+    stimulus: float,
+    midpoint: float,
+    steepness: float,
+    maximum_response: float = 1.0,
+) -> float:
+    """
+    Generic nonlinear threshold-response function.
+
+        y = M / (1 + exp(-k(x-x0)))
+
+    It describes a possible response shape; it does not establish that
+    the real system follows this function.
+    """
+
+    stimulus = _finite(stimulus, "stimulus")
+    midpoint = _finite(midpoint, "midpoint")
+    steepness = _finite(steepness, "steepness")
+    maximum_response = _nonnegative(
+        maximum_response,
+        "maximum_response",
+    )
+
+    exponent = -steepness * (stimulus - midpoint)
+
+    # Numerically stable logistic evaluation.
+    if exponent >= 0:
+        z = exp(-exponent)
+        denominator = 1.0 + z
+        return maximum_response / denominator
+
+    z = exp(exponent)
+    return maximum_response * z / (1.0 + z)
+
+
+def validate_epistemic_separation(
+    *,
+    observation: str | None = None,
+    interpretation: str | None = None,
+    hypothesis: Hypothesis | None = None,
+    prediction: Prediction | None = None,
+    scenario: Scenario | None = None,
+) -> None:
+    """
+    Prevent silent epistemic conversion.
+
+    The function does not prohibit using different epistemic objects
+    together. It ensures that each remains explicitly represented.
+    """
+
+    if hypothesis is not None and not hypothesis.falsification_tests:
+        raise ModelEpistemicError(
+            "Hypotheses require explicit falsification tests."
+        )
+
+    if prediction is not None:
+        if prediction.horizon_seconds <= 0:
+            raise ModelEpistemicError(
+                "Predictions require a positive evaluation horizon."
+            )
+
+    if scenario is not None and not scenario.assumptions:
+        raise ModelEpistemicError(
+            "Scenarios require explicit assumptions."
+        )
+
+    if (
+        observation is not None
+        and interpretation is not None
+        and observation.strip() == interpretation.strip()
+    ):
+        raise ModelEpistemicError(
+            "Observation and interpretation must not be silently "
+            "collapsed into the same epistemic statement."
+        )
+
+
+def build_dynamic_assessment(
+    *,
+    state: SystemState,
+    trajectory: DynamicTrajectory,
+    variables: Sequence[str],
+    load: float | None = None,
+    adaptive_reserve: float | None = None,
+    capacity: float | None = None,
+    sensitivity: float | None = None,
+    propagation: float | None = None,
+    cascade_susceptibility: float | None = None,
+    information_feedback: float | None = None,
+    social_tension_signal: float | None = None,
+    observations: Sequence[str] = (),
+    interpretations: Sequence[str] = (),
+    hypotheses: Sequence[Hypothesis] = (),
+    predictions: Sequence[Prediction] = (),
+    scenarios: Sequence[Scenario] = (),
+) -> DynamicSystemAssessment:
+    """
+    Construct an integrated dynamic assessment without collapsing
+    different epistemic layers into one score.
+    """
+
+    if trajectory.end.timestamp != state.timestamp:
+        raise ModelInputError(
+            "Assessment state must correspond to the trajectory endpoint."
+        )
+
+    velocity = {
+        variable: trajectory_velocity(trajectory, variable)
+        for variable in variables
+        if variable in state.variables
+    }
+
+    acceleration = {
+        variable: trajectory_acceleration(trajectory, variable)
+        for variable in variables
+        if variable in state.variables
+    }
+
+    for name, value in (
+        ("load", load),
+        ("adaptive_reserve", adaptive_reserve),
+        ("capacity", capacity),
+        ("sensitivity", sensitivity),
+        ("propagation", propagation),
+        ("cascade_susceptibility", cascade_susceptibility),
+        ("information_feedback", information_feedback),
+        ("social_tension_signal", social_tension_signal),
+    ):
+        if value is not None:
+            _finite(value, name)
+
+    for hypothesis in hypotheses:
+        validate_epistemic_separation(hypothesis=hypothesis)
+
+    for prediction in predictions:
+        validate_epistemic_separation(prediction=prediction)
+
+    for scenario in scenarios:
+        validate_epistemic_separation(scenario=scenario)
+
+    return DynamicSystemAssessment(
+        timestamp=state.timestamp,
+        state=state,
+        trajectory_velocity=velocity,
+        trajectory_acceleration=acceleration,
+        load=load,
+        adaptive_reserve=adaptive_reserve,
+        capacity=capacity,
+        sensitivity=sensitivity,
+        propagation=propagation,
+        cascade_susceptibility=cascade_susceptibility,
+        information_feedback=information_feedback,
+        social_tension_signal=social_tension_signal,
+        observations=tuple(observations),
+        interpretations=tuple(interpretations),
+        hypotheses=tuple(hypotheses),
+        predictions=tuple(predictions),
+        scenarios=tuple(scenarios),
+    )
+
+
+DYNAMIC_SYSTEM_MODEL_INVARIANTS: tuple[str, ...] = (
+    "State is not trajectory.",
+    "Trajectory is not prediction.",
+    "Prediction is not scenario.",
+    "Observation is not interpretation.",
+    "Correlation is not causation.",
+    "Temporal precedence is not causal proof.",
+    "A metric is not a diagnosis.",
+    "A susceptibility index is not a probability.",
+    "A probability is not valid without calibration and defined outcome/horizon.",
+    "A model output is not operationally valid without appropriate validation.",
+    "Small geographic area does not imply high coupling by itself.",
+    "Coupling must be represented by measurable interaction structure.",
+    "Social hostility must be represented through observable aggregate signals, "
+    "not intrinsic dangerousness assigned to protected groups.",
+    "Migration status or nationality must never be used as a proxy for "
+    "individual criminality or dangerousness.",
+    "Individual wellbeing signals must remain distinct from population-level "
+    "system intelligence.",
+    "Contradictory evidence must be preserved rather than silently resolved.",
+    "CeutIA must not make autonomous security decisions.",
+    "Human interpretation remains mandatory before operational escalation.",
+    "Private intelligence cannot become public through implicit serialization.",
+    "No mathematical formula establishes truth without empirical validation.",
+    "No single composite score may conceal its component dimensions and uncertainty.",
+    "All operational predictions require a defined target, horizon and "
+    "evaluation criterion.",
+    "Every operational hypothesis requires an explicit falsification route.",
+    "System feedback created by CeutIA must be treated as part of the "
+    "system dynamics and monitored for self-confirmation."
+)
+
+
+__all__ = [
+    "EpistemicType",
+    "ModelScope",
+    "SignalDirection",
+    "ModelError",
+    "ModelInputError",
+    "ModelEpistemicError",
+    "Uncertainty",
+    "SystemState",
+    "DynamicTrajectory",
+    "Perturbation",
+    "Response",
+    "Hypothesis",
+    "Prediction",
+    "Scenario",
+    "DynamicSystemModel",
+    "DynamicSystemAssessment",
+    "trajectory_velocity",
+    "trajectory_acceleration",
+    "adaptive_reserve_state",
+    "reserve_fraction",
+    "shock_response_sensitivity",
+    "response_amplification",
+    "coupling_spectral_radius",
+    "branching_factor",
+    "compound_systemic_susceptibility",
+    "information_feedback_sensitivity",
+    "sigmoid_response",
+    "validate_epistemic_separation",
+    "build_dynamic_assessment",
+    "DYNAMIC_SYSTEM_MODEL_INVARIANTS",
+]
+"""
 CeutIA — Modelos dinámicos de sistemas complejos.
 
 Este módulo integra las magnitudes matemáticas calculadas por metrics.py

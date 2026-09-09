@@ -1,3 +1,22 @@
+def get_data():
+    # UN Human Rights Council
+    un = requests.get('https://www.ohchr.org/api/press-releases').json()
+    
+    # Reuters AI
+    reuters = requests.get('https://api.reuters.com/v1/news?category=ai').json()
+    
+    # Center for Humane Technology
+    cht = requests.get('https://api.humanetech.com/research').json()
+    
+    # Extraer indicadores reales de los datos
+    return {
+        'capability_growth': extract_capability(un, reuters),
+        'incident_count': extract_incidents(un, cht),
+        'governance_gap': extract_governance(un, reuters),
+        'awareness_level': extract_awareness(cht),
+        'international_cooperation': extract_cooperation(un, reuters)
+    }
+
 #!/usr/bin/env python3
 """
 ═══════════════════════════════════════════════════════════════════════════════

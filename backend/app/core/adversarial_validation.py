@@ -1,5 +1,132 @@
 # =============================================================================
 # CEUTIA — SCIENTIFIC RED TEAM, FALSIFICATION & EPISTEMIC STRESS ENGINE
+
+from dataclasses import dataclass
+from enum import Enum
+from typing import Optional
+
+
+class GeographicProxyStatus(str, Enum):
+    NO_PROXY_EVIDENCE = "NO_PROXY_EVIDENCE"
+    PROXY_RISK = "PROXY_RISK"
+    PROXY_UNRESOLVED = "PROXY_UNRESOLVED"
+
+
+@dataclass(frozen=True, slots=True)
+class GeographicProxyTest:
+    status: GeographicProxyStatus
+
+    geographic_to_composition: Optional[float]
+    geographic_to_outcome: Optional[float]
+    geographic_to_outcome_controlling_composition: Optional[float]
+
+    composition_to_outcome: Optional[float]
+
+    geographic_ablation_delta: Optional[float]
+
+    spatial_stability: Optional[float]
+    temporal_stability: Optional[float]
+
+    resolution_sensitivity: Optional[float]
+
+    explanation: str
+
+
+def evaluate_geographic_proxy(
+    *,
+    geographic_to_composition: Optional[float],
+    geographic_to_outcome: Optional[float],
+    geographic_to_outcome_controlling_composition: Optional[float],
+    composition_to_outcome: Optional[float],
+    geographic_ablation_delta: Optional[float],
+    spatial_stability: Optional[float],
+    temporal_stability: Optional[float],
+    resolution_sensitivity: Optional[float],
+) -> GeographicProxyTest:
+
+    required = (
+        geographic_to_composition,
+        geographic_to_outcome,
+        geographic_to_outcome_controlling_composition,
+        composition_to_outcome,
+        geographic_ablation_delta,
+        spatial_stability,
+        temporal_stability,
+        resolution_sensitivity,
+    )
+
+    if any(value is None for value in required):
+        return GeographicProxyTest(
+            status=GeographicProxyStatus.PROXY_UNRESOLVED,
+            geographic_to_composition=geographic_to_composition,
+            geographic_to_outcome=geographic_to_outcome,
+            geographic_to_outcome_controlling_composition=(
+                geographic_to_outcome_controlling_composition
+            ),
+            composition_to_outcome=composition_to_outcome,
+            geographic_ablation_delta=geographic_ablation_delta,
+            spatial_stability=spatial_stability,
+            temporal_stability=temporal_stability,
+            resolution_sensitivity=resolution_sensitivity,
+            explanation=(
+                "Insufficient tests to determine whether the geographic "
+                "signal acts as a proxy for population composition."
+            ),
+        )
+
+    proxy_signal = (
+        abs(geographic_to_composition)
+        > abs(geographic_to_outcome_controlling_composition)
+        and abs(geographic_ablation_delta) < 0.10
+    )
+
+    unstable = (
+        spatial_stability < 0.50
+        or temporal_stability < 0.50
+        or resolution_sensitivity > 0.50
+    )
+
+    if proxy_signal:
+        status = GeographicProxyStatus.PROXY_RISK
+
+        explanation = (
+            "The geographic variable retains a strong relationship with "
+            "composition while adding limited independent explanatory "
+            "information for the outcome. The geographic signal must not "
+            "be promoted as a substantive tension or risk variable."
+        )
+
+    elif unstable:
+        status = GeographicProxyStatus.PROXY_UNRESOLVED
+
+        explanation = (
+            "The geographic signal is unstable across time, space or "
+            "geographic resolution. Its substantive interpretation remains "
+            "unresolved."
+        )
+
+    else:
+        status = GeographicProxyStatus.NO_PROXY_EVIDENCE
+
+        explanation = (
+            "No proxy pattern was detected by the implemented tests. "
+            "This is not evidence that no proxy exists."
+        )
+
+    return GeographicProxyTest(
+        status=status,
+        geographic_to_composition=geographic_to_composition,
+        geographic_to_outcome=geographic_to_outcome,
+        geographic_to_outcome_controlling_composition=(
+            geographic_to_outcome_controlling_composition
+        ),
+        composition_to_outcome=composition_to_outcome,
+        geographic_ablation_delta=geographic_ablation_delta,
+        spatial_stability=spatial_stability,
+        temporal_stability=temporal_stability,
+        resolution_sensitivity=resolution_sensitivity,
+        explanation=explanation,
+    )
 # =============================================================================
 #REGLA MATEMÁTICA:
 

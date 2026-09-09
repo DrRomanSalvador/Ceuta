@@ -179,3 +179,228 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
+
+#!/usr/bin/env python3
+"""
+═══════════════════════════════════════════════════════════════════════════════
+  CEUTA MASTER — SISTEMA COMPLETO DE MONITORIZACIÓN DE RIESGO EXISTENCIAL
+  Versión: 1.0.0 | 2026-09-09
+═══════════════════════════════════════════════════════════════════════════════
+"""
+
+import numpy as np
+import json
+import hashlib
+import time
+from datetime import datetime
+from pathlib import Path
+from typing import Dict, List, Tuple
+
+# ═══════════════════════════════════════════════════════════════════════════
+# CONFIGURACIÓN (AUDITABLE)
+# ═══════════════════════════════════════════════════════════════════════════
+
+CONFIG = {
+    'version': '1.0.0',
+    'timestamp': '2026-09-09T12:19:00Z',
+    'weights': {
+        'capability_growth': 0.25,
+        'incident_count': 0.20,
+        'governance_gap': 0.20,
+        'awareness_level': -0.15,
+        'international_cooperation': -0.20
+    },
+    'thresholds': {
+        'green': 0.4,
+        'yellow': 0.6,
+        'orange': 0.75,
+        'red': 1.0
+    },
+    'sources': [
+        'UN Human Rights Council (ohchr.org)',
+        'Reuters AI Coverage',
+        'Center for Humane Technology',
+        'AI Safety Research'
+    ],
+    'update_interval_hours': 6
+}
+
+# ═══════════════════════════════════════════════════════════════════════════
+# FÓRMULA MAESTRA
+# ═══════════════════════════════════════════════════════════════════════════
+"""
+R_t = σ(Σ w_i · x_i,t)
+
+Donde:
+- σ(z) = 1 / (1 + e^(-z))  [función sigmoide]
+- w_i = pesos del modelo (públicos, auditables)
+- x_i,t = indicadores normalizados en tiempo t
+- R_t ∈ [0, 1] = riesgo existencial
+
+IC 95% = [R - 1.96·SE, R + 1.96·SE]
+SE = √(R·(1-R) / n)
+
+Alerta:
+- GREEN: R < 0.4
+- YELLOW: 0.4 ≤ R < 0.6
+- ORANGE: 0.6 ≤ R < 0.75
+- RED: R ≥ 0.75
+"""
+
+def sigmoid(x: float) -> float:
+    """Función sigmoide para mapear score a [0, 1]"""
+    return 1.0 / (1.0 + np.exp(-x))
+
+def calculate_confidence_interval(risk: float, n: int) -> Tuple[float, float, float]:
+    """Calcula intervalo de confianza 95%"""
+    if n < 2:
+        se = 0.5
+    else:
+        se = np.sqrt(risk * (1 - risk) / n)
+    
+    ci_low = max(0.0, risk - 1.96 * se)
+    ci_high = min(1.0, risk + 1.96 * se)
+    
+    return ci_low, ci_high, se
+
+def get_alert_level(risk: float) -> str:
+    """Determina nivel de alerta"""
+    if risk < CONFIG['thresholds']['green']:
+        return 'GREEN'
+    elif risk < CONFIG['thresholds']['yellow']:
+        return 'YELLOW'
+    elif risk < CONFIG['thresholds']['orange']:
+        return 'ORANGE'
+    else:
+        return 'RED'
+
+# ═══════════════════════════════════════════════════════════════════════════
+# OBTENCIÓN DE DATOS (REEMPLAZAR CON APIS REALES)
+# ═══════════════════════════════════════════════════════════════════════════
+
+def get_current_indicators() -> Dict[str, float]:
+    """
+    Obtiene indicadores actuales.
+    
+    EN PRODUCCIÓN: Reemplazar con llamadas reales a APIs:
+    - fetch_un_data()
+    - fetch_reuters_data()
+    - fetch_safety_research()
+    """
+    
+    # Valores ilustrativos (basados en literatura pública)
+    return {
+        'capability_growth': 0.65,      # IA avanzando rápido
+        'incident_count': 0.45,         # Incidentes moderados
+        'governance_gap': 0.70,         # Gobernanza insuficiente
+        'awareness_level': 0.35,        # Conciencia creciendo
+        'international_cooperation': 0.40  # Cooperación limitada
+    }
+
+# ═══════════════════════════════════════════════════════════════════════════
+# CÁLCULO PRINCIPAL
+# ═══════════════════════════════════════════════════════════════════════════
+
+def calculate_risk() -> Dict:
+    """Calcula riesgo existencial con fórmula maestra"""
+    
+    # Obtener indicadores
+    indicators = get_current_indicators()
+    
+    # Fórmula: R = σ(Σ w_i · x_i)
+    raw_score = sum(
+        CONFIG['weights'][key] * indicators.get(key, 0.5)
+        for key in CONFIG['weights']
+    )
+    
+    risk_score = sigmoid(raw_score)
+    
+    # Intervalo de confianza
+    ci_low, ci_high, se = calculate_confidence_interval(risk_score, len(indicators))
+    
+    # Nivel de alerta
+    alert_level = get_alert_level(risk_score)
+    
+    # Hash de auditoría
+    audit_content = f"{risk_score}{ci_low}{ci_high}{json.dumps(indicators, sort_keys=True)}"
+    audit_hash = hashlib.sha256(audit_content.encode()).hexdigest()[:16]
+    
+    return {
+        'risk_score': round(risk_score, 4),
+        'confidence_interval': [round(ci_low, 4), round(ci_high, 4)],
+        'standard_error': round(se, 4),
+        'alert_level': alert_level,
+        'component_scores': indicators,
+        'audit_hash': audit_hash,
+        'timestamp': datetime.utcnow().isoformat() + 'Z',
+        'sources': CONFIG['sources'],
+        'config_version': CONFIG['version']
+    }
+
+# ═══════════════════════════════════════════════════════════════════════════
+# GUARDADO DE RESULTADOS
+# ═══════════════════════════════════════════════════════════════════════════
+
+def save_result(result: Dict) -> str:
+    """Guarda resultado en archivo JSON"""
+    Path("output").mkdir(exist_ok=True)
+    ts = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+    filename = f"output/ceuta_{ts}.json"
+    
+    with open(filename, 'w') as f:
+        json.dump(result, f, indent=2)
+    
+    return filename
+
+# ═══════════════════════════════════════════════════════════════════════════
+# EJECUCIÓN
+# ═══════════════════════════════════════════════════════════════════════════
+
+def run_once():
+    """Ejecuta un ciclo completo"""
+    print(f"\n{'='*80}")
+    print(f"  🌍 CEUTA MASTER — Cálculo de Riesgo Existencial")
+    print(f"  Versión: {CONFIG['version']} | {datetime.utcnow().isoformat()}")
+    print(f"{'='*80}\n")
+    
+    result = calculate_risk()
+    filename = save_result(result)
+    
+    print(f"⚠️  RIESGO: {result['risk_score']:.4f} ({result['alert_level']})")
+    print(f"📊 IC 95%: [{result['confidence_interval'][0]:.4f}, {result['confidence_interval'][1]:.4f}]")
+    print(f"🔐 Audit: {result['audit_hash']}")
+    print(f"💾 Guardado: {filename}")
+    print(f"\n{'='*80}\n")
+    
+    return result
+
+def run_continuous():
+    """Ejecuta continuamente cada N horas"""
+    print(f"\n{'='*80}")
+    print(f"  🌍 CEUTA MASTER — Monitor Continuo")
+    print(f"  Actualizando cada {CONFIG['update_interval_hours']} horas")
+    print(f"  Presiona Ctrl+C para detener")
+    print(f"{'='*80}\n")
+    
+    try:
+        while True:
+            run_once()
+            print(f"😴 Esperando {CONFIG['update_interval_hours']} horas...\n")
+            time.sleep(CONFIG['update_interval_hours'] * 3600)
+    except KeyboardInterrupt:
+        print(f"\n\n✅ Monitor detenido")
+        print(f"📁 Resultados en: output/")
+
+# ═══════════════════════════════════════════════════════════════════════════
+# MAIN
+# ═══════════════════════════════════════════════════════════════════════════
+
+if __name__ == '__main__':
+    import sys
+    
+    if len(sys.argv) > 1 and sys.argv[1] == '--once':
+        run_once()
+    else:
+        run_continuous()

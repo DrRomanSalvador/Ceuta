@@ -404,3 +404,73 @@ if __name__ == '__main__':
         run_once()
     else:
         run_continuous()
+
+
+#!/usr/bin/env python3
+"""CEUTA MASTER — Monitor de Riesgo Existencial"""
+
+import numpy as np, json, hashlib, time
+from datetime import datetime
+from pathlib import Path
+
+CONFIG = {
+    'version': '1.0.0',
+    'weights': {'capability_growth': 0.25, 'incident_count': 0.20, 
+                'governance_gap': 0.20, 'awareness_level': -0.15, 
+                'international_cooperation': -0.20},
+    'thresholds': {'green': 0.4, 'yellow': 0.6, 'orange': 0.75},
+    'interval_hours': 6
+}
+
+def sigmoid(x): return 1.0 / (1.0 + np.exp(-x))
+
+def get_data():
+    return {'capability_growth': 0.65, 'incident_count': 0.45, 
+            'governance_gap': 0.70, 'awareness_level': 0.35, 
+            'international_cooperation': 0.40}
+
+def calculate():
+    X = get_data()
+    R = sigmoid(sum(CONFIG['weights'][k] * X[k] for k in CONFIG['weights']))
+    n = len(X)
+    se = np.sqrt(R*(1-R)/n) if n >= 2 else 0.5
+    ci = [max(0, R-1.96*se), min(1, R+1.96*se)]
+    level = 'GREEN' if R < CONFIG['thresholds']['green'] else \
+            'YELLOW' if R < CONFIG['thresholds']['yellow'] else \
+            'ORANGE' if R < CONFIG['thresholds']['orange'] else 'RED'
+    return {'risk': round(R,4), 'ci_95': [round(ci[0],4), round(ci[1],4)], 
+            'level': level, 'components': X, 
+            'audit_hash': hashlib.sha256(f"{R}{ci}{json.dumps(X)}".encode()).hexdigest()[:16],
+            'timestamp': datetime.utcnow().isoformat() + 'Z'}
+
+def save(r):
+    Path("output").mkdir(exist_ok=True)
+    fn = f"output/ceuta_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.json"
+    json.dump(r, open(fn,'w'), indent=2)
+    return fn
+
+def run():
+    print(f"\n{'='*60}\n🌍 CEUTA MASTER\n{'='*60}")
+    r = calculate()
+    save(r)
+    print(f"⚠️ Riesgo: {r['risk']:.4f} ({r['level']})")
+    print(f"📊 IC 95%: {r['ci_95']}")
+    print(f"🔐 Audit: {r['audit_hash']}")
+    print(f"{'='*60}\n")
+    return r
+
+def run_continuous():
+    print(f"🚀 Monitor continuo (cada {CONFIG['interval_hours']}h). Ctrl+C para parar.\n")
+    try:
+        while True:
+            run()
+            time.sleep(CONFIG['interval_hours'] * 3600)
+    except KeyboardInterrupt:
+        print("\n✅ Detenido. Output en: output/")
+
+if __name__ == '__main__':
+    import sys
+    if len(sys.argv) > 1 and sys.argv[1] == '--once':
+        run()
+    else:
+        run_continuous()

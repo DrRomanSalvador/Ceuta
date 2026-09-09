@@ -9748,8 +9748,10 @@ else:
 # Registry validation remains explicitly callable so importing metrics.py
 # never silently turns a mathematical definition into an operational claim.
 
+cd /home/workdir/artifacts/Ceuta
+python -m pytest tests/core/test_system_integrator.py -q
+
 # metrics.py
-│
 ├── métricas básicas existentes
 ├── métricas estadísticas existentes
 ├── métricas clínicas/epidemiológicas

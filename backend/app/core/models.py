@@ -6253,3 +6253,50 @@ __all__ = [
     "SpatialReference",
     "TemporalInterval",
 ]
+from dataclasses import dataclass
+from typing import Optional
+
+
+@dataclass(frozen=True, slots=True)
+class RiskAssessment:
+    """
+    Evaluación multidimensional del riesgo.
+
+    Nunca debe interpretarse como una probabilidad de outcome
+    salvo que probability esté explícitamente calibrada.
+    """
+
+    risk_id: str
+
+    hazard: str
+    horizon: str
+
+    state_pressure: float
+    trajectory_pressure: float
+
+    reserve_margin: float
+    sensitivity: float
+
+    coupling: float
+    propagation: float
+
+    threshold_proximity: float
+
+    recovery_capacity: float
+
+    epistemic_confidence: float
+
+    probability: Optional[float]
+
+    calibration_status: str
+
+    operational_urgency: str
+
+    limitations: tuple[str, ...] = ()
+
+    @property
+    def calibrated(self) -> bool:
+        return (
+            self.probability is not None
+            and self.calibration_status == "CALIBRATED"
+        )

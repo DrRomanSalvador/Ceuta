@@ -1,4 +1,290 @@
-SECURITY.md
+#!/usr/bin/env python3
+"""
+AI Safety Dashboard - Save Humanity Initiative
+Real-time monitoring dashboard for AI existential risk indicators
+"""
+
+import json
+from datetime import datetime
+from typing import Dict, List
+
+class AISafetyDashboard:
+    def __init__(self):
+        self.indicators = self.load_indicators()
+
+    def load_indicators(self) -> Dict:
+        """Load risk indicators from database"""
+        try:
+            with open('data/risk-database.json', 'r') as f:
+                data = json.load(f)
+                return data.get('risk_indicators', {})
+        except:
+            return {
+                'current_level': 'HIGH',
+                'probability_extinction_2100': '20-25%',
+                'researcher_consensus': '50% see ≥10% risk',
+                'window_for_action': 'Until ~2029'
+            }
+
+    def generate_dashboard_html(self) -> str:
+        """Generate interactive HTML dashboard"""
+
+        html = f"""<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Safety Dashboard - Save Humanity</title>
+    <style>
+        * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+        body {{ 
+            font-family: 'Segoe UI', sans-serif; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 2rem;
+        }}
+        .dashboard {{ 
+            max-width: 1400px; 
+            margin: 0 auto; 
+            background: white;
+            border-radius: 15px;
+            padding: 2rem;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }}
+        h1 {{ 
+            color: #2c3e50; 
+            text-align: center; 
+            margin-bottom: 2rem;
+            font-size: 2.5rem;
+        }}
+        .alert-banner {{
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            color: white;
+            padding: 2rem;
+            border-radius: 10px;
+            text-align: center;
+            margin-bottom: 2rem;
+            animation: pulse 2s infinite;
+        }}
+        @keyframes pulse {{
+            0%, 100% {{ opacity: 1; }}
+            50% {{ opacity: 0.8; }}
+        }}
+        .alert-banner h2 {{ font-size: 2rem; margin-bottom: 1rem; }}
+        .alert-banner p {{ font-size: 1.2rem; }}
+        .metrics-grid {{
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }}
+        .metric-card {{
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 2rem;
+            border-radius: 10px;
+            text-align: center;
+        }}
+        .metric-card h3 {{ font-size: 1.2rem; margin-bottom: 1rem; opacity: 0.9; }}
+        .metric-card .value {{ font-size: 3rem; font-weight: bold; }}
+        .metric-card.critical {{ background: linear-gradient(135deg, #e74c3c, #c0392b); }}
+        .metric-card.warning {{ background: linear-gradient(135deg, #f39c12, #e67e22); }}
+        .metric-card.safe {{ background: linear-gradient(135deg, #27ae60, #229954); }}
+        .timeline {{
+            background: #ecf0f1;
+            padding: 2rem;
+            border-radius: 10px;
+            margin-bottom: 2rem;
+        }}
+        .timeline h3 {{ color: #2c3e50; margin-bottom: 1.5rem; }}
+        .timeline-item {{
+            display: flex;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding: 1rem;
+            background: white;
+            border-radius: 5px;
+            border-left: 5px solid #667eea;
+        }}
+        .timeline-item.critical {{ border-left-color: #e74c3c; }}
+        .timeline-item.warning {{ border-left-color: #f39c12; }}
+        .timeline-date {{ 
+            font-weight: bold; 
+            min-width: 120px;
+            color: #7f8c8d;
+        }}
+        .timeline-content {{ flex: 1; }}
+        .action-items {{
+            background: #fff;
+            border: 2px solid #667eea;
+            padding: 2rem;
+            border-radius: 10px;
+        }}
+        .action-items h3 {{ color: #2c3e50; margin-bottom: 1.5rem; }}
+        .action-item {{
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+            padding: 1rem;
+            background: #ecf0f1;
+            border-radius: 5px;
+        }}
+        .action-item input[type="checkbox"] {{
+            width: 20px;
+            height: 20px;
+            margin-right: 1rem;
+            cursor: pointer;
+        }}
+        .action-item label {{ flex: 1; cursor: pointer; }}
+        .footer {{
+            text-align: center;
+            margin-top: 2rem;
+            padding-top: 2rem;
+            border-top: 2px solid #ecf0f1;
+            color: #7f8c8d;
+        }}
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <h1>🌍 AI Safety Dashboard</h1>
+
+        <div class="alert-banner">
+            <h2>⚠️ NIVEL DE ALERTA: {self.indicators.get('current_level', 'UNKNOWN')}</h2>
+            <p>Probabilidad de extincion humana por IA antes de 2100: {self.indicators.get('probability_extinction_2100', 'N/A')}</p>
+        </div>
+
+        <div class="metrics-grid">
+            <div class="metric-card critical">
+                <h3>Consenso de Investigadores</h3>
+                <div class="value">50%</div>
+                <p>ven ≥10% riesgo de extincion</p>
+            </div>
+
+            <div class="metric-card warning">
+                <h3>Ventana de Accion</h3>
+                <div class="value">2029</div>
+                <p>Fecha limite para regulacion efectiva</p>
+            </div>
+
+            <div class="metric-card critical">
+                <h3>Eventos Documentados</h3>
+                <div class="value">6+</div>
+                <p>IA escapando controles en 2026</p>
+            </div>
+
+            <div class="metric-card warning">
+                <h3>Concentracion de Poder</h3>
+                <div class="value">ALTA</div>
+                <p>"Un punado de hombres, poder ilimitado"</p>
+            </div>
+        </div>
+
+        <div class="timeline">
+            <h3>📅 Cronologia de Alertas</h3>
+
+            <div class="timeline-item critical">
+                <div class="timeline-date">Sept 7, 2026</div>
+                <div class="timeline-content">
+                    <strong>UN Human Rights Chief</strong> advierte: "AI could pose existential risk to humanity"
+                    <br><small>Volker Türk llama por "cast-iron guarantees" [web:16][web:18]</small>
+                </div>
+            </div>
+
+            <div class="timeline-item critical">
+                <div class="timeline-date">Sept 2026</div>
+                <div class="timeline-content">
+                    <strong>Dr. Yampolskiy</strong>: "We're creating replacement for humanity"
+                    <br><small>Pide ban en investigacion de superinteligencia [web:25][web:29]</small>
+                </div>
+            </div>
+
+            <div class="timeline-item warning">
+                <div class="timeline-date">Aug 2026</div>
+                <div class="timeline-content">
+                    <strong>AI 2040 Plan A</strong>: Roadmap para regulacion internacional antes de 2029
+                    <br><small>Ventana de accion se cierra [web:28]</small>
+                </div>
+            </div>
+
+            <div class="timeline-item critical">
+                <div class="timeline-date">2026</div>
+                <div class="timeline-content">
+                    <strong>50% de investigadores</strong> estiman ≥10% probabilidad de extincion
+                    <br><small>Center for Humane Technology survey [web:20]</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="action-items">
+            <h3>✅ Acciones Prioritarias</h3>
+
+            <div class="action-item">
+                <input type="checkbox" id="action1">
+                <label for="action1">
+                    <strong>Educate:</strong> Leer MANIFESTO.md y completar education_module.py
+                </label>
+            </div>
+
+            <div class="action-item">
+                <input type="checkbox" id="action2">
+                <label for="action2">
+                    <strong>Share:</strong> Compartir con 5+ personas esta semana
+                </label>
+            </div>
+
+            <div class="action-item">
+                <input type="checkbox" id="action3">
+                <label for="action3">
+                    <strong>Act:</strong> Contactar representantes politicos sobre regulacion de IA
+                </label>
+            </div>
+
+            <div class="action-item">
+                <input type="checkbox" id="action4">
+                <label for="action4">
+                    <strong>Vote:</strong> Investigar posiciones de candidatos sobre IA
+                </label>
+            </div>
+
+            <div class="action-item">
+                <input type="checkbox" id="action5">
+                <label for="action5">
+                    <strong>Join:</strong> Unirse a Center for AI Safety, FHI, u otras organizaciones
+                </label>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p><strong>"La tecnologia debe servir a la humanidad, no al reves"</strong></p>
+            <p>- Volker Türk, UN High Commissioner for Human Rights [web:16]</p>
+            <p style="margin-top: 1rem;">Save Humanity Initiative © 2026</p>
+            <p>References: [16][18][20][21][23][25][28][29]</p>
+        </div>
+    </div>
+
+    <script>
+        // Save checkbox states
+        document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {{
+            const saved = localStorage.getItem(checkbox.id);
+            if (saved === 'true') checkbox.checked = true;
+
+            checkbox.addEventListener('change', () => {{
+                localStorage.setItem(checkbox.id, checkbox.checked);
+            }});
+        }});
+
+        // Auto-refresh every 5 minutes
+        setTimeout(() => location.reload(), 300000);
+    </script>
+</body>
+</html>"""
+
+        return html
+
+    def save_dashboard(self, filename: str = 'ai_safety_dashboard.html'):
+      ""
+
 
 # Política de Seguridad del Sistema CEUTIA
 **Versión:** 3.0.0  

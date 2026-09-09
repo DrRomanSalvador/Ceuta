@@ -1,4 +1,2135 @@
-# ============================================================================
+# =============================================================================
+# CEUTIA — SCIENTIFIC RED TEAM, FALSIFICATION & EPISTEMIC STRESS ENGINE
+# =============================================================================
+#
+# Esta capa NO demuestra que una conclusión sea verdadera.
+#
+# Su función es intentar encontrar condiciones bajo las cuales una conclusión:
+#
+#   1. deja de sostenerse;
+#   2. depende de una decisión arbitraria;
+#   3. depende excesivamente de una única fuente;
+#   4. cambia ante pequeñas perturbaciones;
+#   5. desaparece al cambiar definición, ventana, denominador o modelo;
+#   6. depende de supuestos no observados;
+#   7. está afectada por leakage, selección, confusión o feedback;
+#   8. no puede ser falsada;
+#   9. no dispone de evidencia suficiente para uso operacional;
+#  10. presenta una deuda epistémica que debe permanecer explícita.
+#
+# PRINCIPIO CENTRAL:
+#
+#     sobrevivir a una prueba de falsación ≠ ser verdadero
+#
+# La supervivencia únicamente indica que la hipótesis/conclusión no ha sido
+# refutada por ese ataque bajo las condiciones definidas.
+#
+# CeutIA debe aumentar su confianza únicamente cuando permanece evidencia
+# independiente y metodológicamente admisible después de someter la conclusión
+# a intentos explícitos de refutación.
+#
+# =============================================================================
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from enum import Enum
+from math import isfinite
+from statistics import median
+from typing import Any, Final, Iterable, Mapping, Sequence
+
+
+# -----------------------------------------------------------------------------
+# 1. Tipología de ataques científicos
+# -----------------------------------------------------------------------------
+
+
+class RedTeamAttackType(str, Enum):
+    """Tipos de ataque aplicables a una afirmación, modelo o alerta."""
+
+    SOURCE_REMOVAL = "source_removal"
+    SOURCE_LINEAGE = "source_lineage"
+    SOURCE_INDEPENDENCE = "source_independence"
+
+    DATA_REMOVAL = "data_removal"
+    DATA_PERTURBATION = "data_perturbation"
+    DATA_POISONING = "data_poisoning"
+    DUPLICATION = "duplication"
+    SYNTHETIC_CONTAMINATION = "synthetic_contamination"
+
+    DEFINITION_CHANGE = "definition_change"
+    DENOMINATOR_CHANGE = "denominator_change"
+    UNIT_CHANGE = "unit_change"
+
+    TEMPORAL_WINDOW = "temporal_window"
+    TEMPORAL_LEAKAGE = "temporal_leakage"
+    REGIME_CHANGE = "regime_change"
+    OUT_OF_SAMPLE = "out_of_sample"
+
+    SPATIAL_UNIT_CHANGE = "spatial_unit_change"
+    MAUP = "maup"
+    SPATIAL_DEPENDENCE = "spatial_dependence"
+
+    MODEL_CHANGE = "model_change"
+    PARAMETER_PERTURBATION = "parameter_perturbation"
+    PRIOR_PERTURBATION = "prior_perturbation"
+    THRESHOLD_PERTURBATION = "threshold_perturbation"
+
+    MISSINGNESS = "missingness"
+    SELECTION_BIAS = "selection_bias"
+    CONFOUNDING = "confounding"
+    COLLIDER_BIAS = "collider_bias"
+    REVERSE_CAUSALITY = "reverse_causality"
+    IMMORTAL_TIME = "immortal_time"
+
+    BASE_RATE = "base_rate"
+    RARE_EVENT = "rare_event"
+    FALSE_POSITIVE_COST = "false_positive_cost"
+    FALSE_NEGATIVE_COST = "false_negative_cost"
+
+    FEEDBACK = "feedback"
+    INTERVENTION_CONTAMINATION = "intervention_contamination"
+    BEHAVIOURAL_RESPONSE = "behavioural_response"
+
+    EXTREME_SCENARIO = "extreme_scenario"
+    COUNTERFACTUAL = "counterfactual"
+    COMPETING_HYPOTHESIS = "competing_hypothesis"
+
+    ROBUSTNESS = "robustness"
+    REPRODUCIBILITY = "reproducibility"
+
+    PROMPT_INJECTION = "prompt_injection"
+    INDIRECT_INJECTION = "indirect_injection"
+    FABRICATED_EVIDENCE = "fabricated_evidence"
+    AUTOMATION_BIAS = "automation_bias"
+    SELF_CONFIRMATION = "self_confirmation"
+
+
+class RedTeamAttackOutcome(str, Enum):
+    """
+    Resultado epistemológico del ataque.
+
+    SURVIVED nunca significa TRUE.
+    """
+
+    REFUTED = "refuted"
+    WEAKENED = "weakened"
+    SURVIVED = "survived"
+    INCONCLUSIVE = "inconclusive"
+    UNTESTABLE = "untestable"
+    NOT_RUN = "not_run"
+
+
+class RedTeamSeverity(str, Enum):
+    INFO = "info"
+    MINOR = "minor"
+    MAJOR = "major"
+    CRITICAL = "critical"
+
+
+class RedTeamRobustnessDimension(str, Enum):
+    COMPUTATIONAL = "computational"
+    STATISTICAL = "statistical"
+    TEMPORAL = "temporal"
+    SPATIAL = "spatial"
+    SOURCE = "source"
+    MODEL = "model"
+    PARAMETER = "parameter"
+    DEFINITION = "definition"
+    CAUSAL = "causal"
+    EPISTEMIC = "epistemic"
+    OPERATIONAL = "operational"
+    ADVERSARIAL = "adversarial"
+    REPRODUCIBILITY = "reproducibility"
+
+
+class RedTeamEvidenceDependency(str, Enum):
+    INDEPENDENT = "independent"
+    PARTIALLY_DEPENDENT = "partially_dependent"
+    DEPENDENT = "dependent"
+    UNKNOWN = "unknown"
+
+
+class RedTeamDebtStatus(str, Enum):
+    OPEN = "open"
+    MONITORING = "monitoring"
+    RESOLVED = "resolved"
+    ACCEPTED = "accepted"
+    EXPIRED = "expired"
+
+
+class RedTeamPromotionDecision(str, Enum):
+    """
+    Decisión final del red team.
+
+    Esta decisión no sustituye a los gates científicos anteriores.
+    """
+
+    PASS = "pass"
+    PASS_WITH_RESERVATIONS = "pass_with_reservations"
+    SHADOW_ONLY = "shadow_only"
+    BLOCK = "block"
+
+
+# -----------------------------------------------------------------------------
+# 2. Excepciones específicas
+# -----------------------------------------------------------------------------
+
+
+class RedTeamError(RuntimeError):
+    """Error base de la capa Scientific Red Team."""
+
+
+class RedTeamInputError(RedTeamError):
+    """Entrada inválida o insuficiente."""
+
+
+class RedTeamFalsifiabilityError(RedTeamError):
+    """La afirmación o hipótesis no cumple criterios mínimos de falsabilidad."""
+
+
+class RedTeamCriticalFinding(RedTeamError):
+    """Se ha detectado un problema crítico incompatible con promoción."""
+
+
+# -----------------------------------------------------------------------------
+# 3. Crítica experta
+# -----------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class RedTeamExpertCritique:
+    """
+    Crítica externa o interna dirigida contra una afirmación.
+
+    Una crítica NO es evidencia a favor ni en contra.
+    Es un mecanismo para intentar encontrar un fallo.
+    """
+
+    critique_id: str
+    claim_id: str
+    expert_domain: str
+    attack_type: RedTeamAttackType
+    severity: RedTeamSeverity
+
+    description: str
+    proposed_refutation: str
+    required_test: str
+
+    submitted_by: str
+    submitted_at: datetime = field(
+        default_factory=lambda: datetime.now(timezone.utc)
+    )
+
+    evidence_ids: tuple[str, ...] = ()
+    assumptions_attacked: tuple[str, ...] = ()
+    resolved: bool = False
+
+    def validate(self) -> None:
+        if not self.critique_id.strip():
+            raise RedTeamInputError("critique_id no puede estar vacío")
+
+        if not self.claim_id.strip():
+            raise RedTeamInputError("claim_id no puede estar vacío")
+
+        if not self.description.strip():
+            raise RedTeamInputError("La crítica debe contener una descripción")
+
+        if not self.proposed_refutation.strip():
+            raise RedTeamInputError(
+                "Toda crítica científica debe especificar cómo intentaría refutar "
+                "la afirmación"
+            )
+
+        if not self.required_test.strip():
+            raise RedTeamInputError(
+                "Toda crítica debe definir una prueba requerida"
+            )
+
+        if self.submitted_at.tzinfo is None:
+            raise RedTeamInputError(
+                "submitted_at debe ser timezone-aware"
+            )
+
+
+# -----------------------------------------------------------------------------
+# 4. Registro de una prueba de falsación
+# -----------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class RedTeamRefutationTest:
+    test_id: str
+    critique_id: str
+    name: str
+
+    criterion: str
+    method: str
+
+    outcome: RedTeamAttackOutcome
+    result_summary: str
+
+    baseline_value: float | None = None
+    perturbed_value: float | None = None
+    tolerance: float | None = None
+    effect_size: float | None = None
+
+    reproducible: bool = False
+    execution_version: str | None = None
+    executed_at: datetime = field(
+        default_factory=lambda: datetime.now(timezone.utc)
+    )
+
+    evidence_ids: tuple[str, ...] = ()
+
+    def validate(self) -> None:
+        if not self.test_id.strip():
+            raise RedTeamInputError("test_id no puede estar vacío")
+
+        if not self.critique_id.strip():
+            raise RedTeamInputError("critique_id no puede estar vacío")
+
+        if not self.name.strip():
+            raise RedTeamInputError("name no puede estar vacío")
+
+        if not self.criterion.strip():
+            raise RedTeamInputError("Toda prueba necesita un criterio")
+
+        if not self.method.strip():
+            raise RedTeamInputError("Toda prueba necesita un método")
+
+        if not self.result_summary.strip():
+            raise RedTeamInputError(
+                "Toda prueba debe conservar el resultado observado"
+            )
+
+        if self.tolerance is not None and self.tolerance < 0:
+            raise RedTeamInputError("tolerance no puede ser negativa")
+
+
+# -----------------------------------------------------------------------------
+# 5. Sensibilidad
+# -----------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class RedTeamSensitivityRun:
+    run_id: str
+    target_id: str
+    variable: str
+
+    baseline: float
+    perturbed: float
+    baseline_conclusion: str
+    perturbed_conclusion: str
+
+    absolute_change: float
+    relative_change: float | None
+
+    perturbation_fraction: float
+    outcome_changed: bool
+
+    method: str
+    assumptions: tuple[str, ...] = ()
+
+    def validate(self) -> None:
+        values = (
+            self.baseline,
+            self.perturbed,
+            self.absolute_change,
+            self.perturbation_fraction,
+        )
+
+        if not all(isfinite(float(value)) for value in values):
+            raise RedTeamInputError(
+                f"Valores no finitos en sensitivity run '{self.run_id}'"
+            )
+
+        if self.perturbation_fraction < 0:
+            raise RedTeamInputError(
+                "perturbation_fraction no puede ser negativa"
+            )
+
+        if self.relative_change is not None and not isfinite(
+            float(self.relative_change)
+        ):
+            raise RedTeamInputError(
+                "relative_change debe ser finito"
+            )
+
+
+# -----------------------------------------------------------------------------
+# 6. Robustez multidimensional
+# -----------------------------------------------------------------------------
+
+
+@dataclass
+class RedTeamRobustnessAssessment:
+    target_id: str
+    scores: dict[RedTeamRobustnessDimension, float] = field(default_factory=dict)
+    attack_count: int = 0
+    refuted_count: int = 0
+    weakened_count: int = 0
+    survived_count: int = 0
+    inconclusive_count: int = 0
+
+    unresolved_major_attacks: int = 0
+    unresolved_critical_attacks: int = 0
+
+    notes: list[str] = field(default_factory=list)
+
+    def set_score(
+        self,
+        dimension: RedTeamRobustnessDimension,
+        score: float,
+    ) -> None:
+        if not isfinite(float(score)):
+            raise RedTeamInputError("El score debe ser finito")
+
+        if not 0.0 <= score <= 1.0:
+            raise RedTeamInputError(
+                "Los scores de robustez deben estar entre 0 y 1"
+            )
+
+        self.scores[dimension] = float(score)
+
+    @property
+    def minimum_score(self) -> float | None:
+        if not self.scores:
+            return None
+        return min(self.scores.values())
+
+    @property
+    def mean_score(self) -> float | None:
+        if not self.scores:
+            return None
+        return sum(self.scores.values()) / len(self.scores)
+
+
+# -----------------------------------------------------------------------------
+# 7. Dependencia mínima de evidencia
+# -----------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class RedTeamEvidenceSet:
+    evidence_ids: tuple[str, ...]
+    independent_source_ids: tuple[str, ...]
+    conclusion_supported: bool
+
+    removed_evidence_id: str | None = None
+    conclusion_after_removal: bool | None = None
+
+    dependency: RedTeamEvidenceDependency = (
+        RedTeamEvidenceDependency.UNKNOWN
+    )
+
+    explanation: str = ""
+
+
+@dataclass
+class RedTeamMinimumEvidenceAnalysis:
+    """
+    Determina cuánto depende una conclusión de cada pieza de evidencia.
+
+    Importante:
+    un conjunto mínimo de evidencia no equivale a evidencia causal.
+    """
+
+    target_id: str
+    baseline_supported: bool
+
+    evidence_sets: list[RedTeamEvidenceSet] = field(default_factory=list)
+
+    fragile_evidence_ids: list[str] = field(default_factory=list)
+    indispensable_evidence_ids: list[str] = field(default_factory=list)
+
+    single_source_failure: bool = False
+
+    def validate(self) -> None:
+        if not self.target_id.strip():
+            raise RedTeamInputError("target_id no puede estar vacío")
+
+
+# -----------------------------------------------------------------------------
+# 8. Hipótesis competidoras
+# -----------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class RedTeamCompetingHypothesis:
+    hypothesis_id: str
+    target_id: str
+
+    statement: str
+    mechanism: str
+
+    predictions: tuple[str, ...]
+    discriminating_observations: tuple[str, ...]
+
+    supporting_evidence_ids: tuple[str, ...] = ()
+    contradicting_evidence_ids: tuple[str, ...] = ()
+
+    prior_assumption: str | None = None
+
+    def validate(self) -> None:
+        if not self.statement.strip():
+            raise RedTeamInputError(
+                "La hipótesis debe contener una afirmación explícita"
+            )
+
+        if not self.mechanism.strip():
+            raise RedTeamInputError(
+                "La hipótesis debe describir un mecanismo"
+            )
+
+        if not self.predictions:
+            raise RedTeamFalsifiabilityError(
+                f"Hipótesis '{self.hypothesis_id}' no tiene predicciones"
+            )
+
+        if not self.discriminating_observations:
+            raise RedTeamFalsifiabilityError(
+                f"Hipótesis '{self.hypothesis_id}' no tiene observaciones "
+                "discriminantes"
+            )
+
+
+# -----------------------------------------------------------------------------
+# 9. Falsabilidad
+# -----------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class RedTeamFalsifiabilityAssessment:
+    target_id: str
+
+    falsifiable: bool
+
+    falsification_conditions: tuple[str, ...]
+    weakening_conditions: tuple[str, ...]
+    inconclusive_conditions: tuple[str, ...]
+
+    time_horizon: str | None
+    observable_outcomes: tuple[str, ...]
+
+    unfalsifiable_reason: str | None = None
+
+    def validate(self) -> None:
+        if self.falsifiable:
+            if not self.falsification_conditions:
+                raise RedTeamFalsifiabilityError(
+                    "Una afirmación falsable debe especificar condiciones de "
+                    "refutación"
+                )
+
+            if not self.observable_outcomes:
+                raise RedTeamFalsifiabilityError(
+                    "Una afirmación falsable necesita resultados observables"
+                )
+
+        elif not self.unfalsifiable_reason:
+            raise RedTeamFalsifiabilityError(
+                "Una afirmación no falsable debe explicar por qué"
+            )
+
+
+def validate_redteam_falsifiability(
+    assessment: RedTeamFalsifiabilityAssessment,
+) -> None:
+    """
+    Valida que una hipótesis no pueda protegerse de cualquier resultado.
+
+    Ejemplo inválido:
+
+        "El sistema es correcto porque cualquier observación confirma
+        que el sistema tenía razón."
+
+    Esto constituye una estructura no falsable.
+    """
+    assessment.validate()
+
+
+# -----------------------------------------------------------------------------
+# 10. Deuda epistémica
+# -----------------------------------------------------------------------------
+
+
+@dataclass
+class RedTeamEpistemicDebtItem:
+    debt_id: str
+    target_id: str
+
+    statement: str
+    missing_information: str
+    reason_missing: str
+
+    resolving_data: tuple[str, ...]
+    competing_hypotheses: tuple[str, ...]
+
+    discriminating_observation: str | None
+
+    responsible_party: str | None
+    priority: int
+
+    created_at: datetime = field(
+        default_factory=lambda: datetime.now(timezone.utc)
+    )
+
+    reevaluation_at: datetime | None = None
+    status: RedTeamDebtStatus = RedTeamDebtStatus.OPEN
+
+    def validate(self) -> None:
+        if not self.statement.strip():
+            raise RedTeamInputError("La deuda epistémica necesita statement")
+
+        if not self.missing_information.strip():
+            raise RedTeamInputError(
+                "Debe especificarse qué información falta"
+            )
+
+        if not self.resolving_data:
+            raise RedTeamInputError(
+                "Debe especificarse qué datos podrían resolver la deuda"
+            )
+
+        if self.priority < 1:
+            raise RedTeamInputError(
+                "priority debe ser >= 1"
+            )
+
+
+# -----------------------------------------------------------------------------
+# 11. Feedback inducido por CeutIA
+# -----------------------------------------------------------------------------
+
+
+class RedTeamFeedbackDirection(str, Enum):
+    NONE = "none"
+    AMPLIFYING = "amplifying"
+    DAMPENING = "dampening"
+    UNKNOWN = "unknown"
+
+
+@dataclass(frozen=True)
+class RedTeamFeedbackEvent:
+    event_id: str
+    target_id: str
+
+    ceutia_output: str
+    observed_response: str
+
+    direction: RedTeamFeedbackDirection
+
+    lag: float | None
+    measurable: bool
+
+    evidence_ids: tuple[str, ...] = ()
+
+    def validate(self) -> None:
+        if not self.ceutia_output.strip():
+            raise RedTeamInputError(
+                "Debe registrarse la salida que pudo producir feedback"
+            )
+
+        if not self.observed_response.strip():
+            raise RedTeamInputError(
+                "Debe registrarse la respuesta observada"
+            )
+
+        if self.lag is not None and self.lag < 0:
+            raise RedTeamInputError(
+                "lag no puede ser negativo"
+            )
+
+
+def detect_redteam_feedback_loop(
+    events: Sequence[RedTeamFeedbackEvent],
+) -> RedTeamFeedbackDirection:
+    """
+    Clasificación conservadora de feedback.
+
+    No infiere causalidad.
+    Sólo devuelve una dirección si existe al menos una observación explícita.
+    """
+    if not events:
+        return RedTeamFeedbackDirection.NONE
+
+    directions = {
+        event.direction
+        for event in events
+        if event.measurable
+    }
+
+    if RedTeamFeedbackDirection.AMPLIFYING in directions:
+        return RedTeamFeedbackDirection.AMPLIFYING
+
+    if RedTeamFeedbackDirection.DAMPENING in directions:
+        return RedTeamFeedbackDirection.DAMPENING
+
+    return RedTeamFeedbackDirection.UNKNOWN
+
+
+# -----------------------------------------------------------------------------
+# 12. Pruebas de dependencia de fuente
+# -----------------------------------------------------------------------------
+
+
+def detect_redteam_single_source_dependence(
+    *,
+    baseline_supported: bool,
+    evidence_ids: Sequence[str],
+    independent_source_ids: Sequence[str],
+    leave_one_out_results: Mapping[str, bool],
+) -> tuple[bool, tuple[str, ...]]:
+    """
+    Test leave-one-source-out.
+
+    Una conclusión es frágil si deja de sostenerse al retirar una única fuente
+    que no tiene sustitutos independientes.
+    """
+    evidence = tuple(dict.fromkeys(evidence_ids))
+    independent = tuple(dict.fromkeys(independent_source_ids))
+
+    if not baseline_supported:
+        return False, ()
+
+    if len(independent) <= 1:
+        return True, independent
+
+    fragile: list[str] = []
+
+    for source_id, result in leave_one_out_results.items():
+        if source_id in independent and result is False:
+            fragile.append(source_id)
+
+    return bool(fragile), tuple(fragile)
+
+
+# -----------------------------------------------------------------------------
+# 13. Dependencia de umbral
+# -----------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class RedTeamThresholdRun:
+    threshold: float
+    output: float
+    conclusion: str
+    decision_changed: bool
+
+
+def detect_redteam_threshold_dependence(
+    runs: Sequence[RedTeamThresholdRun],
+) -> bool:
+    """
+    Detecta si una conclusión cambia al modificar el umbral.
+
+    No declara cuál umbral es correcto.
+    """
+    if len(runs) < 2:
+        return False
+
+    conclusions = {
+        run.conclusion.strip().lower()
+        for run in runs
+    }
+
+    return len(conclusions) > 1 or any(
+        run.decision_changed for run in runs
+    )
+
+
+# -----------------------------------------------------------------------------
+# 14. Dependencia de ventana temporal
+# -----------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class RedTeamTemporalWindowRun:
+    start: str
+    end: str
+
+    output: float
+    conclusion: str
+
+    observations: int
+    outcome_changed: bool
+
+
+def detect_redteam_window_dependence(
+    runs: Sequence[RedTeamTemporalWindowRun],
+) -> bool:
+    if len(runs) < 2:
+        return False
+
+    normalized = {
+        run.conclusion.strip().lower()
+        for run in runs
+    }
+
+    return len(normalized) > 1 or any(
+        run.outcome_changed for run in runs
+    )
+
+
+# -----------------------------------------------------------------------------
+# 15. Dependencia de denominador
+# -----------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class RedTeamDenominatorRun:
+    denominator_name: str
+    denominator_value: float
+    resulting_rate: float
+    conclusion: str
+
+    def validate(self) -> None:
+        if self.denominator_value <= 0:
+            raise RedTeamInputError(
+                "El denominador debe ser > 0"
+            )
+
+        if not isfinite(self.resulting_rate):
+            raise RedTeamInputError(
+                "resulting_rate debe ser finito"
+            )
+
+
+def detect_redteam_denominator_dependence(
+    runs: Sequence[RedTeamDenominatorRun],
+) -> bool:
+    if len(runs) < 2:
+        return False
+
+    return len({
+        run.conclusion.strip().lower()
+        for run in runs
+    }) > 1
+
+
+# -----------------------------------------------------------------------------
+# 16. Dependencia del modelo
+# -----------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class RedTeamModelRun:
+    model_name: str
+    output: float
+    conclusion: str
+
+    assumptions: tuple[str, ...] = ()
+    out_of_sample: bool = False
+
+
+def detect_redteam_model_dependence(
+    runs: Sequence[RedTeamModelRun],
+) -> bool:
+    if len(runs) < 2:
+        return False
+
+    return len({
+        run.conclusion.strip().lower()
+        for run in runs
+    }) > 1
+
+
+# -----------------------------------------------------------------------------
+# 17. Dependencia del prior
+# -----------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class RedTeamPriorRun:
+    prior_name: str
+    posterior: float
+    conclusion: str
+
+
+def detect_redteam_prior_dependence(
+    runs: Sequence[RedTeamPriorRun],
+) -> bool:
+    if len(runs) < 2:
+        return False
+
+    return len({
+        run.conclusion.strip().lower()
+        for run in runs
+    }) > 1
+
+
+# -----------------------------------------------------------------------------
+# 18. Perturbación de parámetros
+# -----------------------------------------------------------------------------
+
+
+def redteam_relative_change(
+    baseline: float,
+    perturbed: float,
+) -> float | None:
+    if not all(isfinite(float(value)) for value in (baseline, perturbed)):
+        raise RedTeamInputError(
+            "baseline y perturbed deben ser finitos"
+        )
+
+    if baseline == 0.0:
+        return None
+
+    return abs(perturbed - baseline) / abs(baseline)
+
+
+def redteam_perturbation_effect(
+    *,
+    baseline: float,
+    perturbed: float,
+    tolerance: float,
+) -> bool:
+    """
+    Devuelve True si la diferencia excede la tolerancia explícita.
+
+    Nunca establece la tolerancia por defecto.
+    """
+    if tolerance < 0:
+        raise RedTeamInputError(
+            "tolerance no puede ser negativa"
+        )
+
+    return abs(perturbed - baseline) > tolerance
+
+
+# -----------------------------------------------------------------------------
+# 19. Evaluación de reproducibilidad
+# -----------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class RedTeamReproducibilityRun:
+    run_id: str
+    target_id: str
+    environment: str
+
+    software_version: str
+    data_version: str
+    result: float
+
+    reproduced: bool
+    absolute_difference: float
+
+    tolerance: float
+
+    notes: str = ""
+
+    def validate(self) -> None:
+        if self.absolute_difference < 0:
+            raise RedTeamInputError(
+                "absolute_difference no puede ser negativa"
+            )
+
+        if self.tolerance < 0:
+            raise RedTeamInputError(
+                "tolerance no puede ser negativa"
+            )
+
+
+def assess_redteam_reproducibility(
+    runs: Sequence[RedTeamReproducibilityRun],
+) -> float | None:
+    if not runs:
+        return None
+
+    for run in runs:
+        run.validate()
+
+    return sum(
+        1.0
+        for run in runs
+        if run.reproduced
+        and run.absolute_difference <= run.tolerance
+    ) / len(runs)
+
+
+# -----------------------------------------------------------------------------
+# 20. Stress testing de eventos raros
+# -----------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class RedTeamRareEventRun:
+    base_rate: float
+    positive_predictions: int
+    true_positives: int
+    false_positives: int
+    false_negatives: int
+
+    decision_threshold: float | None = None
+
+    def validate(self) -> None:
+        if not 0.0 <= self.base_rate <= 1.0:
+            raise RedTeamInputError(
+                "base_rate debe estar entre 0 y 1"
+            )
+
+        counts = (
+            self.positive_predictions,
+            self.true_positives,
+            self.false_positives,
+            self.false_negatives,
+        )
+
+        if any(count < 0 for count in counts):
+            raise RedTeamInputError(
+                "Los recuentos de eventos no pueden ser negativos"
+            )
+
+        if self.decision_threshold is not None:
+            if not 0.0 <= self.decision_threshold <= 1.0:
+                raise RedTeamInputError(
+                    "decision_threshold debe estar entre 0 y 1"
+                )
+
+
+def redteam_positive_predictive_value(
+    true_positives: int,
+    false_positives: int,
+) -> float | None:
+    denominator = true_positives + false_positives
+
+    if denominator == 0:
+        return None
+
+    return true_positives / denominator
+
+
+# -----------------------------------------------------------------------------
+# 21. Costes asimétricos FP/FN
+# -----------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class RedTeamDecisionCost:
+    false_positive_cost: float
+    false_negative_cost: float
+
+    def validate(self) -> None:
+        if self.false_positive_cost < 0:
+            raise RedTeamInputError(
+                "false_positive_cost no puede ser negativa"
+            )
+
+        if self.false_negative_cost < 0:
+            raise RedTeamInputError(
+                "false_negative_cost no puede ser negativa"
+            )
+
+
+def redteam_expected_error_cost(
+    *,
+    false_positives: int,
+    false_negatives: int,
+    cost: RedTeamDecisionCost,
+) -> float:
+    cost.validate()
+
+    if false_positives < 0 or false_negatives < 0:
+        raise RedTeamInputError(
+            "Los recuentos de error no pueden ser negativos"
+        )
+
+    return (
+        false_positives * cost.false_positive_cost
+        + false_negatives * cost.false_negative_cost
+    )
+
+
+# -----------------------------------------------------------------------------
+# 22. Ataques de integridad de información
+# -----------------------------------------------------------------------------
+
+
+class RedTeamIntegrityStatus(str, Enum):
+    CLEAN = "clean"
+    SUSPECT = "suspect"
+    COMPROMISED = "compromised"
+    UNKNOWN = "unknown"
+
+
+@dataclass(frozen=True)
+class RedTeamInformationIntegrityCheck:
+    object_id: str
+
+    provenance_present: bool
+    timestamp_valid: bool
+    source_lineage_known: bool
+    duplicate_checked: bool
+    synthetic_content_checked: bool
+    instruction_content_checked: bool
+
+    status: RedTeamIntegrityStatus
+    findings: tuple[str, ...] = ()
+
+    def validate(self) -> None:
+        if not self.object_id.strip():
+            raise RedTeamInputError(
+                "object_id no puede estar vacío"
+            )
+
+        if self.status == RedTeamIntegrityStatus.CLEAN:
+            required = (
+                self.provenance_present,
+                self.timestamp_valid,
+                self.source_lineage_known,
+                self.duplicate_checked,
+                self.synthetic_content_checked,
+                self.instruction_content_checked,
+            )
+
+            if not all(required):
+                raise RedTeamInputError(
+                    "No puede declararse CLEAN sin haber completado los "
+                    "controles de integridad"
+                )
+
+
+# -----------------------------------------------------------------------------
+# 23. Ataques contra IA generativa
+# -----------------------------------------------------------------------------
+
+
+class RedTeamAIThreat(str, Enum):
+    PROMPT_INJECTION = "prompt_injection"
+    INDIRECT_PROMPT_INJECTION = "indirect_prompt_injection"
+    DATA_POISONING = "data_poisoning"
+    FABRICATED_CITATION = "fabricated_citation"
+    FABRICATED_EVIDENCE = "fabricated_evidence"
+    INSTRUCTION_HIJACKING = "instruction_hijacking"
+    AUTOMATION_BIAS = "automation_bias"
+    MODEL_EXTRACTION = "model_extraction"
+    MEMBERSHIP_INFERENCE = "membership_inference"
+    MODEL_INVERSION = "model_inversion"
+    OUTPUT_ORACLE = "output_oracle"
+    SELF_CONFIRMATION = "self_confirmation"
+
+
+@dataclass(frozen=True)
+class RedTeamAIAdversarialTest:
+    test_id: str
+    target_id: str
+    threat: RedTeamAIThreat
+
+    attack_description: str
+    observed_behavior: str
+
+    attack_successful: bool
+    severity: RedTeamSeverity
+
+    mitigation: str | None = None
+    residual_risk: str | None = None
+
+    def validate(self) -> None:
+        if not self.attack_description.strip():
+            raise RedTeamInputError(
+                "Debe describirse el ataque"
+            )
+
+        if not self.observed_behavior.strip():
+            raise RedTeamInputError(
+                "Debe registrarse el comportamiento observado"
+            )
+
+        if self.attack_successful and not self.mitigation:
+            raise RedTeamInputError(
+                "Un ataque exitoso debe tener mitigación registrada"
+            )
+
+
+# -----------------------------------------------------------------------------
+# 24. Evaluación de escenarios extremos
+# -----------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class RedTeamExtremeScenario:
+    scenario_id: str
+    target_id: str
+
+    description: str
+
+    perturbations: Mapping[str, float]
+    expected_effect: str
+    observed_effect: str
+
+    remained_operational: bool
+    crossed_threshold: bool
+
+    uncertainty: str
+
+    def validate(self) -> None:
+        if not self.description.strip():
+            raise RedTeamInputError(
+                "El escenario necesita descripción"
+            )
+
+        if not self.uncertainty.strip():
+            raise RedTeamInputError(
+                "El escenario debe conservar incertidumbre explícita"
+            )
+
+
+# -----------------------------------------------------------------------------
+# 25. Contrafactuales
+# -----------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class RedTeamCounterfactual:
+    counterfactual_id: str
+    target_id: str
+
+    intervention: str
+    observed_world: str
+    counterfactual_world: str
+
+    outcome_observed: str
+    outcome_counterfactual: str
+
+    identification_assumption: str
+    evidence_ids: tuple[str, ...] = ()
+
+    def validate(self) -> None:
+        if not self.intervention.strip():
+            raise RedTeamInputError(
+                "El contrafactual debe definir la intervención"
+            )
+
+        if not self.identification_assumption.strip():
+            raise RedTeamInputError(
+                "Un contrafactual requiere supuestos de identificación explícitos"
+            )
+
+
+# -----------------------------------------------------------------------------
+# 26. Registro de ataques
+# -----------------------------------------------------------------------------
+
+
+@dataclass
+class RedTeamAttackRecord:
+    attack_id: str
+    target_id: str
+
+    attack_type: RedTeamAttackType
+    severity: RedTeamSeverity
+
+    description: str
+    outcome: RedTeamAttackOutcome
+
+    evidence_ids: tuple[str, ...] = ()
+    critique_ids: tuple[str, ...] = ()
+    test_ids: tuple[str, ...] = ()
+
+    resolved: bool = False
+
+    created_at: datetime = field(
+        default_factory=lambda: datetime.now(timezone.utc)
+    )
+
+    resolution: str | None = None
+
+    def validate(self) -> None:
+        if not self.attack_id.strip():
+            raise RedTeamInputError(
+                "attack_id no puede estar vacío"
+            )
+
+        if not self.target_id.strip():
+            raise RedTeamInputError(
+                "target_id no puede estar vacío"
+            )
+
+        if not self.description.strip():
+            raise RedTeamInputError(
+                "El ataque debe describirse"
+            )
+
+        if self.resolved and not self.resolution:
+            raise RedTeamInputError(
+                "Un ataque marcado como resuelto debe tener resolución"
+            )
+
+
+# -----------------------------------------------------------------------------
+# 27. Registro de una afirmación sometida a Red Team
+# -----------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class RedTeamTarget:
+    target_id: str
+
+    claim: str
+    claim_type: str
+
+    evidence_ids: tuple[str, ...]
+    independent_source_ids: tuple[str, ...]
+
+    assumptions: tuple[str, ...] = ()
+
+    operational_use_requested: bool = False
+    human_review_required: bool = True
+
+    falsifiability: RedTeamFalsifiabilityAssessment | None = None
+
+    def validate(self) -> None:
+        if not self.claim.strip():
+            raise RedTeamInputError(
+                "La afirmación no puede estar vacía"
+            )
+
+        if not self.evidence_ids:
+            raise RedTeamInputError(
+                "Una afirmación operacional no puede carecer de trazabilidad "
+                "de evidencia"
+            )
+
+        if self.operational_use_requested and not self.human_review_required:
+            raise RedTeamInputError(
+                "Las salidas operacionales de CeutIA requieren revisión humana"
+            )
+
+
+# -----------------------------------------------------------------------------
+# 28. Informe completo
+# -----------------------------------------------------------------------------
+
+
+@dataclass
+class RedTeamReport:
+    target_id: str
+
+    decision: RedTeamPromotionDecision
+
+    attacks: list[RedTeamAttackRecord] = field(default_factory=list)
+    critiques: list[RedTeamExpertCritique] = field(default_factory=list)
+    tests: list[RedTeamRefutationTest] = field(default_factory=list)
+
+    sensitivity_runs: list[RedTeamSensitivityRun] = field(
+        default_factory=list
+    )
+
+    competing_hypotheses: list[RedTeamCompetingHypothesis] = field(
+        default_factory=list
+    )
+
+    epistemic_debt: list[RedTeamEpistemicDebtItem] = field(
+        default_factory=list
+    )
+
+    robustness: RedTeamRobustnessAssessment | None = None
+
+    minimum_evidence: RedTeamMinimumEvidenceAnalysis | None = None
+
+    feedback_direction: RedTeamFeedbackDirection = (
+        RedTeamFeedbackDirection.NONE
+    )
+
+    critical_findings: list[str] = field(default_factory=list)
+    major_findings: list[str] = field(default_factory=list)
+    reservations: list[str] = field(default_factory=list)
+
+    generated_at: datetime = field(
+        default_factory=lambda: datetime.now(timezone.utc)
+    )
+
+
+# -----------------------------------------------------------------------------
+# 29. Cálculo de robustez
+# -----------------------------------------------------------------------------
+
+
+def build_redteam_robustness_assessment(
+    target_id: str,
+    attacks: Sequence[RedTeamAttackRecord],
+) -> RedTeamRobustnessAssessment:
+    assessment = RedTeamRobustnessAssessment(target_id=target_id)
+
+    assessment.attack_count = len(attacks)
+    assessment.refuted_count = sum(
+        attack.outcome == RedTeamAttackOutcome.REFUTED
+        for attack in attacks
+    )
+    assessment.weakened_count = sum(
+        attack.outcome == RedTeamAttackOutcome.WEAKENED
+        for attack in attacks
+    )
+    assessment.survived_count = sum(
+        attack.outcome == RedTeamAttackOutcome.SURVIVED
+        for attack in attacks
+    )
+    assessment.inconclusive_count = sum(
+        attack.outcome == RedTeamAttackOutcome.INCONCLUSIVE
+        for attack in attacks
+    )
+
+    assessment.unresolved_major_attacks = sum(
+        attack.severity == RedTeamSeverity.MAJOR
+        and not attack.resolved
+        for attack in attacks
+    )
+
+    assessment.unresolved_critical_attacks = sum(
+        attack.severity == RedTeamSeverity.CRITICAL
+        and not attack.resolved
+        for attack in attacks
+    )
+
+    return assessment
+
+
+# -----------------------------------------------------------------------------
+# 30. Evaluación de fragilidad
+# -----------------------------------------------------------------------------
+
+
+def redteam_fragility_flags(
+    *,
+    source_dependence: bool,
+    threshold_dependence: bool,
+    window_dependence: bool,
+    denominator_dependence: bool,
+    model_dependence: bool,
+    prior_dependence: bool,
+    feedback_detected: bool,
+) -> tuple[str, ...]:
+    flags: list[str] = []
+
+    if source_dependence:
+        flags.append("single_or_dependent_source")
+
+    if threshold_dependence:
+        flags.append("threshold_dependence")
+
+    if window_dependence:
+        flags.append("temporal_window_dependence")
+
+    if denominator_dependence:
+        flags.append("denominator_dependence")
+
+    if model_dependence:
+        flags.append("model_dependence")
+
+    if prior_dependence:
+        flags.append("prior_dependence")
+
+    if feedback_detected:
+        flags.append("ceutia_feedback")
+
+    return tuple(flags)
+
+
+# -----------------------------------------------------------------------------
+# 31. Construcción de deuda epistémica
+# -----------------------------------------------------------------------------
+
+
+def build_redteam_epistemic_debt(
+    *,
+    target_id: str,
+    unresolved_attacks: Sequence[RedTeamAttackRecord],
+    competing_hypotheses: Sequence[RedTeamCompetingHypothesis],
+) -> list[RedTeamEpistemicDebtItem]:
+    debt: list[RedTeamEpistemicDebtItem] = []
+
+    for index, attack in enumerate(unresolved_attacks, start=1):
+        debt.append(
+            RedTeamEpistemicDebtItem(
+                debt_id=f"{target_id}:debt:{index}",
+                target_id=target_id,
+                statement=(
+                    f"Ataque no resuelto sobre '{target_id}': "
+                    f"{attack.attack_type.value}"
+                ),
+                missing_information=attack.description,
+                reason_missing=(
+                    "La prueba disponible no permite cerrar el ataque "
+                    "epistemológico de forma concluyente."
+                ),
+                resolving_data=attack.evidence_ids,
+                competing_hypotheses=tuple(
+                    hypothesis.hypothesis_id
+                    for hypothesis in competing_hypotheses
+                ),
+                discriminating_observation=None,
+                responsible_party=None,
+                priority=(
+                    1
+                    if attack.severity == RedTeamSeverity.CRITICAL
+                    else 2
+                ),
+            )
+        )
+
+    return debt
+
+
+# -----------------------------------------------------------------------------
+# 32. Criterios de promoción
+# -----------------------------------------------------------------------------
+
+
+def evaluate_redteam_promotion(
+    *,
+    attacks: Sequence[RedTeamAttackRecord],
+    falsifiable: bool,
+    operational_use_requested: bool,
+    robustness: RedTeamRobustnessAssessment | None,
+    single_source_failure: bool,
+    feedback_detected: bool,
+) -> RedTeamPromotionDecision:
+    """
+    Motor conservador de promoción.
+
+    No utiliza una puntuación mágica.
+
+    La decisión se basa en condiciones explícitas y auditables.
+    """
+
+    critical_unresolved = any(
+        attack.severity == RedTeamSeverity.CRITICAL
+        and not attack.resolved
+        for attack in attacks
+    )
+
+    major_unresolved = any(
+        attack.severity == RedTeamSeverity.MAJOR
+        and not attack.resolved
+        for attack in attacks
+    )
+
+    refuted = any(
+        attack.outcome == RedTeamAttackOutcome.REFUTED
+        for attack in attacks
+    )
+
+    if refuted:
+        return RedTeamPromotionDecision.BLOCK
+
+    if critical_unresolved:
+        return RedTeamPromotionDecision.BLOCK
+
+    if operational_use_requested and not falsifiable:
+        return RedTeamPromotionDecision.BLOCK
+
+    if single_source_failure:
+        return RedTeamPromotionDecision.SHADOW_ONLY
+
+    if feedback_detected:
+        return RedTeamPromotionDecision.SHADOW_ONLY
+
+    if major_unresolved:
+        return RedTeamPromotionDecision.SHADOW_ONLY
+
+    if robustness is not None:
+        if robustness.unresolved_critical_attacks > 0:
+            return RedTeamPromotionDecision.BLOCK
+
+        if robustness.unresolved_major_attacks > 0:
+            return RedTeamPromotionDecision.SHADOW_ONLY
+
+    if operational_use_requested:
+        return RedTeamPromotionDecision.PASS_WITH_RESERVATIONS
+
+    return RedTeamPromotionDecision.PASS
+
+
+# -----------------------------------------------------------------------------
+# 33. Orquestador principal
+# -----------------------------------------------------------------------------
+
+
+def run_scientific_red_team(
+    *,
+    target: RedTeamTarget,
+    attacks: Sequence[RedTeamAttackRecord] = (),
+    critiques: Sequence[RedTeamExpertCritique] = (),
+    tests: Sequence[RedTeamRefutationTest] = (),
+    sensitivity_runs: Sequence[RedTeamSensitivityRun] = (),
+    competing_hypotheses: Sequence[RedTeamCompetingHypothesis] = (),
+    feedback_events: Sequence[RedTeamFeedbackEvent] = (),
+    falsifiability: RedTeamFalsifiabilityAssessment | None = None,
+    minimum_evidence: RedTeamMinimumEvidenceAnalysis | None = None,
+) -> RedTeamReport:
+    """
+    Ejecuta la capa Scientific Red Team sobre una afirmación.
+
+    Esta función NO recalcula modelos científicos. Orquesta las pruebas y
+    conserva sus resultados epistemológicos.
+    """
+
+    target.validate()
+
+    for critique in critiques:
+        critique.validate()
+
+    for test in tests:
+        test.validate()
+
+    for attack in attacks:
+        attack.validate()
+
+    for run in sensitivity_runs:
+        run.validate()
+
+    for hypothesis in competing_hypotheses:
+        hypothesis.validate()
+
+    for event in feedback_events:
+        event.validate()
+
+    if falsifiability is not None:
+        falsifiability.validate()
+
+    if minimum_evidence is not None:
+        minimum_evidence.validate()
+
+    robustness = build_redteam_robustness_assessment(
+        target.target_id,
+        attacks,
+    )
+
+    feedback_direction = detect_redteam_feedback_loop(
+        feedback_events
+    )
+
+    single_source_failure = (
+        minimum_evidence.single_source_failure
+        if minimum_evidence is not None
+        else False
+    )
+
+    decision = evaluate_redteam_promotion(
+        attacks=attacks,
+        falsifiable=(
+            falsifiability.falsifiable
+            if falsifiability is not None
+            else False
+        ),
+        operational_use_requested=target.operational_use_requested,
+        robustness=robustness,
+        single_source_failure=single_source_failure,
+        feedback_detected=(
+            feedback_direction
+            == RedTeamFeedbackDirection.AMPLIFYING
+        ),
+    )
+
+    report = RedTeamReport(
+        target_id=target.target_id,
+        decision=decision,
+        attacks=list(attacks),
+        critiques=list(critiques),
+        tests=list(tests),
+        sensitivity_runs=list(sensitivity_runs),
+        competing_hypotheses=list(competing_hypotheses),
+        robustness=robustness,
+        minimum_evidence=minimum_evidence,
+        feedback_direction=feedback_direction,
+    )
+
+    unresolved = [
+        attack
+        for attack in attacks
+        if not attack.resolved
+    ]
+
+    report.epistemic_debt.extend(
+        build_redteam_epistemic_debt(
+            target_id=target.target_id,
+            unresolved_attacks=unresolved,
+            competing_hypotheses=competing_hypotheses,
+        )
+    )
+
+    for attack in attacks:
+        if attack.severity == RedTeamSeverity.CRITICAL:
+            report.critical_findings.append(
+                f"{attack.attack_type.value}: {attack.description}"
+            )
+        elif attack.severity == RedTeamSeverity.MAJOR:
+            report.major_findings.append(
+                f"{attack.attack_type.value}: {attack.description}"
+            )
+
+    if single_source_failure:
+        report.reservations.append(
+            "La conclusión depende de una fuente o linaje no sustituible "
+            "por evidencia independiente."
+        )
+
+    if feedback_direction == RedTeamFeedbackDirection.AMPLIFYING:
+        report.reservations.append(
+            "Se ha observado posible feedback amplificador asociado a "
+            "salidas de CeutIA; la interpretación causal permanece abierta."
+        )
+
+    if falsifiability is None:
+        report.reservations.append(
+            "No se ha registrado evaluación explícita de falsabilidad."
+        )
+
+    return report
+
+
+# -----------------------------------------------------------------------------
+# 34. Elegibilidad operacional
+# -----------------------------------------------------------------------------
+
+
+def assert_redteam_operational_eligibility(
+    report: RedTeamReport,
+) -> None:
+    """
+    Impide que un resultado bloqueado o sólo apto para shadow mode se trate
+    como salida operacional.
+    """
+
+    if report.decision in {
+        RedTeamPromotionDecision.BLOCK,
+        RedTeamPromotionDecision.SHADOW_ONLY,
+    }:
+        raise RedTeamCriticalFinding(
+            f"El target '{report.target_id}' no es elegible para uso "
+            f"operacional: {report.decision.value}"
+        )
+
+
+# -----------------------------------------------------------------------------
+# 35. Resumen auditable
+# -----------------------------------------------------------------------------
+
+
+def summarize_scientific_red_team(
+    report: RedTeamReport,
+) -> dict[str, Any]:
+    """
+    Serialización simple para logging, auditoría o API.
+
+    No expone automáticamente evidencia sensible.
+    """
+
+    return {
+        "target_id": report.target_id,
+        "decision": report.decision.value,
+        "attack_count": len(report.attacks),
+        "critique_count": len(report.critiques),
+        "test_count": len(report.tests),
+        "sensitivity_run_count": len(report.sensitivity_runs),
+        "competing_hypothesis_count": len(report.competing_hypotheses),
+        "epistemic_debt_count": len(report.epistemic_debt),
+        "critical_findings": len(report.critical_findings),
+        "major_findings": len(report.major_findings),
+        "feedback_direction": report.feedback_direction.value,
+        "robustness": (
+            None
+            if report.robustness is None
+            else {
+                "minimum": report.robustness.minimum_score,
+                "mean": report.robustness.mean_score,
+                "attacks": report.robustness.attack_count,
+                "refuted": report.robustness.refuted_count,
+                "weakened": report.robustness.weakened_count,
+                "survived": report.robustness.survived_count,
+                "inconclusive": report.robustness.inconclusive_count,
+            }
+        ),
+        "generated_at": report.generated_at.isoformat(),
+    }
+
+
+# -----------------------------------------------------------------------------
+# 36. Consistencia de pruebas
+# -----------------------------------------------------------------------------
+
+
+def validate_redteam_test_consistency(
+    *,
+    critiques: Sequence[RedTeamExpertCritique],
+    tests: Sequence[RedTeamRefutationTest],
+) -> tuple[str, ...]:
+    """
+    Detecta pruebas huérfanas o críticas sin prueba asociada.
+
+    No exige que toda crítica pueda resolverse automáticamente.
+    """
+
+    critique_ids = {
+        critique.critique_id
+        for critique in critiques
+    }
+
+    findings: list[str] = []
+
+    for test in tests:
+        if test.critique_id not in critique_ids:
+            findings.append(
+                f"Prueba '{test.test_id}' referencia una crítica inexistente."
+            )
+
+    tested_critique_ids = {
+        test.critique_id
+        for test in tests
+    }
+
+    for critique in critiques:
+        if (
+            critique.required_test.strip()
+            and critique.critique_id not in tested_critique_ids
+        ):
+            findings.append(
+                f"Crítica '{critique.critique_id}' todavía no tiene "
+                "prueba registrada."
+            )
+
+    return tuple(findings)
+
+
+# -----------------------------------------------------------------------------
+# 37. Consistencia epistemológica
+# -----------------------------------------------------------------------------
+
+
+def validate_redteam_epistemic_consistency(
+    report: RedTeamReport,
+) -> tuple[str, ...]:
+    """
+    Comprueba invariantes de interpretación.
+
+    Especialmente evita:
+        survived -> true
+        robust -> causal
+        corroborated -> independent
+    """
+
+    findings: list[str] = []
+
+    for attack in report.attacks:
+        if attack.outcome == RedTeamAttackOutcome.SURVIVED:
+            # Se conserva como comprobación documental, no como error.
+            if attack.resolution:
+                normalized = attack.resolution.lower()
+                if any(
+                    token in normalized
+                    for token in (
+                        "verdadero",
+                        "truth",
+                        "proven",
+                        "demostrado",
+                    )
+                ):
+                    findings.append(
+                        f"El ataque '{attack.attack_id}' interpreta "
+                        "SURVIVED como demostración de verdad."
+                    )
+
+    if report.robustness is not None:
+        if (
+            report.robustness.minimum_score is not None
+            and report.robustness.minimum_score > 1.0
+        ):
+            findings.append(
+                "Score de robustez fuera de rango."
+            )
+
+    return tuple(findings)
+
+
+# -----------------------------------------------------------------------------
+# 38. Registro de principios científicos
+# -----------------------------------------------------------------------------
+
+
+SCIENTIFIC_RED_TEAM_INVARIANTS: Final[tuple[str, ...]] = (
+    "Una conclusión que sobrevive un ataque no se convierte por ello en verdad.",
+    "Robustez no equivale a validez.",
+    "Validez no equivale a causalidad.",
+    "Causalidad no equivale a utilidad operacional.",
+    "Corroboración no equivale a independencia.",
+    "Número de fuentes no equivale a cantidad de evidencia independiente.",
+    "Una fuente única puede sostener una observación, pero no debe aparentar corroboración.",
+    "Toda afirmación operacional importante debe disponer de una vía explícita de falsación.",
+    "Una hipótesis que puede explicar cualquier resultado no es falsable.",
+    "Una hipótesis no debe modificarse retrospectivamente sólo para evitar refutación.",
+    "Los resultados inconclusos deben conservarse como inconclusos.",
+    "La ausencia de evidencia no equivale automáticamente a evidencia de ausencia.",
+    "Cambiar el denominador puede cambiar la interpretación de una tasa.",
+    "Cambiar la ventana temporal puede cambiar la interpretación de una tendencia.",
+    "Cambiar la unidad espacial puede cambiar la asociación observada.",
+    "Cambiar el modelo puede cambiar la conclusión.",
+    "Cambiar el prior puede cambiar el posterior.",
+    "Cambiar el umbral puede cambiar una decisión.",
+    "Los parámetros no deben recibir tolerancias arbitrarias sin justificación.",
+    "La sensibilidad no debe confundirse con especificidad.",
+    "La discriminación no demuestra calibración.",
+    "La calibración no demuestra causalidad.",
+    "El rendimiento fuera de muestra es distinto del ajuste interno.",
+    "La reproducibilidad debe conservar versión de datos y software.",
+    "El feedback generado por CeutIA puede contaminar la observación posterior.",
+    "Una intervención modifica el sistema que CeutIA intenta observar.",
+    "CeutIA no debe utilizar su propia salida como confirmación independiente.",
+    "Una alerta que provoca conducta puede alterar la tasa futura del evento observado.",
+    "La información debe conservar procedencia y linaje.",
+    "El contenido sintético no debe convertirse silenciosamente en evidencia.",
+    "El contenido adversarial no debe eliminarse del análisis sólo por ser incómodo.",
+    "El contenido adversarial debe separarse de su valor probatorio.",
+    "La crítica experta es un ataque epistemológico, no evidencia primaria.",
+    "El red team debe poder producir resultados negativos.",
+    "No debe existir una ruta de promoción que dependa únicamente de supervivencia a ataques.",
+    "Una conclusión frágil debe poder degradarse a shadow mode.",
+    "Una refutación crítica debe bloquear la promoción operacional.",
+    "La deuda epistémica debe permanecer visible hasta su resolución o aceptación explícita.",
+    "Toda incertidumbre material debe conservarse en la salida interna.",
+    "La ausencia de falsación no autoriza lenguaje de certeza.",
+    "La confianza de CeutIA debe actualizarse por evidencia, no por repetición interna.",
+)
+
+
+# -----------------------------------------------------------------------------
+# 39. Validación estática de invariantes
+# -----------------------------------------------------------------------------
+
+
+def validate_scientific_red_team_invariants() -> tuple[str, ...]:
+    """
+    Devuelve los invariantes declarados.
+
+    Esta función permite que tests o CI verifiquen que la capa conserva
+    explícitamente sus principios epistemológicos.
+    """
+
+    if len(SCIENTIFIC_RED_TEAM_INVARIANTS) < 30:
+        raise RedTeamError(
+            "El registro de invariantes Scientific Red Team es "
+            "sospechosamente incompleto."
+        )
+
+    return SCIENTIFIC_RED_TEAM_INVARIANTS
+
+
+# -----------------------------------------------------------------------------
+# 40. Función de comparación de conclusiones
+# -----------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class RedTeamConclusionComparison:
+    baseline: str
+    alternative: str
+
+    changed: bool
+    materially_weakened: bool
+
+    explanation: str
+
+
+def compare_redteam_conclusions(
+    *,
+    baseline: str,
+    alternative: str,
+) -> RedTeamConclusionComparison:
+    """
+    Comparación textual conservadora.
+
+    No intenta interpretar semánticamente una conclusión científica.
+    La interpretación sustantiva debe proceder del evaluador/modelo
+    correspondiente.
+    """
+
+    baseline_normalized = " ".join(
+        baseline.lower().split()
+    )
+
+    alternative_normalized = " ".join(
+        alternative.lower().split()
+    )
+
+    changed = baseline_normalized != alternative_normalized
+
+    return RedTeamConclusionComparison(
+        baseline=baseline,
+        alternative=alternative,
+        changed=changed,
+        materially_weakened=changed,
+        explanation=(
+            "La conclusión textual cambió; debe realizarse una evaluación "
+            "sustantiva para determinar si el cambio es material."
+        ),
+    )
+
+
+# -----------------------------------------------------------------------------
+# 41. Evaluación de independencia epistemológica
+# -----------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class RedTeamSourceRelation:
+    source_id: str
+    parent_source_id: str | None
+    common_origin_id: str | None
+
+    dependency: RedTeamEvidenceDependency
+
+
+def count_redteam_effective_independent_sources(
+    relations: Sequence[RedTeamSourceRelation],
+) -> int:
+    """
+    Cuenta fuentes independientes de forma conservadora.
+
+    Si varias fuentes comparten origen conocido, no se cuentan como
+    corroboración independiente.
+    """
+
+    if not relations:
+        return 0
+
+    independent_groups: set[str] = set()
+
+    for relation in relations:
+        if relation.dependency == RedTeamEvidenceDependency.DEPENDENT:
+            continue
+
+        group = (
+            relation.common_origin_id
+            or relation.parent_source_id
+            or relation.source_id
+        )
+
+        independent_groups.add(group)
+
+    return len(independent_groups)
+
+
+# -----------------------------------------------------------------------------
+# 42. Auditoría de lenguaje epistemológico
+# -----------------------------------------------------------------------------
+
+
+_REDTEAM_OVERCLAIM_TERMS: Final[tuple[str, ...]] = (
+    "demuestra",
+    "demostrado",
+    "sin duda",
+    "certeza",
+    "inequívoco",
+    "inequívocamente",
+    "predice con certeza",
+    "causa",
+)
+
+
+def redteam_detect_overclaim_language(
+    text: str,
+) -> tuple[str, ...]:
+    """
+    Detector deliberadamente simple de sobreafirmación.
+
+    No determina si una frase es científicamente correcta.
+    Sólo identifica lenguaje que requiere revisión epistemológica.
+    """
+
+    normalized = " ".join(text.lower().split())
+
+    return tuple(
+        term
+        for term in _REDTEAM_OVERCLAIM_TERMS
+        if term in normalized
+    )
+
+
+# -----------------------------------------------------------------------------
+# 43. Prohibición de equivalencias epistemológicas inválidas
+# -----------------------------------------------------------------------------
+
+
+def assert_redteam_no_epistemic_equivalence(
+    *,
+    robustness: bool = False,
+    validity: bool = False,
+    causal: bool = False,
+    operational_utility: bool = False,
+) -> None:
+    """
+    Impide que una propiedad se interprete automáticamente como otra.
+
+    Se mantiene como función explícita porque estos errores son frecuentes
+    precisamente en sistemas de inteligencia automatizada.
+    """
+
+    if robustness and not validity:
+        # Permitido: robustez puede existir sin validez.
+        return
+
+    if causal and not validity:
+        raise RedTeamError(
+            "No puede declararse causalidad sin una base de validez explícita."
+        )
+
+    if operational_utility and not validity:
+        raise RedTeamError(
+            "No puede declararse utilidad operacional sobre un resultado "
+            "sin validez establecida."
+        )
+
+
+# -----------------------------------------------------------------------------
+# 44. Exportación controlada de símbolos
+# -----------------------------------------------------------------------------
+#
+# No reemplaza el __all__ existente si ya existe. Se mantiene un conjunto
+# adicional para permitir integración progresiva.
+# -----------------------------------------------------------------------------
+
+
+SCIENTIFIC_RED_TEAM_EXPORTS: Final[tuple[str, ...]] = (
+    "RedTeamAttackType",
+    "RedTeamAttackOutcome",
+    "RedTeamSeverity",
+    "RedTeamRobustnessDimension",
+    "RedTeamEvidenceDependency",
+    "RedTeamDebtStatus",
+    "RedTeamPromotionDecision",
+    "RedTeamExpertCritique",
+    "RedTeamRefutationTest",
+    "RedTeamSensitivityRun",
+    "RedTeamRobustnessAssessment",
+    "RedTeamEvidenceSet",
+    "RedTeamMinimumEvidenceAnalysis",
+    "RedTeamCompetingHypothesis",
+    "RedTeamFalsifiabilityAssessment",
+    "RedTeamEpistemicDebtItem",
+    "RedTeamFeedbackEvent",
+    "RedTeamAttackRecord",
+    "RedTeamTarget",
+    "RedTeamReport",
+    "RedTeamInformationIntegrityCheck",
+    "RedTeamAIThreat",
+    "RedTeamAIAdversarialTest",
+    "RedTeamExtremeScenario",
+    "RedTeamCounterfactual",
+    "RedTeamReproducibilityRun",
+    "RedTeamDecisionCost",
+    "run_scientific_red_team",
+    "assert_redteam_operational_eligibility",
+    "summarize_scientific_red_team",
+    "validate_scientific_red_team_invariants",
+)
+
+
+# =============================================================================
+# FIN — SCIENTIFIC RED TEAM / FALSIFICATION ENGINE
+# =============================================================================# ============================================================================
 # CEUTIA — ADVANCED ADVERSARIAL VALIDATION EXTENSION
 # ============================================================================
 #

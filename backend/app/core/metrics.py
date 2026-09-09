@@ -1,3 +1,1758 @@
+# ============================================================
+# CeutIA — Dynamic Systems Theory Core
+# Additive block for backend/app/core/metrics.py
+#
+# This block formalizes the theoretical core:
+# trajectory → load → adaptive reserve → perturbation → response
+# → feedback → sensitivity → threshold → cascade → recovery.
+#
+# It does NOT infer individual dangerousness, criminality, or
+# mortality from identity, nationality, ethnicity, religion, or
+# group membership.
+#
+# "Hostility/tension" is represented only through observable,
+# provenance-bearing aggregate signals and never as an intrinsic
+# property of a person or population group.
+#
+# Formula correctness does not imply empirical validation.
+# ============================================================
+
+from __future__ import annotations
+
+from collections.abc import Sequence
+from math import exp, log
+from typing import Final
+
+import numpy as np
+
+
+# ------------------------------------------------------------
+# Validation helpers
+# ------------------------------------------------------------
+
+def _validate_dynamic_series(
+    values: Sequence[float],
+    *,
+    name: str = "values",
+    minimum_length: int = 2,
+) -> np.ndarray:
+    """Return a finite one-dimensional numerical time series."""
+    array = np.asarray(values, dtype=float)
+
+    if array.ndim != 1:
+        raise ValueError(f"{name} must be one-dimensional.")
+    if array.size < minimum_length:
+        raise ValueError(
+            f"{name} requires at least {minimum_length} observations."
+        )
+    if not np.all(np.isfinite(array)):
+        raise ValueError(f"{name} must contain only finite values.")
+
+    return array
+
+
+def _validate_positive_scalar(value: float, *, name: str) -> float:
+    value = float(value)
+
+    if not np.isfinite(value) or value <= 0.0:
+        raise ValueError(f"{name} must be finite and > 0.")
+
+    return value
+
+
+def _validate_nonnegative_scalar(value: float, *, name: str) -> float:
+    value = float(value)
+
+    if not np.isfinite(value) or value < 0.0:
+        raise ValueError(f"{name} must be finite and >= 0.")
+
+    return value
+
+
+def _validate_same_length(
+    *values: Sequence[float],
+    names: Sequence[str] | None = None,
+) -> tuple[np.ndarray, ...]:
+    arrays = tuple(
+        _validate_dynamic_series(
+            value,
+            name=(
+                names[index]
+                if names is not None and index < len(names)
+                else f"values[{index}]"
+            ),
+        )
+        for index, value in enumerate(values)
+    )
+
+    lengths = {array.size for array in arrays}
+
+    if len(lengths) != 1:
+        raise ValueError("All supplied series must have the same length.")
+
+    return arrays
+
+
+# ------------------------------------------------------------
+# 1. State trajectory
+# ------------------------------------------------------------
+
+def dynamic_first_difference(
+    values: Sequence[float],
+    *,
+    dt: float = 1.0,
+) -> np.ndarray:
+    """
+    Discrete approximation of dx/dt.
+
+        dx/dt ≈ (x_t - x_{t-1}) / dt
+    """
+    dt = _validate_positive_scalar(dt, name="dt")
+    values = _validate_dynamic_series(values)
+    return np.diff(values) / dt
+
+
+def dynamic_second_difference(
+    values: Sequence[float],
+    *,
+    dt: float = 1.0,
+) -> np.ndarray:
+    """
+    Discrete approximation of d²x/dt².
+    """
+    dt = _validate_positive_scalar(dt, name="dt")
+    values = _validate_dynamic_series(values, minimum_length=3)
+
+    return np.diff(values, n=2) / (dt**2)
+
+
+def dynamic_trajectory_velocity(
+    values: Sequence[float],
+    *,
+    dt: float = 1.0,
+) -> float:
+    """Latest discrete trajectory velocity."""
+    return float(dynamic_first_difference(values, dt=dt)[-1])
+
+
+def dynamic_trajectory_acceleration(
+    values: Sequence[float],
+    *,
+    dt: float = 1.0,
+) -> float:
+    """Latest discrete trajectory acceleration."""
+    return float(dynamic_second_difference(values, dt=dt)[-1])
+
+
+def dynamic_trajectory_persistence(
+    values: Sequence[float],
+    *,
+    direction: int = 1,
+) -> float:
+    """
+    Fraction of consecutive changes that maintain the requested
+    direction.
+
+        persistence = matching directional changes / total changes
+    """
+    if direction not in (-1, 1):
+        raise ValueError("direction must be -1 or 1.")
+
+    delta = dynamic_first_difference(values)
+
+    if delta.size == 0:
+        return 0.0
+
+    if direction == 1:
+        matching = delta > 0.0
+    else:
+        matching = delta < 0.0
+
+    return float(np.mean(matching))
+
+
+def dynamic_path_length(values: Sequence[float]) -> float:
+    """
+    Total absolute movement of a trajectory:
+
+        L = Σ |x_t - x_{t-1}|
+    """
+    values = _validate_dynamic_series(values)
+    return float(np.sum(np.abs(np.diff(values))))
+
+
+def dynamic_net_change(values: Sequence[float]) -> float:
+    """Net trajectory displacement."""
+    values = _validate_dynamic_series(values)
+    return float(values[-1] - values[0])
+
+
+def dynamic_reversibility_ratio(values: Sequence[float]) -> float:
+    """
+    Ratio of net displacement to total absolute movement.
+
+        RR = |x_T - x_0| / Σ|Δx|
+
+    Near 1: predominantly one-directional trajectory.
+    Near 0: substantial reversibility/oscillation.
+    """
+    path = dynamic_path_length(values)
+
+    if path == 0.0:
+        return 0.0
+
+    return float(abs(dynamic_net_change(values)) / path)
+
+
+# ------------------------------------------------------------
+# 2. Accumulated load
+# ------------------------------------------------------------
+
+def accumulated_load(
+    load: Sequence[float],
+    *,
+    dt: float = 1.0,
+) -> float:
+    """
+    Numerical integral of system load.
+
+        L_acc = ∫ load(t) dt
+    """
+    dt = _validate_positive_scalar(dt, name="dt")
+    load = _validate_dynamic_series(load)
+
+    return float(np.trapezoid(load, dx=dt))
+
+
+def weighted_accumulated_load(
+    load: Sequence[float],
+    weights: Sequence[float],
+    *,
+    dt: float = 1.0,
+) -> float:
+    """
+    Weighted accumulated load.
+
+        L_acc = ∫ w(t) load(t) dt
+    """
+    load, weights = _validate_same_length(
+        load,
+        weights,
+        names=("load", "weights"),
+    )
+
+    if np.any(weights < 0.0):
+        raise ValueError("weights must be >= 0.")
+
+    return float(np.trapezoid(load * weights, dx=dt))
+
+
+def load_rate(
+    load: Sequence[float],
+    *,
+    dt: float = 1.0,
+) -> float:
+    """Latest dL/dt."""
+    return dynamic_trajectory_velocity(load, dt=dt)
+
+
+# ------------------------------------------------------------
+# 3. Adaptive reserve
+# ------------------------------------------------------------
+
+def adaptive_reserve(
+    initial_reserve: float,
+    load: Sequence[float],
+    recovery: Sequence[float],
+    *,
+    dt: float = 1.0,
+    floor: float = 0.0,
+) -> np.ndarray:
+    """
+    Dynamic adaptive reserve.
+
+        R_t = R_{t-1} - L_t dt + G_t dt
+
+    The reserve is bounded below by `floor`.
+
+    This is a conceptual state equation. Domain-specific
+    calibration is required before operational use.
+    """
+    initial_reserve = _validate_nonnegative_scalar(
+        initial_reserve,
+        name="initial_reserve",
+    )
+    dt = _validate_positive_scalar(dt, name="dt")
+
+    load, recovery = _validate_same_length(
+        load,
+        recovery,
+        names=("load", "recovery"),
+    )
+
+    if np.any(load < 0.0):
+        raise ValueError("load must be >= 0.")
+    if np.any(recovery < 0.0):
+        raise ValueError("recovery must be >= 0.")
+
+    floor = _validate_nonnegative_scalar(floor, name="floor")
+
+    reserve = np.empty(load.size, dtype=float)
+    current = initial_reserve
+
+    for index, (load_value, recovery_value) in enumerate(
+        zip(load, recovery, strict=True)
+    ):
+        current += (recovery_value - load_value) * dt
+        current = max(floor, current)
+        reserve[index] = current
+
+    return reserve
+
+
+def reserve_depletion(
+    initial_reserve: float,
+    reserve: Sequence[float],
+) -> float:
+    """Absolute loss of adaptive reserve."""
+    reserve = _validate_dynamic_series(reserve)
+    initial_reserve = _validate_nonnegative_scalar(
+        initial_reserve,
+        name="initial_reserve",
+    )
+
+    return float(max(0.0, initial_reserve - reserve[-1]))
+
+
+def reserve_depletion_fraction(
+    initial_reserve: float,
+    reserve: Sequence[float],
+) -> float:
+    """
+    Fraction of initial reserve depleted.
+
+        D_R = (R_0 - R_t) / R_0
+    """
+    initial_reserve = _validate_positive_scalar(
+        initial_reserve,
+        name="initial_reserve",
+    )
+    return float(
+        np.clip(reserve_depletion(initial_reserve, reserve) / initial_reserve, 0.0, 1.0)
+    )
+
+
+def reserve_utilization(
+    initial_reserve: float,
+    reserve: Sequence[float],
+) -> float:
+    """Alias expressing reserve consumption as a fraction."""
+    return reserve_depletion_fraction(initial_reserve, reserve)
+
+
+def reserve_headroom(
+    reserve: float,
+    critical_reserve: float,
+) -> float:
+    """
+    Distance from current reserve to a critical reserve level.
+
+        H_R = R - R_critical
+    """
+    return float(reserve) - float(critical_reserve)
+
+
+# ------------------------------------------------------------
+# 4. Compensation and exhaustion
+# ------------------------------------------------------------
+
+def compensation_ratio(
+    load: float,
+    compensatory_capacity: float,
+) -> float:
+    """
+    Fraction of current load compensated by available capacity.
+
+        CR = C_comp / L
+    """
+    load = _validate_positive_scalar(load, name="load")
+    compensatory_capacity = _validate_nonnegative_scalar(
+        compensatory_capacity,
+        name="compensatory_capacity",
+    )
+
+    return float(compensatory_capacity / load)
+
+
+def compensation_gap(
+    load: float,
+    compensatory_capacity: float,
+) -> float:
+    """Uncompensated load."""
+    load = _validate_nonnegative_scalar(load, name="load")
+    compensatory_capacity = _validate_nonnegative_scalar(
+        compensatory_capacity,
+        name="compensatory_capacity",
+    )
+
+    return float(max(0.0, load - compensatory_capacity))
+
+
+def exhaustion_ratio(
+    load: float,
+    effective_capacity: float,
+) -> float:
+    """
+    System utilization pressure:
+
+        E = L / C_eff
+    """
+    load = _validate_nonnegative_scalar(load, name="load")
+    effective_capacity = _validate_positive_scalar(
+        effective_capacity,
+        name="effective_capacity",
+    )
+
+    return float(load / effective_capacity)
+
+
+# ------------------------------------------------------------
+# 5. Perturbation and response
+# ------------------------------------------------------------
+
+def perturbation_magnitude(
+    baseline: float,
+    perturbed: float,
+) -> float:
+    """Absolute perturbation magnitude."""
+    return float(abs(float(perturbed) - float(baseline)))
+
+
+def perturbation_relative_magnitude(
+    baseline: float,
+    perturbed: float,
+) -> float:
+    """
+    Relative perturbation magnitude:
+
+        |ΔU| / |U_0|
+    """
+    baseline = _validate_positive_scalar(baseline, name="baseline")
+    return float(abs(float(perturbed) - baseline) / baseline)
+
+
+def response_magnitude(
+    baseline_response: float,
+    perturbed_response: float,
+) -> float:
+    """Absolute system response."""
+    return float(abs(float(perturbed_response) - float(baseline_response)))
+
+
+def response_sensitivity(
+    stimulus_change: float,
+    response_change: float,
+) -> float:
+    """
+    Local finite-difference sensitivity:
+
+        S = ΔY / ΔU
+    """
+    if not np.isfinite(stimulus_change) or stimulus_change == 0.0:
+        raise ValueError("stimulus_change must be finite and non-zero.")
+
+    if not np.isfinite(response_change):
+        raise ValueError("response_change must be finite.")
+
+    return float(response_change / stimulus_change)
+
+
+def response_elasticity(
+    baseline_stimulus: float,
+    baseline_response: float,
+    stimulus_change: float,
+    response_change: float,
+) -> float:
+    """
+    Local elasticity:
+
+        E = (ΔY / Y) / (ΔU / U)
+    """
+    baseline_stimulus = _validate_positive_scalar(
+        baseline_stimulus,
+        name="baseline_stimulus",
+    )
+    baseline_response = _validate_positive_scalar(
+        baseline_response,
+        name="baseline_response",
+    )
+
+    if stimulus_change == 0.0:
+        raise ValueError("stimulus_change must be non-zero.")
+
+    return float(
+        (response_change / baseline_response)
+        / (stimulus_change / baseline_stimulus)
+    )
+
+
+def amplification_factor(
+    input_change: float,
+    output_change: float,
+) -> float:
+    """
+    Absolute amplification:
+
+        A = |ΔY| / |ΔU|
+    """
+    input_change = float(input_change)
+    output_change = float(output_change)
+
+    if not np.isfinite(input_change) or input_change == 0.0:
+        raise ValueError("input_change must be finite and non-zero.")
+
+    if not np.isfinite(output_change):
+        raise ValueError("output_change must be finite.")
+
+    return float(abs(output_change) / abs(input_change))
+
+
+def damping_factor(
+    input_change: float,
+    output_change: float,
+) -> float:
+    """
+    Relative damping:
+
+        D = |ΔU| / |ΔY|
+
+    Values > 1 indicate output movement smaller than input movement.
+    """
+    amplification = amplification_factor(input_change, output_change)
+
+    if amplification == 0.0:
+        return float("inf")
+
+    return float(1.0 / amplification)
+
+
+# ------------------------------------------------------------
+# 6. Nonlinear response
+# ------------------------------------------------------------
+
+def nonlinear_response_residual(
+    stimulus: Sequence[float],
+    response: Sequence[float],
+    *,
+    degree: int = 1,
+) -> np.ndarray:
+    """
+    Residual from a polynomial approximation.
+
+    This is descriptive only; it is not a causal model.
+    """
+    stimulus, response = _validate_same_length(
+        stimulus,
+        response,
+        names=("stimulus", "response"),
+    )
+
+    if degree < 1:
+        raise ValueError("degree must be >= 1.")
+
+    coefficients = np.polyfit(stimulus, response, degree)
+    fitted = np.polyval(coefficients, stimulus)
+
+    return response - fitted
+
+
+def nonlinear_response_residual_ratio(
+    stimulus: Sequence[float],
+    response: Sequence[float],
+    *,
+    degree: int = 1,
+) -> float:
+    """RMS nonlinear residual divided by RMS response."""
+    response = _validate_dynamic_series(response, name="response")
+    residual = nonlinear_response_residual(
+        stimulus,
+        response,
+        degree=degree,
+    )
+
+    denominator = float(np.sqrt(np.mean(response**2)))
+
+    if denominator == 0.0:
+        return 0.0
+
+    return float(np.sqrt(np.mean(residual**2)) / denominator)
+
+
+def sigmoid_response(
+    stimulus: float,
+    *,
+    midpoint: float,
+    slope: float,
+    minimum: float = 0.0,
+    maximum: float = 1.0,
+) -> float:
+    """
+    Generic bounded nonlinear response:
+
+        Y = Y_min + (Y_max-Y_min)/(1+e^{-k(U-U0)})
+
+    This is a mathematical primitive, not an empirical claim.
+    """
+    if maximum <= minimum:
+        raise ValueError("maximum must be > minimum.")
+
+    if not np.isfinite(stimulus):
+        raise ValueError("stimulus must be finite.")
+    if not np.isfinite(midpoint):
+        raise ValueError("midpoint must be finite.")
+    if not np.isfinite(slope):
+        raise ValueError("slope must be finite.")
+
+    exponent = np.clip(-slope * (stimulus - midpoint), -700.0, 700.0)
+
+    return float(
+        minimum
+        + (maximum - minimum) / (1.0 + exp(float(exponent)))
+    )
+
+
+def hill_response(
+    stimulus: float,
+    *,
+    half_saturation: float,
+    exponent: float,
+    minimum: float = 0.0,
+    maximum: float = 1.0,
+) -> float:
+    """
+    Hill-type nonlinear response:
+
+        Y = Y_min +
+            (Y_max-Y_min) U^n / (K^n + U^n)
+    """
+    stimulus = _validate_nonnegative_scalar(stimulus, name="stimulus")
+    half_saturation = _validate_positive_scalar(
+        half_saturation,
+        name="half_saturation",
+    )
+
+    if exponent <= 0.0 or not np.isfinite(exponent):
+        raise ValueError("exponent must be finite and > 0.")
+    if maximum <= minimum:
+        raise ValueError("maximum must be > minimum.")
+
+    numerator = stimulus**exponent
+    denominator = half_saturation**exponent + numerator
+
+    if denominator == 0.0:
+        return float(minimum)
+
+    return float(
+        minimum
+        + (maximum - minimum) * numerator / denominator
+    )
+
+
+# ------------------------------------------------------------
+# 7. Thresholds and distance to transition
+# ------------------------------------------------------------
+
+def threshold_margin(
+    state: float,
+    threshold: float,
+    *,
+    direction: int = 1,
+) -> float:
+    """
+    Signed distance from a threshold.
+
+    direction=1:
+        positive values mean state is above threshold.
+
+    direction=-1:
+        positive values mean state is below threshold.
+    """
+    if direction not in (-1, 1):
+        raise ValueError("direction must be -1 or 1.")
+
+    return float(direction * (state - threshold))
+
+
+def threshold_distance(
+    state: float,
+    threshold: float,
+) -> float:
+    """Absolute distance from threshold."""
+    return float(abs(float(state) - float(threshold)))
+
+
+def threshold_breach(
+    state: float,
+    threshold: float,
+    *,
+    direction: int = 1,
+) -> bool:
+    """Whether a threshold has been crossed."""
+    return threshold_margin(
+        state,
+        threshold,
+        direction=direction,
+    ) >= 0.0
+
+
+def threshold_breach_fraction(
+    values: Sequence[float],
+    threshold: float,
+    *,
+    direction: int = 1,
+) -> float:
+    """Fraction of observations beyond a threshold."""
+    values = _validate_dynamic_series(values)
+
+    if direction not in (-1, 1):
+        raise ValueError("direction must be -1 or 1.")
+
+    if direction == 1:
+        return float(np.mean(values >= threshold))
+
+    return float(np.mean(values <= threshold))
+
+
+def first_threshold_crossing(
+    values: Sequence[float],
+    threshold: float,
+    *,
+    direction: int = 1,
+) -> int | None:
+    """Index of first threshold crossing."""
+    values = _validate_dynamic_series(values)
+
+    if direction not in (-1, 1):
+        raise ValueError("direction must be -1 or 1.")
+
+    if direction == 1:
+        indices = np.flatnonzero(values >= threshold)
+    else:
+        indices = np.flatnonzero(values <= threshold)
+
+    if indices.size == 0:
+        return None
+
+    return int(indices[0])
+
+
+# ------------------------------------------------------------
+# 8. Feedback
+# ------------------------------------------------------------
+
+def feedback_gain(
+    input_change: float,
+    feedback_change: float,
+) -> float:
+    """
+    Finite-difference feedback gain:
+
+        G = Δfeedback / Δinput
+    """
+    return response_sensitivity(input_change, feedback_change)
+
+
+def positive_feedback_indicator(
+    input_change: float,
+    feedback_change: float,
+) -> float:
+    """
+    Returns 1 when input and feedback changes have the same sign,
+    otherwise 0.
+
+    It identifies directional reinforcement; it does not prove causality.
+    """
+    if not np.isfinite(input_change) or not np.isfinite(feedback_change):
+        raise ValueError("Inputs must be finite.")
+
+    return float(
+        np.sign(input_change) == np.sign(feedback_change)
+        and input_change != 0.0
+        and feedback_change != 0.0
+    )
+
+
+def feedback_loop_gain(
+    gains: Sequence[float],
+) -> float:
+    """
+    Product of gains around a conceptual feedback loop:
+
+        G_loop = Π g_i
+
+    Values > 1 may indicate amplification in the specified
+    mathematical representation; interpretation requires validation.
+    """
+    gains = _validate_dynamic_series(gains)
+
+    return float(np.prod(gains))
+
+
+# ------------------------------------------------------------
+# 9. Information → perception → behaviour → system feedback
+# ------------------------------------------------------------
+
+def information_change(
+    information_signal: Sequence[float],
+    *,
+    dt: float = 1.0,
+) -> np.ndarray:
+    """Temporal change in an information signal."""
+    return dynamic_first_difference(information_signal, dt=dt)
+
+
+def information_feedback_sensitivity(
+    information_change_value: float,
+    behavioural_change: float,
+) -> float:
+    """
+    Descriptive coupling:
+
+        S_IB = ΔBehaviour / ΔInformation
+    """
+    return response_sensitivity(
+        information_change_value,
+        behavioural_change,
+    )
+
+
+def system_reflexivity_ratio(
+    externally_driven_change: float,
+    feedback_driven_change: float,
+) -> float:
+    """
+    Ratio of feedback-driven to externally-driven change.
+
+    This is a diagnostic quantity for possible reflexivity and
+    must not be interpreted as causal attribution by itself.
+    """
+    denominator = abs(float(externally_driven_change))
+
+    if denominator == 0.0:
+        raise ValueError(
+            "externally_driven_change must be non-zero."
+        )
+
+    return float(
+        abs(float(feedback_driven_change)) / denominator
+    )
+
+
+# ------------------------------------------------------------
+# 10. Coupling between system components
+# ------------------------------------------------------------
+
+def coupling_matrix_from_observations(
+    observations: Sequence[Sequence[float]],
+) -> np.ndarray:
+    """
+    Standardized covariance/correlation structure.
+
+    Input shape:
+        variables × time
+
+    The matrix is descriptive and does not establish causality.
+    """
+    matrix = np.asarray(observations, dtype=float)
+
+    if matrix.ndim != 2:
+        raise ValueError("observations must be two-dimensional.")
+    if matrix.shape[0] < 2 or matrix.shape[1] < 2:
+        raise ValueError("At least two variables and two observations are required.")
+    if not np.all(np.isfinite(matrix)):
+        raise ValueError("observations must contain finite values.")
+
+    return np.corrcoef(matrix)
+
+
+def coupling_strength(
+    matrix: Sequence[Sequence[float]],
+) -> float:
+    """
+    Mean absolute off-diagonal coupling.
+    """
+    matrix = np.asarray(matrix, dtype=float)
+
+    if matrix.ndim != 2 or matrix.shape[0] != matrix.shape[1]:
+        raise ValueError("matrix must be square.")
+
+    diagonal = np.eye(matrix.shape[0], dtype=bool)
+    off_diagonal = matrix[~diagonal]
+
+    if off_diagonal.size == 0:
+        return 0.0
+
+    return float(np.mean(np.abs(off_diagonal)))
+
+
+def coupling_spectral_radius(
+    matrix: Sequence[Sequence[float]],
+) -> float:
+    """
+    Spectral radius:
+
+        ρ(A) = max |λ_i|
+
+    For an interaction matrix this is a structural amplification
+    primitive, not a probability of propagation.
+    """
+    matrix = np.asarray(matrix, dtype=float)
+
+    if matrix.ndim != 2 or matrix.shape[0] != matrix.shape[1]:
+        raise ValueError("matrix must be square.")
+    if not np.all(np.isfinite(matrix)):
+        raise ValueError("matrix must contain finite values.")
+
+    eigenvalues = np.linalg.eigvals(matrix)
+
+    return float(np.max(np.abs(eigenvalues)))
+
+
+def network_average_shortest_path(
+    adjacency: Sequence[Sequence[float]],
+) -> float:
+    """
+    Average shortest path length for a weighted adjacency matrix.
+
+    Zero means no direct edge. Positive values are interpreted as
+    connectivity strengths and transformed into distances as 1 / weight.
+    """
+    matrix = np.asarray(adjacency, dtype=float)
+
+    if matrix.ndim != 2 or matrix.shape[0] != matrix.shape[1]:
+        raise ValueError("adjacency must be square.")
+    if np.any(matrix < 0.0):
+        raise ValueError("adjacency values must be >= 0.")
+
+    n = matrix.shape[0]
+    distances = np.full((n, n), np.inf, dtype=float)
+    np.fill_diagonal(distances, 0.0)
+
+    positive = matrix > 0.0
+    distances[positive] = 1.0 / matrix[positive]
+
+    for k in range(n):
+        distances = np.minimum(
+            distances,
+            distances[:, [k]] + distances[[k], :],
+        )
+
+    finite = distances[np.isfinite(distances) & ~np.eye(n, dtype=bool)]
+
+    if finite.size == 0:
+        return float("inf")
+
+    return float(np.mean(finite))
+
+
+def network_diameter(
+    adjacency: Sequence[Sequence[float]],
+) -> float:
+    """Maximum finite shortest-path distance."""
+    matrix = np.asarray(adjacency, dtype=float)
+
+    if matrix.ndim != 2 or matrix.shape[0] != matrix.shape[1]:
+        raise ValueError("adjacency must be square.")
+    if np.any(matrix < 0.0):
+        raise ValueError("adjacency values must be >= 0.")
+
+    n = matrix.shape[0]
+    distances = np.full((n, n), np.inf, dtype=float)
+    np.fill_diagonal(distances, 0.0)
+
+    positive = matrix > 0.0
+    distances[positive] = 1.0 / matrix[positive]
+
+    for k in range(n):
+        distances = np.minimum(
+            distances,
+            distances[:, [k]] + distances[[k], :],
+        )
+
+    finite = distances[np.isfinite(distances) & ~np.eye(n, dtype=bool)]
+
+    if finite.size == 0:
+        return float("inf")
+
+    return float(np.max(finite))
+
+
+# ------------------------------------------------------------
+# 11. Propagation / cascade primitives
+# ------------------------------------------------------------
+
+def propagation_ratio(
+    incoming_load: float,
+    outgoing_load: float,
+) -> float:
+    """
+    Local propagation ratio:
+
+        P = outgoing / incoming
+    """
+    incoming_load = _validate_positive_scalar(
+        incoming_load,
+        name="incoming_load",
+    )
+    outgoing_load = _validate_nonnegative_scalar(
+        outgoing_load,
+        name="outgoing_load",
+    )
+
+    return float(outgoing_load / incoming_load)
+
+
+def branching_factor(
+    offspring_events: Sequence[float],
+) -> float:
+    """
+    Mean number of secondary events per initiating event.
+
+    This is descriptive unless the event-generation mechanism and
+    causal assumptions have been validated.
+    """
+    offspring_events = _validate_dynamic_series(offspring_events)
+
+    if np.any(offspring_events < 0.0):
+        raise ValueError("offspring_events must be >= 0.")
+
+    return float(np.mean(offspring_events))
+
+
+def cascade_amplification(
+    initial_perturbation: float,
+    final_system_change: float,
+) -> float:
+    """
+    Cascade amplification:
+
+        CA = |ΔX_final| / |ΔU_initial|
+    """
+    return amplification_factor(
+        initial_perturbation,
+        final_system_change,
+    )
+
+
+def cascade_depth(
+    activation_matrix: Sequence[Sequence[float]],
+) -> int:
+    """
+    Number of propagation generations represented by a binary
+    activation matrix.
+
+    Rows = time/generation.
+    Columns = components.
+
+    This is a structural measure, not a prediction of future cascades.
+    """
+    matrix = np.asarray(activation_matrix, dtype=bool)
+
+    if matrix.ndim != 2:
+        raise ValueError("activation_matrix must be two-dimensional.")
+    if matrix.shape[0] == 0:
+        return 0
+
+    active_generations = np.flatnonzero(np.any(matrix, axis=1))
+
+    if active_generations.size == 0:
+        return 0
+
+    return int(active_generations[-1] - active_generations[0] + 1)
+
+
+# ------------------------------------------------------------
+# 12. Small-stimulus / high-sensitivity regime
+# ------------------------------------------------------------
+
+def small_stimulus_amplification(
+    baseline_stimulus: float,
+    perturbed_stimulus: float,
+    baseline_response: float,
+    perturbed_response: float,
+) -> float:
+    """
+    Amplification produced by a small perturbation.
+
+        A_small = |ΔY| / |ΔU|
+
+    The caller is responsible for defining what constitutes
+    "small"; no arbitrary threshold is embedded here.
+    """
+    return amplification_factor(
+        perturbed_stimulus - baseline_stimulus,
+        perturbed_response - baseline_response,
+    )
+
+
+def local_susceptibility(
+    baseline_stimulus: float,
+    perturbed_stimulus: float,
+    baseline_state: float,
+    perturbed_state: float,
+) -> float:
+    """
+    Local susceptibility:
+
+        χ = ΔX / ΔU
+    """
+    return response_sensitivity(
+        perturbed_stimulus - baseline_stimulus,
+        perturbed_state - baseline_state,
+    )
+
+
+def vulnerability_index(
+    reserve_fraction: float,
+    coupling: float,
+    sensitivity: float,
+) -> float:
+    """
+    Generic structural susceptibility primitive:
+
+        V = S × K × (1 / R)
+
+    This is intentionally not called a probability of harm.
+
+    The three inputs must be independently defined and calibrated
+    before operational interpretation.
+    """
+    reserve_fraction = _validate_positive_scalar(
+        reserve_fraction,
+        name="reserve_fraction",
+    )
+    coupling = _validate_nonnegative_scalar(
+        coupling,
+        name="coupling",
+    )
+    sensitivity = _validate_nonnegative_scalar(
+        sensitivity,
+        name="sensitivity",
+    )
+
+    return float(
+        sensitivity * coupling / reserve_fraction
+    )
+
+
+# ------------------------------------------------------------
+# 13. Spatial density and local coupling
+# ------------------------------------------------------------
+
+def spatial_density(
+    quantity: float,
+    area: float,
+) -> float:
+    """
+    Area-normalized density:
+
+        D = Q / A
+    """
+    quantity = _validate_nonnegative_scalar(quantity, name="quantity")
+    area = _validate_positive_scalar(area, name="area")
+
+    return float(quantity / area)
+
+
+def contact_opportunity_density(
+    population: float,
+    area: float,
+    *,
+    interaction_factor: float = 1.0,
+) -> float:
+    """
+    Structural contact-opportunity proxy:
+
+        COD = (N / A) × κ
+
+    It is not a contact rate and does not establish transmission,
+    violence, or mortality.
+    """
+    density = spatial_density(population, area)
+
+    interaction_factor = _validate_nonnegative_scalar(
+        interaction_factor,
+        name="interaction_factor",
+    )
+
+    return float(density * interaction_factor)
+
+
+def distance_normalized_coupling(
+    interaction_strength: float,
+    distance: float,
+) -> float:
+    """
+    Simple distance-normalized coupling:
+
+        K_d = K / d
+
+    Use only where the chosen distance metric is substantively justified.
+    """
+    interaction_strength = _validate_nonnegative_scalar(
+        interaction_strength,
+        name="interaction_strength",
+    )
+    distance = _validate_positive_scalar(distance, name="distance")
+
+    return float(interaction_strength / distance)
+
+
+# ------------------------------------------------------------
+# 14. Social tension / hostility as observable system signal
+# ------------------------------------------------------------
+
+def hostility_signal_rate(
+    hostile_observations: float,
+    total_observations: float,
+) -> float:
+    """
+    Proportion of observations classified as hostile/tension-related.
+
+    This is an observation statistic, not a property of a population.
+    """
+    hostile_observations = _validate_nonnegative_scalar(
+        hostile_observations,
+        name="hostile_observations",
+    )
+    total_observations = _validate_positive_scalar(
+        total_observations,
+        name="total_observations",
+    )
+
+    if hostile_observations > total_observations:
+        raise ValueError(
+            "hostile_observations cannot exceed total_observations."
+        )
+
+    return float(hostile_observations / total_observations)
+
+
+def hostility_signal_velocity(
+    hostility_signal: Sequence[float],
+    *,
+    dt: float = 1.0,
+) -> float:
+    """
+    Temporal change in an aggregate hostility/tension signal.
+
+    The input should be a measurement series with explicit provenance.
+    """
+    return dynamic_trajectory_velocity(
+        hostility_signal,
+        dt=dt,
+    )
+
+
+def polarization_index(
+    group_interactions: Sequence[Sequence[float]],
+) -> float:
+    """
+    Simple normalized interaction polarization proxy.
+
+    Input:
+        matrix of observed cross-category interactions.
+
+    This metric must never be interpreted as evidence that a
+    demographic identity is intrinsically dangerous.
+    """
+    matrix = np.asarray(group_interactions, dtype=float)
+
+    if matrix.ndim != 2:
+        raise ValueError("group_interactions must be two-dimensional.")
+    if not np.all(np.isfinite(matrix)):
+        raise ValueError("group_interactions must be finite.")
+    if np.any(matrix < 0.0):
+        raise ValueError("group_interactions must be >= 0.")
+
+    total = float(matrix.sum())
+
+    if total == 0.0:
+        return 0.0
+
+    diagonal = float(np.trace(matrix))
+
+    within_fraction = diagonal / total
+    cross_fraction = 1.0 - within_fraction
+
+    return float(np.clip(within_fraction - cross_fraction, -1.0, 1.0))
+
+
+def disagreement_entropy(
+    category_probabilities: Sequence[float],
+) -> float:
+    """
+    Shannon entropy:
+
+        H = -Σ p_i log(p_i)
+
+    The meaning of categories must be defined externally.
+    """
+    probabilities = np.asarray(category_probabilities, dtype=float)
+
+    if probabilities.ndim != 1:
+        raise ValueError("category_probabilities must be one-dimensional.")
+    if not np.all(np.isfinite(probabilities)):
+        raise ValueError("category_probabilities must be finite.")
+    if np.any(probabilities < 0.0):
+        raise ValueError("category_probabilities must be >= 0.")
+
+    total = float(probabilities.sum())
+
+    if total <= 0.0:
+        return 0.0
+
+    probabilities = probabilities / total
+    positive = probabilities > 0.0
+
+    return float(
+        -np.sum(
+            probabilities[positive]
+            * np.log(probabilities[positive])
+        )
+    )
+
+
+def hostility_composite_signal(
+    *,
+    hostility_rate: float,
+    hostility_velocity: float,
+    polarization: float,
+    uncertainty: float = 0.0,
+) -> float:
+    """
+    Transparent aggregate signal:
+
+        H* = H_rate + H_velocity + H_polarization + uncertainty
+
+    This is deliberately an uncalibrated signal, not a probability,
+    diagnosis, causal coefficient, or group-level danger score.
+
+    Production CeutIA should replace this primitive with a
+    provenance-weighted latent-state model after validation.
+    """
+    hostility_rate = _validate_nonnegative_scalar(
+        hostility_rate,
+        name="hostility_rate",
+    )
+    uncertainty = _validate_nonnegative_scalar(
+        uncertainty,
+        name="uncertainty",
+    )
+
+    if not np.isfinite(hostility_velocity):
+        raise ValueError("hostility_velocity must be finite.")
+    if not np.isfinite(polarization):
+        raise ValueError("polarization must be finite.")
+
+    return float(
+        hostility_rate
+        + hostility_velocity
+        + polarization
+        + uncertainty
+    )
+
+
+# ------------------------------------------------------------
+# 15. Compound systemic susceptibility
+# ------------------------------------------------------------
+
+def compound_systemic_susceptibility(
+    *,
+    reserve_fraction: float,
+    coupling: float,
+    sensitivity: float,
+    tension_signal: float,
+    response_latency: float = 1.0,
+) -> float:
+    """
+    Structural compound susceptibility:
+
+        CSS =
+            S × K × H × T / R
+
+    where:
+
+        R = adaptive reserve fraction
+        K = system coupling
+        S = response sensitivity
+        H = aggregate tension/hostility signal
+        T = response latency
+
+    IMPORTANT:
+    This is NOT a mortality probability, violence probability,
+    criminality score, or individual-risk score.
+
+    It is a hypothesis-oriented structural quantity indicating
+    conditions under which a system may be more sensitive to
+    perturbation.
+
+    All components require empirical definition, provenance,
+    uncertainty, calibration, and validation before operational use.
+    """
+    reserve_fraction = _validate_positive_scalar(
+        reserve_fraction,
+        name="reserve_fraction",
+    )
+    coupling = _validate_nonnegative_scalar(
+        coupling,
+        name="coupling",
+    )
+    sensitivity = _validate_nonnegative_scalar(
+        sensitivity,
+        name="sensitivity",
+    )
+    tension_signal = _validate_nonnegative_scalar(
+        tension_signal,
+        name="tension_signal",
+    )
+    response_latency = _validate_positive_scalar(
+        response_latency,
+        name="response_latency",
+    )
+
+    return float(
+        sensitivity
+        * coupling
+        * tension_signal
+        * response_latency
+        / reserve_fraction
+    )
+
+
+def compound_shock_index(
+    shock_intensity: float,
+    systemic_susceptibility: float,
+) -> float:
+    """
+    Structural compound shock:
+
+        CSI = shock × susceptibility
+
+    It must not be interpreted as an outcome probability.
+    """
+    shock_intensity = _validate_nonnegative_scalar(
+        shock_intensity,
+        name="shock_intensity",
+    )
+    systemic_susceptibility = _validate_nonnegative_scalar(
+        systemic_susceptibility,
+        name="systemic_susceptibility",
+    )
+
+    return float(shock_intensity * systemic_susceptibility)
+
+
+# ------------------------------------------------------------
+# 16. Recovery and resilience
+# ------------------------------------------------------------
+
+def recovery_fraction(
+    baseline: float,
+    nadir: float,
+    current: float,
+) -> float:
+    """
+    Fraction of lost state recovered:
+
+        RF = (X_current - X_nadir) / (X_baseline - X_nadir)
+    """
+    denominator = float(baseline - nadir)
+
+    if denominator == 0.0:
+        return 1.0 if current == baseline else 0.0
+
+    return float(
+        np.clip(
+            (current - nadir) / denominator,
+            0.0,
+            1.0,
+        )
+    )
+
+
+def recovery_rate(
+    recovery_values: Sequence[float],
+    *,
+    dt: float = 1.0,
+) -> float:
+    """Latest recovery velocity."""
+    return dynamic_trajectory_velocity(
+        recovery_values,
+        dt=dt,
+    )
+
+
+def time_to_recovery_fraction(
+    values: Sequence[float],
+    *,
+    baseline: float,
+    nadir: float,
+    target_fraction: float = 0.9,
+) -> int | None:
+    """
+    First index at which the system has recovered the requested
+    fraction of its baseline-to-nadir loss.
+    """
+    if not 0.0 <= target_fraction <= 1.0:
+        raise ValueError("target_fraction must be between 0 and 1.")
+
+    values = _validate_dynamic_series(values)
+
+    denominator = baseline - nadir
+
+    if denominator == 0.0:
+        return 0 if values[-1] == baseline else None
+
+    recovery = (values - nadir) / denominator
+    indices = np.flatnonzero(recovery >= target_fraction)
+
+    if indices.size == 0:
+        return None
+
+    return int(indices[0])
+
+
+def resilience_ratio(
+    disturbance_magnitude: float,
+    unrecovered_loss: float,
+) -> float:
+    """
+    Simple resilience ratio:
+
+        R = 1 - unrecovered_loss / disturbance
+
+    clipped to [0, 1].
+    """
+    disturbance_magnitude = _validate_positive_scalar(
+        disturbance_magnitude,
+        name="disturbance_magnitude",
+    )
+    unrecovered_loss = _validate_nonnegative_scalar(
+        unrecovered_loss,
+        name="unrecovered_loss",
+    )
+
+    return float(
+        np.clip(
+            1.0 - unrecovered_loss / disturbance_magnitude,
+            0.0,
+            1.0,
+        )
+    )
+
+
+# ------------------------------------------------------------
+# 17. System state vector
+# ------------------------------------------------------------
+
+def dynamic_system_state(
+    *,
+    state: float,
+    velocity: float,
+    acceleration: float,
+    accumulated_load_value: float,
+    adaptive_reserve_value: float,
+    effective_capacity: float,
+    coupling: float,
+    sensitivity: float,
+    tension_signal: float,
+    response_latency: float,
+) -> dict[str, float]:
+    """
+    Canonical CeutIA dynamic state representation.
+
+    This function does not collapse the system into one score.
+    It preserves the variables separately so downstream models
+    can choose an appropriate representation.
+    """
+    return {
+        "state": float(state),
+        "velocity": float(velocity),
+        "acceleration": float(acceleration),
+        "accumulated_load": float(accumulated_load_value),
+        "adaptive_reserve": float(adaptive_reserve_value),
+        "effective_capacity": float(effective_capacity),
+        "coupling": float(coupling),
+        "sensitivity": float(sensitivity),
+        "tension_signal": float(tension_signal),
+        "response_latency": float(response_latency),
+    }
+
+
+# ------------------------------------------------------------
+# 18. Canonical theoretical transition indicator
+# ------------------------------------------------------------
+
+def dynamic_transition_susceptibility(
+    *,
+    reserve_fraction: float,
+    sensitivity: float,
+    coupling: float,
+    tension_signal: float,
+    threshold_margin_value: float,
+    response_latency: float,
+) -> float:
+    """
+    Canonical structural susceptibility primitive derived from the
+    CeutIA theoretical chain:
+
+        low reserve
+        × sensitivity
+        × coupling
+        × tension
+        × latency
+        × proximity to threshold
+
+    Formula:
+
+        DTS =
+            S K H T
+            ----------------
+            R × (|M| + ε)
+
+    where M is threshold margin.
+
+    This is deliberately a susceptibility indicator, NOT a
+    probability of catastrophe or mortality.
+
+    No numerical threshold is embedded in the function.
+    """
+    reserve_fraction = _validate_positive_scalar(
+        reserve_fraction,
+        name="reserve_fraction",
+    )
+    sensitivity = _validate_nonnegative_scalar(
+        sensitivity,
+        name="sensitivity",
+    )
+    coupling = _validate_nonnegative_scalar(
+        coupling,
+        name="coupling",
+    )
+    tension_signal = _validate_nonnegative_scalar(
+        tension_signal,
+        name="tension_signal",
+    )
+    response_latency = _validate_positive_scalar(
+        response_latency,
+        name="response_latency",
+    )
+
+    if not np.isfinite(threshold_margin_value):
+        raise ValueError("threshold_margin_value must be finite.")
+
+    epsilon = np.finfo(float).eps
+    threshold_proximity = 1.0 / (
+        abs(float(threshold_margin_value)) + epsilon
+    )
+
+    return float(
+        sensitivity
+        * coupling
+        * tension_signal
+        * response_latency
+        * threshold_proximity
+        / reserve_fraction
+    )
+
+
+# ------------------------------------------------------------
+# 19. Theory registry
+# ------------------------------------------------------------
+
+DYNAMIC_SYSTEM_THEORY_METRICS: Final[dict[str, str]] = {
+    "dynamic_first_difference": "Trajectory velocity",
+    "dynamic_second_difference": "Trajectory acceleration",
+    "dynamic_trajectory_persistence": "Trajectory persistence",
+    "dynamic_path_length": "Total trajectory movement",
+    "dynamic_reversibility_ratio": "Trajectory reversibility",
+    "accumulated_load": "Accumulated system load",
+    "adaptive_reserve": "Adaptive reserve trajectory",
+    "reserve_depletion_fraction": "Adaptive reserve depletion",
+    "compensation_ratio": "Compensation capacity",
+    "compensation_gap": "Uncompensated load",
+    "exhaustion_ratio": "Load/effective-capacity pressure",
+    "perturbation_magnitude": "Perturbation magnitude",
+    "response_sensitivity": "Local response sensitivity",
+    "response_elasticity": "Response elasticity",
+    "amplification_factor": "Input/output amplification",
+    "nonlinear_response_residual_ratio": "Nonlinearity residual",
+    "threshold_margin": "Distance from threshold",
+    "threshold_breach": "Threshold crossing",
+    "first_threshold_crossing": "First threshold crossing",
+    "feedback_gain": "Feedback gain",
+    "feedback_loop_gain": "Loop gain",
+    "system_reflexivity_ratio": "System reflexivity",
+    "coupling_strength": "System coupling strength",
+    "coupling_spectral_radius": "Interaction spectral radius",
+    "network_average_shortest_path": "Average propagation distance",
+    "network_diameter": "Maximum propagation distance",
+    "propagation_ratio": "Local propagation ratio",
+    "branching_factor": "Cascade branching factor",
+    "cascade_amplification": "Cascade amplification",
+    "cascade_depth": "Observed cascade depth",
+    "small_stimulus_amplification": "Small-stimulus amplification",
+    "local_susceptibility": "Local susceptibility",
+    "spatial_density": "Area-normalized density",
+    "contact_opportunity_density": "Contact-opportunity density",
+    "distance_normalized_coupling": "Distance-normalized coupling",
+    "hostility_signal_rate": "Observed hostility/tension signal rate",
+    "hostility_signal_velocity": "Hostility/tension signal velocity",
+    "polarization_index": "Aggregate polarization proxy",
+    "disagreement_entropy": "Disagreement entropy",
+    "compound_systemic_susceptibility": "Compound systemic susceptibility",
+    "compound_shock_index": "Compound shock index",
+    "recovery_fraction": "Recovery fraction",
+    "recovery_rate": "Recovery velocity",
+    "time_to_recovery_fraction": "Time to recovery",
+    "resilience_ratio": "Resilience ratio",
+    "dynamic_transition_susceptibility": (
+        "Dynamic transition susceptibility"
+    ),
+}
+
+
+DYNAMIC_SYSTEM_THEORY_INVARIANTS: Final[tuple[str, ...]] = (
+    "A state is never interpreted without its temporal trajectory when temporal data exist.",
+    "Velocity and acceleration are distinct from absolute state.",
+    "Accumulated load and instantaneous load are distinct quantities.",
+    "Adaptive reserve is a latent system property and requires explicit operational definition.",
+    "Compensation can conceal deterioration of adaptive reserve.",
+    "A stable observable state does not prove systemic stability.",
+    "Perturbation magnitude is distinct from perturbation impact.",
+    "Sensitivity and elasticity are distinct mathematical quantities.",
+    "Nonlinear amplification must not be assumed from a linear metric.",
+    "Threshold proximity is distinct from threshold crossing.",
+    "Feedback can modify the system being observed.",
+    "Correlation or coupling does not establish causality.",
+    "Network connectivity must be measured rather than inferred from geographic size alone.",
+    "Small geographic scale does not by itself imply high systemic coupling.",
+    "Cascade metrics describe observed or modelled propagation, not inevitable future events.",
+    "Hostility/tension is an aggregate observable signal, not an intrinsic property of a person or demographic group.",
+    "Hostility/tension signals must preserve provenance and uncertainty.",
+    "No identity attribute may be used as a proxy for individual dangerousness.",
+    "Compound susceptibility is not a probability of violence, death, crime, or harm.",
+    "Mortality prediction requires validated outcome data, calibration, discrimination, temporal validation, and prospective evaluation.",
+    "A mathematical formula is not empirically validated merely because it is mathematically correct.",
+    "No operational threshold may be chosen solely because it produces a desired alert frequency.",
+    "CeutIA must preserve the distinction between observation, inference, hypothesis, prediction, scenario, and decision.",
+    "CeutIA interventions can alter subsequent observations and must therefore be treated as feedback events.",
+)
+
+
+__all__.extend(DYNAMIC_SYSTEM_THEORY_METRICS.keys())
+
 # =============================================================================
 # DISTRIBUCIÓN TERRITORIAL, CO-LOCALIZACIÓN, SENSIBILIDAD Y AMPLIFICACIÓN
 # SISTÉMICA EN TERRITORIOS DE PEQUEÑA ESCALA

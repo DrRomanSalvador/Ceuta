@@ -1251,3 +1251,107 @@ __all__ = [
     "validate_signal",
     "validate_source",
 ]
+from dataclasses import dataclass
+from enum import Enum
+from typing import Optional
+
+
+class ClaimEpistemicLevel(str, Enum):
+    OBSERVATION = "OBSERVATION"
+    VERIFIED_FACT = "VERIFIED_FACT"
+    CORROBORATED_FACT = "CORROBORATED_FACT"
+    INFERENCE = "INFERENCE"
+    HYPOTHESIS = "HYPOTHESIS"
+    PREDICTION = "PREDICTION"
+    SCENARIO = "SCENARIO"
+    SIGNAL = "SIGNAL"
+    UNKNOWN = "UNKNOWN"
+
+
+@dataclass(frozen=True, slots=True)
+class EpistemicClaim:
+    claim_id: str
+    text: str
+    level: ClaimEpistemicLevel
+
+    evidence_ids: tuple[str, ...]
+
+    confidence: Optional[float]
+
+    causal_language_allowed: bool
+    operational_use_allowed: bool
+
+    uncertainty: tuple[str, ...] = ()
+
+
+def classify_claim(
+    *,
+    claim_id: str,
+    text: str,
+    evidence: EvidenceBundleAssessment,
+    claim_is_observation: bool = False,
+    claim_is_inference: bool = False,
+    claim_is_hypothesis: bool = False,
+    claim_is_prediction: bool = False,
+    claim_is_scenario: bool = False,
+) -> EpistemicClaim:
+
+    if claim_is_scenario:
+        level = ClaimEpistemicLevel.SCENARIO
+
+    elif claim_is_prediction:
+        level = ClaimEpistemicLevel.PREDICTION
+
+    elif claim_is_hypothesis:
+        level = ClaimEpistemicLevel.HYPOTHESIS
+
+    elif claim_is_inference:
+        level = ClaimEpistemicLevel.INFERENCE
+
+    elif claim_is_observation:
+        level = ClaimEpistemicLevel.OBSERVATION
+
+    elif evidence.status == "STRONG":
+        level = ClaimEpistemicLevel.CORROBORATED_FACT
+
+    elif evidence.status == "MODERATE":
+        level = ClaimEpistemicLevel.VERIFIED_FACT
+
+    elif evidence.status in {"WEAK", "UNVERIFIED"}:
+        level = ClaimEpistemicLevel.SIGNAL
+
+    else:
+        level = ClaimEpistemicLevel.UNKNOWN
+
+    confidence = evidence.epistemic_confidence
+
+    # Una predicción nunca adquiere automáticamente la confianza
+    # epistemológica de sus datos de entrada.
+    if level in {
+        ClaimEpistemicLevel.PREDICTION,
+        ClaimEpistemicLevel.SCENARIO,
+        ClaimEpistemicLevel.HYPOTHESIS,
+    }:
+        confidence = None
+
+    operational = (
+        level in {
+            ClaimEpistemicLevel.CORROBORATED_FACT,
+            ClaimEpistemicLevel.VERIFIED_FACT,
+            ClaimEpistemicLevel.PREDICTION,
+        }
+        and confidence is not None
+        and confidence >= 0.50
+    )
+
+    return EpistemicClaim(
+        claim_id=claim_id,
+        text=text,
+        level=level,
+        evidence_ids=evidence.evidence_ids,
+        confidence=confidence,
+        causal_language_allowed=False,
+        operational_use_allowed=operational,
+        uncertainty=evidence.limitations,
+    )
+

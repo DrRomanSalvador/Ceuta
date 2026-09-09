@@ -1,4 +1,1326 @@
 # =============================================================================
+# CeutIA — MÉTRICAS DE INTERACCIÓN, PROPAGACIÓN, INFORMACIÓN Y ESTRUCTURA
+# =============================================================================
+#
+# Estas métricas describen relaciones entre dimensiones, subsistemas,
+# observaciones, fuentes y distribuciones.
+#
+# No establecen causalidad por sí mismas.
+# No convierten correlación en mecanismo causal.
+# No generan peligrosidad individual ni clasificación de personas o grupos.
+# =============================================================================
+
+
+def covariance_matrix(
+    values: Sequence[Sequence[float]] | np.ndarray,
+) -> np.ndarray:
+    """
+    Matriz de covarianzas entre dimensiones.
+
+    Entrada:
+        matriz con forma (observaciones, dimensiones).
+    """
+    x = np.asarray(values, dtype=float)
+
+    if x.ndim != 2:
+        raise MetricInputError("values debe ser una matriz 2D")
+
+    if x.shape[0] < 2:
+        raise MetricInputError(
+            "Se requieren al menos dos observaciones"
+        )
+
+    if not np.all(np.isfinite(x)):
+        raise MetricInputError("values contiene valores no finitos")
+
+    return np.asarray(np.cov(x, rowvar=False, ddof=1), dtype=float)
+
+
+def correlation_matrix(
+    values: Sequence[Sequence[float]] | np.ndarray,
+) -> np.ndarray:
+    """Matriz de correlación entre dimensiones."""
+    covariance = covariance_matrix(values)
+
+    standard_deviations = np.sqrt(np.diag(covariance))
+
+    if np.any(standard_deviations <= 0):
+        raise MetricInputError(
+            "Todas las dimensiones deben presentar variabilidad positiva"
+        )
+
+    return covariance / np.outer(
+        standard_deviations,
+        standard_deviations,
+    )
+
+
+def cross_correlation(
+    x: Sequence[float] | np.ndarray,
+    y: Sequence[float] | np.ndarray,
+    *,
+    lag: int = 0,
+) -> float:
+    """
+    Correlación entre dos trayectorias con desfase temporal.
+
+    lag > 0:
+        x_t frente a y_(t-lag)
+
+    lag < 0:
+        x_(t-lag) frente a y_t
+    """
+    a = _as_float_array(x, name="x")
+    b = _as_float_array(y, name="y")
+    _validate_same_length(a, b)
+
+    if abs(lag) >= a.size:
+        raise MetricInputError(
+            "El lag debe ser menor que el número de observaciones"
+        )
+
+    if lag > 0:
+        a = a[lag:]
+        b = b[:-lag]
+    elif lag < 0:
+        a = a[:lag]
+        b = b[-lag:]
+
+    if np.std(a) == 0 or np.std(b) == 0:
+        raise MetricInputError(
+            "No puede calcularse correlación con varianza cero"
+        )
+
+    return float(np.corrcoef(a, b)[0, 1])
+
+
+def maximum_lagged_correlation(
+    x: Sequence[float] | np.ndarray,
+    y: Sequence[float] | np.ndarray,
+    *,
+    max_lag: int,
+) -> tuple[int, float]:
+    """
+    Encuentra el lag con mayor correlación absoluta.
+
+    Devuelve:
+        (lag, correlación)
+    """
+    if max_lag < 0:
+        raise MetricInputError("max_lag debe ser >= 0")
+
+    a = _as_float_array(x, name="x")
+    b = _as_float_array(y, name="y")
+    _validate_same_length(a, b)
+
+    if max_lag >= a.size:
+        max_lag = a.size - 1
+
+    candidates: list[tuple[int, float]] = []
+
+    for lag in range(-max_lag, max_lag + 1):
+        try:
+            value = cross_correlation(a, b, lag=lag)
+        except MetricInputError:
+            continue
+
+        candidates.append((lag, value))
+
+    if not candidates:
+        raise MetricInputError(
+            "No existe ningún desfase con variabilidad suficiente"
+        )
+
+    return max(
+        candidates,
+        key=lambda item: abs(item[1]),
+    )
+
+
+def coupling_strength(
+    x: Sequence[float] | np.ndarray,
+    y: Sequence[float] | np.ndarray,
+) -> float:
+    """
+    Magnitud absoluta del acoplamiento lineal entre dos trayectorias.
+    """
+    return float(abs(cross_correlation(x, y)))
+
+
+def coupling_change(
+    x: Sequence[float] | np.ndarray,
+    y: Sequence[float] | np.ndarray,
+    *,
+    split: int,
+) -> float:
+    """
+    Cambio del acoplamiento entre dos periodos.
+
+    Permite detectar aumento o disminución de dependencia estadística.
+    """
+    a = _as_float_array(x, name="x")
+    b = _as_float_array(y, name="y")
+    _validate_same_length(a, b)
+
+    if split <= 1 or split >= a.size - 1:
+        raise MetricInputError(
+            "split debe dejar al menos dos observaciones en cada periodo"
+        )
+
+    first = coupling_strength(a[:split], b[:split])
+    second = coupling_strength(a[split:], b[split:])
+
+    return float(second - first)
+
+
+def decoupling_index(
+    x: Sequence[float] | np.ndarray,
+    y: Sequence[float] | np.ndarray,
+    *,
+    baseline_split: int,
+) -> float:
+    """
+    Disminución absoluta del acoplamiento respecto al periodo basal.
+    """
+    change = coupling_change(
+        x,
+        y,
+        split=baseline_split,
+    )
+
+    return float(max(-change, 0.0))
+
+
+def synchronization_index(
+    values: Sequence[Sequence[float]] | np.ndarray,
+) -> float:
+    """
+    Sincronización media entre dimensiones.
+
+    Se calcula sobre correlaciones absolutas entre trayectorias.
+    """
+    x = np.asarray(values, dtype=float)
+
+    if x.ndim != 2:
+        raise MetricInputError("values debe ser una matriz 2D")
+
+    if x.shape[1] < 2:
+        raise MetricInputError(
+            "Se requieren al menos dos dimensiones"
+        )
+
+    correlations = correlation_matrix(x)
+
+    upper = correlations[
+        np.triu_indices_from(correlations, k=1)
+    ]
+
+    return float(np.mean(np.abs(upper)))
+
+
+def asynchrony_index(
+    values: Sequence[Sequence[float]] | np.ndarray,
+) -> float:
+    """Complemento de la sincronización media."""
+    return float(1.0 - synchronization_index(values))
+
+
+def interaction_matrix(
+    values: Sequence[Sequence[float]] | np.ndarray,
+) -> np.ndarray:
+    """
+    Matriz de interacción estadística de primer orden.
+
+    Es una representación descriptiva, no una matriz causal.
+    """
+    return correlation_matrix(values)
+
+
+def interaction_density(
+    interactions: Sequence[Sequence[float]] | np.ndarray,
+    *,
+    threshold: float,
+) -> float:
+    """
+    Densidad de relaciones cuya magnitud supera un umbral.
+    """
+    matrix = np.asarray(interactions, dtype=float)
+
+    if matrix.ndim != 2 or matrix.shape[0] != matrix.shape[1]:
+        raise MetricInputError(
+            "interactions debe ser una matriz cuadrada"
+        )
+
+    if threshold < 0:
+        raise MetricInputError("threshold debe ser >= 0")
+
+    mask = ~np.eye(matrix.shape[0], dtype=bool)
+
+    if not np.any(mask):
+        return 0.0
+
+    return float(
+        np.mean(np.abs(matrix[mask]) >= threshold)
+    )
+
+
+def interaction_entropy(
+    interactions: Sequence[Sequence[float]] | np.ndarray,
+) -> float:
+    """
+    Entropía normalizada de la distribución de magnitudes de interacción.
+    """
+    matrix = np.asarray(interactions, dtype=float)
+
+    if matrix.ndim != 2 or matrix.shape[0] != matrix.shape[1]:
+        raise MetricInputError(
+            "interactions debe ser una matriz cuadrada"
+        )
+
+    mask = ~np.eye(matrix.shape[0], dtype=bool)
+    values = np.abs(matrix[mask])
+
+    total = float(np.sum(values))
+
+    if total <= 0:
+        return 0.0
+
+    probabilities = values / total
+    probabilities = probabilities[probabilities > 0]
+
+    entropy = -float(
+        np.sum(probabilities * np.log(probabilities))
+    )
+
+    maximum = float(np.log(len(values)))
+
+    if maximum <= 0:
+        return 0.0
+
+    return float(entropy / maximum)
+
+
+def redundancy_index(
+    capacities: Sequence[float] | np.ndarray,
+) -> float:
+    """
+    Redundancia normalizada de capacidad.
+
+    Mide cuánto se distribuye la capacidad entre dimensiones,
+    evitando confundir concentración con capacidad total.
+    """
+    x = _as_nonnegative_array(
+        capacities,
+        name="capacities",
+    )
+
+    if x.size < 2:
+        return 0.0
+
+    total = float(np.sum(x))
+
+    if total <= 0:
+        return 0.0
+
+    probabilities = x / total
+
+    concentration = float(np.sum(probabilities**2))
+
+    return float(
+        np.clip(
+            1.0 - concentration,
+            0.0,
+            1.0,
+        )
+    )
+
+
+def substitutability_index(
+    capacities: Sequence[float] | np.ndarray,
+) -> float:
+    """
+    Índice descriptivo de distribución de capacidad.
+
+    No demuestra sustituibilidad funcional real; esa propiedad requiere
+    especificar qué recursos pueden reemplazarse entre sí.
+    """
+    x = _as_nonnegative_array(
+        capacities,
+        name="capacities",
+    )
+
+    if x.size < 2:
+        return 0.0
+
+    positive = x[x > 0]
+
+    if positive.size == 0:
+        return 0.0
+
+    minimum = float(np.min(positive))
+    maximum = float(np.max(positive))
+
+    if maximum == 0:
+        return 0.0
+
+    return float(minimum / maximum)
+
+
+def propagation_ratio(
+    source_change: float,
+    target_change: float,
+) -> float:
+    """
+    Relación de magnitud entre cambio observado en origen y destino.
+    """
+    source = abs(float(source_change))
+    target = abs(float(target_change))
+
+    if not np.isfinite(source) or not np.isfinite(target):
+        raise MetricInputError(
+            "Los cambios deben ser finitos"
+        )
+
+    if source == 0:
+        if target == 0:
+            return 0.0
+        return float("inf")
+
+    return float(target / source)
+
+
+def amplification_gain(
+    baseline: float,
+    output: float,
+) -> float:
+    """Ganancia relativa entre una perturbación de entrada y su salida."""
+    baseline = _validate_positive_scalar(
+        baseline,
+        name="baseline",
+    )
+    output = _validate_nonnegative_scalar(
+        output,
+        name="output",
+    )
+
+    return float(output / baseline)
+
+
+def damping_ratio(
+    input_magnitude: float,
+    output_magnitude: float,
+) -> float:
+    """
+    Atenuación de una señal entre origen y destino.
+
+    1 = misma magnitud.
+    <1 = atenuación.
+    >1 = amplificación.
+    """
+    input_value = _validate_positive_scalar(
+        input_magnitude,
+        name="input_magnitude",
+    )
+    output_value = _validate_nonnegative_scalar(
+        output_magnitude,
+        name="output_magnitude",
+    )
+
+    return float(output_value / input_value)
+
+
+def cascade_depth(
+    graph: object,
+    source: object,
+) -> int:
+    """
+    Profundidad máxima alcanzable desde un nodo origen en una red dirigida.
+
+    Requiere un objeto NetworkX compatible con descendants/path_length.
+    """
+    try:
+        import networkx as nx
+    except ImportError as exc:
+        raise MetricError(
+            "NetworkX es necesario para cascade_depth"
+        ) from exc
+
+    if not isinstance(graph, nx.DiGraph):
+        raise MetricInputError(
+            "graph debe ser un networkx.DiGraph"
+        )
+
+    if source not in graph:
+        raise MetricInputError(
+            "source no existe en graph"
+        )
+
+    lengths = nx.single_source_shortest_path_length(
+        graph,
+        source,
+    )
+
+    return int(max(lengths.values(), default=0))
+
+
+def network_vulnerability(
+    graph: object,
+) -> float:
+    """
+    Vulnerabilidad estructural aproximada de una red.
+
+    Utiliza la concentración de centralidad de grado.
+    """
+    try:
+        import networkx as nx
+    except ImportError as exc:
+        raise MetricError(
+            "NetworkX es necesario para network_vulnerability"
+        ) from exc
+
+    if len(graph) == 0:
+        return 0.0
+
+    centralities = np.asarray(
+        list(nx.degree_centrality(graph).values()),
+        dtype=float,
+    )
+
+    if centralities.size == 0:
+        return 0.0
+
+    return float(
+        np.max(centralities)
+    )
+
+
+def critical_node_dependence(
+    graph: object,
+    *,
+    node: object,
+) -> float:
+    """
+    Dependencia estructural relativa respecto a un nodo concreto.
+
+    La eliminación hipotética del nodo no implica por sí misma que el sistema
+    real vaya a fallar.
+    """
+    try:
+        import networkx as nx
+    except ImportError as exc:
+        raise MetricError(
+            "NetworkX es necesario para critical_node_dependence"
+        ) from exc
+
+    if node not in graph:
+        raise MetricInputError(
+            "node no existe en graph"
+        )
+
+    original = nx.node_connectivity(graph) if len(graph) > 1 else 0
+
+    reduced = graph.copy()
+    reduced.remove_node(node)
+
+    if len(reduced) <= 1:
+        remaining = 0
+    else:
+        try:
+            remaining = nx.node_connectivity(reduced)
+        except nx.NetworkXError:
+            remaining = 0
+
+    if original <= 0:
+        return 0.0
+
+    return float(
+        np.clip(
+            (original - remaining) / original,
+            0.0,
+            1.0,
+        )
+    )
+
+
+def source_concentration_index(
+    source_counts: Sequence[float] | np.ndarray,
+) -> float:
+    """
+    Concentración de procedencia de información mediante HHI normalizado.
+    """
+    x = _as_nonnegative_array(
+        source_counts,
+        name="source_counts",
+    )
+
+    total = float(np.sum(x))
+
+    if total <= 0:
+        return 0.0
+
+    shares = x / total
+    hhi = float(np.sum(shares**2))
+
+    if x.size <= 1:
+        return 1.0
+
+    minimum = 1.0 / x.size
+
+    return float(
+        np.clip(
+            (hhi - minimum) / (1.0 - minimum),
+            0.0,
+            1.0,
+        )
+    )
+
+
+def source_diversity_entropy(
+    source_counts: Sequence[float] | np.ndarray,
+) -> float:
+    """Diversidad normalizada de fuentes."""
+    x = _as_nonnegative_array(
+        source_counts,
+        name="source_counts",
+    )
+
+    total = float(np.sum(x))
+
+    if total <= 0:
+        return 0.0
+
+    probabilities = x / total
+    probabilities = probabilities[probabilities > 0]
+
+    if probabilities.size <= 1:
+        return 0.0
+
+    entropy = -float(
+        np.sum(probabilities * np.log(probabilities))
+    )
+
+    return float(
+        entropy / np.log(x.size)
+    )
+
+
+def information_entropy(
+    probabilities: Sequence[float] | np.ndarray,
+) -> float:
+    """Entropía de Shannon normalizada."""
+    p = _as_nonnegative_array(
+        probabilities,
+        name="probabilities",
+    )
+
+    total = float(np.sum(p))
+
+    if total <= 0:
+        raise MetricInputError(
+            "La suma de probabilities debe ser > 0"
+        )
+
+    p = p / total
+    p = p[p > 0]
+
+    if p.size <= 1:
+        return 0.0
+
+    entropy = -float(
+        np.sum(p * np.log(p))
+    )
+
+    return float(
+        entropy / np.log(len(p))
+    )
+
+
+def information_surprise(
+    probability: float,
+) -> float:
+    """
+    Contenido informativo de una observación:
+
+        I(x) = -log(P(x))
+
+    Valores mayores corresponden a observaciones menos probables bajo el
+    modelo probabilístico suministrado.
+    """
+    probability = float(probability)
+
+    if not np.isfinite(probability):
+        raise MetricInputError(
+            "probability debe ser finita"
+        )
+
+    if probability <= 0 or probability > 1:
+        raise MetricInputError(
+            "probability debe estar en (0, 1]"
+        )
+
+    return float(-np.log(probability))
+
+
+def information_gain(
+    prior_entropy: float,
+    posterior_entropy: float,
+) -> float:
+    """
+    Ganancia de información aproximada como reducción de entropía.
+    """
+    prior = _validate_nonnegative_scalar(
+        prior_entropy,
+        name="prior_entropy",
+    )
+    posterior = _validate_nonnegative_scalar(
+        posterior_entropy,
+        name="posterior_entropy",
+    )
+
+    return float(prior - posterior)
+
+
+def observation_coverage(
+    observed: float,
+    expected: float,
+) -> float:
+    """Cobertura observacional respecto al universo esperado."""
+    observed = _validate_nonnegative_scalar(
+        observed,
+        name="observed",
+    )
+    expected = _validate_positive_scalar(
+        expected,
+        name="expected",
+    )
+
+    return float(observed / expected)
+
+
+def observation_latency(
+    observation_time: float,
+    availability_time: float,
+) -> float:
+    """Latencia entre ocurrencia/observación y disponibilidad."""
+    observation_time = float(observation_time)
+    availability_time = float(availability_time)
+
+    if not np.isfinite(observation_time) or not np.isfinite(
+        availability_time
+    ):
+        raise MetricInputError(
+            "Los tiempos deben ser finitos"
+        )
+
+    latency = availability_time - observation_time
+
+    if latency < 0:
+        raise MetricInputError(
+            "availability_time no puede preceder a observation_time"
+        )
+
+    return float(latency)
+
+
+def information_loss_fraction(
+    expected_information: float,
+    observed_information: float,
+) -> float:
+    """Fracción de información no observada respecto al total esperado."""
+    expected = _validate_positive_scalar(
+        expected_information,
+        name="expected_information",
+    )
+    observed = _validate_nonnegative_scalar(
+        observed_information,
+        name="observed_information",
+    )
+
+    return float(
+        np.clip(
+            1.0 - observed / expected,
+            0.0,
+            1.0,
+        )
+    )
+
+
+def contradictory_observation_rate(
+    contradictions: float,
+    total_observations: float,
+) -> float:
+    """Proporción de observaciones clasificadas como contradictorias."""
+    contradictions = _validate_nonnegative_scalar(
+        contradictions,
+        name="contradictions",
+    )
+    total = _validate_positive_scalar(
+        total_observations,
+        name="total_observations",
+    )
+
+    if contradictions > total:
+        raise MetricInputError(
+            "contradictions no puede superar total_observations"
+        )
+
+    return float(contradictions / total)
+
+
+def gini_coefficient(
+    values: Sequence[float] | np.ndarray,
+) -> float:
+    """Coeficiente de Gini para distribuciones no negativas."""
+    x = np.sort(
+        _as_nonnegative_array(values, name="values")
+    )
+
+    total = float(np.sum(x))
+
+    if total <= 0:
+        return 0.0
+
+    n = x.size
+    index = np.arange(1, n + 1)
+
+    return float(
+        (
+            2.0 * np.sum(index * x)
+            - (n + 1) * total
+        )
+        / (n * total)
+    )
+
+
+def theil_index(
+    values: Sequence[float] | np.ndarray,
+) -> float:
+    """Índice de Theil para distribución desigual."""
+    x = _as_nonnegative_array(values, name="values")
+
+    mean_value = float(np.mean(x))
+
+    if mean_value <= 0:
+        return 0.0
+
+    positive = x[x > 0]
+
+    if positive.size == 0:
+        return 0.0
+
+    ratios = positive / mean_value
+
+    return float(
+        np.mean(
+            ratios * np.log(ratios)
+        )
+    )
+
+
+def distribution_concentration(
+    values: Sequence[float] | np.ndarray,
+) -> float:
+    """
+    HHI de una distribución.
+
+    Mayor valor = mayor concentración.
+    """
+    x = _as_nonnegative_array(values, name="values")
+    total = float(np.sum(x))
+
+    if total <= 0:
+        return 0.0
+
+    shares = x / total
+
+    return float(np.sum(shares**2))
+
+
+def temporal_concentration(
+    values: Sequence[float] | np.ndarray,
+) -> float:
+    """
+    Concentración temporal de una carga, demanda o evento.
+    """
+    return distribution_concentration(values)
+
+
+def burstiness_index(
+    values: Sequence[float] | np.ndarray,
+) -> float:
+    """
+    Índice de burstiness:
+
+        B = (σ - μ) / (σ + μ)
+
+    Útil para diferenciar procesos relativamente regulares de procesos
+    concentrados en pulsos.
+    """
+    x = _as_nonnegative_array(values, name="values")
+
+    mean_value = float(np.mean(x))
+    std_value = float(np.std(x, ddof=1)) if x.size > 1 else 0.0
+
+    denominator = std_value + mean_value
+
+    if denominator == 0:
+        return 0.0
+
+    return float(
+        (std_value - mean_value) / denominator
+    )
+
+
+def event_rate(
+    events: float,
+    exposure_time: float,
+) -> float:
+    """Tasa de eventos por unidad temporal."""
+    events = _validate_nonnegative_scalar(
+        events,
+        name="events",
+    )
+    exposure_time = _validate_positive_scalar(
+        exposure_time,
+        name="exposure_time",
+    )
+
+    return float(events / exposure_time)
+
+
+def incidence_density(
+    events: float,
+    population_time: float,
+) -> float:
+    """Densidad de incidencia por unidad de persona-tiempo."""
+    return event_rate(
+        events,
+        population_time,
+    )
+
+
+def prevalence(
+    cases: float,
+    population: float,
+) -> float:
+    """Prevalencia descriptiva."""
+    cases = _validate_nonnegative_scalar(
+        cases,
+        name="cases",
+    )
+    population = _validate_positive_scalar(
+        population,
+        name="population",
+    )
+
+    if cases > population:
+        raise MetricInputError(
+            "cases no puede superar population"
+        )
+
+    return float(cases / population)
+
+
+def access_rate(
+    accessible_population: float,
+    target_population: float,
+) -> float:
+    """Proporción de población con acceso observado."""
+    accessible = _validate_nonnegative_scalar(
+        accessible_population,
+        name="accessible_population",
+    )
+    target = _validate_positive_scalar(
+        target_population,
+        name="target_population",
+    )
+
+    return float(
+        np.clip(accessible / target, 0.0, 1.0)
+    )
+
+
+def unmet_demand_rate(
+    unmet_demand: float,
+    total_demand: float,
+) -> float:
+    """Proporción de demanda no satisfecha."""
+    unmet = _validate_nonnegative_scalar(
+        unmet_demand,
+        name="unmet_demand",
+    )
+    total = _validate_positive_scalar(
+        total_demand,
+        name="total_demand",
+    )
+
+    if unmet > total:
+        raise MetricInputError(
+            "unmet_demand no puede superar total_demand"
+        )
+
+    return float(unmet / total)
+
+
+def service_coverage(
+    served: float,
+    demand: float,
+) -> float:
+    """Proporción de demanda atendida."""
+    served = _validate_nonnegative_scalar(
+        served,
+        name="served",
+    )
+    demand = _validate_positive_scalar(
+        demand,
+        name="demand",
+    )
+
+    return float(
+        np.clip(served / demand, 0.0, 1.0)
+    )
+
+
+def throughput_rate(
+    completed: float,
+    time_window: float,
+) -> float:
+    """Producción/atención completada por unidad temporal."""
+    return event_rate(
+        completed,
+        time_window,
+    )
+
+
+def backlog(
+    demand: Sequence[float] | np.ndarray,
+    served: Sequence[float] | np.ndarray,
+) -> float:
+    """
+    Acumulación neta de demanda pendiente.
+
+    backlog_t = backlog_(t-1) + demand_t - served_t
+    """
+    d = _as_nonnegative_array(
+        demand,
+        name="demand",
+    )
+    s = _as_nonnegative_array(
+        served,
+        name="served",
+    )
+    _validate_same_length(d, s)
+
+    current = 0.0
+
+    for demand_value, served_value in zip(d, s):
+        current = max(
+            0.0,
+            current + float(demand_value) - float(served_value),
+        )
+
+    return float(current)
+
+
+def backlog_series(
+    demand: Sequence[float] | np.ndarray,
+    served: Sequence[float] | np.ndarray,
+) -> np.ndarray:
+    """Trayectoria temporal del backlog."""
+    d = _as_nonnegative_array(
+        demand,
+        name="demand",
+    )
+    s = _as_nonnegative_array(
+        served,
+        name="served",
+    )
+    _validate_same_length(d, s)
+
+    result = np.empty_like(d)
+    current = 0.0
+
+    for i, (demand_value, served_value) in enumerate(
+        zip(d, s)
+    ):
+        current = max(
+            0.0,
+            current + float(demand_value) - float(served_value),
+        )
+        result[i] = current
+
+    return result
+
+
+def backlog_age(
+    backlog_values: Sequence[float] | np.ndarray,
+    *,
+    threshold: float = 0.0,
+) -> int:
+    """
+    Antigüedad de backlog continuo por número de observaciones.
+    """
+    x = _as_nonnegative_array(
+        backlog_values,
+        name="backlog_values",
+    )
+
+    threshold = _validate_nonnegative_scalar(
+        threshold,
+        name="threshold",
+    )
+
+    age = 0
+
+    for value in reversed(x):
+        if value > threshold:
+            age += 1
+        else:
+            break
+
+    return int(age)
+
+
+def response_time(
+    detection_time: float,
+    action_time: float,
+) -> float:
+    """Tiempo entre detección y acción."""
+    detection = float(detection_time)
+    action = float(action_time)
+
+    if not np.isfinite(detection) or not np.isfinite(action):
+        raise MetricInputError(
+            "Los tiempos deben ser finitos"
+        )
+
+    if action < detection:
+        raise MetricInputError(
+            "action_time no puede preceder a detection_time"
+        )
+
+    return float(action - detection)
+
+
+def decision_latency(
+    detection_time: float,
+    decision_time: float,
+) -> float:
+    """Tiempo entre detección y decisión."""
+    return response_time(
+        detection_time,
+        decision_time,
+    )
+
+
+def intervention_latency(
+    decision_time: float,
+    intervention_time: float,
+) -> float:
+    """Tiempo entre decisión e intervención."""
+    return response_time(
+        decision_time,
+        intervention_time,
+    )
+
+
+def intervention_effect(
+    baseline: float,
+    post_intervention: float,
+) -> float:
+    """
+    Cambio relativo observado tras una intervención.
+
+    No implica causalidad sin diseño causal apropiado.
+    """
+    baseline = _validate_positive_scalar(
+        baseline,
+        name="baseline",
+    )
+    post = float(post_intervention)
+
+    if not np.isfinite(post):
+        raise MetricInputError(
+            "post_intervention debe ser finito"
+        )
+
+    return float(
+        (post - baseline) / baseline
+    )
+
+
+def intervention_persistence(
+    baseline: float,
+    post_intervention: Sequence[float] | np.ndarray,
+) -> float:
+    """
+    Fracción de observaciones posteriores que conservan el efecto observado
+    respecto al baseline.
+    """
+    baseline = _validate_positive_scalar(
+        baseline,
+        name="baseline",
+    )
+    x = _as_float_array(
+        post_intervention,
+        name="post_intervention",
+    )
+
+    if x.size == 0:
+        return 0.0
+
+    effect = np.abs(x - baseline)
+    initial_effect = float(effect[0])
+
+    if initial_effect == 0:
+        return 0.0
+
+    return float(
+        np.mean(effect >= initial_effect * 0.5)
+    )
+
+
+def rebound_magnitude(
+    minimum_value: float,
+    subsequent_peak: float,
+) -> float:
+    """Magnitud absoluta del rebote desde un mínimo."""
+    minimum = _validate_nonnegative_scalar(
+        minimum_value,
+        name="minimum_value",
+    )
+    peak = _validate_nonnegative_scalar(
+        subsequent_peak,
+        name="subsequent_peak",
+    )
+
+    return float(max(peak - minimum, 0.0))
+
+
+def unintended_load_shift(
+    source_before: float,
+    source_after: float,
+    target_before: float,
+    target_after: float,
+) -> float:
+    """
+    Detecta aumento relativo de carga en un subsistema receptor mientras
+    disminuye la carga del subsistema de origen.
+
+    Es descriptivo y no demuestra que una intervención haya causado el cambio.
+    """
+    source_before = _validate_nonnegative_scalar(
+        source_before,
+        name="source_before",
+    )
+    source_after = _validate_nonnegative_scalar(
+        source_after,
+        name="source_after",
+    )
+    target_before = _validate_nonnegative_scalar(
+        target_before,
+        name="target_before",
+    )
+    target_after = _validate_nonnegative_scalar(
+        target_after,
+        name="target_after",
+    )
+
+    source_reduction = source_before - source_after
+    target_increase = target_after - target_before
+
+    if source_reduction <= 0 or target_increase <= 0:
+        return 0.0
+
+    return float(
+        target_increase / max(source_reduction, 1e-15)
+    )
+
+
+# =============================================================================
+# Registro de esta iteración
+# =============================================================================
+
+INTERACTION_INFORMATION_MANAGEMENT_METRICS: Final[tuple[str, ...]] = (
+    "covariance_matrix",
+    "correlation_matrix",
+    "cross_correlation",
+    "maximum_lagged_correlation",
+    "coupling_strength",
+    "coupling_change",
+    "decoupling_index",
+    "synchronization_index",
+    "asynchrony_index",
+    "interaction_matrix",
+    "interaction_density",
+    "interaction_entropy",
+    "redundancy_index",
+    "substitutability_index",
+    "propagation_ratio",
+    "amplification_gain",
+    "damping_ratio",
+    "cascade_depth",
+    "network_vulnerability",
+    "critical_node_dependence",
+    "source_concentration_index",
+    "source_diversity_entropy",
+    "information_entropy",
+    "information_surprise",
+    "information_gain",
+    "observation_coverage",
+    "observation_latency",
+    "information_loss_fraction",
+    "contradictory_observation_rate",
+    "gini_coefficient",
+    "theil_index",
+    "distribution_concentration",
+    "temporal_concentration",
+    "burstiness_index",
+    "event_rate",
+    "incidence_density",
+    "prevalence",
+    "access_rate",
+    "unmet_demand_rate",
+    "service_coverage",
+    "throughput_rate",
+    "backlog",
+    "backlog_series",
+    "backlog_age",
+    "response_time",
+    "decision_latency",
+    "intervention_latency",
+    "intervention_effect",
+    "intervention_persistence",
+    "rebound_magnitude",
+    "unintended_load_shift",
+)
+
+
+INTERACTION_INFORMATION_INVARIANTS: Final[tuple[str, ...]] = (
+    "Correlación no equivale a causalidad.",
+    "Acoplamiento estadístico no identifica por sí mismo un mecanismo causal.",
+    "La dependencia temporal debe conservar explícitamente el desfase utilizado.",
+    "Una cascada observada debe distinguir propagación temporal de simple simultaneidad.",
+    "La centralidad de una red no demuestra importancia causal.",
+    "La concentración de fuentes reduce independencia epistemológica potencial.",
+    "Diversidad de fuentes no equivale automáticamente a independencia.",
+    "La entropía cuantifica distribución de información, no veracidad.",
+    "La sorpresa depende del modelo probabilístico de referencia.",
+    "La cobertura observacional no equivale a cobertura real del fenómeno.",
+    "La ausencia de observación no equivale a ausencia del fenómeno.",
+    "Backlog y demanda no son equivalentes.",
+    "Capacidad atendida no equivale a capacidad nominal.",
+    "Una reducción posterior a una intervención no demuestra causalidad sin identificación causal.",
+    "El desplazamiento de carga entre subsistemas debe analizarse longitudinalmente.",
+    "Una métrica agregada no debe ocultar heterogeneidad entre dimensiones.",
+)
+
+
+__all__.extend(
+    INTERACTION_INFORMATION_MANAGEMENT_METRICS
+)
+
+# =============================================================================
 # CEUTIA — MÉTRICAS HOLÍSTICAS, INTEGRATIVAS Y DE GESTIÓN SISTÉMICA
 # =============================================================================
 #

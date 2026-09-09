@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:password@db:5432/ceuta
+      - REDIS_URL=redis://redis:6379/0
+      - LOG_LEVEL=INFO
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - ./src:/app/src
+      - ./api:/app/api
+
+  dashboard:
+    image: nginx:alpine
+    ports:
+      - "3000:80"
+    volumes:
+      - ./dashboard:/usr/share/nginx/html
+
+  db:
+    image: postgres:15
+    environment:
+      - POSTGRES_DB=ceuta
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+
+  monitor:
+    build: .
+    command: python -m src.monitor --interval 6
+    environment:
+      - DATABASE_URL=postgresql://postgres:password@db:5432/ceuta
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - db
+      - redis
+
+volumes:
+  postgres_data:
+  redis_data:

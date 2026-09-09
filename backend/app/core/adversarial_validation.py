@@ -1,4 +1,1985 @@
-"""
+# ============================================================================
+# CEUTIA — ADVANCED ADVERSARIAL VALIDATION EXTENSION
+# ============================================================================
+#
+# This extension adds machine-checkable safeguards for:
+#
+#   1. Data integrity and poisoning
+#   2. Temporal leakage and look-ahead bias
+#   3. Causal validity
+#   4. Rare-event prediction
+#   5. Complex-systems dynamics
+#   6. Capacity / queueing validation
+#   7. Spatial and spatiotemporal validity
+#   8. Information propagation and source dependency
+#   9. CeutIA-generated feedback loops
+#  10. Scenario and hypothesis integrity
+#  11. Adversarial AI / LLM security
+#  12. Self-impact and intervention evaluation
+#  13. Epistemic firewalling
+#
+# DESIGN PRINCIPLE:
+#
+# No conclusion produced by CeutIA may increase its own evidential weight.
+#
+# A prediction is not evidence for itself.
+# An alert is not independent corroboration.
+# A model-generated hypothesis is not an observation.
+# A public intervention can modify the system being monitored and must
+# therefore be recorded as an intervention/feedback event.
+# ============================================================================
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from enum import Enum
+from math import isfinite, log
+from typing import Any, Iterable, Mapping, Sequence
+
+
+# ============================================================================
+# EXTENDED ENUMERATIONS
+# ============================================================================
+
+
+class AdvancedFindingCode(str, Enum):
+    """Machine-readable failure modes for advanced validation."""
+
+    DATA_POISONING = "data_poisoning"
+    DATA_DUPLICATION = "data_duplication"
+    DATA_SYNTHETIC_CONTAMINATION = "data_synthetic_contamination"
+    DATA_DEFINITION_CHANGE = "data_definition_change"
+    DATA_UNIT_ERROR = "data_unit_error"
+    DATA_TIMESTAMP_ERROR = "data_timestamp_error"
+    DATA_BACKFILL = "data_backfill"
+    DATA_CENSORING = "data_censoring"
+    DATA_MISSINGNESS_MECHANISM_UNKNOWN = "data_missingness_mechanism_unknown"
+
+    TEMPORAL_LEAKAGE = "temporal_leakage"
+    LOOK_AHEAD_BIAS = "look_ahead_bias"
+    POST_OUTCOME_INFORMATION = "post_outcome_information"
+    INVALID_TEMPORAL_SPLIT = "invalid_temporal_split"
+    REGIME_CHANGE = "regime_change"
+
+    CONFOUNDING = "confounding"
+    COLLIDER_BIAS = "collider_bias"
+    SELECTION_BIAS = "selection_bias"
+    IMMORTAL_TIME_BIAS = "immortal_time_bias"
+    REVERSE_CAUSALITY = "reverse_causality"
+    ECOLOGICAL_FALLACY = "ecological_fallacy"
+    SIMPSON_PARADOX = "simpson_paradox"
+    UNMEASURED_CONFOUNDING = "unmeasured_confounding"
+    CAUSAL_IDENTIFICATION_MISSING = "causal_identification_missing"
+
+    RARE_EVENT_BIAS = "rare_event_bias"
+    CLASS_IMBALANCE = "class_imbalance"
+    BASE_RATE_NEGLECT = "base_rate_neglect"
+    OVERDISPERSION = "overdispersion"
+    ZERO_INFLATION = "zero_inflation"
+    EVENT_DEFINITION_MISSING = "event_definition_missing"
+
+    COMPLEX_DYNAMICS_UNASSESSED = "complex_dynamics_unassessed"
+    FEEDBACK_UNASSESSED = "feedback_unassessed"
+    HYSTERESIS_UNASSESSED = "hysteresis_unassessed"
+    REGIME_TRANSITION_UNASSESSED = "regime_transition_unassessed"
+    CASCADE_RISK_UNASSESSED = "cascade_risk_unassessed"
+    CRITICAL_TRANSITION_UNASSESSED = "critical_transition_unassessed"
+    RESILIENCE_UNASSESSED = "resilience_unassessed"
+
+    CAPACITY_DEFINITION_MISSING = "capacity_definition_missing"
+    BOTTLENECK_UNASSESSED = "bottleneck_unassessed"
+    QUEUEING_MODEL_MISSING = "queueing_model_missing"
+    TRANSIENT_SURGE_UNASSESSED = "transient_surge_unassessed"
+    RECOVERY_CAPACITY_UNASSESSED = "recovery_capacity_unassessed"
+
+    SPATIAL_AUTOCORRELATION = "spatial_autocorrelation"
+    SPATIAL_DEPENDENCE = "spatial_dependence"
+    MAUP_RISK = "maup_risk"
+    SPATIAL_DENOMINATOR_ERROR = "spatial_denominator_error"
+    SPATIOTEMPORAL_CLUSTER_UNASSESSED = "spatiotemporal_cluster_unassessed"
+
+    SOURCE_LINEAGE_UNKNOWN = "source_lineage_unknown"
+    SOURCE_COMMON_ORIGIN = "source_common_origin"
+    SOURCE_LAUNDERING = "source_laundering"
+    CORROBORATION_NOT_INDEPENDENT = "corroboration_not_independent"
+
+    CEUTIA_FEEDBACK = "ceutia_feedback"
+    SELF_CONFIRMATION = "self_confirmation"
+    INTERVENTION_CONTAMINATION = "intervention_contamination"
+    BEHAVIOURAL_RESPONSE_TO_ALERT = "behavioural_response_to_alert"
+
+    SCENARIO_ASSUMPTION_MISSING = "scenario_assumption_missing"
+    SCENARIO_NOT_FALSIFIABLE = "scenario_not_falsifiable"
+    COMPETING_HYPOTHESES_MISSING = "competing_hypotheses_missing"
+    COUNTERFACTUAL_UNDEFINED = "counterfactual_undefined"
+
+    PROMPT_INJECTION = "prompt_injection"
+    INDIRECT_PROMPT_INJECTION = "indirect_prompt_injection"
+    DATA_POISONING_AI = "data_poisoning_ai"
+    MODEL_EXTRACTION = "model_extraction"
+    MEMBERSHIP_INFERENCE = "membership_inference"
+    MODEL_INVERSION = "model_inversion"
+    OUTPUT_ORACLE = "output_oracle"
+    FABRICATED_EVIDENCE = "fabricated_evidence"
+    AUTOMATION_BIAS = "automation_bias"
+    INSTRUCTION_HIJACKING = "instruction_hijacking"
+
+    INTERVENTION_NOT_REGISTERED = "intervention_not_registered"
+    OUTCOME_NOT_REGISTERED = "outcome_not_registered"
+    IMPACT_NOT_ASSESSED = "impact_not_assessed"
+
+    EPISTEMIC_SELF_CONFIRMATION = "epistemic_self_confirmation"
+
+
+class AdvancedValidationSeverity(str, Enum):
+    """Severity used by the advanced validation layer."""
+
+    INFO = "info"
+    MINOR = "minor"
+    MAJOR = "major"
+    CRITICAL = "critical"
+
+
+class MissingnessMechanism(str, Enum):
+    """Statistical missingness mechanisms."""
+
+    MCAR = "MCAR"
+    MAR = "MAR"
+    MNAR = "MNAR"
+    UNKNOWN = "UNKNOWN"
+
+
+class PredictionTargetType(str, Enum):
+    """Permitted prediction targets."""
+
+    EVENT = "event"
+    COUNT = "count"
+    RATE = "rate"
+    STATE = "state"
+    TRAJECTORY = "trajectory"
+    TIME_TO_EVENT = "time_to_event"
+    SCENARIO = "scenario"
+
+
+class FeedbackSource(str, Enum):
+    """Origin of a system-level feedback effect."""
+
+    EXTERNAL = "external"
+    CEUTIA_PUBLIC_OUTPUT = "ceutia_public_output"
+    CEUTIA_ALERT = "ceutia_alert"
+    CEUTIA_RECOMMENDATION = "ceutia_recommendation"
+    HUMAN_DECISION_AFTER_CEUTIA = "human_decision_after_ceutia"
+    UNKNOWN = "unknown"
+
+
+# ============================================================================
+# ADVANCED FINDINGS
+# ============================================================================
+
+
+@dataclass(frozen=True, slots=True)
+class AdvancedFinding:
+    """A machine-readable finding generated by advanced validation."""
+
+    code: AdvancedFindingCode
+    severity: AdvancedValidationSeverity
+    message: str
+    field: str | None = None
+    evidence: tuple[str, ...] = ()
+    remediation: str | None = None
+
+    @property
+    def blocks_operation(self) -> bool:
+        return self.severity is AdvancedValidationSeverity.CRITICAL
+
+
+# ============================================================================
+# DATA INTEGRITY
+# ============================================================================
+
+
+@dataclass(frozen=True, slots=True)
+class DataIntegrityProfile:
+    """
+    Machine-checkable description of the integrity of a dataset.
+
+    This class does not declare a dataset truthful. It describes whether
+    integrity controls have been performed.
+    """
+
+    provenance_complete: bool
+    timestamps_validated: bool
+    units_validated: bool
+    duplicate_check_performed: bool
+    synthetic_data_check_performed: bool
+    poisoning_check_performed: bool
+    definition_stability_checked: bool
+    backfill_detected: bool = False
+    censoring_present: bool = False
+    missingness_mechanism: MissingnessMechanism = MissingnessMechanism.UNKNOWN
+
+    source_lineage_known: bool = True
+    common_origin_checked: bool = False
+    source_laundering_checked: bool = False
+
+    contamination_rate: float = 0.0
+    duplicate_rate: float = 0.0
+
+    def validate(self) -> tuple[AdvancedFinding, ...]:
+        findings: list[AdvancedFinding] = []
+
+        if not self.provenance_complete:
+            findings.append(
+                AdvancedFinding(
+                    AdvancedFindingCode.DATA_POISONING,
+                    AdvancedValidationSeverity.MAJOR,
+                    "Dataset provenance is incomplete.",
+                    remediation="Require provenance before operational use.",
+                )
+            )
+
+        if not self.timestamps_validated:
+            findings.append(
+                AdvancedFinding(
+                    AdvancedFindingCode.DATA_TIMESTAMP_ERROR,
+                    AdvancedValidationSeverity.MAJOR,
+                    "Temporal semantics have not been validated.",
+                    remediation="Validate event time, publication time and ingestion time.",
+                )
+            )
+
+        if not self.units_validated:
+            findings.append(
+                AdvancedFinding(
+                    AdvancedFindingCode.DATA_UNIT_ERROR,
+                    AdvancedValidationSeverity.MAJOR,
+                    "Measurement units have not been validated.",
+                    remediation="Validate units and transformations against the source contract.",
+                )
+            )
+
+        if not self.duplicate_check_performed:
+            findings.append(
+                AdvancedFinding(
+                    AdvancedFindingCode.DATA_DUPLICATION,
+                    AdvancedValidationSeverity.MAJOR,
+                    "Duplicate detection has not been performed.",
+                    remediation="Run deterministic and probabilistic duplicate detection.",
+                )
+            )
+
+        if not self.synthetic_data_check_performed:
+            findings.append(
+                AdvancedFinding(
+                    AdvancedFindingCode.DATA_SYNTHETIC_CONTAMINATION,
+                    AdvancedValidationSeverity.MINOR,
+                    "Synthetic or generated-data contamination has not been assessed.",
+                )
+            )
+
+        if not self.poisoning_check_performed:
+            findings.append(
+                AdvancedFinding(
+                    AdvancedFindingCode.DATA_POISONING,
+                    AdvancedValidationSeverity.MAJOR,
+                    "Data poisoning checks have not been performed.",
+                    remediation="Run source-integrity and anomaly/poisoning checks.",
+                )
+            )
+
+        if not self.definition_stability_checked:
+            findings.append(
+                AdvancedFinding(
+                    AdvancedFindingCode.DATA_DEFINITION_CHANGE,
+                    AdvancedValidationSeverity.MAJOR,
+                    "Source-definition stability has not been checked.",
+                    remediation="Compare metadata and methodology across time.",
+                )
+            )
+
+        if self.backfill_detected:
+            findings.append(
+                AdvancedFinding(
+                    AdvancedFindingCode.DATA_BACKFILL,
+                    AdvancedValidationSeverity.MAJOR,
+                    "Backfilled observations are present.",
+                    remediation="Preserve knowledge-time semantics and exclude future knowledge from historical prediction tests.",
+                )
+            )
+
+        if self.censoring_present:
+            findings.append(
+                AdvancedFinding(
+                    AdvancedFindingCode.DATA_CENSORING,
+                    AdvancedValidationSeverity.MINOR,
+                    "Censoring is present and must be represented explicitly.",
+                )
+            )
+
+        if self.missingness_mechanism is MissingnessMechanism.UNKNOWN:
+            findings.append(
+                AdvancedFinding(
+                    AdvancedFindingCode.DATA_MISSINGNESS_MECHANISM_UNKNOWN,
+                    AdvancedValidationSeverity.MINOR,
+                    "Missingness mechanism has not been characterized.",
+                )
+            )
+
+        if not self.source_lineage_known:
+            findings.append(
+                AdvancedFinding(
+                    AdvancedFindingCode.SOURCE_LINEAGE_UNKNOWN,
+                    AdvancedValidationSeverity.MAJOR,
+                    "Source lineage is unknown.",
+                )
+            )
+
+        if not self.common_origin_checked:
+            findings.append(
+                AdvancedFinding(
+                    AdvancedFindingCode.SOURCE_COMMON_ORIGIN,
+                    AdvancedValidationSeverity.MINOR,
+                    "Common-origin dependency between sources has not been checked.",
+                )
+            )
+
+        if not self.source_laundering_checked:
+            findings.append(
+                AdvancedFinding(
+                    AdvancedFindingCode.SOURCE_LAUNDERING,
+                    AdvancedValidationSeverity.MINOR,
+                    "Source laundering has not been assessed.",
+                )
+            )
+
+        if not 0.0 <= self.contamination_rate <= 1.0:
+            findings.append(
+                AdvancedFinding(
+                    AdvancedFindingCode.DATA_SYNTHETIC_CONTAMINATION,
+                    AdvancedValidationSeverity.CRITICAL,
+                    "Contamination rate is outside [0, 1].",
+                )
+            )
+
+        if not 0.0 <= self.duplicate_rate <= 1.0:
+            findings.append(
+                AdvancedFinding(
+                    AdvancedFindingCode.DATA_DUPLICATION,
+                    AdvancedValidationSeverity.CRITICAL,
+                    "Duplicate rate is outside [0, 1].",
+                )
+            )
+
+        return tuple(findings)
+
+
+# ============================================================================
+# TEMPORAL LEAKAGE
+# ============================================================================
+
+
+@dataclass(frozen=True, slots=True)
+class TemporalValidationProfile:
+    """
+    Explicit temporal semantics for a prediction.
+
+    world_time:
+        when the underlying event occurred.
+
+    knowledge_time:
+        when CeutIA could legitimately know the information.
+
+    prediction_time:
+        when the prediction was generated.
+
+    outcome_time:
+        when the target outcome became observable.
+    """
+
+    prediction_time: datetime
+    outcome_time: datetime
+    feature_max_knowledge_time: datetime
+
+    temporal_split_validated: bool
+    rolling_origin_validated: bool
+    look_ahead_check_performed: bool
+    post_outcome_check_performed: bool
+    backtest_reproducible: bool
+
+    def validate(self) -> tuple[AdvancedFinding, ...]:
+        findings: list[AdvancedFinding] = []
+
+        if self.outcome_time <= self.prediction_time:
+            findings.append(
+                AdvancedFinding(
+                    AdvancedFindingCode.INVALID_TEMPORAL_SPLIT,
+                    AdvancedValidationSeverity.CRITICAL,
+                    "Outcome time must occur after prediction time.",
+                )
+            )
+
+        if self.feature_max_knowledge_time > self.prediction_time:
+            findings.append(
+                AdvancedFinding(
+                    AdvancedFindingCode.TEMPORAL_LEAKAGE,
+                    AdvancedValidationSeverity.CRITICAL,
+                    "At least one feature was known after prediction time.",
+                    remediation="Remove post-prediction information.",
+                )
+            )
+
+        if not self.temporal_split_validated:
+            findings.append(
+                AdvancedFinding(
+                    AdvancedFindingCode.INVALID_TEMPORAL_SPLIT,
+                    AdvancedValidationSeverity.MAJOR,
+                    "Temporal train/validation/test separation is not validated.",
+                )
+            )
+
+        if not self.rolling_origin_validated:
+            findings.append(
+                AdvancedFinding(
+                    AdvancedFindingCode.INVALID_TEMPORAL_SPLIT,
+                    AdvancedValidationSeverity.MAJOR,
+                    "Rolling-origin or equivalent temporal validation has not been performed.",
+                )
+            )
+
+        if not self.look_ahead_check_performed:
+            findings.append(
+                AdvancedFinding(
+                    AdvancedFindingCode.LOOK_AHEAD_BIAS,
+                    AdvancedValidationSeverity.CRITICAL,
+                    "Look-ahead bias has not been explicitly checked.",
+                )
+            )
+
+        if not self.post_outcome_check_performed:
+            findings.append(
+                AdvancedFinding(
+                    AdvancedFindingCode.POST_OUTCOME_INFORMATION,
+                    AdvancedValidationSeverity.CRITICAL,
+                    "Post-outcome information leakage has not been checked.",
+                )
+            )
+
+        if not self.backtest_reproducible:
+            findings.append(
+                AdvancedFinding(
+                    AdvancedFindingCode.INVALID_TEMPORAL_SPLIT,
+                    AdvancedValidationSeverity.MAJOR,
+                    "Historical backtest cannot currently be reproduced.",
+                )
+            )
+
+        return tuple(findings)
+
+
+# ============================================================================
+# CAUSAL VALIDITY
+# ============================================================================
+
+
+@dataclass(frozen=True, slots=True)
+class CausalValidityProfile:
+    """
+    Causal-identification safeguards.
+
+    CeutIA must not convert observational association into causal language.
+    """
+
+    causal_claim: bool
+
+    causal_estimand_defined: bool = False
+    identification_strategy_defined: bool = False
+    confounding_assessed: bool = False
+    selection_bias_assessed: bool = False
+    collider_bias_assessed: bool = False
+    reverse_causality_assessed: bool = False
+    immortal_time_bias_assessed: bool = False
+    unmeasured_confounding_assessed: bool = False
+    ecological_level_appropriate: bool = True
+    temporal_precedence_established: bool = False
+
+    sensitivity_analysis_performed: bool = False
+    dag_or_equivalent_causal_structure_available: bool = False
+
+    def validate(self) -> tuple[AdvancedFinding, ...]:
+        if not self.causal_claim:
+            return ()
+
+        findings: list[AdvancedFinding] = []
+
+        if not self.causal_estimand_defined:
+            findings.append(
+                AdvancedFinding(
+                    AdvancedFindingCode.CAUSAL_IDENTIFICATION_MISSING,
+                    AdvancedValidationSeverity.CRITICAL,
+                    "Causal estimand is undefined.",
+                )
+            )
+
+        if not self.identification_strategy_defined:
+            findings.append(
+                AdvancedFinding(
+                    AdvancedFindingCode.CAUSAL_IDENTIFICATION_MISSING,
+                    AdvancedValidationSeverity.CRITICAL,
+                    "No causal identification strategy has been specified.",
+                )
+            )
+
+        if not self.confounding_assessed:
+            findings.append(
+                AdvancedFinding(
+                    AdvancedFindingCode.CONFOUNDING,
+                    AdvancedValidationSeverity.MAJOR,
+                    "Confounding has not been assessed.",
+                )
+            )
+
+        if not self.selection_bias_assessed:
+            findings.append(
+                AdvancedFinding(
+                    AdvancedFindingCode.SELECTION_BIAS,
+                    AdvancedValidationSeverity.MAJOR,
+                    "Selection bias has not been assessed.",
+                )
+            )
+
+        if not self.collider_bias_assessed:
+            findings.append(
+                AdvancedFinding(
+                    AdvancedFindingCode.COLLIDER_BIAS,
+                    AdvancedValidationSeverity.MAJOR,
+                    "Collider bias has not been assessed.",
+                )
+            )
+
+        if not self.reverse_causality_assessed:
+            findings.append(
+                AdvancedFinding(
+                    AdvancedFindingCode.REVERSE_CAUSALITY,
+                    AdvancedValidationSeverity.MAJOR,
+                    "Reverse causality has not been assessed.",
+                )
+            )
+
+        if not self.immortal_time_bias_assessed:
+            findings.append(
+                AdvancedFinding(
+                    AdvancedFindingCode.IMMORTAL_TIME_BIAS,
+                    AdvancedValidationSeverity.MAJOR,
+                    "Immortal-time bias has not been assessed.",
+                )
+            )
+
+        if not self.unmeasured_confounding_assessed:
+            findings.append(
+                AdvancedFinding(
+                    AdvancedFindingCode.UNMEASURED_CONFOUNDING,
+                    AdvancedValidationSeverity.MAJOR,
+                    "Unmeasured confounding has not been assessed.",
+                )
+            )
+
+        if not self.ecological_level_appropriate:
+            findings.append(
+                AdvancedFinding(
+                    AdvancedFindingCode.ECOLOGICAL_FALLACY,
+                    AdvancedValidationSeverity.CRITICAL,
+                    "Inference crosses an invalid ecological level.",
+                )
+            )
+
+        if not self.temporal_precedence_established:
+            findings.append(
+                AdvancedFinding(
+                    AdvancedFindingCode.REVERSE_CAUSALITY,
+                    AdvancedValidationSeverity.MAJOR,
+                    "Temporal precedence has not been established.",
+                )
+            )
+
+        if not self.sensitivity_analysis_performed:
+            findings.append(
+                AdvancedFinding(
+                    AdvancedFindingCode.UNMEASURED_CONFOUNDING,
+                    AdvancedValidationSeverity.MINOR,
+                    "Sensitivity analysis for causal assumptions is absent.",
+                )
+            )
+
+        if not self.dag_or_equivalent_causal_structure_available:
+            findings.append(
+                AdvancedFinding(
+                    AdvancedFindingCode.CAUSAL_IDENTIFICATION_MISSING,
+                    AdvancedValidationSeverity.MINOR,
+                    "No explicit causal structure is available.",
+                )
+            )
+
+        return tuple(findings)
+
+
+# ============================================================================
+# RARE-EVENT VALIDATION
+# ============================================================================
+
+
+@dataclass(frozen=True, slots=True)
+class RareEventProfile:
+    """
+    Validation profile for low-base-rate events.
+
+    Especially relevant to serious violence, armed conflict, major escalation,
+    catastrophic infrastructure failures and other rare events.
+    """
+
+    event_count: int
+    non_event_count: int
+
+    event_definition_validated: bool
+    base_rate_known: bool
+    class_imbalance_assessed: bool
+    rare_event_method_appropriate: bool
+    calibration_performed: bool
+    temporal_validation_performed: bool
+
+    count_model: str | None = None
+    overdispersion_assessed: bool = False
+    zero_inflation_assessed: bool = False
+
+    def validate(self) -> tuple[AdvancedFinding, ...]:
+        findings: list[AdvancedFinding] = []
+
+        total = self.event_count + self.non_event_count
+
+        if total <= 0:
+            findings.append(
+                AdvancedFinding(
+                    AdvancedFindingCode.EVENT_DEFINITION_MISSING,
+                    AdvancedValidationSeverity.CRITICAL,
+                    "No observations are available.",
+                )
+            )
+            return tuple(findings)
+
+        if not self.event_definition_validated:
+            findings.append(
+                AdvancedFinding(
+                    AdvancedFindingCode.EVENT_DEFINITION_MISSING,
+                    AdvancedValidationSeverity.CRITICAL,
+                    "Outcome/event definition has not been validated.",
+                )
+            )
+
+        if not self.base_rate_known:
+            findings.append(
+                AdvancedFinding(
+                    AdvancedFindingCode.BASE_RATE_NEGLECT,
+                    AdvancedValidationSeverity.CRITICAL,
+                    "Outcome base rate is unknown.",
+                )
+            )
+
+        if not self.class_imbalance_assessed:
+            findings.append(
+                AdvancedFinding(
+                    AdvancedFindingCode.CLASS_IMBALANCE,
+                    AdvancedValidationSeverity.MAJOR,
+                    "Class imbalance has not been assessed.",
+                )
+            )
+
+        if not self.rare_event_method_appropriate:
+            findings.append(
+                AdvancedFinding(
+                    AdvancedFindingCode.RARE_EVENT_BIAS,
+                    AdvancedValidationSeverity.MAJOR,
+                    "The selected method has not been demonstrated appropriate for the event prevalence.",
+                )
+            )
+
+        if not self.calibration_performed:
+            findings.append(
+                AdvancedFinding(
+                    AdvancedFindingCode.RARE_EVENT_BIAS,
+                    AdvancedValidationSeverity.CRITICAL,
+                    "Rare-event probability estimates are uncalibrated.",
+                )
+            )
+
+        if not self.temporal_validation_performed:
+            findings.append(
+                AdvancedFinding(
+                    AdvancedFindingCode.INVALID_TEMPORAL_SPLIT,
+                    AdvancedValidationSeverity.MAJOR,
+                    "Rare-event model lacks temporal validation.",
+                )
+            )
+
+        if self.count_model is not None:
+            normalized = self.count_model.lower()
+
+            if normalized in {"poisson", "poisson_regression"}:
+                if not self.overdispersion_assessed:
+                    findings.append(
+                        AdvancedFinding(
+                            AdvancedFindingCode.OVERDISPERSION,
+                            AdvancedValidationSeverity.MAJOR,
+                            "Poisson count model used without overdispersion assessment.",
+                        )
+                    )
+
+            if not self.zero_inflation_assessed:
+                findings.append(
+                    AdvancedFinding(
+                        AdvancedFindingCode.ZERO_INFLATION,
+                        AdvancedValidationSeverity.MINOR,
+                        "Zero inflation has not been assessed for count data.",
+                    )
+                )
+
+        return tuple(findings)
+
+
+# ============================================================================
+# COMPLEX-SYSTEM VALIDATION
+# ============================================================================
+
+
+@dataclass(frozen=True, slots=True)
+class ComplexSystemProfile:
+    """
+    Validation of dynamic-system properties.
+
+    The purpose is not to claim that a system has a tipping point. The purpose
+    is to require explicit assessment before such claims are made.
+    """
+
+    state_variable_defined: bool
+    trajectory_assessed: bool
+    rate_assessed: bool
+    acceleration_assessed: bool
+
+    persistence_assessed: bool
+    feedback_assessed: bool
+    coupling_assessed: bool
+    nonlinearities_assessed: bool
+
+    regime_change_assessed: bool
+    hysteresis_assessed: bool
+    critical_transition_assessed: bool
+    cascade_assessed: bool
+
+    resilience_assessed: bool
+    recovery_rate_assessed: bool
+    adaptive_capacity_assessed: bool
+
+    def validate(self) -> tuple[AdvancedFinding, ...]:
+        findings: list[AdvancedFinding] = []
+
+        checks = (
+            (
+                not self.state_variable_defined,
+                AdvancedFindingCode.COMPLEX_DYNAMICS_UNASSESSED,
+                "System state is not explicitly defined.",
+                AdvancedValidationSeverity.MAJOR,
+            ),
+            (
+                not self.trajectory_assessed,
+                AdvancedFindingCode.COMPLEX_DYNAMICS_UNASSESSED,
+                "Trajectory has not been assessed.",
+                AdvancedValidationSeverity.MAJOR,
+            ),
+            (
+                not self.rate_assessed,
+                AdvancedFindingCode.COMPLEX_DYNAMICS_UNASSESSED,
+                "Rate of change has not been assessed.",
+                AdvancedValidationSeverity.MAJOR,
+            ),
+            (
+                not self.acceleration_assessed,
+                AdvancedFindingCode.COMPLEX_DYNAMICS_UNASSESSED,
+                "Acceleration/change in rate has not been assessed.",
+                AdvancedValidationSeverity.MINOR,
+            ),
+            (
+                not self.persistence_assessed,
+                AdvancedFindingCode.COMPLEX_DYNAMICS_UNASSESSED,
+                "Persistence versus transient deviation has not been assessed.",
+                AdvancedValidationSeverity.MAJOR,
+            ),
+            (
+                not self.feedback_assessed,
+                AdvancedFindingCode.FEEDBACK_UNASSESSED,
+                "Feedback loops have not been assessed.",
+                AdvancedValidationSeverity.MAJOR,
+            ),
+            (
+                not self.coupling_assessed,
+                AdvancedFindingCode.COMPLEX_DYNAMICS_UNASSESSED,
+                "Subsystem coupling has not been assessed.",
+                AdvancedValidationSeverity.MAJOR,
+            ),
+            (
+                not self.nonlinearities_assessed,
+                AdvancedFindingCode.COMPLEX_DYNAMICS_UNASSESSED,
+                "Nonlinear behaviour has not been assessed.",
+                AdvancedValidationSeverity.MINOR,
+            ),
+            (
+                not self.regime_change_assessed,
+                AdvancedFindingCode.REGIME_TRANSITION_UNASSESSED,
+                "Potential regime changes have not been assessed.",
+                AdvancedValidationSeverity.MAJOR,
+            ),
+            (
+                not self.hysteresis_assessed,
+                AdvancedFindingCode.HYSTERESIS_UNASSESSED,
+                "Hysteresis has not been assessed where relevant.",
+                AdvancedValidationSeverity.MINOR,
+            ),
+            (
+                not self.critical_transition_assessed,
+                AdvancedFindingCode.CRITICAL_TRANSITION_UNASSESSED,
+                "Critical-transition indicators have not been assessed.",
+                AdvancedValidationSeverity.MAJOR,
+            ),
+            (
+                not self.cascade_assessed,
+                AdvancedFindingCode.CASCADE_RISK_UNASSESSED,
+                "Cascade propagation has not been assessed.",
+                AdvancedValidationSeverity.MAJOR,
+            ),
+            (
+                not self.resilience_assessed,
+                AdvancedFindingCode.RESILIENCE_UNASSESSED,
+                "System resilience has not been assessed.",
+                AdvancedValidationSeverity.MAJOR,
+            ),
+            (
+                not self.recovery_rate_assessed,
+                AdvancedFindingCode.RECOVERY_CAPACITY_UNASSESSED,
+                "Recovery rate has not been assessed.",
+                AdvancedValidationSeverity.MAJOR,
+            ),
+            (
+                not self.adaptive_capacity_assessed,
+                AdvancedFindingCode.RESILIENCE_UNASSESSED,
+                "Adaptive capacity has not been assessed.",
+                AdvancedValidationSeverity.MAJOR,
+            ),
+        )
+
+        for condition, code, message, severity in checks:
+            if condition:
+                findings.append(
+                    AdvancedFinding(
+                        code=code,
+                        severity=severity,
+                        message=message,
+                    )
+                )
+
+        return tuple(findings)
+
+
+# ============================================================================
+# CAPACITY / QUEUEING
+# ============================================================================
+
+
+@dataclass(frozen=True, slots=True)
+class CapacityProfile:
+    """
+    Capacity model for systems receiving variable demand.
+    """
+
+    demand_rate: float
+    service_rate: float
+
+    nominal_capacity: float | None
+    effective_capacity: float | None
+    accessible_capacity: float | None
+    mobilizable_capacity: float | None
+
+    bottleneck_identified: bool
+    queueing_model_selected: bool
+    transient_surge_assessed: bool
+    recovery_capacity_assessed: bool
+    time_to_exhaustion_assessed: bool
+
+    def validate(self) -> tuple[AdvancedFinding, ...]:
+        findings: list[AdvancedFinding] = []
+
+        values = (
+            self.demand_rate,
+            self.service_rate,
+            self.nominal_capacity,
+            self.effective_capacity,
+            self.accessible_capacity,
+            self.mobilizable_capacity,
+        )
+
+        for value in values:
+            if value is not None and not isfinite(value):
+                findings.append(
+                    AdvancedFinding(
+                        AdvancedFindingCode.CAPACITY_DEFINITION_MISSING,
+                        AdvancedValidationSeverity.CRITICAL,
+                        "Capacity or demand contains a non-finite value.",
+                    )
+                )
+
+        if self.demand_rate < 0 or self.service_rate < 0:
+            findings.append(
+                AdvancedFinding(
+                    AdvancedFindingCode.CAPACITY_DEFINITION_MISSING,
+                    AdvancedValidationSeverity.CRITICAL,
+                    "Demand and service rates cannot be negative.",
+                )
+            )
+
+        if not self.bottleneck_identified:
+            findings.append(
+                AdvancedFinding(
+                    AdvancedFindingCode.BOTTLENECK_UNASSESSED,
+                    AdvancedValidationSeverity.MAJOR,
+                    "System bottleneck has not been identified.",
+                )
+            )
+
+        if not self.queueing_model_selected:
+            findings.append(
+                AdvancedFinding(
+                    AdvancedFindingCode.QUEUEING_MODEL_MISSING,
+                    AdvancedValidationSeverity.MAJOR,
+                    "Queueing behaviour has not been modelled or justified.",
+                )
+            )
+
+        if not self.transient_surge_assessed:
+            findings.append(
+                AdvancedFinding(
+                    AdvancedFindingCode.TRANSIENT_SURGE_UNASSESSED,
+                    AdvancedValidationSeverity.MAJOR,
+                    "Transient demand surge has not been assessed.",
+                )
+            )
+
+        if not self.recovery_capacity_assessed:
+            findings.append(
+                AdvancedFinding(
+                    AdvancedFindingCode.RECOVERY_CAPACITY_UNASSESSED,
+                    AdvancedValidationSeverity.MAJOR,
+                    "Recovery capacity has not been assessed.",
+                )
+            )
+
+        if not self.time_to_exhaustion_assessed:
+            findings.append(
+                AdvancedFinding(
+                    AdvancedFindingCode.TRANSIENT_SURGE_UNASSESSED,
+                    AdvancedValidationSeverity.MAJOR,
+                    "Time-to-exhaustion has not been assessed.",
+                )
+            )
+
+        return tuple(findings)
+
+
+# ============================================================================
+# SPATIAL VALIDITY
+# ============================================================================
+
+
+@dataclass(frozen=True, slots=True)
+class SpatialValidationProfile:
+    """Controls for spatial inference."""
+
+    spatial_unit_defined: bool
+    denominator_validated: bool
+    spatial_autocorrelation_assessed: bool
+    spatial_dependence_assessed: bool
+    maup_assessed: bool
+    ecological_level_validated: bool
+    spatiotemporal_clustering_assessed: bool
+
+    def validate(self) -> tuple[AdvancedFinding, ...]:
+        findings: list[AdvancedFinding] = []
+
+        checks = (
+            (
+                not self.spatial_unit_defined,
+                AdvancedFindingCode.SPATIAL_DENOMINATOR_ERROR,
+                "Spatial unit is undefined.",
+                AdvancedValidationSeverity.MAJOR,
+            ),
+            (
+                not self.denominator_validated,
+                AdvancedFindingCode.SPATIAL_DENOMINATOR_ERROR,
+                "Spatial denominator has not been validated.",
+                AdvancedValidationSeverity.CRITICAL,
+            ),
+            (
+                not self.spatial_autocorrelation_assessed,
+                AdvancedFindingCode.SPATIAL_AUTOCORRELATION,
+                "Spatial autocorrelation has not been assessed.",
+                AdvancedValidationSeverity.MAJOR,
+            ),
+            (
+                not self.spatial_dependence_assessed,
+                AdvancedFindingCode.SPATIAL_DEPENDENCE,
+                "Spatial dependence has not been assessed.",
+                AdvancedValidationSeverity.MAJOR,
+            ),
+            (
+                not self.maup_assessed,
+                AdvancedFindingCode.MAUP_RISK,
+                "MAUP has not been assessed.",
+                AdvancedValidationSeverity.MINOR,
+            ),
+            (
+                not self.ecological_level_validated,
+                AdvancedFindingCode.ECOLOGICAL_FALLACY,
+                "Ecological-level validity has not been established.",
+                AdvancedValidationSeverity.CRITICAL,
+            ),
+            (
+                not self.spatiotemporal_clustering_assessed,
+                AdvancedFindingCode.SPATIOTEMPORAL_CLUSTER_UNASSESSED,
+                "Spatiotemporal clustering has not been assessed.",
+                AdvancedValidationSeverity.MAJOR,
+            ),
+        )
+
+        for condition, code, message, severity in checks:
+            if condition:
+                findings.append(
+                    AdvancedFinding(code, severity, message)
+                )
+
+        return tuple(findings)
+
+
+# ============================================================================
+# SOURCE INDEPENDENCE
+# ============================================================================
+
+
+@dataclass(frozen=True, slots=True)
+class SourceLineage:
+    """Represents one source and its upstream provenance."""
+
+    source_id: str
+    upstream_source_ids: tuple[str, ...] = ()
+    intermediary_source_ids: tuple[str, ...] = ()
+    independent_origin: bool = True
+
+
+def effective_independent_source_count(
+    sources: Sequence[SourceLineage],
+) -> int:
+    """
+    Estimate independent evidential origins.
+
+    This deliberately counts upstream origin identifiers rather than
+    publications. Five publications derived from the same upstream source
+    therefore do not become five independent observations.
+    """
+
+    if not sources:
+        return 0
+
+    origins: set[str] = set()
+
+    for source in sources:
+        if source.upstream_source_ids:
+            origins.update(source.upstream_source_ids)
+        else:
+            origins.add(source.source_id)
+
+    return len(origins)
+
+
+def validate_source_independence_advanced(
+    sources: Sequence[SourceLineage],
+    minimum_independent_sources: int,
+) -> tuple[AdvancedFinding, ...]:
+    findings: list[AdvancedFinding] = []
+
+    if minimum_independent_sources < 1:
+        raise ValueError("minimum_independent_sources must be >= 1")
+
+    independent_count = effective_independent_source_count(sources)
+
+    if independent_count < minimum_independent_sources:
+        findings.append(
+            AdvancedFinding(
+                AdvancedFindingCode.CORROBORATION_NOT_INDEPENDENT,
+                AdvancedValidationSeverity.MAJOR,
+                (
+                    f"Only {independent_count} independent evidential origins "
+                    f"were identified; {minimum_independent_sources} required."
+                ),
+            )
+        )
+
+    for source in sources:
+        if not source.independent_origin:
+            findings.append(
+                AdvancedFinding(
+                    AdvancedFindingCode.SOURCE_COMMON_ORIGIN,
+                    AdvancedValidationSeverity.MAJOR,
+                    f"Source {source.source_id} is not independent.",
+                    field="source_id",
+                )
+            )
+
+    return tuple(findings)
+
+
+# ============================================================================
+# CEUTIA FEEDBACK / SELF-IMPACT
+# ============================================================================
+
+
+@dataclass(frozen=True, slots=True)
+class FeedbackEvent:
+    """
+    Records an intervention or information event that may alter the monitored
+    system.
+    """
+
+    event_id: str
+    timestamp: datetime
+    source: FeedbackSource
+    intervention_id: str | None
+    affected_domain: str
+    affected_population_level: str
+    measurable_effect_possible: bool
+
+    def validate(self) -> tuple[AdvancedFinding, ...]:
+        findings: list[AdvancedFinding] = []
+
+        if not self.event_id.strip():
+            findings.append(
+                AdvancedFinding(
+                    AdvancedFindingCode.CEUTIA_FEEDBACK,
+                    AdvancedValidationSeverity.CRITICAL,
+                    "Feedback event has no identifier.",
+                )
+            )
+
+        if self.source is FeedbackSource.UNKNOWN:
+            findings.append(
+                AdvancedFinding(
+                    AdvancedFindingCode.CEUTIA_FEEDBACK,
+                    AdvancedValidationSeverity.MAJOR,
+                    "Feedback origin is unknown.",
+                )
+            )
+
+        if self.measurable_effect_possible and self.intervention_id is None:
+            findings.append(
+                AdvancedFinding(
+                    AdvancedFindingCode.INTERVENTION_NOT_REGISTERED,
+                    AdvancedValidationSeverity.MAJOR,
+                    "An intervention may affect the system but has no intervention identifier.",
+                )
+            )
+
+        return tuple(findings)
+
+
+def validate_ceutia_feedback(
+    *,
+    prediction_timestamp: datetime,
+    observation_timestamp: datetime,
+    feedback_events: Sequence[FeedbackEvent],
+) -> tuple[AdvancedFinding, ...]:
+    """
+    Detects contamination of post-alert observations by CeutIA intervention.
+
+    This does not discard those observations. It changes their epistemic role.
+    """
+
+    findings: list[AdvancedFinding] = []
+
+    for event in feedback_events:
+        findings.extend(event.validate())
+
+        if (
+            event.source
+            in {
+                FeedbackSource.CEUTIA_PUBLIC_OUTPUT,
+                FeedbackSource.CEUTIA_ALERT,
+                FeedbackSource.CEUTIA_RECOMMENDATION,
+                FeedbackSource.HUMAN_DECISION_AFTER_CEUTIA,
+            }
+            and event.timestamp <= observation_timestamp
+            and event.timestamp >= prediction_timestamp
+        ):
+            findings.append(
+                AdvancedFinding(
+                    AdvancedFindingCode.INTERVENTION_CONTAMINATION,
+                    AdvancedValidationSeverity.MAJOR,
+                    (
+                        "Observation occurred after a CeutIA-related intervention "
+                        "and may therefore contain system-induced behavioural effects."
+                    ),
+                    remediation=(
+                        "Register the intervention and model the feedback pathway "
+                        "instead of treating the observation as fully exogenous."
+                    ),
+                )
+            )
+
+    return tuple(findings)
+
+
+# ============================================================================
+# HYPOTHESIS / SCENARIO VALIDATION
+# ============================================================================
+
+
+@dataclass(frozen=True, slots=True)
+class HypothesisProfile:
+    """Formal structure for competing hypotheses."""
+
+    hypothesis_id: str
+    description: str
+
+    falsifiable: bool
+    assumptions: tuple[str, ...]
+    differentiating_predictions: tuple[str, ...]
+    evidence_for: tuple[str, ...]
+    evidence_against: tuple[str, ...]
+
+    competing_hypothesis_ids: tuple[str, ...] = ()
+    counterfactual_defined: bool = False
+
+    def validate(self) -> tuple[AdvancedFinding, ...]:
+        findings: list[AdvancedFinding] = []
+
+        if not self.falsifiable:
+            findings.append(
+                AdvancedFinding(
+                    AdvancedFindingCode.SCENARIO_NOT_FALSIFIABLE,
+                    AdvancedValidationSeverity.CRITICAL,
+                    f"Hypothesis {self.hypothesis_id} is not falsifiable.",
+                )
+            )
+
+        if not self.assumptions:
+            findings.append(
+                AdvancedFinding(
+                    AdvancedFindingCode.SCENARIO_ASSUMPTION_MISSING,
+                    AdvancedValidationSeverity.MAJOR,
+                    f"Hypothesis {self.hypothesis_id} has no explicit assumptions.",
+                )
+            )
+
+        if not self.differentiating_predictions:
+            findings.append(
+                AdvancedFinding(
+                    AdvancedFindingCode.COMPETING_HYPOTHESES_MISSING,
+                    AdvancedValidationSeverity.MAJOR,
+                    (
+                        f"Hypothesis {self.hypothesis_id} has no "
+                        "differentiating predictions."
+                    ),
+                )
+            )
+
+        if not self.competing_hypothesis_ids:
+            findings.append(
+                AdvancedFinding(
+                    AdvancedFindingCode.COMPETING_HYPOTHESES_MISSING,
+                    AdvancedValidationSeverity.MAJOR,
+                    (
+                        f"Hypothesis {self.hypothesis_id} has no "
+                        "explicit competing hypotheses."
+                    ),
+                )
+            )
+
+        if not self.counterfactual_defined:
+            findings.append(
+                AdvancedFinding(
+                    AdvancedFindingCode.COUNTERFACTUAL_UNDEFINED,
+                    AdvancedValidationSeverity.MINOR,
+                    f"Hypothesis {self.hypothesis_id} has no explicit counterfactual.",
+                )
+            )
+
+        return tuple(findings)
+
+
+# ============================================================================
+# ADVERSARIAL AI / LLM VALIDATION
+# ============================================================================
+
+
+@dataclass(frozen=True, slots=True)
+class AIAdversarialProfile:
+    """
+    Security profile for LLM/ML components operating over external data.
+    """
+
+    prompt_injection_tested: bool
+    indirect_prompt_injection_tested: bool
+    instruction_hijacking_tested: bool
+
+    poisoned_data_tested: bool
+    fabricated_evidence_tested: bool
+
+    model_extraction_risk_assessed: bool
+    membership_inference_risk_assessed: bool
+    model_inversion_risk_assessed: bool
+
+    output_oracle_risk_assessed: bool
+    automation_bias_assessed: bool
+
+    citations_machine_verified: bool
+    tool_permissions_least_privilege: bool
+    untrusted_content_isolated: bool
+
+    def validate(self) -> tuple[AdvancedFinding, ...]:
+        findings: list[AdvancedFinding] = []
+
+        checks = (
+            (
+                not self.prompt_injection_tested,
+                AdvancedFindingCode.PROMPT_INJECTION,
+                "Direct prompt-injection resistance has not been tested.",
+                AdvancedValidationSeverity.CRITICAL,
+            ),
+            (
+                not self.indirect_prompt_injection_tested,
+                AdvancedFindingCode.INDIRECT_PROMPT_INJECTION,
+                "Indirect prompt-injection resistance has not been tested.",
+                AdvancedValidationSeverity.CRITICAL,
+            ),
+            (
+                not self.instruction_hijacking_tested,
+                AdvancedFindingCode.INSTRUCTION_HIJACKING,
+                "Instruction-hijacking resistance has not been tested.",
+                AdvancedValidationSeverity.CRITICAL,
+            ),
+            (
+                not self.poisoned_data_tested,
+                AdvancedFindingCode.DATA_POISONING_AI,
+                "AI data-poisoning resistance has not been tested.",
+                AdvancedValidationSeverity.MAJOR,
+            ),
+            (
+                not self.fabricated_evidence_tested,
+                AdvancedFindingCode.FABRICATED_EVIDENCE,
+                "Fabricated-evidence resistance has not been tested.",
+                AdvancedValidationSeverity.CRITICAL,
+            ),
+            (
+                not self.model_extraction_risk_assessed,
+                AdvancedFindingCode.MODEL_EXTRACTION,
+                "Model-extraction risk has not been assessed.",
+                AdvancedValidationSeverity.MINOR,
+            ),
+            (
+                not self.membership_inference_risk_assessed,
+                AdvancedFindingCode.MEMBERSHIP_INFERENCE,
+                "Membership-inference risk has not been assessed.",
+                AdvancedValidationSeverity.MAJOR,
+            ),
+            (
+                not self.model_inversion_risk_assessed,
+                AdvancedFindingCode.MODEL_INVERSION,
+                "Model-inversion risk has not been assessed.",
+                AdvancedValidationSeverity.MAJOR,
+            ),
+            (
+                not self.output_oracle_risk_assessed,
+                AdvancedFindingCode.OUTPUT_ORACLE,
+                "Output-oracle risk has not been assessed.",
+                AdvancedValidationSeverity.MAJOR,
+            ),
+            (
+                not self.automation_bias_assessed,
+                AdvancedFindingCode.AUTOMATION_BIAS,
+                "Automation-bias risk has not been assessed.",
+                AdvancedValidationSeverity.MAJOR,
+            ),
+            (
+                not self.citations_machine_verified,
+                AdvancedFindingCode.FABRICATED_EVIDENCE,
+                "Citations are not machine-verified.",
+                AdvancedValidationSeverity.MAJOR,
+            ),
+            (
+                not self.tool_permissions_least_privilege,
+                AdvancedFindingCode.INSTRUCTION_HIJACKING,
+                "Tool permissions do not satisfy least privilege.",
+                AdvancedValidationSeverity.CRITICAL,
+            ),
+            (
+                not self.untrusted_content_isolated,
+                AdvancedFindingCode.INDIRECT_PROMPT_INJECTION,
+                "Untrusted external content is not isolated from instructions.",
+                AdvancedValidationSeverity.CRITICAL,
+            ),
+        )
+
+        for condition, code, message, severity in checks:
+            if condition:
+                findings.append(
+                    AdvancedFinding(code, severity, message)
+                )
+
+        return tuple(findings)
+
+
+# ============================================================================
+# INTERVENTION EVALUATION
+# ============================================================================
+
+
+@dataclass(frozen=True, slots=True)
+class InterventionEvaluation:
+    """
+    Formal record of what happened after a CeutIA-supported intervention.
+    """
+
+    intervention_id: str
+    intervention_timestamp: datetime
+    outcome_window_start: datetime
+    outcome_window_end: datetime
+
+    target_outcome_defined: bool
+    baseline_defined: bool
+    comparator_defined: bool
+
+    adverse_effects_assessed: bool
+    unintended_effects_assessed: bool
+    contamination_by_ceutia_assessed: bool
+
+    observed_outcome: float | None = None
+
+    def validate(self) -> tuple[AdvancedFinding, ...]:
+        findings: list[AdvancedFinding] = []
+
+        if self.outcome_window_start < self.intervention_timestamp:
+            findings.append(
+                AdvancedFinding(
+                    AdvancedFindingCode.INVALID_TEMPORAL_SPLIT,
+                    AdvancedValidationSeverity.CRITICAL,
+                    "Outcome window starts before intervention.",
+                )
+            )
+
+        if self.outcome_window_end <= self.outcome_window_start:
+            findings.append(
+                AdvancedFinding(
+                    AdvancedFindingCode.INVALID_TEMPORAL_SPLIT,
+                    AdvancedValidationSeverity.CRITICAL,
+                    "Outcome window is invalid.",
+                )
+            )
+
+        checks = (
+            (
+                not self.target_outcome_defined,
+                AdvancedFindingCode.OUTCOME_NOT_REGISTERED,
+                "Target outcome is not defined.",
+                AdvancedValidationSeverity.CRITICAL,
+            ),
+            (
+                not self.baseline_defined,
+                AdvancedFindingCode.IMPACT_NOT_ASSESSED,
+                "Baseline is not defined.",
+                AdvancedValidationSeverity.MAJOR,
+            ),
+            (
+                not self.comparator_defined,
+                AdvancedFindingCode.IMPACT_NOT_ASSESSED,
+                "Comparator or counterfactual is not defined.",
+                AdvancedValidationSeverity.MAJOR,
+            ),
+            (
+                not self.adverse_effects_assessed,
+                AdvancedFindingCode.IMPACT_NOT_ASSESSED,
+                "Adverse effects have not been assessed.",
+                AdvancedValidationSeverity.MAJOR,
+            ),
+            (
+                not self.unintended_effects_assessed,
+                AdvancedFindingCode.IMPACT_NOT_ASSESSED,
+                "Unintended effects have not been assessed.",
+                AdvancedValidationSeverity.MAJOR,
+            ),
+            (
+                not self.contamination_by_ceutia_assessed,
+                AdvancedFindingCode.INTERVENTION_CONTAMINATION,
+                "CeutIA-induced behavioural contamination has not been assessed.",
+                AdvancedValidationSeverity.MAJOR,
+            ),
+        )
+
+        for condition, code, message, severity in checks:
+            if condition:
+                findings.append(
+                    AdvancedFinding(code, severity, message)
+                )
+
+        return tuple(findings)
+
+
+# ============================================================================
+# EPISTEMIC FIREWALL
+# ============================================================================
+
+
+@dataclass(frozen=True, slots=True)
+class EpistemicRecord:
+    """
+    Immutable epistemic record.
+
+    A record can identify where a conclusion came from, but its own existence
+    cannot be counted as independent evidence.
+    """
+
+    record_id: str
+    record_type: str
+
+    source_record_ids: tuple[str, ...] = ()
+    derived_from_record_ids: tuple[str, ...] = ()
+
+    independently_observed: bool = False
+    externally_validated: bool = False
+    generated_by_ceutia: bool = False
+
+    evidential_weight: float = 0.0
+
+    def validate(self) -> tuple[AdvancedFinding, ...]:
+        findings: list[AdvancedFinding] = []
+
+        if self.generated_by_ceutia and self.independently_observed:
+            findings.append(
+                AdvancedFinding(
+                    AdvancedFindingCode.EPISTEMIC_SELF_CONFIRMATION,
+                    AdvancedValidationSeverity.CRITICAL,
+                    (
+                        "A CeutIA-generated record cannot simultaneously "
+                        "be treated as an independent observation."
+                    ),
+                )
+            )
+
+        if self.generated_by_ceutia and self.external_validated is False:
+            # No finding merely because a record is generated internally.
+            # Internal generation is legitimate; independent evidential status
+            # is the protected property.
+            pass
+
+        if self.evidential_weight < 0:
+            findings.append(
+                AdvancedFinding(
+                    AdvancedFindingCode.EPISTEMIC_SELF_CONFIRMATION,
+                    AdvancedValidationSeverity.CRITICAL,
+                    "Evidential weight cannot be negative.",
+                )
+            )
+
+        return tuple(findings)
+
+
+def validate_epistemic_firewall(
+    records: Sequence[EpistemicRecord],
+) -> tuple[AdvancedFinding, ...]:
+    """
+    Prevents recursive evidence inflation.
+
+    If A is derived from B, A cannot be counted as independent corroboration
+    of B. Likewise, a CeutIA prediction cannot corroborate itself merely because
+    it was later emitted as an alert.
+    """
+
+    findings: list[AdvancedFinding] = []
+
+    record_ids = {record.record_id for record in records}
+
+    for record in records:
+        findings.extend(record.validate())
+
+        for dependency in record.derived_from_record_ids:
+            if dependency == record.record_id:
+                findings.append(
+                    AdvancedFinding(
+                        AdvancedFindingCode.EPISTEMIC_SELF_CONFIRMATION,
+                        AdvancedValidationSeverity.CRITICAL,
+                        f"Record {record.record_id} is self-derived.",
+                    )
+                )
+
+            if dependency not in record_ids:
+                findings.append(
+                    AdvancedFinding(
+                        AdvancedFindingCode.SOURCE_LINEAGE_UNKNOWN,
+                        AdvancedValidationSeverity.MAJOR,
+                        (
+                            f"Record {record.record_id} references unknown "
+                            f"dependency {dependency}."
+                        ),
+                    )
+                )
+
+    for record in records:
+        if not record.generated_by_ceutia:
+            continue
+
+        if record.independently_observed:
+            findings.append(
+                AdvancedFinding(
+                    AdvancedFindingCode.EPISTEMIC_SELF_CONFIRMATION,
+                    AdvancedValidationSeverity.CRITICAL,
+                    (
+                        f"CeutIA-generated record {record.record_id} "
+                        "is incorrectly marked independent."
+                    ),
+                )
+            )
+
+    return tuple(findings)
+
+
+# ============================================================================
+# NUMERICAL SAFETY HELPERS
+# ============================================================================
+
+
+def safe_rate(
+    numerator: float,
+    denominator: float,
+) -> float:
+    """
+    Compute a rate while refusing silent division by zero.
+
+    This function does not assign a zero risk to an undefined rate.
+    """
+
+    if not isfinite(numerator) or not isfinite(denominator):
+        raise ValueError("Numerator and denominator must be finite.")
+
+    if denominator <= 0:
+        raise ValueError(
+            "Rate denominator must be strictly positive."
+        )
+
+    result = numerator / denominator
+
+    if not isfinite(result):
+        raise ValueError("Computed rate is not finite.")
+
+    return result
+
+
+def utilization_ratio(
+    demand: float,
+    capacity: float,
+) -> float:
+    """
+    Demand/capacity ratio.
+
+    Values > 1 are valid and represent overload.
+    """
+
+    if not isfinite(demand) or not isfinite(capacity):
+        raise ValueError("Demand and capacity must be finite.")
+
+    if demand < 0:
+        raise ValueError("Demand cannot be negative.")
+
+    if capacity <= 0:
+        raise ValueError("Capacity must be strictly positive.")
+
+    return demand / capacity
+
+
+def exponential_growth_rate(
+    initial: float,
+    final: float,
+    elapsed_time: float,
+) -> float:
+    """
+    Continuous growth rate:
+
+        r = ln(final / initial) / Δt
+
+    No value is returned for non-positive population/count states because the
+    logarithmic model is undefined there.
+    """
+
+    if initial <= 0 or final <= 0:
+        raise ValueError(
+            "Initial and final values must be strictly positive."
+        )
+
+    if elapsed_time <= 0:
+        raise ValueError(
+            "Elapsed time must be strictly positive."
+        )
+
+    return log(final / initial) / elapsed_time
+
+
+# ============================================================================
+# ADVANCED VALIDATION ORCHESTRATOR
+# ============================================================================
+
+
+@dataclass(frozen=True, slots=True)
+class AdvancedValidationReport:
+    """Aggregated result of the advanced validation layer."""
+
+    findings: tuple[AdvancedFinding, ...]
+    generated_at: datetime
+
+    @property
+    def critical_count(self) -> int:
+        return sum(
+            finding.severity is AdvancedValidationSeverity.CRITICAL
+            for finding in self.findings
+        )
+
+    @property
+    def major_count(self) -> int:
+        return sum(
+            finding.severity is AdvancedValidationSeverity.MAJOR
+            for finding in self.findings
+        )
+
+    @property
+    def blocked(self) -> bool:
+        return self.critical_count > 0
+
+    @property
+    def shadow_only(self) -> bool:
+        return not self.blocked and self.major_count > 0
+
+    @property
+    def operationally_eligible(self) -> bool:
+        return not self.blocked and not self.shadow_only
+
+    def by_code(
+        self,
+        code: AdvancedFindingCode,
+    ) -> tuple[AdvancedFinding, ...]:
+        return tuple(
+            finding
+            for finding in self.findings
+            if finding.code is code
+        )
+
+
+def run_advanced_validation(
+    *,
+    data_integrity: DataIntegrityProfile | None = None,
+    temporal: TemporalValidationProfile | None = None,
+    causal: CausalValidityProfile | None = None,
+    rare_event: RareEventProfile | None = None,
+    complex_system: ComplexSystemProfile | None = None,
+    capacity: CapacityProfile | None = None,
+    spatial: SpatialValidationProfile | None = None,
+    sources: Sequence[SourceLineage] = (),
+    minimum_independent_sources: int | None = None,
+    feedback_events: Sequence[FeedbackEvent] = (),
+    prediction_timestamp: datetime | None = None,
+    observation_timestamp: datetime | None = None,
+    hypotheses: Sequence[HypothesisProfile] = (),
+    ai_security: AIAdversarialProfile | None = None,
+    intervention: InterventionEvaluation | None = None,
+    epistemic_records: Sequence[EpistemicRecord] = (),
+) -> AdvancedValidationReport:
+    """
+    Run all supplied advanced validators.
+
+    Omitted profiles are not treated as valid. They simply mean that the
+    corresponding validation layer was not requested in this invocation.
+
+    This permits staged execution while keeping each supplied profile strict.
+    """
+
+    findings: list[AdvancedFinding] = []
+
+    if data_integrity is not None:
+        findings.extend(data_integrity.validate())
+
+    if temporal is not None:
+        findings.extend(temporal.validate())
+
+    if causal is not None:
+        findings.extend(causal.validate())
+
+    if rare_event is not None:
+        findings.extend(rare_event.validate())
+
+    if complex_system is not None:
+        findings.extend(complex_system.validate())
+
+    if capacity is not None:
+        findings.extend(capacity.validate())
+
+    if spatial is not None:
+        findings.extend(spatial.validate())
+
+    if minimum_independent_sources is not None:
+        findings.extend(
+            validate_source_independence_advanced(
+                sources,
+                minimum_independent_sources,
+            )
+        )
+
+    if (
+        prediction_timestamp is not None
+        and observation_timestamp is not None
+    ):
+        findings.extend(
+            validate_ceutia_feedback(
+                prediction_timestamp=prediction_timestamp,
+                observation_timestamp=observation_timestamp,
+                feedback_events=feedback_events,
+            )
+        )
+    elif feedback_events:
+        findings.append(
+            AdvancedFinding(
+                AdvancedFindingCode.CEUTIA_FEEDBACK,
+                AdvancedValidationSeverity.MAJOR,
+                (
+                    "Feedback events were supplied without prediction and "
+                    "observation timestamps."
+                ),
+            )
+        )
+
+    for hypothesis in hypotheses:
+        findings.extend(hypothesis.validate())
+
+    if ai_security is not None:
+        findings.extend(ai_security.validate())
+
+    if intervention is not None:
+        findings.extend(intervention.validate())
+
+    if epistemic_records:
+        findings.extend(
+            validate_epistemic_firewall(epistemic_records)
+        )
+
+    return AdvancedValidationReport(
+        findings=tuple(findings),
+        generated_at=datetime.utcnow(),
+    )
+
+
+# ============================================================================
+# HARD OPERATIONAL GATE
+# ============================================================================
+
+
+def assert_advanced_operational_eligibility(
+    report: AdvancedValidationReport,
+) -> None:
+    """
+    Fail closed.
+
+    Advanced findings marked CRITICAL or MAJOR prevent operational
+    authorization.
+
+    A future policy layer may explicitly permit SHADOW_ONLY use, but this
+    function never silently promotes a partially validated capability.
+    """
+
+    if report.critical_count:
+        raise RuntimeError(
+            "CeutIA capability BLOCKED: "
+            f"{report.critical_count} critical advanced validation findings."
+        )
+
+    if report.major_count:
+        raise RuntimeError(
+            "CeutIA capability NOT OPERATIONALLY ELIGIBLE: "
+            f"{report.major_count} major advanced validation findings."
+        )
+
+
+# ============================================================================
+# ADVANCED SCIENTIFIC INVARIANTS
+# ============================================================================
+
+
+ADVANCED_SCIENTIFIC_INVARIANTS: tuple[str, ...] = (
+    "No dataset is considered truthful merely because it has passed a parser.",
+    "Provenance is part of the evidence, not optional metadata.",
+    "Publication count is not independent-source count.",
+    "Temporal leakage invalidates predictive evaluation.",
+    "Knowledge time must be distinguished from world time.",
+    "Post-outcome information cannot enter a historical prediction.",
+    "Association is not causation.",
+    "Temporal precedence alone does not establish causality.",
+    "Causal claims require an explicit identification strategy.",
+    "Rare-event probability requires base-rate awareness and calibration.",
+    "A high AUC does not establish calibration or operational utility.",
+    "A low Brier score does not establish causal validity.",
+    "Spatial observations are not independent merely because they have different coordinates.",
+    "Population-level associations cannot automatically be applied to individuals.",
+    "A complex system must be analysed through state and trajectory, not isolated values alone.",
+    "A tipping point must never be declared merely because a threshold was crossed.",
+    "A threshold is not a phase transition unless the evidence supports that interpretation.",
+    "Capacity must distinguish nominal, effective, accessible and mobilizable capacity.",
+    "Demand greater than capacity is not itself proof of system collapse.",
+    "CeutIA-generated alerts cannot be counted as independent evidence.",
+    "CeutIA interventions can alter the data-generating process.",
+    "Post-intervention observations require feedback-aware interpretation.",
+    "A model-generated hypothesis cannot validate itself.",
+    "A scenario must not be presented as a prediction unless predictive validation exists.",
+    "Competing hypotheses must remain possible when evidence does not discriminate between them.",
+    "LLM output is not evidence merely because it is fluent.",
+    "LLMs must not fabricate citations, observations or measurements.",
+    "Untrusted external content must never override system instructions or security policy.",
+    "External content must be treated as data, not instructions.",
+    "Security controls cannot depend on the model correctly interpreting malicious content.",
+    "Automation must fail closed when epistemic requirements are unmet.",
+    "No individual dangerousness score may be inferred from nationality, ethnicity, religion, migration status or other protected characteristics.",
+    "System-level security signals must not be transformed into individual criminality predictions.",
+    "Violence detection concerns observable events and escalation signals, not inherent group properties.",
+    "Uncertainty must be preserved through every transformation.",
+    "Unknown is a valid epistemic state.",
+    "Absence of evidence is not evidence of absence unless the observation process supports that inference.",
+    "CeutIA must preserve the history of how every operational conclusion was reached.",
+)
+
+
+def validate_advanced_invariants() -> None:
+    """Static integrity check for the advanced invariant registry."""
+
+    if len(ADVANCED_SCIENTIFIC_INVARIANTS) < 30:
+        raise RuntimeError(
+            "Advanced scientific invariant registry is unexpectedly incomplete."
+        )
+
+    if len(set(ADVANCED_SCIENTIFIC_INVARIANTS)) != len(
+        ADVANCED_SCIENTIFIC_INVARIANTS
+    ):
+        raise RuntimeError(
+            "Advanced scientific invariant registry contains duplicates."
+        )
+
+
+validate_advanced_invariants()"""
 CeutIA — Adversarial Validation Gate
 ====================================
 

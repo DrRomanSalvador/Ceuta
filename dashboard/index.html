@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🌍 Ceuta System Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <h1>🌍 Ceuta System</h1>
+        <p>Monitor de Riesgo Existencial de IA</p>
+        <div id="last-update">Última actualización: --</div>
+    </header>
+
+    <main>
+        <!-- Risk Score -->
+        <section class="risk-section">
+            <h2>Nivel de Riesgo Actual</h2>
+            <div id="risk-display" class="risk-display">
+                <div class="risk-gauge">
+                    <div id="risk-value" class="risk-value">--</div>
+                    <div id="risk-level" class="risk-level">CALCULANDO...</div>
+                </div>
+                <div class="confidence-interval">
+                    <h3>Intervalo de Confianza (95%)</h3>
+                    <div id="ci-range">[--, --]</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Alert Status -->
+        <section class="alert-section">
+            <h2>Estado de Alerta</h2>
+            <div id="alert-status" class="alert-status">
+                <div class="alert-indicator" id="alert-indicator"></div>
+                <div id="alert-message">Esperando datos...</div>
+            </div>
+        </section>
+
+        <!-- Data Sources -->
+        <section class="sources-section">
+            <h2>Fuentes de Datos</h2>
+            <div id="sources-list" class="sources-list">
+                <!-- Se llena dinámicamente -->
+            </div>
+        </section>
+
+        <!-- Component Scores -->
+        <section class="components-section">
+            <h2>Componentes del Riesgo</h2>
+            <div id="components-chart" class="components-chart">
+                <!-- Gráfico de barras -->
+            </div>
+        </section>
+
+        <!-- Alert History -->
+        <section class="history-section">
+            <h2>Historial de Alertas</h2>
+            <div id="alert-history" class="alert-history">
+                <!-- Lista de alertas -->
+            </div>
+        </section>
+
+        <!-- Audit Info -->
+        <section class="audit-section">
+            <h2>Información de Auditoría</h2>
+            <div class="audit-info">
+                <p><strong>Hash:</strong> <span id="audit-hash">--</span></p>
+                <p><strong>Versión:</strong> <span id="config-version">--</span></p>
+                <p><strong>Fuentes:</strong> <span id="source-count">--</span></p>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>Sistema Ceuta v1.0.0 | Datos de fuentes oficiales verificadas</p>
+        <p>Este sistema es auditable y de código abierto</p>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>

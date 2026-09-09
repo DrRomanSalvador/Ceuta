@@ -1,3 +1,880 @@
+# =============================================================================
+# CEUTIA — MÉTRICAS HOLÍSTICAS, INTEGRATIVAS Y DE GESTIÓN SISTÉMICA
+# =============================================================================
+#
+# Esta sección añade magnitudes de nivel sistémico sin convertirlas en modelos
+# causales, predictores de riesgo ni decisiones operativas.
+#
+# Principio:
+#   carga → capacidad → reserva → degradación → recuperación
+#
+# Estas funciones describen relaciones cuantificables. No establecen por sí
+# mismas causalidad, peligrosidad individual, ni probabilidad de eventos.
+# =============================================================================
+
+from dataclasses import dataclass
+from typing import NamedTuple
+
+
+def _as_nonnegative_array(
+    values: Sequence[float] | np.ndarray,
+    *,
+    name: str,
+) -> np.ndarray:
+    """Convierte una secuencia en vector numérico no negativo."""
+    arr = _as_float_array(values, name=name)
+    if np.any(arr < 0):
+        raise MetricInputError(f"{name} no puede contener valores negativos")
+    return arr
+
+
+def _validate_positive_scalar(value: float, *, name: str) -> float:
+    """Valida un escalar estrictamente positivo."""
+    value = float(value)
+    if not np.isfinite(value) or value <= 0:
+        raise MetricInputError(f"{name} debe ser un número finito > 0")
+    return value
+
+
+def _validate_nonnegative_scalar(value: float, *, name: str) -> float:
+    """Valida un escalar no negativo."""
+    value = float(value)
+    if not np.isfinite(value) or value < 0:
+        raise MetricInputError(f"{name} debe ser un número finito >= 0")
+    return value
+
+
+def weighted_systemic_load(
+    loads: Sequence[float] | np.ndarray,
+    weights: Sequence[float] | np.ndarray,
+) -> float:
+    """
+    Carga sistémica integrada mediante media ponderada.
+
+    No presupone independencia entre dimensiones ni implica causalidad.
+    """
+    x = _as_nonnegative_array(loads, name="loads")
+    w = _as_nonnegative_array(weights, name="weights")
+    _validate_same_length(x, w)
+
+    total_weight = float(np.sum(w))
+    if total_weight <= 0:
+        raise MetricInputError("La suma de weights debe ser > 0")
+
+    return float(np.sum(x * w) / total_weight)
+
+
+def geometric_systemic_load(
+    loads: Sequence[float] | np.ndarray,
+    weights: Sequence[float] | np.ndarray,
+) -> float:
+    """
+    Carga integrada geométrica.
+
+    Penaliza configuraciones donde una dimensión presenta valores muy bajos
+    cuando todas las dimensiones representan componentes normalizados de carga.
+    """
+    x = _as_nonnegative_array(loads, name="loads")
+    w = _as_nonnegative_array(weights, name="weights")
+    _validate_same_length(x, w)
+
+    total_weight = float(np.sum(w))
+    if total_weight <= 0:
+        raise MetricInputError("La suma de weights debe ser > 0")
+
+    return float(
+        np.exp(
+            np.sum(w * np.log(np.clip(x, 1e-15, None)))
+            / total_weight
+        )
+    )
+
+
+def accumulated_load(
+    load: Sequence[float] | np.ndarray,
+    *,
+    decay: float = 1.0,
+) -> float:
+    """
+    Carga acumulada con memoria temporal exponencial.
+
+    decay=1 conserva toda la carga histórica.
+    decay<1 introduce pérdida progresiva de memoria.
+    """
+    x = _as_nonnegative_array(load, name="load")
+
+    if not 0 < decay <= 1:
+        raise MetricInputError("decay debe estar en el intervalo (0, 1]")
+
+    state = 0.0
+    for value in x:
+        state = decay * state + float(value)
+
+    return float(state)
+
+
+def accumulated_load_series(
+    load: Sequence[float] | np.ndarray,
+    *,
+    decay: float = 1.0,
+) -> np.ndarray:
+    """Trayectoria de carga acumulada con memoria temporal."""
+    x = _as_nonnegative_array(load, name="load")
+
+    if not 0 < decay <= 1:
+        raise MetricInputError("decay debe estar en el intervalo (0, 1]")
+
+    result = np.empty_like(x)
+    state = 0.0
+
+    for i, value in enumerate(x):
+        state = decay * state + float(value)
+        result[i] = state
+
+    return result
+
+
+def acute_chronic_load_ratio(
+    load: Sequence[float] | np.ndarray,
+    *,
+    chronic_window: int,
+) -> float:
+    """
+    Relación entre carga aguda y carga crónica.
+
+    La carga aguda se representa por el último valor y la crónica por la
+    media de la ventana previa disponible.
+    """
+    x = _as_nonnegative_array(load, name="load")
+
+    if chronic_window < 1:
+        raise MetricInputError("chronic_window debe ser >= 1")
+
+    if x.size < 2:
+        raise MetricInputError("Se requieren al menos dos observaciones")
+
+    start = max(0, x.size - chronic_window - 1)
+    chronic = x[start:-1]
+
+    if chronic.size == 0:
+        raise MetricInputError("No hay observaciones suficientes para la carga crónica")
+
+    denominator = float(np.mean(chronic))
+
+    if denominator == 0:
+        if x[-1] == 0:
+            return 0.0
+        return float("inf")
+
+    return float(x[-1] / denominator)
+
+
+def load_capacity_gap(
+    load: float,
+    capacity: float,
+) -> float:
+    """Capacidad disponible menos carga."""
+    load = _validate_nonnegative_scalar(load, name="load")
+    capacity = _validate_nonnegative_scalar(capacity, name="capacity")
+    return float(capacity - load)
+
+
+def load_capacity_pressure(
+    load: float,
+    capacity: float,
+) -> float:
+    """
+    Presión relativa carga/capacidad.
+
+    1.0 = carga igual a capacidad.
+    >1.0 = carga superior a capacidad.
+    """
+    load = _validate_nonnegative_scalar(load, name="load")
+    capacity = _validate_positive_scalar(capacity, name="capacity")
+    return float(load / capacity)
+
+
+def capacity_headroom_fraction(
+    load: float,
+    capacity: float,
+) -> float:
+    """Fracción de capacidad aún disponible."""
+    load = _validate_nonnegative_scalar(load, name="load")
+    capacity = _validate_positive_scalar(capacity, name="capacity")
+
+    return float((capacity - load) / capacity)
+
+
+def effective_capacity(
+    nominal_capacity: float,
+    availability: float = 1.0,
+    efficiency: float = 1.0,
+) -> float:
+    """
+    Capacidad efectiva.
+
+    nominal_capacity × availability × efficiency.
+    """
+    capacity = _validate_nonnegative_scalar(
+        nominal_capacity,
+        name="nominal_capacity",
+    )
+    availability = _validate_nonnegative_scalar(
+        availability,
+        name="availability",
+    )
+    efficiency = _validate_nonnegative_scalar(
+        efficiency,
+        name="efficiency",
+    )
+
+    if availability > 1 or efficiency > 1:
+        raise MetricInputError(
+            "availability y efficiency deben estar entre 0 y 1"
+        )
+
+    return float(capacity * availability * efficiency)
+
+
+def accessible_capacity(
+    effective_capacity_value: float,
+    accessibility: float,
+) -> float:
+    """Capacidad efectivamente accesible por la población o proceso."""
+    capacity = _validate_nonnegative_scalar(
+        effective_capacity_value,
+        name="effective_capacity_value",
+    )
+    accessibility = _validate_nonnegative_scalar(
+        accessibility,
+        name="accessibility",
+    )
+
+    if accessibility > 1:
+        raise MetricInputError("accessibility debe estar entre 0 y 1")
+
+    return float(capacity * accessibility)
+
+
+def sustainable_capacity(
+    effective_capacity_value: float,
+    sustainability: float,
+) -> float:
+    """
+    Capacidad sostenible bajo funcionamiento prolongado.
+    """
+    capacity = _validate_nonnegative_scalar(
+        effective_capacity_value,
+        name="effective_capacity_value",
+    )
+    sustainability = _validate_nonnegative_scalar(
+        sustainability,
+        name="sustainability",
+    )
+
+    if sustainability > 1:
+        raise MetricInputError("sustainability debe estar entre 0 y 1")
+
+    return float(capacity * sustainability)
+
+
+def adaptive_reserve(
+    capacity: float,
+    current_load: float,
+) -> float:
+    """
+    Reserva adaptativa absoluta.
+
+    Representa el margen entre capacidad disponible y carga actual.
+    """
+    capacity = _validate_nonnegative_scalar(capacity, name="capacity")
+    load = _validate_nonnegative_scalar(current_load, name="current_load")
+
+    return float(capacity - load)
+
+
+def adaptive_reserve_fraction(
+    capacity: float,
+    current_load: float,
+) -> float:
+    """Reserva adaptativa normalizada respecto a la capacidad."""
+    capacity = _validate_positive_scalar(capacity, name="capacity")
+    load = _validate_nonnegative_scalar(current_load, name="current_load")
+
+    return float((capacity - load) / capacity)
+
+
+def reserve_depletion_rate(
+    reserve: Sequence[float] | np.ndarray,
+    time: Sequence[float] | np.ndarray | None = None,
+) -> float:
+    """
+    Velocidad media de consumo de reserva.
+
+    Valor negativo: la reserva disminuye.
+    Valor positivo: la reserva aumenta.
+    """
+    r = _as_float_array(reserve, name="reserve")
+
+    if r.size < 2:
+        raise MetricInputError("Se requieren al menos dos observaciones")
+
+    if time is None:
+        return float((r[-1] - r[0]) / (r.size - 1))
+
+    t = _as_float_array(time, name="time")
+    _validate_same_length(r, t)
+
+    duration = float(t[-1] - t[0])
+    if duration <= 0:
+        raise MetricInputError("time debe ser estrictamente creciente")
+
+    return float((r[-1] - r[0]) / duration)
+
+
+def time_to_reserve_exhaustion(
+    reserve: float,
+    depletion_rate: float,
+) -> float:
+    """
+    Tiempo lineal estimado hasta reserva cero.
+
+    Sólo representa una extrapolación matemática local; no constituye una
+    predicción validada del comportamiento futuro.
+    """
+    reserve = _validate_nonnegative_scalar(reserve, name="reserve")
+
+    depletion_rate = float(depletion_rate)
+    if not np.isfinite(depletion_rate):
+        raise MetricInputError("depletion_rate debe ser finito")
+
+    if depletion_rate >= 0:
+        return float("inf")
+
+    return float(reserve / abs(depletion_rate))
+
+
+def capacity_debt(
+    demand: Sequence[float] | np.ndarray,
+    capacity: Sequence[float] | np.ndarray,
+) -> float:
+    """
+    Área acumulada de exceso de demanda sobre capacidad.
+
+    Sólo contabiliza periodos donde demand > capacity.
+    """
+    d = _as_nonnegative_array(demand, name="demand")
+    c = _as_nonnegative_array(capacity, name="capacity")
+    _validate_same_length(d, c)
+
+    return float(np.sum(np.maximum(d - c, 0.0)))
+
+
+def recovery_debt(
+    baseline: Sequence[float] | np.ndarray,
+    observed: Sequence[float] | np.ndarray,
+) -> float:
+    """
+    Déficit acumulado respecto a una trayectoria de referencia.
+
+    Sólo contabiliza desviaciones negativas.
+    """
+    b = _as_float_array(baseline, name="baseline")
+    x = _as_float_array(observed, name="observed")
+    _validate_same_length(b, x)
+
+    return float(np.sum(np.maximum(b - x, 0.0)))
+
+
+def degradation_magnitude(
+    baseline: float,
+    minimum_observed: float,
+) -> float:
+    """Magnitud absoluta de degradación respecto a una referencia."""
+    baseline = _validate_nonnegative_scalar(baseline, name="baseline")
+    minimum = _validate_nonnegative_scalar(
+        minimum_observed,
+        name="minimum_observed",
+    )
+
+    return float(max(baseline - minimum, 0.0))
+
+
+def degradation_fraction(
+    baseline: float,
+    minimum_observed: float,
+) -> float:
+    """Degradación normalizada respecto a la referencia."""
+    baseline = _validate_positive_scalar(baseline, name="baseline")
+    minimum = _validate_nonnegative_scalar(
+        minimum_observed,
+        name="minimum_observed",
+    )
+
+    return float(max(baseline - minimum, 0.0) / baseline)
+
+
+def recovery_fraction(
+    baseline: float,
+    minimum_observed: float,
+    recovered_value: float,
+) -> float:
+    """
+    Fracción de recuperación desde el mínimo hacia la referencia.
+
+    0 = no recuperación.
+    1 = recuperación completa.
+    """
+    baseline = _validate_positive_scalar(baseline, name="baseline")
+    minimum = _validate_nonnegative_scalar(
+        minimum_observed,
+        name="minimum_observed",
+    )
+    recovered = _validate_nonnegative_scalar(
+        recovered_value,
+        name="recovered_value",
+    )
+
+    loss = baseline - minimum
+
+    if loss <= 0:
+        return 1.0 if recovered >= baseline else 0.0
+
+    return float(np.clip((recovered - minimum) / loss, 0.0, 1.0))
+
+
+def resilience_resistance(
+    baseline: float,
+    minimum_observed: float,
+) -> float:
+    """
+    Resistencia al shock: proporción del estado basal conservada en el mínimo.
+    """
+    baseline = _validate_positive_scalar(baseline, name="baseline")
+    minimum = _validate_nonnegative_scalar(
+        minimum_observed,
+        name="minimum_observed",
+    )
+
+    return float(np.clip(minimum / baseline, 0.0, 1.0))
+
+
+def resilience_area(
+    baseline: Sequence[float] | np.ndarray,
+    observed: Sequence[float] | np.ndarray,
+) -> float:
+    """
+    Área normalizada de funcionamiento conservado.
+
+    Una trayectoria igual al baseline produce 1.
+    """
+    b = _as_nonnegative_array(baseline, name="baseline")
+    x = _as_nonnegative_array(observed, name="observed")
+    _validate_same_length(b, x)
+
+    if b.size < 2:
+        raise MetricInputError("Se requieren al menos dos observaciones")
+
+    denominator = float(np.sum(b))
+    if denominator <= 0:
+        raise MetricInputError("baseline debe contener carga funcional positiva")
+
+    preserved = np.minimum(x, b)
+
+    return float(np.sum(preserved) / denominator)
+
+
+def recovery_area(
+    baseline: Sequence[float] | np.ndarray,
+    observed: Sequence[float] | np.ndarray,
+) -> float:
+    """
+    Área normalizada de déficit acumulado respecto al baseline.
+
+    0 = sin déficit.
+    Valores mayores = mayor déficit acumulado.
+    """
+    b = _as_nonnegative_array(baseline, name="baseline")
+    x = _as_nonnegative_array(observed, name="observed")
+    _validate_same_length(b, x)
+
+    denominator = float(np.sum(b))
+    if denominator <= 0:
+        raise MetricInputError("baseline debe contener valores positivos")
+
+    deficit = np.maximum(b - x, 0.0)
+
+    return float(np.sum(deficit) / denominator)
+
+
+def shock_intensity(
+    baseline: float,
+    shocked_value: float,
+) -> float:
+    """Magnitud relativa de una perturbación respecto al baseline."""
+    baseline = _validate_positive_scalar(baseline, name="baseline")
+    shocked = _validate_nonnegative_scalar(
+        shocked_value,
+        name="shocked_value",
+    )
+
+    return float(abs(shocked - baseline) / baseline)
+
+
+def shock_duration(
+    values: Sequence[float] | np.ndarray,
+    baseline: float,
+    *,
+    threshold_fraction: float = 0.05,
+) -> int:
+    """
+    Duración de una desviación sostenida respecto al baseline.
+
+    Cuenta observaciones cuya desviación absoluta supera el umbral relativo.
+    """
+    x = _as_nonnegative_array(values, name="values")
+    baseline = _validate_positive_scalar(baseline, name="baseline")
+
+    if threshold_fraction < 0:
+        raise MetricInputError("threshold_fraction debe ser >= 0")
+
+    threshold = baseline * threshold_fraction
+
+    return int(np.sum(np.abs(x - baseline) > threshold))
+
+
+def shock_burden(
+    values: Sequence[float] | np.ndarray,
+    baseline: float,
+) -> float:
+    """
+    Carga acumulada de perturbación absoluta respecto a un baseline.
+    """
+    x = _as_float_array(values, name="values")
+    baseline = _validate_nonnegative_scalar(baseline, name="baseline")
+
+    return float(np.sum(np.abs(x - baseline)))
+
+
+def repeated_shock_recovery(
+    values: Sequence[float] | np.ndarray,
+    baseline: float,
+    *,
+    recovery_threshold: float = 0.95,
+) -> float:
+    """
+    Proporción de episodios en los que el sistema vuelve a alcanzar una
+    fracción determinada del baseline.
+
+    Esta métrica describe recuperación observada; no demuestra resiliencia
+    futura.
+    """
+    x = _as_nonnegative_array(values, name="values")
+    baseline = _validate_positive_scalar(baseline, name="baseline")
+
+    if not 0 < recovery_threshold <= 1:
+        raise MetricInputError(
+            "recovery_threshold debe estar en (0, 1]"
+        )
+
+    if x.size == 0:
+        return 0.0
+
+    return float(np.mean(x >= baseline * recovery_threshold))
+
+
+def bottleneck_share(
+    loads: Sequence[float] | np.ndarray,
+) -> float:
+    """
+    Proporción de la carga total concentrada en la dimensión más cargada.
+    """
+    x = _as_nonnegative_array(loads, name="loads")
+    total = float(np.sum(x))
+
+    if total <= 0:
+        return 0.0
+
+    return float(np.max(x) / total)
+
+
+def bottleneck_index(
+    demand: Sequence[float] | np.ndarray,
+    capacity: Sequence[float] | np.ndarray,
+) -> int:
+    """
+    Índice de la dimensión con mayor presión demanda/capacidad.
+    """
+    d = _as_nonnegative_array(demand, name="demand")
+    c = _as_nonnegative_array(capacity, name="capacity")
+    _validate_same_length(d, c)
+
+    if np.any(c <= 0):
+        raise MetricInputError("capacity debe ser > 0 en todas las dimensiones")
+
+    return int(np.argmax(d / c))
+
+
+def systemic_capacity_pressure(
+    demand: Sequence[float] | np.ndarray,
+    capacity: Sequence[float] | np.ndarray,
+    weights: Sequence[float] | np.ndarray | None = None,
+) -> float:
+    """
+    Presión sistémica integrada demanda/capacidad.
+
+    Con weights=None utiliza media simple.
+    """
+    d = _as_nonnegative_array(demand, name="demand")
+    c = _as_nonnegative_array(capacity, name="capacity")
+    _validate_same_length(d, c)
+
+    if np.any(c <= 0):
+        raise MetricInputError("capacity debe ser > 0 en todas las dimensiones")
+
+    pressure = d / c
+
+    if weights is None:
+        return float(np.mean(pressure))
+
+    w = _as_nonnegative_array(weights, name="weights")
+    _validate_same_length(pressure, w)
+
+    total_weight = float(np.sum(w))
+    if total_weight <= 0:
+        raise MetricInputError("La suma de weights debe ser > 0")
+
+    return float(np.sum(pressure * w) / total_weight)
+
+
+def systemic_headroom(
+    demand: Sequence[float] | np.ndarray,
+    capacity: Sequence[float] | np.ndarray,
+) -> float:
+    """
+    Headroom sistémico conservador.
+
+    Utiliza el menor margen relativo entre dimensiones.
+    """
+    d = _as_nonnegative_array(demand, name="demand")
+    c = _as_nonnegative_array(capacity, name="capacity")
+    _validate_same_length(d, c)
+
+    if np.any(c <= 0):
+        raise MetricInputError("capacity debe ser > 0 en todas las dimensiones")
+
+    headroom = (c - d) / c
+
+    return float(np.min(headroom))
+
+
+def reserve_distribution_entropy(
+    reserves: Sequence[float] | np.ndarray,
+) -> float:
+    """
+    Entropía normalizada de la distribución de reserva entre dimensiones.
+
+    Mayor valor = reserva más distribuida.
+    """
+    x = _as_nonnegative_array(reserves, name="reserves")
+    total = float(np.sum(x))
+
+    if total <= 0:
+        return 0.0
+
+    p = x / total
+    positive = p[p > 0]
+
+    if positive.size <= 1:
+        return 0.0
+
+    entropy = -float(np.sum(positive * np.log(positive)))
+    maximum = float(np.log(x.size))
+
+    if maximum == 0:
+        return 0.0
+
+    return float(entropy / maximum)
+
+
+def integrated_resilience_profile(
+    resistance: float,
+    recovery: float,
+    reserve: float,
+    redundancy: float,
+    *,
+    weights: Sequence[float] | np.ndarray | None = None,
+) -> float:
+    """
+    Perfil integrado de resiliencia.
+
+    Integra dimensiones normalizadas proporcionadas por el llamador.
+    No constituye una escala clínica ni un índice universal de resiliencia.
+    """
+    values = _as_nonnegative_array(
+        [resistance, recovery, reserve, redundancy],
+        name="resilience_components",
+    )
+
+    if np.any(values > 1):
+        raise MetricInputError(
+            "Las dimensiones de resiliencia deben estar normalizadas en [0, 1]"
+        )
+
+    if weights is None:
+        return float(np.mean(values))
+
+    w = _as_nonnegative_array(weights, name="weights")
+    _validate_same_length(values, w)
+
+    total_weight = float(np.sum(w))
+    if total_weight <= 0:
+        raise MetricInputError("La suma de weights debe ser > 0")
+
+    return float(np.sum(values * w) / total_weight)
+
+
+class SystemicCapacitySnapshot(NamedTuple):
+    """Instantánea integrada de presión, reserva y capacidad."""
+    demand: float
+    capacity: float
+    pressure: float
+    headroom: float
+    reserve: float
+
+
+@dataclass(frozen=True, slots=True)
+class HolisticSystemProfile:
+    """
+    Perfil descriptivo de un sistema multifactorial.
+
+    Los componentes permanecen separados para evitar que un único score
+    oculte qué dimensión está determinando el estado.
+    """
+
+    integrated_load: float
+    capacity_pressure: float
+    headroom: float
+    adaptive_reserve: float
+    bottleneck_share: float
+    resistance: float
+    recovery: float
+    resilience: float
+
+
+def build_holistic_system_profile(
+    loads: Sequence[float] | np.ndarray,
+    capacities: Sequence[float] | np.ndarray,
+    *,
+    load_weights: Sequence[float] | np.ndarray | None = None,
+    resistance: float = 0.0,
+    recovery: float = 0.0,
+    redundancy: float = 0.0,
+) -> HolisticSystemProfile:
+    """
+    Construye un perfil sistémico manteniendo las dimensiones explícitas.
+    """
+    x = _as_nonnegative_array(loads, name="loads")
+    c = _as_nonnegative_array(capacities, name="capacities")
+    _validate_same_length(x, c)
+
+    if load_weights is None:
+        weights = np.ones_like(x)
+    else:
+        weights = _as_nonnegative_array(load_weights, name="load_weights")
+        _validate_same_length(x, weights)
+
+    integrated_load = weighted_systemic_load(x, weights)
+    pressure = systemic_capacity_pressure(x, c, weights)
+    headroom = systemic_headroom(x, c)
+    reserve = float(np.min(c - x))
+    bottleneck = bottleneck_share(x)
+
+    resistance_value = float(np.clip(resistance, 0.0, 1.0))
+    recovery_value = float(np.clip(recovery, 0.0, 1.0))
+    redundancy_value = float(np.clip(redundancy, 0.0, 1.0))
+    reserve_normalized = float(
+        np.clip(
+            np.mean((c - x) / np.maximum(c, 1e-15)),
+            0.0,
+            1.0,
+        )
+    )
+
+    resilience = integrated_resilience_profile(
+        resistance_value,
+        recovery_value,
+        reserve_normalized,
+        redundancy_value,
+    )
+
+    return HolisticSystemProfile(
+        integrated_load=integrated_load,
+        capacity_pressure=pressure,
+        headroom=headroom,
+        adaptive_reserve=reserve,
+        bottleneck_share=bottleneck,
+        resistance=resistance_value,
+        recovery=recovery_value,
+        resilience=resilience,
+    )
+
+
+HOLISTIC_INTEGRATIVE_METRICS: Final[tuple[str, ...]] = (
+    "weighted_systemic_load",
+    "geometric_systemic_load",
+    "accumulated_load",
+    "accumulated_load_series",
+    "acute_chronic_load_ratio",
+    "load_capacity_gap",
+    "load_capacity_pressure",
+    "capacity_headroom_fraction",
+    "effective_capacity",
+    "accessible_capacity",
+    "sustainable_capacity",
+    "adaptive_reserve",
+    "adaptive_reserve_fraction",
+    "reserve_depletion_rate",
+    "time_to_reserve_exhaustion",
+    "capacity_debt",
+    "recovery_debt",
+    "degradation_magnitude",
+    "degradation_fraction",
+    "recovery_fraction",
+    "resilience_resistance",
+    "resilience_area",
+    "recovery_area",
+    "shock_intensity",
+    "shock_duration",
+    "shock_burden",
+    "repeated_shock_recovery",
+    "bottleneck_share",
+    "bottleneck_index",
+    "systemic_capacity_pressure",
+    "systemic_headroom",
+    "reserve_distribution_entropy",
+    "integrated_resilience_profile",
+    "build_holistic_system_profile",
+)
+
+
+HOLISTIC_METRIC_INVARIANTS: Final[tuple[str, ...]] = (
+    "Una métrica integrada no demuestra causalidad entre sus componentes.",
+    "Una media integrada no debe ocultar el componente que determina el cuello de botella.",
+    "Carga, capacidad y reserva deben conservar sus unidades y contexto temporal.",
+    "Capacidad nominal no equivale a capacidad efectiva, accesible o sostenible.",
+    "Una extrapolación de agotamiento no constituye una predicción validada.",
+    "Resiliencia debe poder descomponerse en sus dimensiones observables.",
+    "La recuperación observada no garantiza recuperación futura.",
+    "Un shock aislado y una secuencia de shocks no son fenómenos equivalentes.",
+    "La agregación de dimensiones no elimina la incertidumbre de cada dimensión.",
+)
+
+
+__all__.extend(HOLISTIC_INTEGRATIVE_METRICS)
+
+
+
 # ============================================================================
 # CEUTIA — ADVANCED DYNAMIC SYSTEM METRICS
 # ============================================================================

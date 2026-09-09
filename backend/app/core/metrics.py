@@ -1,4 +1,1117 @@
-"""Catálogo matemático y motor de métricas de CeutIA.
+"""# ===========================================================================
+# CEUTIA — MÉTRICAS AVANZADAS DE DINÁMICA, RESILIENCIA E INTERACCIÓN
+# ===========================================================================
+#
+# Estas funciones son primitivas matemáticas generales.
+#
+# IMPORTANTE:
+# - No constituyen por sí mismas un modelo causal.
+# - No constituyen por sí mismas un índice de riesgo.
+# - No se combinan mediante pesos arbitrarios para fabricar una puntuación.
+# - Los composites propios de CeutIA se definirán posteriormente, cuando exista
+#   una especificación formal del modelo de interacciones.
+#
+# Las métricas se mantienen separadas de:
+#   observación → señal → inferencia → hipótesis → predicción → escenario → decisión.
+#
+# ===========================================================================
+
+
+def skewness(values: Sequence[float] | np.ndarray) -> float:
+    """Asimetría muestral estandarizada mediante momentos centrales."""
+    arr = _as_float_array(values, name="values")
+    _require_at_least_two(arr, "values")
+
+    sd = float(np.std(arr, ddof=1))
+    if sd == 0.0:
+        raise MetricInputError("La asimetría no está definida con desviación 0")
+
+    centered = arr - np.mean(arr)
+    return float(np.mean(centered**3) / sd**3)
+
+
+def kurtosis_excess(values: Sequence[float] | np.ndarray) -> float:
+    """Curtosis excesiva basada en el cuarto momento central."""
+    arr = _as_float_array(values, name="values")
+    _require_at_least_two(arr, "values")
+
+    sd = float(np.std(arr, ddof=1))
+    if sd == 0.0:
+        raise MetricInputError("La curtosis no está definida con desviación 0")
+
+    centered = arr - np.mean(arr)
+    return float(np.mean(centered**4) / sd**4 - 3.0)
+
+
+def coefficient_of_variation_change(
+    baseline: Sequence[float] | np.ndarray,
+    current: Sequence[float] | np.ndarray,
+) -> float:
+    """Cambio relativo del coeficiente de variación."""
+    baseline_cv = coefficient_of_variation(baseline)
+    current_cv = coefficient_of_variation(current)
+
+    if baseline_cv == 0.0:
+        raise MetricInputError(
+            "No puede calcularse cambio relativo desde CV basal igual a 0"
+        )
+
+    return float((current_cv - baseline_cv) / abs(baseline_cv))
+
+
+def rolling_skewness(
+    values: Sequence[float] | np.ndarray,
+    window: int,
+) -> np.ndarray:
+    """Serie de asimetría móvil."""
+    arr = _as_float_array(values, name="values")
+
+    if window < 3 or window > arr.size:
+        raise MetricInputError("window incompatible con la serie")
+
+    return np.asarray(
+        [
+            skewness(arr[i - window + 1 : i + 1])
+            for i in range(window - 1, arr.size)
+        ],
+        dtype=float,
+    )
+
+
+def rolling_kurtosis_excess(
+    values: Sequence[float] | np.ndarray,
+    window: int,
+) -> np.ndarray:
+    """Serie de curtosis excesiva móvil."""
+    arr = _as_float_array(values, name="values")
+
+    if window < 3 or window > arr.size:
+        raise MetricInputError("window incompatible con la serie")
+
+    return np.asarray(
+        [
+            kurtosis_excess(arr[i - window + 1 : i + 1])
+            for i in range(window - 1, arr.size)
+        ],
+        dtype=float,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Recuperación, estabilidad y resiliencia
+# ---------------------------------------------------------------------------
+
+
+def recovery_time(
+    values: Sequence[float] | np.ndarray,
+    baseline: float,
+    tolerance: float,
+    *,
+    shock_index: int = 0,
+) -> int | None:
+    """
+    Primer número de pasos necesario para volver al intervalo:
+
+        |x_t - baseline| <= tolerance
+
+    después de un shock.
+
+    Devuelve None si la recuperación no se observa.
+    """
+    arr = _as_float_array(values, name="values")
+
+    if tolerance < 0.0:
+        raise MetricInputError("tolerance debe ser >= 0")
+
+    if not 0 <= shock_index < arr.size:
+        raise MetricInputError("shock_index fuera de rango")
+
+    for i in range(shock_index, arr.size):
+        if abs(float(arr[i]) - baseline) <= tolerance:
+            return i - shock_index
+
+    return None
+
+
+def recovery_fraction(
+    baseline: float,
+    nadir: float,
+    current: float,
+) -> float:
+    """
+    Fracción de recuperación desde el nadir hacia el estado basal.
+
+    0 = no recuperación desde el nadir.
+    1 = recuperación completa.
+    Valores >1 representan sobrepaso del estado basal.
+    """
+    denominator = baseline - nadir
+
+    if denominator == 0.0:
+        raise MetricInputError(
+            "La recuperación no está definida cuando baseline == nadir"
+        )
+
+    return float((current - nadir) / denominator)
+
+
+def resilience_loss(
+    baseline_capacity: float,
+    minimum_capacity: float,
+) -> float:
+    """Pérdida relativa de capacidad durante un shock."""
+    if baseline_capacity <= 0.0 or minimum_capacity < 0.0:
+        raise MetricInputError("Capacidades inválidas")
+
+    return float(
+        (baseline_capacity - minimum_capacity) / baseline_capacity
+    )
+
+
+def resilience_recovery_ratio(
+    baseline_capacity: float,
+    minimum_capacity: float,
+    recovered_capacity: float,
+) -> float:
+    """
+    Recuperación relativa respecto a la pérdida sufrida.
+
+    0 = ninguna recuperación.
+    1 = recuperación completa.
+    >1 = recuperación por encima del nivel basal.
+    """
+    loss = baseline_capacity - minimum_capacity
+
+    if baseline_capacity <= 0.0:
+        raise MetricInputError("baseline_capacity debe ser > 0")
+
+    if minimum_capacity < 0.0 or recovered_capacity < 0.0:
+        raise MetricInputError("Las capacidades no pueden ser negativas")
+
+    if loss == 0.0:
+        raise MetricInputError(
+            "No existe pérdida de capacidad respecto al basal"
+        )
+
+    return float((recovered_capacity - minimum_capacity) / loss)
+
+
+def overshoot(
+    values: Sequence[float] | np.ndarray,
+    baseline: float,
+) -> float:
+    """
+    Máxima desviación positiva respecto al baseline.
+    """
+    arr = _as_float_array(values, name="values")
+    return float(np.max(arr - baseline))
+
+
+def undershoot(
+    values: Sequence[float] | np.ndarray,
+    baseline: float,
+) -> float:
+    """
+    Máxima desviación negativa respecto al baseline.
+    Devuelve una magnitud positiva.
+    """
+    arr = _as_float_array(values, name="values")
+    return float(np.max(baseline - arr))
+
+
+def area_between_curves(
+    observed: Sequence[float] | np.ndarray,
+    reference: Sequence[float] | np.ndarray,
+    *,
+    dt: float = 1.0,
+) -> float:
+    """
+    Área absoluta entre una trayectoria observada y una referencia.
+    """
+    obs = _as_float_array(observed, name="observed")
+    ref = _as_float_array(reference, name="reference")
+    _validate_same_length(obs, ref)
+
+    if dt <= 0.0:
+        raise MetricInputError("dt debe ser positivo")
+
+    return float(np.sum(np.abs(obs - ref)) * dt)
+
+
+def trajectory_distance(
+    first: Sequence[float] | np.ndarray,
+    second: Sequence[float] | np.ndarray,
+    *,
+    dt: float = 1.0,
+) -> float:
+    """Distancia L2 integrada entre dos trayectorias."""
+    x = _as_float_array(first, name="first")
+    y = _as_float_array(second, name="second")
+    _validate_same_length(x, y)
+
+    if dt <= 0.0:
+        raise MetricInputError("dt debe ser positivo")
+
+    return float(np.sqrt(np.sum((x - y) ** 2) * dt))
+
+
+# ---------------------------------------------------------------------------
+# Dinámica no lineal y cambio de régimen
+# ---------------------------------------------------------------------------
+
+
+def local_slope(
+    values: Sequence[float] | np.ndarray,
+    *,
+    dt: float = 1.0,
+) -> float:
+    """
+    Pendiente lineal global de una trayectoria.
+    """
+    arr = _as_float_array(values, name="values")
+
+    if dt <= 0.0:
+        raise MetricInputError("dt debe ser positivo")
+
+    if arr.size < 2:
+        raise MetricInputError("Se requieren al menos dos observaciones")
+
+    x = np.arange(arr.size, dtype=float) * dt
+    slope, _ = np.polyfit(x, arr, 1)
+    return float(slope)
+
+
+def rolling_slope(
+    values: Sequence[float] | np.ndarray,
+    window: int,
+    *,
+    dt: float = 1.0,
+) -> np.ndarray:
+    """Pendiente local móvil."""
+    arr = _as_float_array(values, name="values")
+
+    if window < 2 or window > arr.size:
+        raise MetricInputError("window incompatible con la serie")
+
+    if dt <= 0.0:
+        raise MetricInputError("dt debe ser positivo")
+
+    out: list[float] = []
+
+    for i in range(window - 1, arr.size):
+        segment = arr[i - window + 1 : i + 1]
+        x = np.arange(window, dtype=float) * dt
+        slope, _ = np.polyfit(x, segment, 1)
+        out.append(float(slope))
+
+    return np.asarray(out)
+
+
+def rolling_acceleration(
+    values: Sequence[float] | np.ndarray,
+    window: int,
+    *,
+    dt: float = 1.0,
+) -> np.ndarray:
+    """Segunda derivada aproximada mediante regresión polinómica local."""
+    arr = _as_float_array(values, name="values")
+
+    if window < 3 or window > arr.size:
+        raise MetricInputError("window incompatible con la serie")
+
+    if dt <= 0.0:
+        raise MetricInputError("dt debe ser positivo")
+
+    out: list[float] = []
+
+    for i in range(window - 1, arr.size):
+        segment = arr[i - window + 1 : i + 1]
+        x = np.arange(window, dtype=float) * dt
+
+        coefficients = np.polyfit(x, segment, 2)
+        out.append(float(2.0 * coefficients[0]))
+
+    return np.asarray(out)
+
+
+def hysteresis_gap(
+    upward_threshold: float,
+    downward_threshold: float,
+) -> float:
+    """
+    Distancia entre umbral de transición ascendente y descendente.
+
+    Permite representar histéresis cuando ambos umbrales difieren.
+    """
+    if upward_threshold < downward_threshold:
+        raise MetricInputError(
+            "upward_threshold debe ser >= downward_threshold"
+        )
+
+    return float(upward_threshold - downward_threshold)
+
+
+def threshold_crossing_index(
+    values: Sequence[float] | np.ndarray,
+    threshold: float,
+    *,
+    direction: str = "above",
+) -> int | None:
+    """Primer índice en que una trayectoria cruza un umbral."""
+    arr = _as_float_array(values, name="values")
+
+    if direction not in {"above", "below"}:
+        raise MetricInputError("direction debe ser 'above' o 'below'")
+
+    for index, value in enumerate(arr):
+        if direction == "above" and value >= threshold:
+            return index
+
+        if direction == "below" and value <= threshold:
+            return index
+
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Interacciones entre variables
+# ---------------------------------------------------------------------------
+
+
+def covariance(
+    first: Sequence[float] | np.ndarray,
+    second: Sequence[float] | np.ndarray,
+) -> float:
+    """Covarianza muestral entre dos trayectorias."""
+    x = _as_float_array(first, name="first")
+    y = _as_float_array(second, name="second")
+    _validate_same_length(x, y)
+
+    if x.size < 2:
+        raise MetricInputError("Se requieren al menos dos observaciones")
+
+    return float(np.cov(x, y, ddof=1)[0, 1])
+
+
+def correlation(
+    first: Sequence[float] | np.ndarray,
+    second: Sequence[float] | np.ndarray,
+) -> float:
+    """Correlación de Pearson entre dos trayectorias."""
+    x = _as_float_array(first, name="first")
+    y = _as_float_array(second, name="second")
+    _validate_same_length(x, y)
+
+    if x.size < 2:
+        raise MetricInputError("Se requieren al menos dos observaciones")
+
+    sx = float(np.std(x, ddof=1))
+    sy = float(np.std(y, ddof=1))
+
+    if sx == 0.0 or sy == 0.0:
+        raise MetricInputError(
+            "La correlación no está definida con varianza 0"
+        )
+
+    return float(np.corrcoef(x, y)[0, 1])
+
+
+def lagged_correlation(
+    first: Sequence[float] | np.ndarray,
+    second: Sequence[float] | np.ndarray,
+    lag: int,
+) -> float:
+    """
+    Correlación entre X_t y Y_(t+lag).
+
+    lag > 0:
+        first precede temporalmente a second.
+    """
+    x = _as_float_array(first, name="first")
+    y = _as_float_array(second, name="second")
+    _validate_same_length(x, y)
+
+    if lag == 0:
+        return correlation(x, y)
+
+    if abs(lag) >= x.size:
+        raise MetricInputError("lag fuera del tamaño de las series")
+
+    if lag > 0:
+        return correlation(x[:-lag], y[lag:])
+
+    return correlation(x[-lag:], y[:lag])
+
+
+def interaction_effect_proxy(
+    baseline: float,
+    joint: float,
+    first_only: float,
+    second_only: float,
+) -> float:
+    """
+    Diferencia-en-diferencias para una interacción observacional.
+
+    Esta función NO demuestra causalidad.
+
+    Valor:
+        joint - first_only - second_only + baseline
+    """
+    return float(joint - first_only - second_only + baseline)
+
+
+def normalized_interaction_effect(
+    baseline: float,
+    joint: float,
+    first_only: float,
+    second_only: float,
+) -> float:
+    """
+    Versión normalizada del efecto de interacción observacional.
+    """
+    effect = interaction_effect_proxy(
+        baseline,
+        joint,
+        first_only,
+        second_only,
+    )
+
+    scale = max(
+        abs(baseline),
+        abs(first_only),
+        abs(second_only),
+        abs(joint),
+    )
+
+    if scale == 0.0:
+        raise MetricInputError(
+            "No puede normalizarse una interacción con escala 0"
+        )
+
+    return float(effect / scale)
+
+
+# ---------------------------------------------------------------------------
+# Acoplamiento y sincronización
+# ---------------------------------------------------------------------------
+
+
+def synchronization_index(
+    first: Sequence[float] | np.ndarray,
+    second: Sequence[float] | np.ndarray,
+) -> float:
+    """
+    Magnitud de correlación absoluta entre dos trayectorias.
+
+    No implica causalidad.
+    """
+    return abs(correlation(first, second))
+
+
+def coupling_change(
+    baseline_coupling: float,
+    current_coupling: float,
+) -> float:
+    """Cambio absoluto en la fuerza de acoplamiento."""
+    return float(current_coupling - baseline_coupling)
+
+
+def relative_coupling_change(
+    baseline_coupling: float,
+    current_coupling: float,
+) -> float:
+    if baseline_coupling == 0.0:
+        raise MetricInputError(
+            "No puede calcularse cambio relativo desde coupling 0"
+        )
+
+    return float(
+        (current_coupling - baseline_coupling)
+        / abs(baseline_coupling)
+    )
+
+
+# ---------------------------------------------------------------------------
+# Capacidad dinámica
+# ---------------------------------------------------------------------------
+
+
+def effective_capacity(
+    nominal_capacity: float,
+    availability_fraction: float,
+    accessibility_fraction: float = 1.0,
+) -> float:
+    """
+    Capacidad efectiva:
+
+        C_effective = C_nominal · availability · accessibility
+    """
+    if nominal_capacity < 0.0:
+        raise MetricInputError("nominal_capacity debe ser >= 0")
+
+    if not 0.0 <= availability_fraction <= 1.0:
+        raise MetricInputError(
+            "availability_fraction debe estar entre 0 y 1"
+        )
+
+    if not 0.0 <= accessibility_fraction <= 1.0:
+        raise MetricInputError(
+            "accessibility_fraction debe estar entre 0 y 1"
+        )
+
+    return float(
+        nominal_capacity
+        * availability_fraction
+        * accessibility_fraction
+    )
+
+
+def capacity_reserve(
+    effective_capacity_value: float,
+    demand: float,
+) -> float:
+    """Reserva absoluta de capacidad."""
+    if effective_capacity_value < 0.0 or demand < 0.0:
+        raise MetricInputError("capacity y demand deben ser >= 0")
+
+    return float(effective_capacity_value - demand)
+
+
+def capacity_reserve_ratio(
+    effective_capacity_value: float,
+    demand: float,
+) -> float:
+    """Reserva relativa respecto a la capacidad efectiva."""
+    if effective_capacity_value <= 0.0 or demand < 0.0:
+        raise MetricInputError(
+            "effective_capacity debe ser > 0 y demand >= 0"
+        )
+
+    return float(
+        (effective_capacity_value - demand)
+        / effective_capacity_value
+    )
+
+
+def time_to_capacity_exhaustion(
+    current_load: float,
+    capacity: float,
+    net_load_rate: float,
+) -> float | None:
+    """
+    Tiempo estimado hasta alcanzar capacidad bajo una tasa neta constante.
+
+    Es una extrapolación determinista y no una predicción probabilística.
+    """
+    if current_load < 0.0 or capacity <= 0.0:
+        raise MetricInputError("Carga/capacidad inválidas")
+
+    if net_load_rate <= 0.0:
+        return None
+
+    if current_load >= capacity:
+        return 0.0
+
+    return float((capacity - current_load) / net_load_rate)
+
+
+# ---------------------------------------------------------------------------
+# Cascadas y propagación
+# ---------------------------------------------------------------------------
+
+
+def cascade_amplification(
+    initial_shock: float,
+    final_impact: float,
+) -> float:
+    """Amplificación total de un shock."""
+    if initial_shock == 0.0:
+        raise MetricInputError("initial_shock no puede ser 0")
+
+    return float(final_impact / initial_shock)
+
+
+def cascade_gain(
+    impacts: Sequence[float] | np.ndarray,
+) -> float:
+    """
+    Ganancia multiplicativa aproximada de una secuencia de impactos.
+
+    Requiere impactos positivos.
+    """
+    arr = _as_float_array(impacts, name="impacts")
+
+    if np.any(arr <= 0.0):
+        raise MetricInputError(
+            "Todos los impactos deben ser positivos"
+        )
+
+    return float(np.prod(arr))
+
+
+def propagation_depth(
+    adjacency_matrix: Sequence[Sequence[float]] | np.ndarray,
+) -> int:
+    """
+    Número máximo de pasos alcanzables desde cualquier nodo.
+
+    Esta función utiliza una matriz de adyacencia binaria.
+    """
+    matrix = np.asarray(adjacency_matrix, dtype=float)
+
+    if matrix.ndim != 2 or matrix.shape[0] != matrix.shape[1]:
+        raise MetricInputError(
+            "adjacency_matrix debe ser cuadrada"
+        )
+
+    if np.any(~np.isfinite(matrix)):
+        raise MetricInputError(
+            "adjacency_matrix contiene valores no finitos"
+        )
+
+    n = matrix.shape[0]
+
+    if n == 0:
+        return 0
+
+    reachable = matrix > 0
+    power = reachable.copy()
+    maximum_depth = 0
+
+    for depth in range(1, n):
+        if np.any(power):
+            maximum_depth = depth
+
+        power = power @ reachable
+
+    return maximum_depth
+
+
+# ---------------------------------------------------------------------------
+# Concentración, fragilidad y dependencia estructural
+# ---------------------------------------------------------------------------
+
+
+def normalized_hhi(
+    shares: Sequence[float] | np.ndarray,
+) -> float:
+    """
+    HHI normalizado a [0,1] cuando existe más de un componente.
+
+    0 = distribución completamente uniforme.
+    1 = concentración máxima.
+    """
+    arr = _as_float_array(shares, name="shares")
+
+    if np.any(arr < 0.0):
+        raise MetricInputError("shares no pueden ser negativas")
+
+    total = float(np.sum(arr))
+
+    if total <= 0.0:
+        raise MetricInputError("shares deben tener suma positiva")
+
+    shares_normalized = arr / total
+    hhi = float(np.sum(shares_normalized**2))
+
+    n = arr.size
+
+    if n <= 1:
+        return 1.0
+
+    return float((hhi - 1.0 / n) / (1.0 - 1.0 / n))
+
+
+def bottleneck_ratio(
+    bottleneck_capacity: float,
+    total_nominal_capacity: float,
+) -> float:
+    """
+    Proporción de la capacidad nominal representada por el cuello de botella.
+    """
+    if bottleneck_capacity < 0.0 or total_nominal_capacity <= 0.0:
+        raise MetricInputError("Capacidades inválidas")
+
+    if bottleneck_capacity > total_nominal_capacity:
+        raise MetricInputError(
+            "El cuello de botella no puede superar la capacidad nominal total"
+        )
+
+    return float(bottleneck_capacity / total_nominal_capacity)
+
+
+# ---------------------------------------------------------------------------
+# Métricas de transición y régimen
+# ---------------------------------------------------------------------------
+
+
+def regime_distance(
+    current_state: Sequence[float] | np.ndarray,
+    reference_state: Sequence[float] | np.ndarray,
+) -> float:
+    """Distancia euclídea entre dos estados multidimensionales."""
+    current = _as_float_array(current_state, name="current_state")
+    reference = _as_float_array(reference_state, name="reference_state")
+
+    _validate_same_length(current, reference)
+
+    return float(np.linalg.norm(current - reference))
+
+
+def normalized_regime_distance(
+    current_state: Sequence[float] | np.ndarray,
+    reference_state: Sequence[float] | np.ndarray,
+    scale: Sequence[float] | np.ndarray,
+) -> float:
+    """Distancia entre estados normalizada componente a componente."""
+    current = _as_float_array(current_state, name="current_state")
+    reference = _as_float_array(reference_state, name="reference_state")
+    scale_arr = _as_float_array(scale, name="scale")
+
+    _validate_same_length(current, reference, scale_arr)
+
+    if np.any(scale_arr <= 0.0):
+        raise MetricInputError("scale debe ser estrictamente positivo")
+
+    return float(
+        np.linalg.norm((current - reference) / scale_arr)
+    )
+
+
+def state_velocity_norm(
+    state_trajectory: Sequence[Sequence[float]] | np.ndarray,
+    *,
+    dt: float = 1.0,
+) -> np.ndarray:
+    """Norma de la velocidad del estado multidimensional."""
+    states = np.asarray(state_trajectory, dtype=float)
+
+    if states.ndim != 2 or states.shape[0] < 2:
+        raise MetricInputError(
+            "state_trajectory debe ser una matriz con al menos dos estados"
+        )
+
+    if not np.all(np.isfinite(states)):
+        raise MetricInputError(
+            "state_trajectory contiene valores no finitos"
+        )
+
+    if dt <= 0.0:
+        raise MetricInputError("dt debe ser positivo")
+
+    velocity = np.diff(states, axis=0) / dt
+    return np.linalg.norm(velocity, axis=1)
+
+
+# ---------------------------------------------------------------------------
+# Evidencia de transición: combinación de señales sin convertirlas
+# automáticamente en probabilidad
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class EarlyWarningSignal:
+    """Resultado descriptivo de una señal temprana."""
+
+    metric_id: str
+    value: float
+    direction: str
+    window: int
+    exploratory: bool = True
+
+
+@dataclass(frozen=True, slots=True)
+class DynamicStateSummary:
+    """
+    Resumen descriptivo de una trayectoria.
+
+    No es un índice de riesgo y no debe convertirse automáticamente en una
+    probabilidad.
+    """
+
+    level: float
+    velocity: float
+    acceleration: float
+    variance: float
+    autocorrelation: float
+    cumulative_load: float
+
+
+def summarize_dynamic_state(
+    values: Sequence[float] | np.ndarray,
+    *,
+    dt: float = 1.0,
+    autocorrelation_lag: int = 1,
+) -> DynamicStateSummary:
+    """
+    Resume nivel, velocidad, aceleración, variabilidad, autocorrelación y carga.
+    """
+    arr = _as_float_array(values, name="values")
+
+    if arr.size < 3:
+        raise MetricInputError(
+            "Se requieren al menos tres observaciones"
+        )
+
+    if dt <= 0.0:
+        raise MetricInputError("dt debe ser positivo")
+
+    return DynamicStateSummary(
+        level=float(arr[-1]),
+        velocity=float(finite_difference_velocity(arr, dt)[-1]),
+        acceleration=float(finite_difference_acceleration(arr, dt)[-1]),
+        variance=variance(arr),
+        autocorrelation=autocorrelation(
+            arr,
+            lag=autocorrelation_lag,
+        ),
+        cumulative_load=cumulative_load(arr, dt=dt),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Registro de métricas avanzadas
+# ---------------------------------------------------------------------------
+
+ADVANCED_METRIC_REGISTRY: Final[dict[str, MetricDefinition]] = {
+    "skewness": MetricDefinition(
+        "skewness",
+        "Asimetría",
+        MetricDomain.DISTRIBUTION,
+        MetricKind.FORMULA,
+        ValidationStatus.VALIDATED,
+        "Asimetría de una distribución",
+        "dimensionless",
+        "float",
+        "E[(X-μ)^3]/σ^3",
+        EvidenceLevel.METHODOLOGICAL_STANDARD,
+    ),
+    "kurtosis_excess": MetricDefinition(
+        "kurtosis_excess",
+        "Curtosis excesiva",
+        MetricDomain.DISTRIBUTION,
+        MetricKind.FORMULA,
+        ValidationStatus.VALIDATED,
+        "Curtosis respecto a la distribución normal",
+        "dimensionless",
+        "float",
+        "E[(X-μ)^4]/σ^4 - 3",
+        EvidenceLevel.METHODOLOGICAL_STANDARD,
+    ),
+    "recovery_time": MetricDefinition(
+        "recovery_time",
+        "Tiempo de recuperación",
+        MetricDomain.RESILIENCE,
+        MetricKind.FORMULA,
+        ValidationStatus.VALIDATED_ELSEWHERE,
+        "Tiempo hasta retornar a una banda definida alrededor del estado basal",
+        "time_steps",
+        "integer_or_none",
+        "min{t: |X_t-X_baseline| <= tolerance}",
+        EvidenceLevel.PEER_REVIEWED,
+        limitations=(
+            "Requiere definición explícita de baseline, tolerancia y shock.",
+        ),
+    ),
+    "resilience_loss": MetricDefinition(
+        "resilience_loss",
+        "Pérdida de resiliencia/capacidad",
+        MetricDomain.RESILIENCE,
+        MetricKind.FORMULA,
+        ValidationStatus.VALIDATED_ELSEWHERE,
+        "Pérdida relativa de capacidad durante un shock",
+        "fraction",
+        "float",
+        "(C_baseline-C_min)/C_baseline",
+        EvidenceLevel.PEER_REVIEWED,
+    ),
+    "capacity_reserve_ratio": MetricDefinition(
+        "capacity_reserve_ratio",
+        "Reserva relativa de capacidad",
+        MetricDomain.CAPACITY,
+        MetricKind.RATE,
+        ValidationStatus.VALIDATED,
+        "Margen de capacidad disponible respecto a la capacidad efectiva",
+        "fraction",
+        "float",
+        "(C-D)/C",
+        EvidenceLevel.METHODOLOGICAL_STANDARD,
+    ),
+    "time_to_capacity_exhaustion": MetricDefinition(
+        "time_to_capacity_exhaustion",
+        "Tiempo hasta agotamiento de capacidad",
+        MetricDomain.CAPACITY,
+        MetricKind.FORMULA,
+        ValidationStatus.EXPERIMENTAL,
+        "Extrapolación determinista del tiempo hasta alcanzar capacidad",
+        "time",
+        "float_or_none",
+        "(C-L)/dLdt",
+        EvidenceLevel.METHODOLOGICAL_STANDARD,
+        limitations=(
+            "Sólo es válido bajo la hipótesis de tasa neta aproximadamente constante.",
+        ),
+    ),
+    "lagged_correlation": MetricDefinition(
+        "lagged_correlation",
+        "Correlación retardada",
+        MetricDomain.TIME_SERIES,
+        MetricKind.FORMULA,
+        ValidationStatus.VALIDATED,
+        "Asociación entre dos series con desfase temporal",
+        "correlation",
+        "float",
+        "corr(X_t,Y_t+lag)",
+        EvidenceLevel.METHODOLOGICAL_STANDARD,
+        limitations=(
+            "La asociación temporal retardada no demuestra causalidad.",
+        ),
+    ),
+    "interaction_effect_proxy": MetricDefinition(
+        "interaction_effect_proxy",
+        "Efecto de interacción observacional",
+        MetricDomain.SYSTEM_DYNAMICS,
+        MetricKind.FORMULA,
+        ValidationStatus.VALIDATED,
+        "Diferencia-en-diferencias para describir desviación de aditividad",
+        "output_units",
+        "float",
+        "joint-first_only-second_only+baseline",
+        EvidenceLevel.METHODOLOGICAL_STANDARD,
+        limitations=(
+            "No constituye identificación causal sin diseño causal apropiado.",
+        ),
+    ),
+    "synchronization_index": MetricDefinition(
+        "synchronization_index",
+        "Índice de sincronización",
+        MetricDomain.NETWORK,
+        MetricKind.FORMULA,
+        ValidationStatus.VALIDATED,
+        "Magnitud de correlación entre trayectorias",
+        "0-1",
+        "float",
+        "|corr(X,Y)|",
+        EvidenceLevel.METHODOLOGICAL_STANDARD,
+        limitations=(
+            "No implica causalidad ni dirección de influencia.",
+        ),
+    ),
+    "cascade_amplification": MetricDefinition(
+        "cascade_amplification",
+        "Amplificación de cascada",
+        MetricDomain.SYSTEM_DYNAMICS,
+        MetricKind.FORMULA,
+        ValidationStatus.EXPERIMENTAL,
+        "Relación entre impacto final y shock inicial",
+        "ratio",
+        "float",
+        "final_impact/initial_shock",
+        EvidenceLevel.METHODOLOGICAL_STANDARD,
+        limitations=(
+            "Requiere definición operacional del shock y del impacto.",
+        ),
+    ),
+    "regime_distance": MetricDefinition(
+        "regime_distance",
+        "Distancia entre estados",
+        MetricDomain.SYSTEM_DYNAMICS,
+        MetricKind.FORMULA,
+        ValidationStatus.VALIDATED,
+        "Distancia euclídea entre dos estados multidimensionales",
+        "state_units",
+        "float",
+        "||X-X_reference||₂",
+        EvidenceLevel.METHODOLOGICAL_STANDARD,
+    ),
+}
+
+
+def get_advanced_metric_definition(metric_id: str) -> MetricDefinition:
+    """Obtiene una métrica avanzada sin modificar todavía el registro principal."""
+    try:
+        return ADVANCED_METRIC_REGISTRY[metric_id]
+    except KeyError as exc:
+        raise MetricError(
+            f"Métrica avanzada no registrada: {metric_id}"
+        ) from exc
+
+
+def validate_advanced_metric_registry() -> None:
+    """Comprueba la integridad del catálogo avanzado."""
+    for metric_id, definition in ADVANCED_METRIC_REGISTRY.items():
+        if metric_id != definition.id:
+            raise MetricError(
+                f"ID inconsistente en métrica avanzada: {metric_id}"
+            )
+
+        if not definition.description.strip():
+            raise MetricError(
+                f"Descripción vacía en métrica avanzada: {metric_id}"
+            )
+
+        if definition.status == ValidationStatus.OFFICIAL:
+            if definition.formula is not None:
+                raise MetricError(
+                    "Una métrica oficial no debe recibir una fórmula local "
+                    f"en el registro: {metric_id}"
+                )
+
+
+validate_advanced_metric_registry()
+
+
+# Extensión explícita del catálogo público del módulo.
+__all__.extend(
+    (
+        "EarlyWarningSignal",
+        "DynamicStateSummary",
+        "ADVANCED_METRIC_REGISTRY",
+        "get_advanced_metric_definition",
+        "validate_advanced_metric_registry",
+        "skewness",
+        "kurtosis_excess",
+        "coefficient_of_variation_change",
+        "rolling_skewness",
+        "rolling_kurtosis_excess",
+        "recovery_time",
+        "recovery_fraction",
+        "resilience_loss",
+        "resilience_recovery_ratio",
+        "overshoot",
+        "undershoot",
+        "area_between_curves",
+        "trajectory_distance",
+        "local_slope",
+        "rolling_slope",
+        "rolling_acceleration",
+        "hysteresis_gap",
+        "threshold_crossing_index",
+        "covariance",
+        "correlation",
+        "lagged_correlation",
+        "interaction_effect_proxy",
+        "normalized_interaction_effect",
+        "synchronization_index",
+        "coupling_change",
+        "relative_coupling_change",
+        "effective_capacity",
+        "capacity_reserve",
+        "capacity_reserve_ratio",
+        "time_to_capacity_exhaustion",
+        "cascade_amplification",
+        "cascade_gain",
+        "propagation_depth",
+        "normalized_hhi",
+        "bottleneck_ratio",
+        "regime_distance",
+        "normalized_regime_distance",
+        "state_velocity_norm",
+        "summarize_dynamic_state",
+    )
+)
+
+Catálogo matemático y motor de métricas de CeutIA.
 
 Este módulo concentra las métricas, índices, escalas y primitivas matemáticas
 que pueden utilizar los componentes analíticos de CeutIA. El registro distingue

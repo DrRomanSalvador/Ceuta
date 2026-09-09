@@ -1,4 +1,2527 @@
-# Añadir al final de backend/app/core/metrics.py, antes de __all__ si existe.
+# ============================================================================
+# CEUTIA — ADVANCED DYNAMIC SYSTEM METRICS
+# ============================================================================
+# Additive extension for backend/app/core/metrics.py
+#
+# Purpose:
+#   Provide mathematical primitives for the dynamic, multifactorial,
+#   multiscale and epistemically-aware analysis of CeutIA.
+#
+# Architectural rule:
+#   observation → evidence → state → trajectory → interaction → dynamics
+#   → perturbation → response → capacity/reserve → propagation
+#   → transition → signal
+#
+# This layer computes quantitative properties.
+# It does NOT:
+#   - establish causality by correlation alone;
+#   - diagnose individuals;
+#   - infer dangerousness from identity/group membership;
+#   - autonomously decide security actions;
+#   - convert a metric into an alert without validation;
+#   - treat statistical significance as operational significance;
+#   - treat model survival under testing as proof of truth.
+#
+# ============================================================================
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from enum import Enum
+from math import exp, isfinite, log, sqrt
+from typing import Any, Iterable, Mapping, Sequence
+
+import numpy as np
+
+
+# ============================================================================
+# ENUMERATIONS
+# ============================================================================
+
+
+class DynamicMetricType(str, Enum):
+    """Epistemic/dynamic role of a computed quantity."""
+
+    DESCRIPTIVE = "descriptive"
+    TRAJECTORY = "trajectory"
+    INTERACTION = "interaction"
+    CAPACITY = "capacity"
+    PROPAGATION = "propagation"
+    RESILIENCE = "resilience"
+    TRANSITION = "transition"
+    EARLY_WARNING = "early_warning"
+    UNCERTAINTY = "uncertainty"
+
+
+class DynamicEvidenceStatus(str, Enum):
+    """Status of the evidence underlying a dynamic metric."""
+
+    OBSERVED = "observed"
+    DERIVED = "derived"
+    MODEL_DEPENDENT = "model_dependent"
+    EXPLORATORY = "exploratory"
+    VALIDATED = "validated"
+    UNCALIBRATED = "uncalibrated"
+
+
+class InteractionKind(str, Enum):
+    """Relationship type represented by a mathematical interaction."""
+
+    ASSOCIATION = "association"
+    TEMPORAL_ASSOCIATION = "temporal_association"
+    LAGGED_ASSOCIATION = "lagged_association"
+    NONLINEAR_ASSOCIATION = "nonlinear_association"
+    INTERACTION = "interaction"
+    COUPLING = "coupling"
+    SYNCHRONIZATION = "synchronization"
+    PROPAGATION = "propagation"
+    FEEDBACK = "feedback"
+
+
+# ============================================================================
+# VALIDATION / NUMERICAL UTILITIES
+# ============================================================================
+
+
+def _ceutia_array(
+    values: Sequence[float] | np.ndarray,
+    *,
+    ndim: int | None = None,
+    name: str = "values",
+) -> np.ndarray:
+    """Convert input to a finite float array."""
+
+    array = np.asarray(values, dtype=float)
+
+    if array.size == 0:
+        raise ValueError(f"{name} must not be empty.")
+
+    if not np.all(np.isfinite(array)):
+        raise ValueError(f"{name} contains non-finite values.")
+
+    if ndim is not None and array.ndim != ndim:
+        raise ValueError(
+            f"{name} must have ndim={ndim}; received ndim={array.ndim}."
+        )
+
+    return array
+
+
+def _ceutia_1d(
+    values: Sequence[float] | np.ndarray,
+    *,
+    name: str = "values",
+) -> np.ndarray:
+    return _ceutia_array(values, ndim=1, name=name)
+
+
+def _ceutia_2d(
+    values: Sequence[Sequence[float]] | np.ndarray,
+    *,
+    name: str = "values",
+) -> np.ndarray:
+    return _ceutia_array(values, ndim=2, name=name)
+
+
+def _ceutia_same_length(
+    *arrays: Sequence[float] | np.ndarray,
+) -> None:
+    lengths = {len(array) for array in arrays}
+
+    if len(lengths) != 1:
+        raise ValueError("All supplied series must have the same length.")
+
+
+def _ceutia_validate_window(window: int, n: int) -> None:
+    if window < 2:
+        raise ValueError("window must be >= 2.")
+
+    if window > n:
+        raise ValueError("window must not exceed the number of observations.")
+
+
+def _ceutia_safe_std(values: np.ndarray, ddof: int = 0) -> float:
+    if values.size <= ddof:
+        return 0.0
+
+    result = float(np.std(values, ddof=ddof))
+
+    if not isfinite(result):
+        return 0.0
+
+    return result
+
+
+def _ceutia_safe_mean(values: np.ndarray) -> float:
+    return float(np.mean(values))
+
+
+def _ceutia_safe_divide(
+    numerator: float,
+    denominator: float,
+    *,
+    default: float = 0.0,
+) -> float:
+    if denominator == 0:
+        return default
+
+    result = numerator / denominator
+
+    if not isfinite(result):
+        return default
+
+    return float(result)
+
+
+# ============================================================================
+# DYNAMIC STATE
+# ============================================================================
+
+
+def ceutia_state_vector(
+    observations: Sequence[Sequence[float]] | np.ndarray,
+) -> np.ndarray:
+    """
+    Construct the state trajectory X(t).
+
+    Expected shape:
+        observations[t, variable]
+
+    Returns:
+        State matrix with the same shape.
+    """
+
+    return _ceutia_2d(observations, name="observations")
+
+
+def ceutia_state_mean(
+    observations: Sequence[Sequence[float]] | np.ndarray,
+) -> np.ndarray:
+    """Mean state across the observed temporal trajectory."""
+
+    matrix = _ceutia_2d(observations, name="observations")
+    return np.mean(matrix, axis=0)
+
+
+def ceutia_state_std(
+    observations: Sequence[Sequence[float]] | np.ndarray,
+) -> np.ndarray:
+    """Temporal standard deviation of each state dimension."""
+
+    matrix = _ceutia_2d(observations, name="observations")
+    return np.std(matrix, axis=0)
+
+
+def ceutia_state_velocity(
+    observations: Sequence[Sequence[float]] | np.ndarray,
+    *,
+    dt: float = 1.0,
+) -> np.ndarray:
+    """
+    First temporal derivative:
+
+        dX/dt
+
+    Returns one velocity vector per temporal interval.
+    """
+
+    if dt <= 0:
+        raise ValueError("dt must be > 0.")
+
+    matrix = _ceutia_2d(observations, name="observations")
+
+    if matrix.shape[0] < 2:
+        raise ValueError("At least two observations are required.")
+
+    return np.diff(matrix, axis=0) / dt
+
+
+def ceutia_state_acceleration(
+    observations: Sequence[Sequence[float]] | np.ndarray,
+    *,
+    dt: float = 1.0,
+) -> np.ndarray:
+    """
+    Second temporal derivative:
+
+        d²X/dt²
+    """
+
+    if dt <= 0:
+        raise ValueError("dt must be > 0.")
+
+    velocity = ceutia_state_velocity(observations, dt=dt)
+
+    if velocity.shape[0] < 2:
+        raise ValueError("At least three observations are required.")
+
+    return np.diff(velocity, axis=0) / dt
+
+
+def ceutia_state_speed(
+    observations: Sequence[Sequence[float]] | np.ndarray,
+    *,
+    dt: float = 1.0,
+) -> np.ndarray:
+    """Euclidean norm of the state velocity."""
+
+    velocity = ceutia_state_velocity(observations, dt=dt)
+    return np.linalg.norm(velocity, axis=1)
+
+
+def ceutia_state_acceleration_magnitude(
+    observations: Sequence[Sequence[float]] | np.ndarray,
+    *,
+    dt: float = 1.0,
+) -> np.ndarray:
+    """Euclidean norm of state acceleration."""
+
+    acceleration = ceutia_state_acceleration(observations, dt=dt)
+    return np.linalg.norm(acceleration, axis=1)
+
+
+def ceutia_state_distance(
+    state_a: Sequence[float] | np.ndarray,
+    state_b: Sequence[float] | np.ndarray,
+) -> float:
+    """Euclidean distance between two system states."""
+
+    a = _ceutia_1d(state_a, name="state_a")
+    b = _ceutia_1d(state_b, name="state_b")
+
+    if a.shape != b.shape:
+        raise ValueError("States must have identical dimensions.")
+
+    return float(np.linalg.norm(a - b))
+
+
+def ceutia_standardized_state_distance(
+    state_a: Sequence[float] | np.ndarray,
+    state_b: Sequence[float] | np.ndarray,
+    scale: Sequence[float] | np.ndarray,
+) -> float:
+    """
+    Distance after normalization by variable-specific scale.
+
+    This avoids allowing variables with large numerical units to dominate
+    the state-space distance.
+    """
+
+    a = _ceutia_1d(state_a, name="state_a")
+    b = _ceutia_1d(state_b, name="state_b")
+    s = _ceutia_1d(scale, name="scale")
+
+    if not (a.shape == b.shape == s.shape):
+        raise ValueError("state_a, state_b and scale must have equal dimensions.")
+
+    if np.any(s <= 0):
+        raise ValueError("All scale values must be > 0.")
+
+    return float(np.linalg.norm((a - b) / s))
+
+
+# ============================================================================
+# TRAJECTORY / PERSISTENCE / MEMORY
+# ============================================================================
+
+
+def ceutia_persistence(
+    values: Sequence[float] | np.ndarray,
+    *,
+    threshold: float = 0.0,
+) -> float:
+    """
+    Fraction of observations remaining above a threshold.
+
+    This is descriptive persistence, not a probability of future persistence.
+    """
+
+    x = _ceutia_1d(values, name="values")
+
+    return float(np.mean(x >= threshold))
+
+
+def ceutia_duration_above_threshold(
+    values: Sequence[float] | np.ndarray,
+    *,
+    threshold: float,
+) -> int:
+    """Number of consecutive observations at the end of the series above threshold."""
+
+    x = _ceutia_1d(values, name="values")
+
+    duration = 0
+
+    for value in reversed(x):
+        if value >= threshold:
+            duration += 1
+        else:
+            break
+
+    return duration
+
+
+def ceutia_time_above_threshold(
+    values: Sequence[float] | np.ndarray,
+    *,
+    threshold: float,
+    dt: float = 1.0,
+) -> float:
+    """Total observed time spent above a threshold."""
+
+    if dt <= 0:
+        raise ValueError("dt must be > 0.")
+
+    x = _ceutia_1d(values, name="values")
+    return float(np.sum(x >= threshold) * dt)
+
+
+def ceutia_autocorrelation(
+    values: Sequence[float] | np.ndarray,
+    *,
+    lag: int = 1,
+) -> float:
+    """
+    Lag-k autocorrelation.
+
+    Useful as one component of critical-transition analysis.
+    """
+
+    x = _ceutia_1d(values, name="values")
+
+    if lag < 1 or lag >= len(x):
+        raise ValueError("lag must satisfy 1 <= lag < len(values).")
+
+    a = x[:-lag]
+    b = x[lag:]
+
+    a_centered = a - np.mean(a)
+    b_centered = b - np.mean(b)
+
+    denominator = np.sqrt(
+        np.sum(a_centered**2) * np.sum(b_centered**2)
+    )
+
+    return _ceutia_safe_divide(
+        float(np.sum(a_centered * b_centered)),
+        float(denominator),
+    )
+
+
+def ceutia_variance_trend(
+    values: Sequence[float] | np.ndarray,
+    *,
+    window: int,
+) -> float:
+    """
+    Slope of rolling variance.
+
+    Positive values indicate increasing local variance.
+    """
+
+    x = _ceutia_1d(values, name="values")
+    _ceutia_validate_window(window, len(x))
+
+    rolling_variances = np.array(
+        [
+            np.var(x[index - window + 1 : index + 1])
+            for index in range(window - 1, len(x))
+        ]
+    )
+
+    if len(rolling_variances) < 2:
+        return 0.0
+
+    return ceutia_dynamic_slope(rolling_variances)
+
+
+def ceutia_autocorrelation_trend(
+    values: Sequence[float] | np.ndarray,
+    *,
+    window: int,
+    lag: int = 1,
+) -> float:
+    """
+    Trend in local lagged autocorrelation.
+
+    This is a potential early-warning feature, not an autonomous
+    critical-transition detector.
+    """
+
+    x = _ceutia_1d(values, name="values")
+    _ceutia_validate_window(window, len(x))
+
+    if lag >= window:
+        raise ValueError("lag must be smaller than window.")
+
+    local_values: list[float] = []
+
+    for end in range(window, len(x) + 1):
+        segment = x[end - window : end]
+        local_values.append(ceutia_autocorrelation(segment, lag=lag))
+
+    if len(local_values) < 2:
+        return 0.0
+
+    return ceutia_dynamic_slope(np.asarray(local_values))
+
+
+# ============================================================================
+# LOCAL DYNAMICS
+# ============================================================================
+
+
+def ceutia_dynamic_slope(
+    values: Sequence[float] | np.ndarray,
+    *,
+    dt: float = 1.0,
+) -> float:
+    """Least-squares temporal slope."""
+
+    if dt <= 0:
+        raise ValueError("dt must be > 0.")
+
+    x = _ceutia_1d(values, name="values")
+
+    if len(x) < 2:
+        raise ValueError("At least two observations are required.")
+
+    time = np.arange(len(x), dtype=float) * dt
+    slope = np.polyfit(time, x, 1)[0]
+
+    return float(slope)
+
+
+def ceutia_dynamic_acceleration(
+    values: Sequence[float] | np.ndarray,
+    *,
+    dt: float = 1.0,
+) -> float:
+    """Least-squares slope of the first derivative."""
+
+    if dt <= 0:
+        raise ValueError("dt must be > 0.")
+
+    x = _ceutia_1d(values, name="values")
+
+    if len(x) < 3:
+        raise ValueError("At least three observations are required.")
+
+    velocity = np.diff(x) / dt
+    return ceutia_dynamic_slope(velocity, dt=dt)
+
+
+def ceutia_rolling_slope(
+    values: Sequence[float] | np.ndarray,
+    *,
+    window: int,
+    dt: float = 1.0,
+) -> np.ndarray:
+    """Local slope trajectory."""
+
+    x = _ceutia_1d(values, name="values")
+    _ceutia_validate_window(window, len(x))
+
+    return np.asarray(
+        [
+            ceutia_dynamic_slope(
+                x[index - window + 1 : index + 1],
+                dt=dt,
+            )
+            for index in range(window - 1, len(x))
+        ]
+    )
+
+
+def ceutia_rolling_coefficient_of_variation(
+    values: Sequence[float] | np.ndarray,
+    *,
+    window: int,
+) -> np.ndarray:
+    """Rolling coefficient of variation."""
+
+    x = _ceutia_1d(values, name="values")
+    _ceutia_validate_window(window, len(x))
+
+    result: list[float] = []
+
+    for index in range(window - 1, len(x)):
+        segment = x[index - window + 1 : index + 1]
+        mean = float(np.mean(segment))
+        std = float(np.std(segment))
+
+        result.append(
+            _ceutia_safe_divide(std, abs(mean))
+        )
+
+    return np.asarray(result)
+
+
+# ============================================================================
+# MULTIVARIATE STATE GEOMETRY
+# ============================================================================
+
+
+def ceutia_multivariate_zscore(
+    observations: Sequence[Sequence[float]] | np.ndarray,
+) -> np.ndarray:
+    """Column-wise standardized state trajectory."""
+
+    matrix = _ceutia_2d(observations, name="observations")
+
+    mean = np.mean(matrix, axis=0)
+    std = np.std(matrix, axis=0)
+
+    safe_std = np.where(std == 0, 1.0, std)
+
+    return (matrix - mean) / safe_std
+
+
+def ceutia_multivariate_anomaly_score(
+    observations: Sequence[Sequence[float]] | np.ndarray,
+) -> np.ndarray:
+    """
+    Mahalanobis-like anomaly score.
+
+    Covariance regularization is used to remain numerically stable in
+    high-dimensional or partially collinear systems.
+    """
+
+    matrix = _ceutia_2d(observations, name="observations")
+
+    if matrix.shape[0] < 2:
+        raise ValueError("At least two observations are required.")
+
+    centered = matrix - np.mean(matrix, axis=0)
+
+    covariance = np.cov(centered, rowvar=False)
+
+    if covariance.ndim == 0:
+        covariance = np.asarray([[float(covariance)]])
+
+    regularization = max(
+        float(np.trace(covariance)),
+        1.0,
+    ) * 1e-8
+
+    covariance = covariance + (
+        np.eye(covariance.shape[0]) * regularization
+    )
+
+    inverse = np.linalg.pinv(covariance)
+
+    distances = np.einsum(
+        "ij,jk,ik->i",
+        centered,
+        inverse,
+        centered,
+    )
+
+    return np.sqrt(np.maximum(distances, 0.0))
+
+
+def ceutia_effective_dimension(
+    observations: Sequence[Sequence[float]] | np.ndarray,
+) -> float:
+    """
+    Effective dimensionality derived from covariance eigenvalues.
+
+    Higher values indicate that variability is distributed across more
+    independent directions of the observed state space.
+    """
+
+    matrix = _ceutia_2d(observations, name="observations")
+
+    centered = matrix - np.mean(matrix, axis=0)
+
+    covariance = np.cov(centered, rowvar=False)
+
+    if covariance.ndim == 0:
+        return 1.0
+
+    eigenvalues = np.linalg.eigvalsh(covariance)
+    eigenvalues = np.clip(eigenvalues, 0.0, None)
+
+    total = float(np.sum(eigenvalues))
+
+    if total == 0:
+        return 0.0
+
+    proportions = eigenvalues / total
+
+    return float(
+        1.0 / np.sum(proportions**2)
+    )
+
+
+def ceutia_principal_component_concentration(
+    observations: Sequence[Sequence[float]] | np.ndarray,
+) -> float:
+    """
+    Fraction of total covariance explained by the first principal component.
+    """
+
+    matrix = _ceutia_2d(observations, name="observations")
+
+    centered = matrix - np.mean(matrix, axis=0)
+    covariance = np.cov(centered, rowvar=False)
+
+    if covariance.ndim == 0:
+        return 1.0
+
+    eigenvalues = np.linalg.eigvalsh(covariance)
+    eigenvalues = np.clip(eigenvalues, 0.0, None)
+
+    total = float(np.sum(eigenvalues))
+
+    if total == 0:
+        return 0.0
+
+    return float(np.max(eigenvalues) / total)
+
+
+# ============================================================================
+# INTERACTION STRUCTURE
+# ============================================================================
+
+
+def ceutia_covariance_matrix(
+    observations: Sequence[Sequence[float]] | np.ndarray,
+) -> np.ndarray:
+    """Temporal covariance matrix between state variables."""
+
+    matrix = _ceutia_2d(observations, name="observations")
+
+    if matrix.shape[0] < 2:
+        raise ValueError("At least two observations are required.")
+
+    return np.asarray(
+        np.cov(matrix, rowvar=False),
+        dtype=float,
+    )
+
+
+def ceutia_correlation_matrix(
+    observations: Sequence[Sequence[float]] | np.ndarray,
+) -> np.ndarray:
+    """Pearson correlation matrix."""
+
+    matrix = _ceutia_2d(observations, name="observations")
+
+    if matrix.shape[0] < 2:
+        raise ValueError("At least two observations are required.")
+
+    return np.asarray(
+        np.corrcoef(matrix, rowvar=False),
+        dtype=float,
+    )
+
+
+def ceutia_lagged_cross_correlation(
+    series_a: Sequence[float] | np.ndarray,
+    series_b: Sequence[float] | np.ndarray,
+    *,
+    lag: int,
+) -> float:
+    """
+    Cross-correlation with explicit temporal lag.
+
+    Positive lag means A(t) is compared with B(t + lag).
+    """
+
+    a = _ceutia_1d(series_a, name="series_a")
+    b = _ceutia_1d(series_b, name="series_b")
+
+    _ceutia_same_length(a, b)
+
+    if lag >= len(a) or lag <= -len(a):
+        raise ValueError("Absolute lag must be smaller than series length.")
+
+    if lag > 0:
+        return ceutia_autocorrelation_like(
+            a[:-lag],
+            b[lag:],
+        )
+
+    if lag < 0:
+        return ceutia_autocorrelation_like(
+            a[-lag:],
+            b[:lag],
+        )
+
+    return ceutia_autocorrelation_like(a, b)
+
+
+def ceutia_autocorrelation_like(
+    series_a: Sequence[float] | np.ndarray,
+    series_b: Sequence[float] | np.ndarray,
+) -> float:
+    """Correlation between two equally-sized series."""
+
+    a = _ceutia_1d(series_a, name="series_a")
+    b = _ceutia_1d(series_b, name="series_b")
+
+    _ceutia_same_length(a, b)
+
+    a_centered = a - np.mean(a)
+    b_centered = b - np.mean(b)
+
+    denominator = np.sqrt(
+        np.sum(a_centered**2) *
+        np.sum(b_centered**2)
+    )
+
+    return _ceutia_safe_divide(
+        float(np.sum(a_centered * b_centered)),
+        float(denominator),
+    )
+
+
+def ceutia_interaction_effect(
+    x1: Sequence[float] | np.ndarray,
+    x2: Sequence[float] | np.ndarray,
+    y: Sequence[float] | np.ndarray,
+) -> float:
+    """
+    Incremental interaction coefficient from:
+
+        y ~ x1 + x2 + x1*x2
+
+    The returned value is the fitted coefficient of x1*x2.
+
+    IMPORTANT:
+        This is an interaction association unless the surrounding
+        identification assumptions justify causal interpretation.
+    """
+
+    a = _ceutia_1d(x1, name="x1")
+    b = _ceutia_1d(x2, name="x2")
+    target = _ceutia_1d(y, name="y")
+
+    _ceutia_same_length(a, b, target)
+
+    design = np.column_stack(
+        [
+            np.ones(len(a)),
+            a,
+            b,
+            a * b,
+        ]
+    )
+
+    coefficients, *_ = np.linalg.lstsq(
+        design,
+        target,
+        rcond=None,
+    )
+
+    return float(coefficients[3])
+
+
+def ceutia_interaction_matrix(
+    observations: Sequence[Sequence[float]] | np.ndarray,
+) -> np.ndarray:
+    """
+    Pairwise interaction matrix.
+
+    Each element represents the absolute correlation between two variables.
+    It is a dependency map, not a causal graph.
+    """
+
+    return np.abs(
+        ceutia_correlation_matrix(observations)
+    )
+
+
+def ceutia_dynamic_interaction_matrix(
+    observations: Sequence[Sequence[float]] | np.ndarray,
+    *,
+    window: int,
+) -> np.ndarray:
+    """
+    Interaction matrix over time.
+
+    Returns:
+        [time_window, variable, variable]
+    """
+
+    matrix = _ceutia_2d(observations, name="observations")
+    _ceutia_validate_window(window, matrix.shape[0])
+
+    result = []
+
+    for end in range(window, matrix.shape[0] + 1):
+        result.append(
+            ceutia_interaction_matrix(
+                matrix[end - window : end]
+            )
+        )
+
+    return np.asarray(result)
+
+
+def ceutia_coupling_change(
+    observations: Sequence[Sequence[float]] | np.ndarray,
+    *,
+    window: int,
+) -> np.ndarray:
+    """
+    Change in total pairwise dependency structure between consecutive
+    temporal windows.
+    """
+
+    dynamic = ceutia_dynamic_interaction_matrix(
+        observations,
+        window=window,
+    )
+
+    if dynamic.shape[0] < 2:
+        return np.empty(0, dtype=float)
+
+    changes = []
+
+    for previous, current in zip(
+        dynamic[:-1],
+        dynamic[1:],
+    ):
+        changes.append(
+            float(np.linalg.norm(current - previous))
+        )
+
+    return np.asarray(changes)
+
+
+def ceutia_synchronization_index(
+    observations: Sequence[Sequence[float]] | np.ndarray,
+) -> float:
+    """
+    Mean absolute off-diagonal correlation.
+
+    High synchronization means variables are moving together.
+    This is not inherently good or bad.
+    """
+
+    correlation = np.abs(
+        ceutia_correlation_matrix(observations)
+    )
+
+    n = correlation.shape[0]
+
+    if n < 2:
+        return 0.0
+
+    upper = correlation[
+        np.triu_indices(n, k=1)
+    ]
+
+    return float(np.mean(upper))
+
+
+def ceutia_redundancy_index(
+    observations: Sequence[Sequence[float]] | np.ndarray,
+) -> float:
+    """
+    Mean absolute inter-variable correlation.
+
+    It is a descriptive redundancy/dependence measure and should not
+    be interpreted as resilience by itself.
+    """
+
+    return ceutia_synchronization_index(observations)
+
+
+# ============================================================================
+# HIGHER-ORDER INTERACTION
+# ============================================================================
+
+
+def ceutia_higher_order_interaction(
+    variables: Sequence[Sequence[float] | np.ndarray],
+    outcome: Sequence[float] | np.ndarray,
+) -> float:
+    """
+    Estimate the coefficient of the full multiplicative interaction:
+
+        x1 * x2 * ... * xn
+
+    This is deliberately restricted to a supplied set of variables.
+    """
+
+    if len(variables) < 2:
+        raise ValueError(
+            "At least two variables are required."
+        )
+
+    arrays = [
+        _ceutia_1d(variable, name=f"variable_{index}")
+        for index, variable in enumerate(variables)
+    ]
+
+    target = _ceutia_1d(outcome, name="outcome")
+
+    _ceutia_same_length(*arrays, target)
+
+    interaction = np.ones(len(target))
+
+    for variable in arrays:
+        interaction *= variable
+
+    design = np.column_stack(
+        [np.ones(len(target)), *arrays, interaction]
+    )
+
+    coefficients, *_ = np.linalg.lstsq(
+        design,
+        target,
+        rcond=None,
+    )
+
+    return float(coefficients[-1])
+
+
+# ============================================================================
+# CAPACITY / LOAD / RESERVE
+# ============================================================================
+
+
+def ceutia_utilization_ratio(
+    demand: Sequence[float] | np.ndarray,
+    capacity: Sequence[float] | np.ndarray,
+) -> np.ndarray:
+    """Demand/capacity ratio."""
+
+    d = _ceutia_1d(demand, name="demand")
+    c = _ceutia_1d(capacity, name="capacity")
+
+    _ceutia_same_length(d, c)
+
+    return np.divide(
+        d,
+        c,
+        out=np.full_like(d, np.inf, dtype=float),
+        where=c != 0,
+    )
+
+
+def ceutia_capacity_reserve(
+    capacity: Sequence[float] | np.ndarray,
+    demand: Sequence[float] | np.ndarray,
+) -> np.ndarray:
+    """Absolute remaining capacity."""
+
+    c = _ceutia_1d(capacity, name="capacity")
+    d = _ceutia_1d(demand, name="demand")
+
+    _ceutia_same_length(c, d)
+
+    return c - d
+
+
+def ceutia_capacity_headroom(
+    capacity: Sequence[float] | np.ndarray,
+    demand: Sequence[float] | np.ndarray,
+) -> np.ndarray:
+    """Relative remaining capacity."""
+
+    c = _ceutia_1d(capacity, name="capacity")
+    d = _ceutia_1d(demand, name="demand")
+
+    _ceutia_same_length(c, d)
+
+    return np.divide(
+        c - d,
+        c,
+        out=np.zeros_like(c),
+        where=c != 0,
+    )
+
+
+def ceutia_effective_capacity(
+    nominal_capacity: Sequence[float] | np.ndarray,
+    availability: Sequence[float] | np.ndarray,
+    efficiency: Sequence[float] | np.ndarray,
+) -> np.ndarray:
+    """
+    Effective capacity:
+
+        C_effective = C_nominal × availability × efficiency
+
+    This distinguishes nominal capacity from deployable capacity.
+    """
+
+    nominal = _ceutia_1d(
+        nominal_capacity,
+        name="nominal_capacity",
+    )
+    available = _ceutia_1d(
+        availability,
+        name="availability",
+    )
+    efficient = _ceutia_1d(
+        efficiency,
+        name="efficiency",
+    )
+
+    _ceutia_same_length(
+        nominal,
+        available,
+        efficient,
+    )
+
+    return nominal * available * efficient
+
+
+def ceutia_bottleneck_index(
+    subsystem_capacities: Sequence[Sequence[float]] | np.ndarray,
+) -> float:
+    """
+    Identifies the most constrained subsystem relative to the median
+    subsystem capacity.
+
+    Lower capacity means greater potential bottleneck.
+    """
+
+    matrix = _ceutia_2d(
+        subsystem_capacities,
+        name="subsystem_capacities",
+    )
+
+    latest = matrix[-1]
+
+    if np.any(latest < 0):
+        raise ValueError("Capacities cannot be negative.")
+
+    median = float(np.median(latest))
+
+    if median == 0:
+        return 1.0
+
+    minimum = float(np.min(latest))
+
+    return float(
+        1.0 - minimum / median
+    )
+
+
+def ceutia_time_to_exhaustion(
+    reserve: Sequence[float] | np.ndarray,
+    depletion_rate: Sequence[float] | np.ndarray,
+) -> np.ndarray:
+    """
+    Estimated time to reserve exhaustion under the current depletion rate.
+
+    This is a local deterministic projection, not a forecast unless
+    stationarity/model assumptions are validated.
+    """
+
+    r = _ceutia_1d(reserve, name="reserve")
+    d = _ceutia_1d(
+        depletion_rate,
+        name="depletion_rate",
+    )
+
+    _ceutia_same_length(r, d)
+
+    result = np.full_like(r, np.inf, dtype=float)
+
+    valid = d > 0
+
+    result[valid] = r[valid] / d[valid]
+
+    return result
+
+
+# ============================================================================
+# LOAD ACCUMULATION / ADAPTIVE RESERVE
+# ============================================================================
+
+
+def ceutia_accumulated_load(
+    load: Sequence[float] | np.ndarray,
+    *,
+    dt: float = 1.0,
+    decay: float = 0.0,
+) -> np.ndarray:
+    """
+    Exponentially weighted accumulated load.
+
+        L_t = load_t + (1-decay) L_(t-1)
+
+    decay=0:
+        complete memory.
+
+    decay approaching 1:
+        very short memory.
+
+    This is a mathematical state variable, not a biological diagnosis.
+    """
+
+    if not 0 <= decay <= 1:
+        raise ValueError("decay must be between 0 and 1.")
+
+    if dt <= 0:
+        raise ValueError("dt must be > 0.")
+
+    x = _ceutia_1d(load, name="load")
+
+    accumulated = np.zeros_like(x)
+
+    accumulated[0] = x[0] * dt
+
+    for index in range(1, len(x)):
+        accumulated[index] = (
+            accumulated[index - 1] * (1.0 - decay)
+            + x[index] * dt
+        )
+
+    return accumulated
+
+
+def ceutia_reserve_depletion(
+    reserve: Sequence[float] | np.ndarray,
+) -> np.ndarray:
+    """
+    Negative change in reserve.
+
+    Positive values indicate depletion.
+    """
+
+    r = _ceutia_1d(reserve, name="reserve")
+
+    if len(r) < 2:
+        return np.empty(0, dtype=float)
+
+    return -np.diff(r)
+
+
+# ============================================================================
+# PROPAGATION / CASCADE
+# ============================================================================
+
+
+def ceutia_amplification_gain(
+    input_signal: Sequence[float] | np.ndarray,
+    output_signal: Sequence[float] | np.ndarray,
+) -> float:
+    """
+    RMS output/input gain.
+
+    Descriptive only; causal interpretation requires an identified mechanism.
+    """
+
+    x = _ceutia_1d(input_signal, name="input_signal")
+    y = _ceutia_1d(output_signal, name="output_signal")
+
+    _ceutia_same_length(x, y)
+
+    rms_x = sqrt(float(np.mean(x**2)))
+    rms_y = sqrt(float(np.mean(y**2)))
+
+    return _ceutia_safe_divide(
+        rms_y,
+        rms_x,
+    )
+
+
+def ceutia_propagation_ratio(
+    upstream: Sequence[float] | np.ndarray,
+    downstream: Sequence[float] | np.ndarray,
+) -> float:
+    """
+    Relative downstream change per unit upstream change.
+    """
+
+    upstream_array = _ceutia_1d(
+        upstream,
+        name="upstream",
+    )
+    downstream_array = _ceutia_1d(
+        downstream,
+        name="downstream",
+    )
+
+    _ceutia_same_length(
+        upstream_array,
+        downstream_array,
+    )
+
+    upstream_change = float(
+        np.mean(np.abs(np.diff(upstream_array)))
+    )
+
+    downstream_change = float(
+        np.mean(np.abs(np.diff(downstream_array)))
+    )
+
+    return _ceutia_safe_divide(
+        downstream_change,
+        upstream_change,
+    )
+
+
+def ceutia_cascade_amplification(
+    stages: Sequence[Sequence[float] | np.ndarray],
+) -> float:
+    """
+    Product of consecutive stage gains.
+
+    stages:
+        [stage_0, stage_1, ..., stage_n]
+
+    A value >1 indicates net amplification in the observed chain.
+    """
+
+    if len(stages) < 2:
+        raise ValueError(
+            "At least two stages are required."
+        )
+
+    arrays = [
+        _ceutia_1d(stage, name=f"stage_{index}")
+        for index, stage in enumerate(stages)
+    ]
+
+    gains = [
+        ceutia_amplification_gain(
+            arrays[index],
+            arrays[index + 1],
+        )
+        for index in range(len(arrays) - 1)
+    ]
+
+    return float(np.prod(gains))
+
+
+def ceutia_feedback_strength(
+    source: Sequence[float] | np.ndarray,
+    response: Sequence[float] | np.ndarray,
+    *,
+    lag: int = 1,
+) -> float:
+    """
+    Quantifies temporal association from source(t) to response(t+lag).
+
+    This does NOT prove feedback. Feedback requires a reciprocal pathway,
+    temporal ordering and a defensible mechanism.
+    """
+
+    return ceutia_lagged_cross_correlation(
+        source,
+        response,
+        lag=lag,
+    )
+
+
+# ============================================================================
+# REGIMES / TRANSITIONS / THRESHOLDS
+# ============================================================================
+
+
+def ceutia_threshold_distance(
+    values: Sequence[float] | np.ndarray,
+    threshold: float,
+) -> np.ndarray:
+    """Signed distance from a threshold."""
+
+    x = _ceutia_1d(values, name="values")
+
+    return threshold - x
+
+
+def ceutia_threshold_proximity(
+    values: Sequence[float] | np.ndarray,
+    threshold: float,
+    *,
+    scale: float = 1.0,
+) -> np.ndarray:
+    """
+    Bounded proximity to a threshold.
+
+        1 = at threshold
+        0 = infinitely far from threshold
+
+    scale controls the spatial sensitivity.
+    """
+
+    if scale <= 0:
+        raise ValueError("scale must be > 0.")
+
+    x = _ceutia_1d(values, name="values")
+
+    return np.exp(
+        -np.abs(x - threshold) / scale
+    )
+
+
+def ceutia_threshold_approach_rate(
+    values: Sequence[float] | np.ndarray,
+    threshold: float,
+    *,
+    dt: float = 1.0,
+) -> float:
+    """
+    Rate of change in distance to a threshold.
+
+    Negative values indicate movement toward the threshold.
+    """
+
+    distance = np.abs(
+        ceutia_threshold_distance(
+            values,
+            threshold,
+        )
+    )
+
+    return ceutia_dynamic_slope(
+        distance,
+        dt=dt,
+    )
+
+
+def ceutia_regime_distance(
+    current_state: Sequence[float] | np.ndarray,
+    reference_state: Sequence[float] | np.ndarray,
+    scale: Sequence[float] | np.ndarray | None = None,
+) -> float:
+    """Distance between current and reference regimes."""
+
+    if scale is None:
+        return ceutia_state_distance(
+            current_state,
+            reference_state,
+        )
+
+    return ceutia_standardized_state_distance(
+        current_state,
+        reference_state,
+        scale,
+    )
+
+
+def ceutia_regime_transition_score(
+    observations: Sequence[Sequence[float]] | np.ndarray,
+    *,
+    window: int,
+) -> np.ndarray:
+    """
+    Change in local state-space distribution.
+
+    This detects structural movement; it does not label the new state.
+    """
+
+    matrix = _ceutia_2d(
+        observations,
+        name="observations",
+    )
+
+    _ceutia_validate_window(
+        window,
+        matrix.shape[0],
+    )
+
+    scores = []
+
+    for end in range(window * 2, matrix.shape[0] + 1):
+        previous = matrix[
+            end - 2 * window : end - window
+        ]
+        current = matrix[
+            end - window : end
+        ]
+
+        previous_mean = np.mean(
+            previous,
+            axis=0,
+        )
+        current_mean = np.mean(
+            current,
+            axis=0,
+        )
+
+        pooled_scale = np.std(
+            np.vstack([previous, current]),
+            axis=0,
+        )
+
+        pooled_scale = np.where(
+            pooled_scale == 0,
+            1.0,
+            pooled_scale,
+        )
+
+        scores.append(
+            float(
+                np.linalg.norm(
+                    (current_mean - previous_mean)
+                    / pooled_scale
+                )
+            )
+        )
+
+    return np.asarray(scores)
+
+
+# ============================================================================
+# HYSTERESIS / RECOVERY
+# ============================================================================
+
+
+def ceutia_hysteresis_gap(
+    loading_path: Sequence[float] | np.ndarray,
+    recovery_path: Sequence[float] | np.ndarray,
+) -> float:
+    """
+    Difference between loading and recovery trajectories.
+
+    A positive gap indicates asymmetric system response.
+
+    This is descriptive and requires a meaningful matched perturbation/
+    recovery design for interpretation as hysteresis.
+    """
+
+    loading = _ceutia_1d(
+        loading_path,
+        name="loading_path",
+    )
+    recovery = _ceutia_1d(
+        recovery_path,
+        name="recovery_path",
+    )
+
+    _ceutia_same_length(
+        loading,
+        recovery,
+    )
+
+    return float(
+        np.mean(
+            np.abs(loading - recovery)
+        )
+    )
+
+
+def ceutia_recovery_time(
+    values: Sequence[float] | np.ndarray,
+    baseline: float,
+    *,
+    tolerance: float,
+    dt: float = 1.0,
+) -> float:
+    """
+    Time required to return within tolerance of baseline after the
+    observed maximum deviation.
+
+    Returns infinity if recovery is not observed.
+    """
+
+    if tolerance < 0:
+        raise ValueError("tolerance must be >= 0.")
+
+    if dt <= 0:
+        raise ValueError("dt must be > 0.")
+
+    x = _ceutia_1d(values, name="values")
+
+    peak_index = int(
+        np.argmax(
+            np.abs(x - baseline)
+        )
+    )
+
+    target = abs(tolerance)
+
+    for index in range(
+        peak_index,
+        len(x),
+    ):
+        if abs(x[index] - baseline) <= target:
+            return float(
+                (index - peak_index) * dt
+            )
+
+    return float("inf")
+
+
+def ceutia_recovery_ratio(
+    baseline: float,
+    perturbed: float,
+    recovered: float,
+) -> float:
+    """
+    Fraction of perturbation recovered.
+
+        1 = full recovery
+        0 = no recovery
+        >1 = overshoot
+    """
+
+    perturbation = abs(
+        perturbed - baseline
+    )
+
+    if perturbation == 0:
+        return 1.0
+
+    remaining = abs(
+        recovered - baseline
+    )
+
+    return float(
+        1.0 - remaining / perturbation
+    )
+
+
+def ceutia_resilience_area(
+    capacity: Sequence[float] | np.ndarray,
+    *,
+    dt: float = 1.0,
+) -> float:
+    """
+    Integral of normalized capacity over time.
+
+    Requires capacity to already be normalized to a meaningful reference.
+    """
+
+    if dt <= 0:
+        raise ValueError("dt must be > 0.")
+
+    x = _ceutia_1d(
+        capacity,
+        name="capacity",
+    )
+
+    return float(
+        np.trapezoid(x, dx=dt)
+    )
+
+
+# ============================================================================
+# MULTISCALE / TEMPORAL CONCENTRATION
+# ============================================================================
+
+
+def ceutia_temporal_concentration(
+    events: Sequence[float] | np.ndarray,
+) -> float:
+    """
+    Concentration of event mass over time.
+
+    Uses normalized squared event weights.
+
+        1/n ≈ evenly distributed
+        1   ≈ concentrated in one observation
+    """
+
+    x = np.abs(
+        _ceutia_1d(events, name="events")
+    )
+
+    total = float(np.sum(x))
+
+    if total == 0:
+        return 0.0
+
+    weights = x / total
+
+    return float(
+        np.sum(weights**2)
+    )
+
+
+def ceutia_burstiness_index(
+    events: Sequence[float] | np.ndarray,
+) -> float:
+    """
+    Burstiness based on coefficient of variation.
+
+        B = (CV - 1) / (CV + 1)
+
+    Descriptive only.
+    """
+
+    x = _ceutia_1d(events, name="events")
+
+    if len(x) < 2:
+        raise ValueError(
+            "At least two observations are required."
+        )
+
+    mean = float(np.mean(x))
+    std = float(np.std(x))
+
+    if mean == 0:
+        return 0.0
+
+    cv = std / abs(mean)
+
+    return float(
+        (cv - 1.0) / (cv + 1.0)
+    )
+
+
+# ============================================================================
+# UNCERTAINTY PROPAGATION
+# ============================================================================
+
+
+@dataclass(frozen=True)
+class CeutiaUncertainValue:
+    """
+    Quantitative value with explicit uncertainty.
+
+    mean:
+        central estimate.
+
+    standard_deviation:
+        uncertainty around the estimate.
+
+    lower/upper:
+        optional externally supplied interval.
+
+    confidence_level:
+        semantic level of the supplied interval, if applicable.
+    """
+
+    mean: float
+    standard_deviation: float = 0.0
+    lower: float | None = None
+    upper: float | None = None
+    confidence_level: float | None = None
+    evidence_status: DynamicEvidenceStatus = (
+        DynamicEvidenceStatus.DERIVED
+    )
+
+    def __post_init__(self) -> None:
+        if not all(
+            isfinite(float(value))
+            for value in (
+                self.mean,
+                self.standard_deviation,
+            )
+        ):
+            raise ValueError(
+                "mean and standard_deviation must be finite."
+            )
+
+        if self.standard_deviation < 0:
+            raise ValueError(
+                "standard_deviation must be >= 0."
+            )
+
+        if (
+            self.lower is not None
+            and self.upper is not None
+            and self.lower > self.upper
+        ):
+            raise ValueError(
+                "lower must not exceed upper."
+            )
+
+        if self.confidence_level is not None and not (
+            0 < self.confidence_level < 1
+        ):
+            raise ValueError(
+                "confidence_level must be between 0 and 1."
+            )
+
+
+def ceutia_propagate_linear_uncertainty(
+    coefficients: Sequence[float] | np.ndarray,
+    standard_deviations: Sequence[float] | np.ndarray,
+) -> float:
+    """
+    First-order uncertainty propagation for:
+
+        y = Σ a_i x_i
+    """
+
+    a = _ceutia_1d(
+        coefficients,
+        name="coefficients",
+    )
+    sigma = _ceutia_1d(
+        standard_deviations,
+        name="standard_deviations",
+    )
+
+    _ceutia_same_length(a, sigma)
+
+    if np.any(sigma < 0):
+        raise ValueError(
+            "standard_deviations cannot be negative."
+        )
+
+    variance = np.sum(
+        (a * sigma) ** 2
+    )
+
+    return float(
+        sqrt(max(float(variance), 0.0))
+    )
+
+
+def ceutia_interval_overlap(
+    lower_a: float,
+    upper_a: float,
+    lower_b: float,
+    upper_b: float,
+) -> float:
+    """
+    Jaccard-like overlap of two intervals.
+    """
+
+    if lower_a > upper_a or lower_b > upper_b:
+        raise ValueError(
+            "Interval lower bounds must not exceed upper bounds."
+        )
+
+    intersection = max(
+        0.0,
+        min(upper_a, upper_b)
+        - max(lower_a, lower_b),
+    )
+
+    union = max(
+        upper_a,
+        upper_b,
+    ) - min(
+        lower_a,
+        lower_b,
+    )
+
+    return _ceutia_safe_divide(
+        intersection,
+        union,
+    )
+
+
+# ============================================================================
+# EARLY-WARNING COMPONENTS
+# ============================================================================
+
+
+@dataclass(frozen=True)
+class CeutiaDynamicSignal:
+    """
+    Composite dynamic signal.
+
+    It deliberately does not represent an alert or decision.
+    """
+
+    value: float
+    components: Mapping[str, float]
+    metric_type: DynamicMetricType
+    evidence_status: DynamicEvidenceStatus
+    interpretation_notes: tuple[str, ...] = field(
+        default_factory=tuple
+    )
+
+
+def ceutia_early_warning_components(
+    values: Sequence[float] | np.ndarray,
+    *,
+    threshold: float,
+    window: int,
+    lag: int = 1,
+) -> Mapping[str, float]:
+    """
+    Compute independent dynamic-warning components:
+
+        threshold proximity
+        slope
+        variance trend
+        autocorrelation trend
+
+    Components remain separate so downstream validation can determine
+    which combinations are actually informative.
+    """
+
+    x = _ceutia_1d(values, name="values")
+    _ceutia_validate_window(window, len(x))
+
+    local = x[-window:]
+
+    proximity = float(
+        ceutia_threshold_proximity(
+            local,
+            threshold,
+        )[-1]
+    )
+
+    slope = ceutia_dynamic_slope(local)
+
+    variance_trend = ceutia_variance_trend(
+        x,
+        window=window,
+    )
+
+    autocorrelation_trend = ceutia_autocorrelation_trend(
+        x,
+        window=window,
+        lag=lag,
+    )
+
+    return {
+        "threshold_proximity": proximity,
+        "dynamic_slope": slope,
+        "variance_trend": variance_trend,
+        "autocorrelation_trend": autocorrelation_trend,
+    }
+
+
+def ceutia_build_dynamic_signal(
+    values: Sequence[float] | np.ndarray,
+    *,
+    threshold: float,
+    window: int,
+    lag: int = 1,
+) -> CeutiaDynamicSignal:
+    """
+    Build a structured dynamic signal without converting it into an
+    operational alert.
+    """
+
+    components = ceutia_early_warning_components(
+        values,
+        threshold=threshold,
+        window=window,
+        lag=lag,
+    )
+
+    normalized = np.asarray(
+        list(components.values()),
+        dtype=float,
+    )
+
+    scale = float(
+        np.linalg.norm(normalized)
+    )
+
+    return CeutiaDynamicSignal(
+        value=scale,
+        components=components,
+        metric_type=DynamicMetricType.EARLY_WARNING,
+        evidence_status=DynamicEvidenceStatus.EXPLORATORY,
+        interpretation_notes=(
+            "Composite signal requires empirical validation.",
+            "Components must not be interpreted as independent evidence "
+            "when they derive from the same observations.",
+            "A signal is not an alert or an autonomous decision.",
+        ),
+    )
+
+
+# ============================================================================
+# SYSTEM STATE SUMMARY
+# ============================================================================
+
+
+@dataclass(frozen=True)
+class CeutiaSystemState:
+    """
+    Snapshot of a multidimensional dynamic system.
+
+    The object preserves state, trajectory and capacity dimensions without
+    collapsing them into a single universal score.
+    """
+
+    timestamp: Any
+    state: tuple[float, ...]
+    velocity: tuple[float, ...]
+    acceleration: tuple[float, ...]
+    speed: float
+    acceleration_magnitude: float
+    anomaly_score: float | None = None
+    capacity_reserve: tuple[float, ...] | None = None
+    uncertainty: tuple[float, ...] | None = None
+    regime_distance: float | None = None
+    evidence_status: DynamicEvidenceStatus = (
+        DynamicEvidenceStatus.DERIVED
+    )
+
+
+def ceutia_build_system_state(
+    observations: Sequence[Sequence[float]] | np.ndarray,
+    *,
+    timestamp: Any,
+    capacity: Sequence[float] | np.ndarray | None = None,
+    uncertainty: Sequence[float] | np.ndarray | None = None,
+    reference_state: Sequence[float] | np.ndarray | None = None,
+    reference_scale: Sequence[float] | np.ndarray | None = None,
+    dt: float = 1.0,
+) -> CeutiaSystemState:
+    """
+    Construct a state snapshot from the latest observed system trajectory.
+    """
+
+    matrix = _ceutia_2d(
+        observations,
+        name="observations",
+    )
+
+    if matrix.shape[0] < 3:
+        raise ValueError(
+            "At least three observations are required."
+        )
+
+    velocity = ceutia_state_velocity(
+        matrix,
+        dt=dt,
+    )
+
+    acceleration = ceutia_state_acceleration(
+        matrix,
+        dt=dt,
+    )
+
+    latest_state = matrix[-1]
+
+    reserve: tuple[float, ...] | None = None
+
+    if capacity is not None:
+        c = _ceutia_1d(
+            capacity,
+            name="capacity",
+        )
+
+        if len(c) != matrix.shape[1]:
+            raise ValueError(
+                "capacity must have one value per state variable."
+            )
+
+        reserve = tuple(
+            (c - latest_state).tolist()
+        )
+
+    uncertainty_tuple: tuple[float, ...] | None = None
+
+    if uncertainty is not None:
+        u = _ceutia_1d(
+            uncertainty,
+            name="uncertainty",
+        )
+
+        if len(u) != matrix.shape[1]:
+            raise ValueError(
+                "uncertainty must have one value per state variable."
+            )
+
+        uncertainty_tuple = tuple(
+            u.tolist()
+        )
+
+    regime_distance = None
+
+    if reference_state is not None:
+        if reference_scale is None:
+            regime_distance = ceutia_state_distance(
+                latest_state,
+                reference_state,
+            )
+        else:
+            regime_distance = ceutia_standardized_state_distance(
+                latest_state,
+                reference_state,
+                reference_scale,
+            )
+
+    anomaly_score = float(
+        ceutia_multivariate_anomaly_score(matrix)[-1]
+    )
+
+    return CeutiaSystemState(
+        timestamp=timestamp,
+        state=tuple(latest_state.tolist()),
+        velocity=tuple(velocity[-1].tolist()),
+        acceleration=tuple(acceleration[-1].tolist()),
+        speed=float(
+            np.linalg.norm(velocity[-1])
+        ),
+        acceleration_magnitude=float(
+            np.linalg.norm(acceleration[-1])
+        ),
+        anomaly_score=anomaly_score,
+        capacity_reserve=reserve,
+        uncertainty=uncertainty_tuple,
+        regime_distance=regime_distance,
+    )
+
+
+# ============================================================================
+# MULTIFACTORIAL SYSTEM PROFILE
+# ============================================================================
+
+
+@dataclass(frozen=True)
+class CeutiaDynamicSystemProfile:
+    """
+    Non-collapsed description of the current system dynamics.
+
+    No single scalar represents the whole system.
+    """
+
+    state: CeutiaSystemState
+    interaction_matrix: tuple[tuple[float, ...], ...]
+    synchronization: float
+    effective_dimension: float
+    principal_component_concentration: float
+    coupling_change: float | None
+    systemic_headroom: float | None
+    bottleneck_index: float | None
+    transition_score: float | None
+    notes: tuple[str, ...] = field(
+        default_factory=tuple
+    )
+
+
+def ceutia_build_dynamic_system_profile(
+    observations: Sequence[Sequence[float]] | np.ndarray,
+    *,
+    timestamp: Any,
+    window: int,
+    capacity: Sequence[float] | np.ndarray | None = None,
+    reference_state: Sequence[float] | np.ndarray | None = None,
+    reference_scale: Sequence[float] | np.ndarray | None = None,
+    dt: float = 1.0,
+) -> CeutiaDynamicSystemProfile:
+    """
+    Construct a multidimensional dynamic profile.
+
+    The profile preserves different dimensions of system behavior instead
+    of collapsing them into one synthetic risk number.
+    """
+
+    matrix = _ceutia_2d(
+        observations,
+        name="observations",
+    )
+
+    if matrix.shape[0] < max(window, 3):
+        raise ValueError(
+            "Insufficient observations for requested window."
+        )
+
+    state = ceutia_build_system_state(
+        matrix,
+        timestamp=timestamp,
+        capacity=capacity,
+        reference_state=reference_state,
+        reference_scale=reference_scale,
+        dt=dt,
+    )
+
+    interaction = ceutia_interaction_matrix(
+        matrix[-window:]
+    )
+
+    coupling = ceutia_coupling_change(
+        matrix,
+        window=window,
+    )
+
+    transition = ceutia_regime_transition_score(
+        matrix,
+        window=window,
+    )
+
+    headroom = None
+    bottleneck = None
+
+    if capacity is not None:
+        latest = matrix[-1]
+
+        c = _ceutia_1d(
+            capacity,
+            name="capacity",
+        )
+
+        if len(c) != matrix.shape[1]:
+            raise ValueError(
+                "capacity must have one value per state variable."
+            )
+
+        relative_headroom = np.divide(
+            c - latest,
+            c,
+            out=np.zeros_like(c),
+            where=c != 0,
+        )
+
+        headroom = float(
+            np.mean(relative_headroom)
+        )
+
+        bottleneck = ceutia_bottleneck_index(
+            np.vstack(
+                [
+                    c,
+                    latest,
+                ]
+            )
+        )
+
+    notes = (
+        "Association is not causation.",
+        "Multivariate synchronization is not inherently positive or negative.",
+        "A regime-transition score detects structural movement, not its cause.",
+        "Capacity must be operationally defined before interpreting headroom.",
+        "No component constitutes an autonomous security decision.",
+    )
+
+    return CeutiaDynamicSystemProfile(
+        state=state,
+        interaction_matrix=tuple(
+            tuple(float(value) for value in row)
+            for row in interaction
+        ),
+        synchronization=ceutia_synchronization_index(
+            matrix[-window:]
+        ),
+        effective_dimension=ceutia_effective_dimension(
+            matrix[-window:]
+        ),
+        principal_component_concentration=(
+            ceutia_principal_component_concentration(
+                matrix[-window:]
+            )
+        ),
+        coupling_change=(
+            float(coupling[-1])
+            if len(coupling) > 0
+            else None
+        ),
+        systemic_headroom=headroom,
+        bottleneck_index=bottleneck,
+        transition_score=(
+            float(transition[-1])
+            if len(transition) > 0
+            else None
+        ),
+        notes=notes,
+    )
+
+
+# ============================================================================
+# METRIC DEFINITIONS / REGISTRY
+# ============================================================================
+
+
+@dataclass(frozen=True)
+class CeutiaAdvancedMetricDefinition:
+    """Metadata for an advanced dynamic metric."""
+
+    name: str
+    metric_type: DynamicMetricType
+    mathematical_role: str
+    requires_time: bool
+    supports_multivariate: bool
+    supports_uncertainty: bool
+    causal_interpretation_requires_validation: bool
+    operational_use_requires_validation: bool
+
+
+CEUTIA_ADVANCED_METRIC_REGISTRY: dict[
+    str,
+    CeutiaAdvancedMetricDefinition,
+] = {
+    "ceutia_state_velocity": CeutiaAdvancedMetricDefinition(
+        name="ceutia_state_velocity",
+        metric_type=DynamicMetricType.TRAJECTORY,
+        mathematical_role="first temporal derivative",
+        requires_time=True,
+        supports_multivariate=True,
+        supports_uncertainty=False,
+        causal_interpretation_requires_validation=True,
+        operational_use_requires_validation=True,
+    ),
+    "ceutia_state_acceleration": CeutiaAdvancedMetricDefinition(
+        name="ceutia_state_acceleration",
+        metric_type=DynamicMetricType.TRAJECTORY,
+        mathematical_role="second temporal derivative",
+        requires_time=True,
+        supports_multivariate=True,
+        supports_uncertainty=False,
+        causal_interpretation_requires_validation=True,
+        operational_use_requires_validation=True,
+    ),
+    "ceutia_multivariate_anomaly_score": CeutiaAdvancedMetricDefinition(
+        name="ceutia_multivariate_anomaly_score",
+        metric_type=DynamicMetricType.DESCRIPTIVE,
+        mathematical_role="state-space anomaly",
+        requires_time=True,
+        supports_multivariate=True,
+        supports_uncertainty=False,
+        causal_interpretation_requires_validation=True,
+        operational_use_requires_validation=True,
+    ),
+    "ceutia_interaction_effect": CeutiaAdvancedMetricDefinition(
+        name="ceutia_interaction_effect",
+        metric_type=DynamicMetricType.INTERACTION,
+        mathematical_role="multiplicative interaction association",
+        requires_time=False,
+        supports_multivariate=False,
+        supports_uncertainty=False,
+        causal_interpretation_requires_validation=True,
+        operational_use_requires_validation=True,
+    ),
+    "ceutia_dynamic_interaction_matrix": CeutiaAdvancedMetricDefinition(
+        name="ceutia_dynamic_interaction_matrix",
+        metric_type=DynamicMetricType.INTERACTION,
+        mathematical_role="time-varying dependency structure",
+        requires_time=True,
+        supports_multivariate=True,
+        supports_uncertainty=False,
+        causal_interpretation_requires_validation=True,
+        operational_use_requires_validation=True,
+    ),
+    "ceutia_effective_capacity": CeutiaAdvancedMetricDefinition(
+        name="ceutia_effective_capacity",
+        metric_type=DynamicMetricType.CAPACITY,
+        mathematical_role="deployable system capacity",
+        requires_time=True,
+        supports_multivariate=True,
+        supports_uncertainty=False,
+        causal_interpretation_requires_validation=False,
+        operational_use_requires_validation=True,
+    ),
+    "ceutia_cascade_amplification": CeutiaAdvancedMetricDefinition(
+        name="ceutia_cascade_amplification",
+        metric_type=DynamicMetricType.PROPAGATION,
+        mathematical_role="multiplicative stage amplification",
+        requires_time=True,
+        supports_multivariate=True,
+        supports_uncertainty=False,
+        causal_interpretation_requires_validation=True,
+        operational_use_requires_validation=True,
+    ),
+    "ceutia_regime_transition_score": CeutiaAdvancedMetricDefinition(
+        name="ceutia_regime_transition_score",
+        metric_type=DynamicMetricType.TRANSITION,
+        mathematical_role="change in local state distribution",
+        requires_time=True,
+        supports_multivariate=True,
+        supports_uncertainty=False,
+        causal_interpretation_requires_validation=True,
+        operational_use_requires_validation=True,
+    ),
+    "ceutia_resilience_area": CeutiaAdvancedMetricDefinition(
+        name="ceutia_resilience_area",
+        metric_type=DynamicMetricType.RESILIENCE,
+        mathematical_role="integrated normalized capacity",
+        requires_time=True,
+        supports_multivariate=False,
+        supports_uncertainty=False,
+        causal_interpretation_requires_validation=False,
+        operational_use_requires_validation=True,
+    ),
+    "ceutia_propagate_linear_uncertainty": CeutiaAdvancedMetricDefinition(
+        name="ceutia_propagate_linear_uncertainty",
+        metric_type=DynamicMetricType.UNCERTAINTY,
+        mathematical_role="first-order uncertainty propagation",
+        requires_time=False,
+        supports_multivariate=True,
+        supports_uncertainty=True,
+        causal_interpretation_requires_validation=False,
+        operational_use_requires_validation=True,
+    ),
+}
+
+
+def validate_ceutia_advanced_metric_registry() -> None:
+    """Validate registry integrity at runtime."""
+
+    for name, definition in (
+        CEUTIA_ADVANCED_METRIC_REGISTRY.items()
+    ):
+        if name != definition.name:
+            raise ValueError(
+                "Metric registry key does not match metric definition name."
+            )
+
+        if not definition.operational_use_requires_validation:
+            raise ValueError(
+                "Operational metrics must require validation."
+            )
+
+        if (
+            definition.causal_interpretation_requires_validation
+            and not definition.operational_use_requires_validation
+        ):
+            raise ValueError(
+                "Causal metrics cannot bypass operational validation."
+            )
+
+
+# ============================================================================
+# SCIENTIFIC / EPISTEMIC INVARIANTS
+# ============================================================================
+
+
+CEUTIA_ADVANCED_METRIC_INVARIANTS: tuple[str, ...] = (
+    "metric != evidence",
+    "metric != hypothesis",
+    "metric != causality",
+    "metric != prediction",
+    "metric != alert",
+    "metric != decision",
+    "correlation != causation",
+    "temporal precedence != causation",
+    "survival_under_red_team != truth",
+    "statistical_significance != operational_significance",
+    "nominal_capacity != effective_capacity",
+    "global_capacity != accessible_capacity",
+    "synchronization != resilience",
+    "anomaly != danger",
+    "migration != criminality",
+    "group_identity != individual_risk",
+    "uncertainty_must_not_be_discarded",
+    "contradictory_evidence_must_not_be_silently_removed",
+    "source_count != source_independence",
+    "forecast != observation",
+    "scenario != prediction",
+    "signal != alert",
+    "alert != autonomous_action",
+)
+
+
+def validate_ceutia_advanced_metric_invariants() -> tuple[str, ...]:
+    """
+    Return the mathematical/epistemic invariants governing this layer.
+    """
+
+    validate_ceutia_advanced_metric_registry()
+
+    if len(CEUTIA_ADVANCED_METRIC_INVARIANTS) < 10:
+        raise RuntimeError(
+            "Advanced metric invariant set is incomplete."
+        )
+
+    return CEUTIA_ADVANCED_METRIC_INVARIANTS
+
+
+# ============================================================================
+# EXPORTS
+# ============================================================================
+
+
+_CEUTIA_ADVANCED_EXPORTS = [
+    "DynamicMetricType",
+    "DynamicEvidenceStatus",
+    "InteractionKind",
+    "CeutiaUncertainValue",
+    "CeutiaDynamicSignal",
+    "CeutiaSystemState",
+    "CeutiaDynamicSystemProfile",
+    "CeutiaAdvancedMetricDefinition",
+    "ceutia_state_vector",
+    "ceutia_state_mean",
+    "ceutia_state_std",
+    "ceutia_state_velocity",
+    "ceutia_state_acceleration",
+    "ceutia_state_speed",
+    "ceutia_state_acceleration_magnitude",
+    "ceutia_state_distance",
+    "ceutia_standardized_state_distance",
+    "ceutia_persistence",
+    "ceutia_duration_above_threshold",
+    "ceutia_time_above_threshold",
+    "ceutia_autocorrelation",
+    "ceutia_variance_trend",
+    "ceutia_autocorrelation_trend",
+    "ceutia_dynamic_slope",
+    "ceutia_dynamic_acceleration",
+    "ceutia_rolling_slope",
+    "ceutia_rolling_coefficient_of_variation",
+    "ceutia_multivariate_zscore",
+    "ceutia_multivariate_anomaly_score",
+    "ceutia_effective_dimension",
+    "ceutia_principal_component_concentration",
+    "ceutia_covariance_matrix",
+    "ceutia_correlation_matrix",
+    "ceutia_lagged_cross_correlation",
+    "ceutia_autocorrelation_like",
+    "ceutia_interaction_effect",
+    "ceutia_interaction_matrix",
+    "ceutia_dynamic_interaction_matrix",
+    "ceutia_coupling_change",
+    "ceutia_synchronization_index",
+    "ceutia_redundancy_index",
+    "ceutia_higher_order_interaction",
+    "ceutia_utilization_ratio",
+    "ceutia_capacity_reserve",
+    "ceutia_capacity_headroom",
+    "ceutia_effective_capacity",
+    "ceutia_bottleneck_index",
+    "ceutia_time_to_exhaustion",
+    "ceutia_accumulated_load",
+    "ceutia_reserve_depletion",
+    "ceutia_amplification_gain",
+    "ceutia_propagation_ratio",
+    "ceutia_cascade_amplification",
+    "ceutia_feedback_strength",
+    "ceutia_threshold_distance",
+    "ceutia_threshold_proximity",
+    "ceutia_threshold_approach_rate",
+    "ceutia_regime_distance",
+    "ceutia_regime_transition_score",
+    "ceutia_hysteresis_gap",
+    "ceutia_recovery_time",
+    "ceutia_recovery_ratio",
+    "ceutia_resilience_area",
+    "ceutia_temporal_concentration",
+    "ceutia_burstiness_index",
+    "ceutia_propagate_linear_uncertainty",
+    "ceutia_interval_overlap",
+    "ceutia_early_warning_components",
+    "ceutia_build_dynamic_signal",
+    "ceutia_build_system_state",
+    "ceutia_build_dynamic_system_profile",
+    "CEUTIA_ADVANCED_METRIC_REGISTRY",
+    "validate_ceutia_advanced_metric_registry",
+    "CEUTIA_ADVANCED_METRIC_INVARIANTS",
+    "validate_ceutia_advanced_metric_invariants",
+]
+
+if "__all__" in globals():
+    __all__.extend(
+        name
+        for name in _CEUTIA_ADVANCED_EXPORTS
+        if name not in __all__
+    )
+else:
+    __all__ = list(_CEUTIA_ADVANCED_EXPORTS)
+
+
+# Do not execute scientific validation automatically at import time.
+# Registry validation remains explicitly callable so importing metrics.py
+# never silently turns a mathematical definition into an operational claim.
+
+# metrics.py
+│
+├── métricas básicas existentes
+├── métricas estadísticas existentes
+├── métricas clínicas/epidemiológicas
+├── métricas de capacidad/colas/redes
+├── métricas dinámicas que ya añadimos
+│
+└── MULTIVARIATE / SYSTEM-LEVEL METRICS
+    ├── estado multidimensional
+    ├── velocidad/aceleración vectorial
+    ├── covarianza dinámica
+    ├── correlaciones dinámicas
+    ├── interacción multifactorial
+    ├── acoplamiento entre subsistemas
+    ├── anomalía multivariante
+    ├── distancia respecto al régimen histórico
+    ├── emergencia
+    ├── estabilidad
+    ├── resiliencia
+    ├── cascadas
+    ├── propagación
+    └── transición de régimen
+    
+    
+    Añadir al final de backend/app/core/metrics.py, antes de __all__ si existe.
 # Si __all__ ya está al final, insertar este bloque antes de ella.
 
 # ---------------------------------------------------------------------------

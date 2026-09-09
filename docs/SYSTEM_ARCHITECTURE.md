@@ -1,6 +1,2080 @@
-Continuamos con el siguiente archivo, sin modificar ninguno de los anteriores:
+# CEUTIA — SYSTEM ARCHITECTURE
+Version: 1.0
+Status: Normative architecture
+Scope: CEUTIA PUBLIC
+Path: `docs/SYSTEM_ARCHITECTURE.md`
+---
+## 1. Purpose
+CEUTIA is an intelligence, knowledge and dynamic-systems platform designed to transform heterogeneous observations about Ceuta into an auditable representation of system state, trajectory, interactions, risks, hypotheses, scenarios, signals and calibrated predictions.
+CEUTIA is not primarily a dashboard.
+A dashboard displays information.
+CEUTIA constructs and continuously updates a model of a complex socio-environmental system.
+The architectural objective is therefore not merely to collect data or produce visualizations, but to establish a computational chain:
+```text
+WORLD
+  ↓
+OBSERVATIONS
+  ↓
+DATA
+  ↓
+EVIDENCE
+  ↓
+CLAIMS
+  ↓
+SYSTEM STATE
+  ↓
+TRAJECTORIES
+  ↓
+RELATIONSHIPS
+  ↓
+SIGNALS
+  ↓
+HYPOTHESES
+  ↓
+SCENARIOS
+  ↓
+PREDICTIONS
+  ↓
+DECISION-SUPPORT SIGNALS
+  ↓
+HUMAN INTERPRETATION / ACTION
+  ↓
+OUTCOME
+  ↓
+CALIBRATION
+  ↓
+MODEL REVISION
 
-docs/SYSTEM_ARCHITECTURE.md
+The system must preserve the distinction between every layer.
+
+An observation is not a conclusion.
+
+A correlation is not a causal mechanism.
+
+A hypothesis is not a fact.
+
+A scenario is not a prediction.
+
+A prediction is not a certainty.
+
+An anomaly is not automatically a threat.
+
+Human suffering is not equivalent to systemic threat.
+
+Migration is not equivalent to criminality.
+
+⸻
+
+2. Architectural principles
+
+2.1 Dynamic-system principle
+
+CEUTIA represents the territory as a dynamic system whose state changes over time.
+
+For a system state:
+
+[
+X_t =
+[x_1(t),x_2(t),…,x_n(t)]
+]
+
+the relevant object is not only:
+
+[
+X_t
+]
+
+but:
+
+[
+\frac{dX}{dt}
+]
+
+and, where meaningful:
+
+[
+\frac{d^2X}{dt^2}
+]
+
+The architecture must therefore support:
+
+* absolute levels;
+* rates of change;
+* acceleration or deceleration;
+* persistence;
+* volatility;
+* accumulated exposure;
+* recovery;
+* capacity;
+* pressure;
+* interactions;
+* feedback;
+* thresholds;
+* shocks;
+* propagation;
+* cascades.
+
+A single observation may be low-information.
+
+A trajectory can be highly informative.
+
+⸻
+
+2.2 Temporal principle
+
+Every relevant object must have temporal semantics.
+
+At minimum:
+
+observed_at
+published_at
+valid_from
+valid_to
+detected_at
+ingested_at
+inferred_at
+superseded_at
+
+CEUTIA must never silently treat information published today as if it described today’s state.
+
+The system must distinguish:
+
+time of event
+time of observation
+time of publication
+time of ingestion
+time of inference
+time of prediction
+
+This distinction is fundamental to retrospective validation.
+
+⸻
+
+2.3 Epistemic principle
+
+Every substantive proposition must carry information describing:
+
+* provenance;
+* source;
+* source type;
+* independence;
+* observation/evidence status;
+* confidence;
+* uncertainty;
+* temporal validity;
+* corroboration;
+* contradiction;
+* inference level;
+* model version.
+
+The architecture must permit a proposition to remain unresolved.
+
+Uncertainty is data.
+
+Contradiction is data.
+
+Absence of evidence is not automatically evidence of absence.
+
+⸻
+
+3. High-level architecture
+
+CEUTIA PUBLIC is divided into logical planes.
+
+┌─────────────────────────────────────────────────────────────┐
+│                     CEUTIA PUBLIC                           │
+├─────────────────────────────────────────────────────────────┤
+│  CITIZEN / PUBLIC INTERACTION PLANE                         │
+│  Information · Prevention · Wellbeing · De-escalation       │
+├─────────────────────────────────────────────────────────────┤
+│  PRESENTATION / API PLANE                                   │
+│  Dashboards · Maps · Timelines · Reports · APIs             │
+├─────────────────────────────────────────────────────────────┤
+│  INTELLIGENCE PLANE                                         │
+│  Signals · Alerts · Hypotheses · Scenarios · Predictions    │
+├─────────────────────────────────────────────────────────────┤
+│  DYNAMIC SYSTEMS PLANE                                      │
+│  State · Trajectory · Capacity · Pressure · Networks        │
+├─────────────────────────────────────────────────────────────┤
+│  EPISTEMIC / KNOWLEDGE PLANE                                │
+│  Claims · Evidence · Provenance · Contradictions            │
+├─────────────────────────────────────────────────────────────┤
+│  DATA / TEMPORAL / SPATIAL PLANE                            │
+│  Raw · Normalized · Time-series · Spatial · Graph           │
+├─────────────────────────────────────────────────────────────┤
+│  INGESTION / OBSERVATION PLANE                              │
+│  Sources · Connectors · Acquisition · Validation            │
+├─────────────────────────────────────────────────────────────┤
+│  GOVERNANCE / SECURITY / AUDIT PLANE                        │
+│  Identity · Permissions · Privacy · Audit · Safety          │
+└─────────────────────────────────────────────────────────────┘
+
+The planes are logically separated even where they may later share physical infrastructure.
+
+⸻
+
+4. Architectural domains
+
+4.1 Observation domain
+
+Responsible for representing what has been observed.
+
+Examples:
+
+* official statistics;
+* meteorological observations;
+* epidemiological observations;
+* hospital activity;
+* transport activity;
+* energy data;
+* economic indicators;
+* demographic data;
+* environmental measurements;
+* public communications;
+* verified reports;
+* geospatial observations.
+
+The observation layer must not contain conclusions disguised as observations.
+
+⸻
+
+4.2 Data domain
+
+Transforms observations into normalized machine-readable data.
+
+Responsibilities:
+
+* schema normalization;
+* units;
+* timestamps;
+* geographic normalization;
+* missing-value handling;
+* quality checks;
+* deduplication;
+* versioning;
+* lineage.
+
+⸻
+
+4.3 Knowledge domain
+
+Transforms data and evidence into explicit knowledge objects.
+
+Core objects:
+
+Source
+Observation
+Measurement
+Evidence
+Claim
+Inference
+Hypothesis
+Mechanism
+Variable
+Relationship
+
+Knowledge must remain traceable to its underlying evidence.
+
+⸻
+
+4.4 Dynamic-system domain
+
+Represents the evolving state of Ceuta.
+
+Core concepts:
+
+State
+Trajectory
+Flow
+Stock
+Capacity
+Effective Capacity
+Accessible Capacity
+Pressure
+Load
+Reserve
+Shock
+Constraint
+Threshold
+Feedback
+Cascade
+Recovery
+Adaptation
+
+The same variable may have different interpretations depending on system state.
+
+For example:
+
+[
+Demand = 1000
+]
+
+is insufficient information.
+
+The system must additionally ask:
+
+* over what period?
+* concentrated where?
+* against what capacity?
+* with what reserve?
+* with what baseline?
+* with what trend?
+* with what competing demand?
+* with what recovery time?
+
+⸻
+
+5. Intelligence domain
+
+The intelligence plane converts system representations into decision-relevant signals.
+
+Its main components are:
+
+Signal Engine
+Alert Engine
+Hypothesis Engine
+Scenario Engine
+Prediction Engine
+Causal Analysis Engine
+Risk Aggregator
+Calibration Engine
+
+These components must remain logically independent.
+
+An alert must not automatically become a hypothesis.
+
+A hypothesis must not automatically become a prediction.
+
+A prediction must not automatically become an alert.
+
+⸻
+
+6. Signal Engine
+
+The Signal Engine detects meaningful changes in system behaviour.
+
+Signals may originate from:
+
+Level anomalies
+
+[
+x_t \not\approx baseline
+]
+
+Rate anomalies
+
+[
+\Delta x_t
+]
+
+Acceleration anomalies
+
+[
+\Delta^2 x_t
+]
+
+Persistence
+
+A deviation continues beyond an expected duration.
+
+Correlation changes
+
+[
+Corr(X,Y)_t
+]
+
+changes materially relative to historical behaviour.
+
+Synchronization changes
+
+Previously independent variables begin changing together.
+
+Network changes
+
+Connectivity, centrality, propagation or clustering changes.
+
+Capacity-pressure divergence
+
+[
+Pressure_t > Capacity_t
+]
+
+or:
+
+[
+\frac{Demand_t}{EffectiveCapacity_t}
+]
+
+moves toward a critical region.
+
+Recovery deterioration
+
+The system takes progressively longer to return toward baseline after perturbation.
+
+⸻
+
+7. Alert Engine
+
+Alerts represent operationally relevant signals.
+
+A signal does not automatically constitute an alert.
+
+A simplified alert function can be represented as:
+
+[
+A =
+f(S,
+M,
+P,
+C,
+U,
+T)
+]
+
+where:
+
+* (S) = signal strength;
+* (M) = persistence;
+* (P) = potential impact;
+* (C) = corroboration;
+* (U) = uncertainty;
+* (T) = threshold proximity.
+
+Alerts must include an explanation of why they were generated.
+
+Example:
+
+ALERT
+────────────────────────
+Domain: Health
+Signal: Emergency demand acceleration
+Persistence: 14 h
+Capacity ratio: 0.87
+Trend: increasing
+Corroboration: 3 independent sources
+Confidence: 0.81
+Uncertainty: moderate
+Threshold proximity: elevated
+Primary hypothesis: H03
+Alternative hypotheses: H07, H11
+Expected next observation: within 6–12 h
+
+No alert should be presented as certainty about future events.
+
+⸻
+
+8. Hypothesis Engine
+
+The Hypothesis Engine generates and evaluates competing explanations.
+
+For an observation (E):
+
+[
+H_1,H_2,…,H_n
+]
+
+must be considered where appropriate.
+
+The system should avoid:
+
+Observation → single explanation
+
+and instead support:
+
+Observation
+    ↓
+Candidate explanations
+    ↓
+Evidence comparison
+    ↓
+Bayesian / probabilistic updating
+    ↓
+Competing hypotheses
+    ↓
+Disconfirming evidence search
+    ↓
+Posterior assessment
+
+A conceptual Bayesian update is:
+
+[
+P(H|E)
+
+\frac{P(E|H)P(H)}
+{P(E)}
+]
+
+The system must retain:
+
+* prior;
+* evidence;
+* likelihood assumptions;
+* posterior;
+* uncertainty;
+* competing hypotheses;
+* evidence against the hypothesis;
+* model version.
+
+The hypothesis engine must actively search for disconfirming evidence.
+
+⸻
+
+9. Scenario Engine
+
+Scenarios describe possible future trajectories under explicit assumptions.
+
+A scenario is not a forecast.
+
+Example:
+
+Scenario S1:
+Demand continues increasing
++
+capacity remains constant
++
+recovery time increases
+→ progressive saturation
+
+versus:
+
+Scenario S2:
+Demand continues increasing
++
+temporary capacity increase
++
+pressure redistributes
+→ delayed threshold crossing
+
+versus:
+
+Scenario S3:
+External shock
++
+simultaneous subsystem stress
++
+reduced reserve
+→ nonlinear cascade
+
+Each scenario must contain:
+
+* assumptions;
+* initial state;
+* drivers;
+* affected variables;
+* mechanisms;
+* uncertainties;
+* expected trajectory;
+* threshold conditions;
+* potential outcomes;
+* disconfirming observations.
+
+⸻
+
+10. Prediction Engine
+
+Predictions must be explicit, probabilistic and time-bounded whenever possible.
+
+Example:
+
+Prediction:
+Probability of threshold crossing within 72 h = 0.34
+Prediction horizon:
+72 h
+Reference time:
+T0
+Conditions:
+Current trajectory persists
+Confidence:
+Moderate
+Main uncertainty:
+Recovery capacity estimate
+Alternative trajectory:
+Capacity increase ≥ X
+
+Predictions must be stored.
+
+When reality subsequently becomes observable, the prediction must be scored.
+
+This enables:
+
+[
+Prediction \rightarrow Outcome \rightarrow Calibration
+]
+
+Without this loop, CEUTIA cannot objectively determine whether its predictive machinery improves.
+
+⸻
+
+11. Calibration Engine
+
+The Calibration Engine evaluates whether predicted probabilities correspond to observed frequencies.
+
+For predictions with probability (p), the system should evaluate:
+
+[
+ObservedFrequency(p) \approx p
+]
+
+It must support metrics such as:
+
+* Brier score;
+* log loss;
+* calibration curves;
+* reliability diagrams;
+* discrimination metrics where appropriate;
+* false-positive rate;
+* false-negative rate;
+* lead time;
+* detection latency;
+* alert fatigue;
+* prediction stability.
+
+The objective is not to maximize the number of predictions.
+
+The objective is to improve calibrated predictive performance.
+
+⸻
+
+12. Dynamic state model
+
+CEUTIA should maintain a continuously updated system state.
+
+Conceptually:
+
+[
+X_{t+1}
+
+F(X_t,U_t,E_t,\epsilon_t)
+]
+
+where:
+
+* (X_t) = current system state;
+* (U_t) = interventions/actions;
+* (E_t) = exogenous inputs;
+* (\epsilon_t) = unexplained variation.
+
+The system should represent both observed and estimated state.
+
+For every estimated variable:
+
+value
+estimate_type
+uncertainty
+confidence
+timestamp
+model_version
+source_dependencies
+
+⸻
+
+13. Capacity architecture
+
+Capacity must never be represented as a single scalar when the system requires multidimensional capacity.
+
+At minimum:
+
+[
+C_{global}
+\neq
+C_{effective}
+\neq
+C_{accessible}
+]
+
+Possible dimensions:
+
+physical capacity
+human capacity
+financial capacity
+logistical capacity
+geographical capacity
+temporal capacity
+institutional capacity
+clinical capacity
+communication capacity
+recovery capacity
+
+Effective capacity may be represented conceptually as:
+
+[
+C_{effective}
+
+C_{nominal}
+\cdot
+A
+\cdot
+R
+\cdot
+Q
+]
+
+where:
+
+* (A) = availability;
+* (R) = operational reserve;
+* (Q) = quality/functionality factor.
+
+The actual implementation must use domain-specific definitions rather than assuming this equation is universally valid.
+
+⸻
+
+14. Pressure architecture
+
+Pressure is contextual.
+
+A basic representation is:
+
+[
+P_t =
+\frac{Demand_t}{EffectiveCapacity_t}
+]
+
+but CEUTIA must support more sophisticated formulations incorporating:
+
+* temporal concentration;
+* spatial concentration;
+* competing demand;
+* severity;
+* duration;
+* recovery time;
+* coupling between subsystems.
+
+Therefore:
+
+[
+P_t \neq f(Demand_t)
+]
+
+alone.
+
+⸻
+
+15. Shock architecture
+
+External shocks must be represented explicitly.
+
+A shock object should contain:
+
+shock_id
+start_time
+duration
+magnitude
+affected_subsystems
+geographic_scope
+expected_origin
+observed_origin
+propagation_path
+uncertainty
+recovery_trajectory
+
+A shock may be:
+
+* environmental;
+* epidemiological;
+* economic;
+* logistical;
+* geopolitical;
+* demographic;
+* infrastructural;
+* informational;
+* technological;
+* social.
+
+The system must distinguish:
+
+shock
+response
+consequence
+secondary consequence
+feedback
+
+⸻
+
+16. Network architecture
+
+Complex phenomena cannot always be represented as independent variables.
+
+CEUTIA therefore requires graph representations.
+
+Nodes may represent:
+
+territories
+institutions
+infrastructures
+populations
+events
+resources
+systems
+subsystems
+actors
+information sources
+transport routes
+supply chains
+
+Edges may represent:
+
+dependency
+flow
+communication
+trade
+transport
+causal hypothesis
+correlation
+exposure
+competition
+cooperation
+propagation
+
+Each edge must have an explicit semantic type.
+
+A correlation edge must never be represented as causal merely because the graph contains a connection.
+
+⸻
+
+17. Cascading failure architecture
+
+The system must support nonlinear propagation.
+
+Conceptually:
+
+Shock
+ ↓
+Subsystem A stressed
+ ↓
+Reserve decreases
+ ↓
+Subsystem B receives additional load
+ ↓
+Capacity falls
+ ↓
+Pressure increases
+ ↓
+Feedback amplification
+ ↓
+Threshold crossing
+ ↓
+Cascade
+
+The architecture must detect the possibility that:
+
+[
+Impact_{system}
+
+\sum Impact_{individual\ shocks}
+]
+
+because interactions may generate emergent effects.
+
+⸻
+
+18. Weak-signal architecture
+
+Weak signals should not be discarded because they are individually small.
+
+A weak signal becomes potentially important when combined with:
+
+* persistence;
+* acceleration;
+* independent corroboration;
+* spatial spread;
+* cross-domain convergence;
+* network propagation;
+* proximity to a threshold.
+
+CEUTIA should therefore support:
+
+weak signal
++
+weak signal
++
+weak signal
+→
+convergent pattern
+
+without prematurely converting convergence into certainty.
+
+⸻
+
+19. Contradiction architecture
+
+Contradictions must remain visible.
+
+If:
+
+Source A → Claim X
+Source B → Claim not-X
+
+the system must not simply overwrite one with the other.
+
+It should create:
+
+Contradiction C1
+├── Claim A
+├── Claim B
+├── source independence
+├── temporal compatibility
+├── methodological differences
+├── confidence
+└── unresolved status
+
+Contradiction resolution should occur only when evidence justifies it.
+
+⸻
+
+20. Provenance architecture
+
+Every consequential output must be traceable backwards.
+
+The minimum provenance chain is:
+
+Output
+ ↓
+Model / algorithm
+ ↓
+Inference
+ ↓
+Claim
+ ↓
+Evidence
+ ↓
+Observation
+ ↓
+Source
+
+A user should be able to ask:
+
+Why does CEUTIA believe this?
+
+and receive an auditable chain rather than a generated explanation disconnected from the actual computation.
+
+⸻
+
+21. PUBLIC / OWNER separation
+
+The PUBLIC and OWNER architectures are separate security domains.
+
+                    ┌────────────────────┐
+                    │   PUBLIC DOMAIN    │
+                    └─────────┬──────────┘
+                              │
+                   qualified signals only
+                              │
+                              ▼
+                    ┌────────────────────┐
+                    │   OWNER GATEWAY    │
+                    └─────────┬──────────┘
+                              │
+                              ▼
+                    ┌────────────────────┐
+                    │   OWNER DOMAIN     │
+                    └────────────────────┘
+
+PUBLIC must never obtain unrestricted access to OWNER data.
+
+OWNER must not be reconstructed from PUBLIC outputs through accidental leakage.
+
+The boundary must enforce:
+
+* authentication;
+* authorization;
+* data classification;
+* minimization;
+* output filtering;
+* audit;
+* rate limits;
+* schema validation;
+* explicit transmission contracts.
+
+⸻
+
+22. PUBLIC intelligence boundary
+
+PUBLIC may perform sophisticated analysis.
+
+The fact that the data are public does not imply that every inference should be public.
+
+The system must distinguish:
+
+publicly observable data
+        ↓
+public analytical representation
+        ↓
+public signal
+        ↓
+restricted intelligence signal
+
+A signal may be generated publicly while a deeper interpretation remains restricted.
+
+⸻
+
+23. Citizen interaction plane
+
+The citizen interface is architecturally separate from the intelligence engine.
+
+It may provide:
+
+* contextual information;
+* prevention;
+* health promotion;
+* evidence-informed wellbeing resources;
+* crisis/de-escalation information;
+* curated educational material;
+* explanations of uncertainty;
+* links to appropriate professional or institutional resources.
+
+It must not automatically:
+
+* diagnose;
+* prescribe;
+* determine criminality;
+* classify a person as a threat;
+* infer malicious intent from distress;
+* convert personal suffering into an intelligence signal.
+
+⸻
+
+24. Person-level / system-level separation
+
+The architecture must distinguish:
+
+PERSON
+
+from:
+
+SYSTEM SENSOR
+
+A citizen interaction is not automatically an observation of territorial threat.
+
+A person expressing fear is not evidence that an external threat exists.
+
+A large number of similar interactions may, under controlled privacy-preserving aggregation, constitute an aggregate social signal.
+
+The transformation must be explicit:
+
+individual interactions
+        ↓
+privacy-preserving aggregation
+        ↓
+aggregate indicator
+        ↓
+uncertainty assessment
+        ↓
+possible system signal
+
+⸻
+
+25. De-escalation architecture
+
+The citizen layer should support stabilization rather than amplification.
+
+The system must avoid feedback loops such as:
+
+uncertainty
+ ↓
+alarmist output
+ ↓
+fear
+ ↓
+behavioural change
+ ↓
+more incidents
+ ↓
+more alarmist output
+
+A safer architecture is:
+
+uncertainty
+ ↓
+context
+ ↓
+proportionate information
+ ↓
+available options
+ ↓
+individual agency
+ ↓
+reduced unnecessary escalation
+
+De-escalation must never depend on deception or manipulation.
+
+⸻
+
+26. Information as a system variable
+
+Information is not external to the system.
+
+It can alter:
+
+[
+Perception
+\rightarrow
+Behaviour
+\rightarrow
+System
+\rightarrow
+NewInformation
+]
+
+Therefore CEUTIA must model informational feedback.
+
+This is particularly important for:
+
+* misinformation;
+* disinformation;
+* rumours;
+* perceived insecurity;
+* panic;
+* polarization;
+* institutional communication;
+* media amplification.
+
+An increase in reported incidents may reflect:
+
+1. increase in actual incidents;
+2. increase in observation;
+3. increase in reporting;
+4. increase in media attention;
+5. increase in vigilance;
+6. changes in measurement methodology;
+7. some combination.
+
+CEUTIA must preserve these competing explanations.
+
+⸻
+
+27. Multi-domain architecture
+
+The system should not isolate domains unnecessarily.
+
+Relevant domains may include:
+
+health
+epidemiology
+environment
+climate
+water
+energy
+food
+economy
+employment
+housing
+migration
+mobility
+transport
+education
+social cohesion
+public safety
+infrastructure
+digital environment
+geopolitics
+logistics
+institutional capacity
+
+The analytical layer must allow cross-domain interactions.
+
+For example:
+
+geopolitical instability
+ ↓
+energy price
+ ↓
+food price
+ ↓
+household stress
+ ↓
+nutrition / sleep / mental wellbeing
+ ↓
+health demand
+ ↓
+health-system pressure
+
+This is a hypothesis chain until empirically supported.
+
+⸻
+
+28. Geopolitical architecture
+
+Geopolitical events must be represented as external drivers and network structures.
+
+A geopolitical event can influence Ceuta through:
+
+trade
+energy
+food
+migration
+logistics
+tourism
+financial conditions
+information environment
+security posture
+social stress
+institutional demand
+
+CEUTIA should model indirect pathways rather than requiring geographical proximity.
+
+A conflict occurring far from Ceuta may still alter local system state.
+
+The system must distinguish:
+
+geopolitical fact
+geopolitical interpretation
+causal hypothesis
+predicted local effect
+observed local effect
+
+⸻
+
+29. Health architecture
+
+Health is represented longitudinally.
+
+The core representation is:
+
+[
+Health_t = f(B_t,H_t,E_t,S_t,C_t,…)
+]
+
+where domains may include:
+
+* biological;
+* behavioural;
+* environmental;
+* social;
+* economic;
+* clinical;
+* institutional.
+
+The system should prioritize trajectories over isolated measurements.
+
+Relevant concepts include:
+
+baseline
+trajectory
+rate of change
+cumulative exposure
+allostatic load
+reserve
+recovery
+threshold
+demand
+capacity
+delay
+
+The architecture must not reduce health to a single score.
+
+⸻
+
+30. Food and resource security
+
+Food insecurity should be represented as a dynamic system.
+
+Potential variables include:
+
+availability
+access
+price
+supply-chain reliability
+dependency
+household purchasing power
+distribution capacity
+storage
+import exposure
+shock sensitivity
+
+The system should distinguish:
+
+food exists
+
+from:
+
+food is accessible
+
+and:
+
+food is affordable
+
+and:
+
+food distribution remains operational
+
+These are different states.
+
+⸻
+
+31. War-risk architecture
+
+CEUTIA must not claim that a war will occur simply because risk indicators rise.
+
+Instead:
+
+observations
+ ↓
+risk factors
+ ↓
+competing hypotheses
+ ↓
+scenario trajectories
+ ↓
+probabilistic assessment
+ ↓
+prediction
+ ↓
+calibration
+
+Potential precursor classes may include:
+
+* military posture;
+* diplomatic deterioration;
+* economic measures;
+* supply-chain disruption;
+* cyber incidents;
+* information operations;
+* mobilization indicators;
+* infrastructure stress;
+* alliance changes.
+
+Each must have provenance and uncertainty.
+
+A war prediction requires substantially stronger evidence than an anomaly detection signal.
+
+⸻
+
+32. Disease-risk architecture
+
+Disease emergence or outbreak risk may be represented as:
+
+[
+R_{disease}
+
+f(
+exposure,
+susceptibility,
+transmission,
+mobility,
+environment,
+health\ capacity,
+detection
+)
+]
+
+The architecture should detect changes in:
+
+* incidence;
+* syndromic signals;
+* laboratory signals;
+* environmental conditions;
+* mobility;
+* healthcare demand;
+* unusual clusters.
+
+Detection must not automatically equal diagnosis.
+
+⸻
+
+33. Hunger-risk architecture
+
+A potential food crisis may emerge from interaction among:
+
+[
+Supply
+\times
+Access
+\times
+Price
+\times
+Distribution
+\times
+Resilience
+]
+
+The system should therefore monitor trajectories and interactions rather than waiting for a formal crisis declaration.
+
+⸻
+
+34. Cross-domain early-warning matrix
+
+CEUTIA should maintain a matrix similar to:
+
+                 HEALTH ENV FOOD ECON MIGRATION ENERGY GEO
+HEALTH             ·     X    X    X      X        X     X
+ENVIRONMENT        X     ·    X    X      X        X     X
+FOOD               X     X    ·    X      X        X     X
+ECONOMY            X     X    X    ·      X        X     X
+MIGRATION          X     X    X    X      ·        X     X
+ENERGY             X     X    X    X      X        ·     X
+GEOPOLITICS        X     X    X    X      X        X     ·
+
+An X means that an interaction is analytically possible.
+
+It does not mean that causality exists.
+
+Causal status must be separately established.
+
+⸻
+
+35. Event-driven architecture
+
+The platform should use event-driven processing where appropriate.
+
+Conceptually:
+
+Source Event
+    ↓
+Ingestion Event
+    ↓
+Validation Event
+    ↓
+Normalization Event
+    ↓
+Evidence Event
+    ↓
+Claim Update Event
+    ↓
+State Update Event
+    ↓
+Signal Evaluation Event
+    ↓
+Hypothesis Update Event
+    ↓
+Scenario Update Event
+    ↓
+Prediction Event
+    ↓
+Calibration Event
+
+Each event should be:
+
+* immutable where possible;
+* timestamped;
+* identifiable;
+* attributable;
+* replayable;
+* auditable.
+
+⸻
+
+36. Idempotency
+
+Every ingestion and processing operation that can be retried must support idempotency.
+
+Repeated delivery of the same event must not create duplicate analytical reality.
+
+The system should use:
+
+event_id
+source_id
+content_hash
+observation_time
+ingestion_time
+version
+
+to identify duplicate or revised information.
+
+⸻
+
+37. Failure architecture
+
+CEUTIA must assume components will fail.
+
+Failure modes include:
+
+* source unavailable;
+* corrupted data;
+* delayed data;
+* model failure;
+* database failure;
+* network failure;
+* API failure;
+* incorrect schema;
+* contradictory sources;
+* model drift;
+* hallucinated LLM output;
+* security incident.
+
+The system should implement:
+
+timeouts
+retries
+circuit breakers
+dead-letter queues
+graceful degradation
+health checks
+fallbacks
+event replay
+audit trails
+
+A missing source must not silently become a zero.
+
+⸻
+
+38. Graceful degradation
+
+If an analytical subsystem fails, CEUTIA should continue operating at a reduced capability.
+
+Example:
+
+Prediction Engine unavailable
+        ↓
+Signals remain available
+        ↓
+Raw observations remain available
+        ↓
+Public information remains available
+
+The user must be informed about degraded analytical capability.
+
+⸻
+
+39. LLM architecture
+
+Large language models may assist with:
+
+* semantic extraction;
+* document classification;
+* entity resolution;
+* summarization;
+* hypothesis generation;
+* natural-language interfaces;
+* explanation of already-computed results.
+
+LLMs must not become the authoritative epistemic layer.
+
+The architecture must prevent:
+
+LLM statement
+→
+automatically accepted fact
+
+Instead:
+
+LLM output
+ ↓
+structured candidate
+ ↓
+validation
+ ↓
+provenance
+ ↓
+epistemic evaluation
+ ↓
+accepted / rejected / unresolved
+
+The model must never fabricate provenance.
+
+⸻
+
+40. Mathematical computation
+
+Numerical computation should occur in deterministic or explicitly stochastic analytical services rather than being delegated implicitly to natural-language generation.
+
+Examples:
+
+* time-series analysis;
+* Bayesian updating;
+* anomaly detection;
+* survival analysis;
+* state-space models;
+* change-point detection;
+* network analysis;
+* differential-equation models;
+* agent-based models;
+* Monte Carlo simulation;
+* sensitivity analysis;
+* causal inference;
+* optimization;
+* forecasting.
+
+Every model must have:
+
+model_id
+version
+inputs
+parameters
+assumptions
+outputs
+uncertainty
+validation
+calibration
+limitations
+
+⸻
+
+41. Model registry
+
+All production models must be versioned.
+
+Model
+├── identifier
+├── version
+├── owner
+├── purpose
+├── mathematical specification
+├── training data
+├── validation data
+├── assumptions
+├── known failure modes
+├── performance
+├── calibration
+├── deployment status
+└── retirement status
+
+A prediction must always identify the model version that produced it.
+
+⸻
+
+42. Data stores
+
+The architecture should support different storage classes.
+
+Conceptually:
+
+Object Store
+ └── raw documents / source artifacts
+Relational Store
+ └── structured entities / metadata
+Time-Series Store
+ └── temporal observations
+Geospatial Store
+ └── geographic objects
+Graph Store
+ └── networks / relationships
+Evidence Store
+ └── evidence / provenance / claims
+Model Store
+ └── models / parameters / versions
+Event Store
+ └── immutable processing events
+Audit Store
+ └── security / governance / analytical audit
+
+The exact technologies are implementation decisions and must not be hard-coded into this architectural specification.
+
+⸻
+
+43. API architecture
+
+APIs should expose typed objects rather than arbitrary database access.
+
+Examples:
+
+/sources
+/observations
+/evidence
+/claims
+/hypotheses
+/states
+/trajectories
+/signals
+/alerts
+/scenarios
+/predictions
+/outcomes
+/calibration
+
+Access must be authorization-controlled.
+
+The public API must never expose internal storage indiscriminately.
+
+⸻
+
+44. Query architecture
+
+A query such as:
+
+"Is Ceuta becoming less resilient?"
+
+must not be answered by a simple text search.
+
+The system should decompose it into:
+
+Define resilience
+ ↓
+Identify relevant subsystems
+ ↓
+Retrieve trajectories
+ ↓
+Estimate capacity
+ ↓
+Estimate pressure
+ ↓
+Measure recovery
+ ↓
+Detect cross-domain coupling
+ ↓
+Compare baseline
+ ↓
+Quantify uncertainty
+ ↓
+Evaluate competing explanations
+ ↓
+Produce conclusion
+
+The natural-language layer is therefore an interface to the analytical architecture, not a replacement for it.
+
+⸻
+
+45. Explainability architecture
+
+Every important output should support several explanation levels.
+
+Level 1 — Summary
+
+What is happening?
+
+Level 2 — Evidence
+
+What observations support it?
+
+Level 3 — Mechanism
+
+What mechanism is proposed?
+
+Level 4 — Uncertainty
+
+What remains unknown?
+
+Level 5 — Alternatives
+
+What competing explanations exist?
+
+Level 6 — Mathematics
+
+Which model generated the estimate?
+
+Level 7 — Provenance
+
+Which original sources support the underlying observations?
+
+⸻
+
+46. Observability
+
+CEUTIA itself must be observable.
+
+Operational metrics should include:
+
+ingestion latency
+processing latency
+source availability
+pipeline failures
+data freshness
+missingness
+duplicate rate
+model latency
+prediction volume
+alert volume
+false-positive rate
+false-negative rate
+calibration
+API latency
+security events
+
+The platform should monitor not only the territory but also its own reliability.
+
+⸻
+
+47. Data quality
+
+Every dataset must have quality metadata.
+
+Potential dimensions:
+
+completeness
+accuracy
+timeliness
+consistency
+uniqueness
+validity
+methodological quality
+source independence
+revision history
+
+Quality must not be reduced to one universal score.
+
+⸻
+
+48. Security architecture integration
+
+Security is cross-cutting.
+
+The architecture must integrate:
+
+authentication
+authorization
+least privilege
+secret management
+encryption
+input validation
+output filtering
+rate limiting
+audit
+security monitoring
+tenant isolation
+data classification
+incident response
+
+Security controls must operate at API, service, data and model levels.
+
+⸻
+
+49. Privacy architecture
+
+Privacy must be enforced before analytical aggregation where necessary.
+
+The architecture should support:
+
+data minimization
+purpose limitation
+pseudonymization
+aggregation
+access controls
+retention limits
+de-identification
+privacy-preserving statistics
+
+Individual-level data must not be retained merely because they could theoretically become useful.
+
+⸻
+
+50. Human-in-the-loop architecture
+
+High-impact outputs must support human review.
+
+Examples:
+
+high-impact alert
+        ↓
+analytical review
+        ↓
+human validation
+        ↓
+decision-support output
+
+Human review does not mean manually reviewing every observation.
+
+It means placing human judgment at the points where automated inference could materially alter decisions.
+
+⸻
+
+51. Anti-patterns
+
+The following architectural patterns are prohibited.
+
+Dashboard-first architecture
+
+Collecting indicators without an underlying ontology or state model.
+
+LLM-as-database
+
+Using a language model’s latent knowledge as the authoritative knowledge store.
+
+LLM-as-truth-engine
+
+Treating generated prose as verified evidence.
+
+Correlation-as-causality
+
+Representing statistical association as causal mechanism without justification.
+
+Alert inflation
+
+Generating alerts for every anomaly.
+
+Single-score governance
+
+Reducing complex system state to one opaque risk number.
+
+Person-as-sensor
+
+Treating individual suffering or communication as direct evidence of threat.
+
+Migration-as-threat
+
+Encoding migration itself as a threat variable.
+
+Source counting
+
+Assuming ten dependent sources provide ten independent confirmations.
+
+Silent contradiction resolution
+
+Overwriting conflicting evidence without preserving the conflict.
+
+Data leakage across domains
+
+Allowing PUBLIC and OWNER information to mix without explicit authorization.
+
+Hidden model changes
+
+Changing predictive models without versioning.
+
+Uncalibrated prediction
+
+Producing probabilities without subsequent outcome comparison.
+
+⸻
+
+52. End-to-end execution
+
+A complete CEUTIA analytical cycle is:
+
+1. SOURCE DISCOVERY
+       ↓
+2. ACQUISITION
+       ↓
+3. AUTHENTICATION / VALIDATION
+       ↓
+4. RAW STORAGE
+       ↓
+5. NORMALIZATION
+       ↓
+6. ENTITY / TEMPORAL / SPATIAL RESOLUTION
+       ↓
+7. OBSERVATION CREATION
+       ↓
+8. EVIDENCE EVALUATION
+       ↓
+9. CLAIM CONSTRUCTION
+       ↓
+10. PROVENANCE / INDEPENDENCE
+       ↓
+11. CONTRADICTION DETECTION
+       ↓
+12. STATE UPDATE
+       ↓
+13. TRAJECTORY ANALYSIS
+       ↓
+14. CAPACITY / PRESSURE ANALYSIS
+       ↓
+15. NETWORK / INTERACTION ANALYSIS
+       ↓
+16. SIGNAL DETECTION
+       ↓
+17. COMPETING HYPOTHESES
+       ↓
+18. SCENARIO GENERATION
+       ↓
+19. PROBABILISTIC PREDICTION
+       ↓
+20. ALERT / DECISION SIGNAL
+       ↓
+21. PUBLIC OR OWNER ROUTING
+       ↓
+22. HUMAN INTERPRETATION
+       ↓
+23. OBSERVED OUTCOME
+       ↓
+24. PREDICTION SCORING
+       ↓
+25. CALIBRATION
+       ↓
+26. MODEL REVISION
+       ↓
+27. REPROCESSING / LEARNING
+
+This cycle must be persistent rather than executed only once.
+
+⸻
+
+53. Architecture of anticipation
+
+The central objective is early recognition of trajectory deterioration.
+
+CEUTIA should seek the transition:
+
+NORMAL VARIABILITY
+        ↓
+EARLY DEVIATION
+        ↓
+PERSISTENT SIGNAL
+        ↓
+MULTI-DOMAIN CONVERGENCE
+        ↓
+CAPACITY DETERIORATION
+        ↓
+THRESHOLD PROXIMITY
+        ↓
+AMPLIFICATION
+        ↓
+CASCADE
+
+The architecture is specifically designed to intervene analytically before the final visible manifestation.
+
+Therefore:
+
+Disease
+
+is not the first object of interest.
+
+The preceding trajectory is.
+
+Likewise:
+
+hunger
+
+is not necessarily the first observable.
+
+Supply stress, affordability, logistics and reserve may deteriorate earlier.
+
+Likewise:
+
+war
+
+is not necessarily the first observable.
+
+The system may detect preceding changes in diplomatic, military, economic, informational and infrastructural trajectories.
+
+The existence of precursor signals does not guarantee the final event.
+
+⸻
+
+54. Fundamental architectural loop
+
+CEUTIA ultimately operates as a closed learning system:
+
+[
+Observation
+\rightarrow
+Model
+\rightarrow
+Prediction
+\rightarrow
+Reality
+\rightarrow
+Evaluation
+\rightarrow
+Model\ Revision
+]
+
+The platform must therefore learn not merely from more data, but from the relationship between its predictions and what subsequently happened.
+
+That distinction is essential.
+
+A system that continuously generates explanations without measuring whether those explanations predict reality is not an intelligence system.
+
+It is a narrative generator.
+
+CEUTIA must be architected to become progressively more falsifiable, measurable and calibrated.
+
+⸻
+
+55. Final architectural invariant
+
+The central invariant of CEUTIA is:
+
+No important conclusion should exist without a traceable path from observation to evidence, from evidence to inference, from inference to model, and from model to measurable outcome.
+
+And the reciprocal invariant is:
+
+No observation should be discarded merely because its significance is not yet known.
+
+The architecture must therefore preserve both knowledge and uncertainty.
+
+Its purpose is not to eliminate uncertainty.
+
+Its purpose is to make uncertainty explicit, quantify it where possible, update it when new evidence arrives, and detect when a complex system is moving toward a state in which intervention becomes increasingly difficult.
+
 
 # CEUTIA PUBLIC — System Architecture
 ## 1. Purpose

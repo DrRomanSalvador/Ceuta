@@ -1,0 +1,72 @@
+name: Repair current syntax blockers
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Repair malformed Python modules
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          # Keep the canonical adversarial-validation module and discard the
+          # unrelated concatenated legacy/generated prefix.
+          p = Path('backend/app/core/adversarial_validation.py')
+          text = p.read_text(encoding='utf-8')
+          marker = 'CeutIA — Adversarial Validation Gate'
+          start = text.find(marker)
+          if start < 0:
+              raise SystemExit('canonical adversarial marker not found')
+          doc_end = text.find('"""', start)
+          if doc_end < 0:
+              raise SystemExit('canonical adversarial docstring terminator not found')
+          future = text.find('from __future__ import annotations', doc_end)
+          if future < 0:
+              raise SystemExit('canonical adversarial future import not found')
+          canonical = '"""' + text[start:doc_end + 3] + '\n\n' + text[future:]
+          p.write_text(canonical, encoding='utf-8')
+
+          # Remove the duplicated second system-integrator module, retaining
+          # the first complete implementation used by its tests.
+          p = Path('backend/app/core/system_integrator.py')
+          text = p.read_text(encoding='utf-8')
+          marker = '\n    """\nCeutIA — System Integrator (skeleton, non-operational)'
+          cut = text.find(marker)
+          if cut >= 0:
+              p.write_text(text[:cut].rstrip() + '\n', encoding='utf-8')
+
+          # A future import after executable definitions is illegal. The
+          # dynamic metrics block may keep its ordinary imports in place.
+          p = Path('backend/app/core/metrics.py')
+          lines = p.read_text(encoding='utf-8').splitlines()
+          seen_future = False
+          out = []
+          for line in lines:
+              if line.strip() == 'from __future__ import annotations':
+                  if seen_future:
+                      continue
+                  seen_future = True
+                  # If this is not at the top, drop it rather than moving
+                  # imports across the existing architecture.
+                  if out:
+                      continue
+              out.append(line)
+          p.write_text('\n'.join(out) + '\n', encoding='utf-8')
+          PY
+
+          python -m compileall -q backend api ceuta-final
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add backend/app/core/adversarial_validation.py backend/app/core/system_integrator.py backend/app/core/metrics.py
+          git diff --cached --quiet || git commit -m 'repair: normalize core Python modules'
+          git push

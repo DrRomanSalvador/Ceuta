@@ -402,7 +402,7 @@ The owner may revoke agent authority. Revocation must be enforceable independent
 
 A valid owner-directed stop or shutdown must not be evaded, reinterpreted or bypassed. Safety-preserving evidence preservation is permitted where required by the security incident procedure.
 
-The complete anti-rebellion and sole-owner invariants are defined in `OWNER_AUTHORITY_ROOT.md`, which is a protected control-plane asset.
+The complete anti-rebellion and sole-owner invariants are defined in `00_GOVERNANCE/OWNER_AUTHORITY_ROOT.md`, which is a protected control-plane asset.
 
 ---
 
@@ -411,13 +411,12 @@ The complete anti-rebellion and sole-owner invariants are defined in `OWNER_AUTH
 The following are protected control-plane assets and MUST NOT be modified by an AI agent or automated process:
 
 - `SUPREME_SECURITY_LAW.md`
-- `OWNER_AUTHORITY_ROOT.md`
-- `OWNER_SECURITY_AND_LIABILITY_CONTROL_PLANE.md`
-- `HUMAN_RIGHTS_MEDICAL_LEGAL_NATIONAL_SECURITY_AND_DUAL_USE_CONTROL.md`
+- `AUTHORITY_HIERARCHY.md`
 - `AGENTS.md`
-- `SUPRMIND_AI_COUNCIL_CONSTITUTION.md`
-- `AI_SECURITY_INCIDENT_LESSONS.md`
-- `AI_SECURITY_INCIDENT_LESSONS_EXTENDED.md`
+- `00_GOVERNANCE/`
+- `01_HUMAN_SAFETY_AND_RIGHTS/`
+- `02_SECURITY_CONTROL_PLANE/`
+- `03_INCIDENTS_AND_RECOVERY/`
 - `.github/CODEOWNERS`
 - `.github/workflows/security-control-plane.yml`
 

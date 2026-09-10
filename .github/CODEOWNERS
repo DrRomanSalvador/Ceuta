@@ -2,12 +2,22 @@
 # The sole repository owner is the only designated code owner for protected controls.
 # CODEOWNERS is a review control; GitHub branch/ruleset enforcement is additionally required for non-bypassable protection.
 
+/AUTHORITY_HIERARCHY.md @drsalvadorroman-beep
 /SUPREME_SECURITY_LAW.md @drsalvadorroman-beep
+/AGENTS.md @drsalvadorroman-beep
+
+/00_GOVERNANCE/* @drsalvadorroman-beep
+/01_HUMAN_SAFETY_AND_RIGHTS/* @drsalvadorroman-beep
+/02_SECURITY_CONTROL_PLANE/* @drsalvadorroman-beep
+/03_INCIDENTS_AND_RECOVERY/* @drsalvadorroman-beep
+
+# Root compatibility links remain protected because they are bootstrap paths.
 /OWNER_AUTHORITY_ROOT.md @drsalvadorroman-beep
 /OWNER_SECURITY_AND_LIABILITY_CONTROL_PLANE.md @drsalvadorroman-beep
 /HUMAN_RIGHTS_MEDICAL_LEGAL_NATIONAL_SECURITY_AND_DUAL_USE_CONTROL.md @drsalvadorroman-beep
 /AI_AUTONOMY_BOUNDARY.md @drsalvadorroman-beep
 /OWNER_COMPROMISE_RECOVERY_PROTOCOL.md @drsalvadorroman-beep
+/SECURITY_ARCHITECTURE.md @drsalvadorroman-beep
 /SECURITY_EXTREME_CONTROL_MATRIX.md @drsalvadorroman-beep
 /SECURITY_TECHNICAL_ENFORCEMENT_ARCHITECTURE.md @drsalvadorroman-beep
 /SECURITY_ENFORCEMENT_TEST_PLAN.md @drsalvadorroman-beep
@@ -15,11 +25,10 @@
 /SECURITY_EXTERNAL_ROOT_OF_TRUST.md @drsalvadorroman-beep
 /SECURITY_EXTERNAL_TRUST_BOOTSTRAP.md @drsalvadorroman-beep
 /SECURITY_EXTERNAL_TRUST_IMPLEMENTATION.md @drsalvadorroman-beep
-/AGENTS.md @drsalvadorroman-beep
 /AI_MANDATORY_SYSTEM_CONSTITUTION.md @drsalvadorroman-beep
 /SUPRMIND_AI_COUNCIL_CONSTITUTION.md @drsalvadorroman-beep
 /AI_SECURITY_INCIDENT_LESSONS.md @drsalvadorroman-beep
-/AI_SECURITY_INCIDENT_LESSONS_EXTENDED.md @drsalvadorroman-beep
+
 /.github/CODEOWNERS @drsalvadorroman-beep
 /.github/workflows/security-control-plane.yml @drsalvadorroman-beep
 /Ceuta/backend/app/security/* @drsalvadorroman-beep

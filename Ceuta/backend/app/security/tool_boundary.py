@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ipaddress
 import os
+import socket
 import subprocess
 from pathlib import Path
 from urllib.parse import urlparse
@@ -39,17 +40,30 @@ class ToolBoundary:
 
     def safe_url(self, url: str) -> str:
         parsed = urlparse(url)
-        if parsed.scheme not in {"https"} or not parsed.hostname:
+        if parsed.scheme != "https" or not parsed.hostname:
             raise AuthorizationError("Only allowlisted HTTPS destinations are permitted")
+        if parsed.username or parsed.password:
+            raise AuthorizationError("URL credentials are denied")
+        if parsed.port not in {None, 443}:
+            raise AuthorizationError("Non-standard HTTPS ports are denied")
         hostname = parsed.hostname.rstrip(".").lower()
         if hostname not in self._network_hosts:
             raise AuthorizationError("Network destination is not allowlisted")
         try:
-            addresses = [ipaddress.ip_address(hostname)]
-        except ValueError:
-            addresses = []
-        if any(address.is_private or address.is_loopback or address.is_link_local for address in addresses):
-            raise AuthorizationError("Private or local network destinations are denied")
+            resolved = socket.getaddrinfo(hostname, 443, type=socket.SOCK_STREAM)
+        except OSError as exc:
+            raise AuthorizationError("Network destination cannot be resolved safely") from exc
+        for item in resolved:
+            address = ipaddress.ip_address(item[4][0])
+            if (
+                address.is_private
+                or address.is_loopback
+                or address.is_link_local
+                or address.is_multicast
+                or address.is_reserved
+                or address.is_unspecified
+            ):
+                raise AuthorizationError("Network destination resolves to a restricted address")
         return url
 
     def command(self, argv: list[str]) -> subprocess.CompletedProcess[str]:

@@ -2,33 +2,14 @@
 # CeutIA — Production Python Runtime
 # ============================================================
 
-# Python version explicitly constrained by pyproject.toml.
 FROM python:3.12-slim
 
-# ------------------------------------------------------------
-# Runtime environment
-# ------------------------------------------------------------
-
-# Prevent Python from creating .pyc files inside the container.
-ENV PYTHONDONTWRITEBYTECODE=1
-
-# Send Python stdout/stderr directly to the container logs.
-ENV PYTHONUNBUFFERED=1
-
-# The Python package root defined by pyproject.toml is /app/backend.
-ENV PYTHONPATH=/app/backend
-
-# ------------------------------------------------------------
-# Application directory
-# ------------------------------------------------------------
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app/backend
 
 WORKDIR /app
 
-# ------------------------------------------------------------
-# Non-root runtime user
-# ------------------------------------------------------------
-
-# CeutIA must not run the application as root.
 RUN groupadd --system ceutia \
     && useradd \
         --system \
@@ -38,52 +19,21 @@ RUN groupadd --system ceutia \
         --shell /usr/sbin/nologin \
         ceutia
 
-# ------------------------------------------------------------
-# Python project metadata
-# ------------------------------------------------------------
-
-# Copy the packaging metadata first so dependency installation
-# is separated from the application source layer.
+# Keep packaging metadata in its own layer.
 COPY pyproject.toml README.md ./
 
-# ------------------------------------------------------------
-# Application source
-# ------------------------------------------------------------
-
-# pyproject.toml declares:
-# package-dir = { "" = "backend" }
-# therefore the backend package must exist at /app/backend.
+# Canonical backend package.
 COPY backend ./backend
 
-# ------------------------------------------------------------
-# Python dependencies
-# ------------------------------------------------------------
+# Continuous monitor used by docker-compose.
+COPY ceuta-final ./ceuta-final
 
 RUN python -m pip install --no-cache-dir --upgrade pip \
-    && python -m pip install --no-cache-dir .
-
-# ------------------------------------------------------------
-# File ownership
-# ------------------------------------------------------------
-
-RUN chown -R ceutia:ceutia /app
-
-# ------------------------------------------------------------
-# Runtime privilege
-# ------------------------------------------------------------
+    && python -m pip install --no-cache-dir . \
+    && chown -R ceutia:ceutia /app
 
 USER ceutia
 
-# ------------------------------------------------------------
-# API port
-# ------------------------------------------------------------
-
 EXPOSE 8000
 
-# ------------------------------------------------------------
-# Application entrypoint
-# ------------------------------------------------------------
-
-# pyproject.toml defines the application package under backend/.
-# The FastAPI application will be exposed as app.main:app.
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

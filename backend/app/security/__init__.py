@@ -1,4 +1,5 @@
 """
+
 CEUTIA PUBLIC — Security Package.
 
 This package contains the security boundary for CEUTIA PUBLIC.
@@ -8,7 +9,7 @@ Lo corrijo antes de continuar. Mantengo el mismo archivo y lo convierto en una v
 
 backend/app/security/__init__.py
 
-"""
+
 CEUTIA PUBLIC — Security Boundary.
 This package defines the security boundary for CEUTIA PUBLIC.
 Security in CEUTIA is not limited to authentication or infrastructure
@@ -426,7 +427,7 @@ The security boundary therefore exists to preserve four properties:
 The fourth property is essential to CEUTIA.
 A system that keeps its databases confidential but produces corrupted
 knowledge is not secure enough for its intended purpose.
-"""
+
 # This module deliberately contains no runtime security implementation.
 # It defines the public package boundary and architectural invariants.
 #
@@ -492,7 +493,7 @@ Design principle:
         -> controlled output
 
 Technical security and epistemic security are both within scope.
-"""
+
 
 __all__ = [
     "config",
@@ -515,3 +516,5 @@ __all__ = [
     "security_events",
     "incident_detection",
 ]
+
+"""

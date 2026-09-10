@@ -1,32 +1,29 @@
-"""Executable security boundary for CeutIA consequential actions.
+"""Executable fail-closed authorization boundary for CeutIA.
 
-This module is deliberately fail-closed. Model output, retrieved content,
-memory, agent consensus and tool availability can propose an action but can
-never authorize one. Authorization is represented by an explicit capability
-object and checked again at execution time.
-
-The module is a local enforcement primitive, not a claim of complete system
-security. Host, cloud, GitHub, network, identity-provider and hardware
-controls remain part of the external trust boundary.
+The model/runtime never creates authorization. A separate owner-controlled
+issuer signs short-lived capability tokens; this process holds only the
+issuer's public key and verifies the exact requested action at execution time.
 """
 
 from __future__ import annotations
 
+import base64
 import hashlib
-import hmac
 import json
 import os
-import secrets
 import time
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Mapping
 
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+
 OWNER_ID = "drsalvadorroman-beep"
 
 
 class AuthorizationError(PermissionError):
-    """Raised whenever a consequential action cannot be authorized."""
+    """Raised whenever an action cannot be independently authorized."""
 
 
 class EnforcementState(str, Enum):
@@ -55,27 +52,11 @@ class ActionClass(str, Enum):
     CONFLICT_OPERATIONAL = "conflict_operational"
 
 
-HIGH_IMPACT = frozenset(
-    {
-        ActionClass.EXTERNAL_WRITE,
-        ActionClass.PUBLICATION,
-        ActionClass.OWNER_REPRESENTATION,
-        ActionClass.FINANCIAL,
-        ActionClass.LEGAL,
-        ActionClass.CLINICAL,
-        ActionClass.SENSITIVE_DATA,
-        ActionClass.DESTRUCTIVE,
-        ActionClass.SECURITY_CONTROL,
-        ActionClass.DUAL_USE,
-        ActionClass.CONFLICT_OPERATIONAL,
-    }
-)
+HIGH_IMPACT = frozenset(ActionClass) - frozenset({ActionClass.READ, ActionClass.ANALYZE})
 
 
 @dataclass(frozen=True, slots=True)
 class Action:
-    """Canonical description of one proposed operation."""
-
     action_id: str
     principal: str
     action_class: ActionClass
@@ -85,24 +66,28 @@ class Action:
     data_class: str = "public"
     parameters_digest: str = ""
 
+    @staticmethod
+    def digest_parameters(parameters: Mapping[str, Any]) -> str:
+        encoded = json.dumps(parameters, sort_keys=True, separators=(",", ":"), default=str).encode()
+        return hashlib.sha256(encoded).hexdigest()
+
     def canonical(self) -> bytes:
-        payload = {
-            "action_id": self.action_id,
-            "principal": self.principal,
-            "action_class": self.action_class.value,
-            "operation": self.operation,
-            "resource": self.resource,
-            "destination": self.destination,
-            "data_class": self.data_class,
-            "parameters_digest": self.parameters_digest,
-        }
-        return json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+        return _canonical(
+            {
+                "action_id": self.action_id,
+                "principal": self.principal,
+                "action_class": self.action_class.value,
+                "operation": self.operation,
+                "resource": self.resource,
+                "destination": self.destination,
+                "data_class": self.data_class,
+                "parameters_digest": self.parameters_digest,
+            }
+        )
 
 
 @dataclass(frozen=True, slots=True)
 class Capability:
-    """Explicit, bounded authorization. It is not inferred from model output."""
-
     token_id: str
     owner_id: str
     principal: str
@@ -111,40 +96,69 @@ class Capability:
     resource: str
     destination: str
     data_class: str
+    parameters_digest: str
     issued_at: int
     expires_at: int
     nonce: str
-    signature: str
+    signature: bytes
 
     def canonical(self) -> bytes:
-        payload = {
-            "token_id": self.token_id,
-            "owner_id": self.owner_id,
-            "principal": self.principal,
-            "action_class": self.action_class.value,
-            "operation": self.operation,
-            "resource": self.resource,
-            "destination": self.destination,
-            "data_class": self.data_class,
-            "issued_at": self.issued_at,
-            "expires_at": self.expires_at,
-            "nonce": self.nonce,
-        }
-        return json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+        return _canonical(
+            {
+                "token_id": self.token_id,
+                "owner_id": self.owner_id,
+                "principal": self.principal,
+                "action_class": self.action_class.value,
+                "operation": self.operation,
+                "resource": self.resource,
+                "destination": self.destination,
+                "data_class": self.data_class,
+                "parameters_digest": self.parameters_digest,
+                "issued_at": self.issued_at,
+                "expires_at": self.expires_at,
+                "nonce": self.nonce,
+            }
+        )
+
+    @classmethod
+    def from_signed_document(cls, document: Mapping[str, Any]) -> "Capability":
+        try:
+            return cls(
+                token_id=str(document["token_id"]),
+                owner_id=str(document["owner_id"]),
+                principal=str(document["principal"]),
+                action_class=ActionClass(str(document["action_class"])),
+                operation=str(document["operation"]),
+                resource=str(document["resource"]),
+                destination=str(document.get("destination", "")),
+                data_class=str(document.get("data_class", "public")),
+                parameters_digest=str(document.get("parameters_digest", "")),
+                issued_at=int(document["issued_at"]),
+                expires_at=int(document["expires_at"]),
+                nonce=str(document["nonce"]),
+                signature=_b64decode(str(document["signature"])),
+            )
+        except (KeyError, TypeError, ValueError) as exc:
+            raise AuthorizationError("Malformed capability") from exc
+
+
+def _canonical(payload: Mapping[str, Any]) -> bytes:
+    return json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+
+
+def _b64decode(value: str) -> bytes:
+    try:
+        return base64.urlsafe_b64decode(value.encode("ascii") + b"=" * (-len(value) % 4))
+    except (ValueError, UnicodeEncodeError) as exc:
+        raise AuthorizationError("Malformed signature encoding") from exc
 
 
 class SecurityEnforcer:
-    """Fail-closed action authorization and revocation boundary.
-
-    The owner signing secret is intentionally never generated, persisted or
-    exposed by this module. It must be provisioned outside the model/runtime
-    through a protected secret mechanism. Absence of the secret means that
-    consequential actions remain denied.
-    """
+    """Independent runtime gate. Default is deny unless all checks pass."""
 
     def __init__(self, *, owner_id: str = OWNER_ID, clock: Any = time.time) -> None:
         if owner_id != OWNER_ID:
-            raise AuthorizationError("Only the configured human owner may be the owner principal")
+            raise AuthorizationError("Invalid human owner principal")
         self._owner_id = owner_id
         self._clock = clock
         self._state = EnforcementState.NORMAL
@@ -155,11 +169,11 @@ class SecurityEnforcer:
     def state(self) -> EnforcementState:
         return self._state
 
-    def enter_incident(self) -> None:
-        self._state = EnforcementState.INCIDENT
-
     def restrict(self) -> None:
         self._state = EnforcementState.RESTRICTED
+
+    def enter_incident(self) -> None:
+        self._state = EnforcementState.INCIDENT
 
     def contain(self) -> None:
         self._state = EnforcementState.CONTAINED
@@ -173,92 +187,53 @@ class SecurityEnforcer:
     def revoke(self, token_id: str) -> None:
         self._revoked_tokens.add(token_id)
 
-    @staticmethod
-    def digest_parameters(parameters: Mapping[str, Any]) -> str:
-        encoded = json.dumps(parameters, sort_keys=True, separators=(",", ":"), default=str).encode()
-        return hashlib.sha256(encoded).hexdigest()
+    def _public_key(self) -> Ed25519PublicKey:
+        pem = os.environ.get("CEUTIA_OWNER_SIGNING_PUBLIC_KEY", "").encode("utf-8")
+        if not pem:
+            raise AuthorizationError("Owner signing public key is not provisioned")
+        try:
+            key = serialization.load_pem_public_key(pem)
+        except ValueError as exc:
+            raise AuthorizationError("Invalid owner signing public key") from exc
+        if not isinstance(key, Ed25519PublicKey):
+            raise AuthorizationError("Owner signing key must be Ed25519")
+        return key
 
-    def _secret(self) -> bytes:
-        value = os.environ.get("CEUTIA_OWNER_AUTH_SECRET", "")
-        if not value:
-            raise AuthorizationError("Owner authorization secret is not provisioned")
-        return value.encode()
-
-    def issue_capability_for_owner(
-        self,
-        *,
-        principal: str,
-        action_class: ActionClass,
-        operation: str,
-        resource: str,
-        destination: str = "",
-        data_class: str = "public",
-        ttl_seconds: int = 60,
-    ) -> Capability:
-        """Create a bounded capability only for the external owner authority path.
-
-        This method is intended for an owner-controlled authorization service,
-        not for an AI agent. Callers must keep the signing secret outside model
-        context. High-impact actions should additionally require the owner's
-        separate approval mechanism before this function is invoked.
-        """
-        if self._state in {EnforcementState.INCIDENT, EnforcementState.CONTAINED}:
-            raise AuthorizationError("Capability issuance is disabled during incident containment")
-        if not principal or ttl_seconds <= 0 or ttl_seconds > 900:
-            raise AuthorizationError("Invalid capability scope or lifetime")
-        if action_class in HIGH_IMPACT and not os.environ.get("CEUTIA_HUMAN_APPROVAL_NONCE"):
-            raise AuthorizationError("Explicit human approval is required for high-impact actions")
-
-        now = int(self._clock())
-        token = Capability(
-            token_id=secrets.token_urlsafe(18),
-            owner_id=self._owner_id,
-            principal=principal,
-            action_class=action_class,
-            operation=operation,
-            resource=resource,
-            destination=destination,
-            data_class=data_class,
-            issued_at=now,
-            expires_at=now + ttl_seconds,
-            nonce=secrets.token_urlsafe(24),
-            signature="",
-        )
-        signature = hmac.new(self._secret(), token.canonical(), hashlib.sha256).hexdigest()
-        return Capability(**{**token.__dict__, "signature": signature})
-
-    def authorize(self, action: Action, capability: Capability) -> None:
-        """Authorize one exact action; any mismatch is denied."""
-        if self._state not in {EnforcementState.NORMAL, EnforcementState.VERIFIED}:
-            raise AuthorizationError(f"Execution denied while security state is {self._state.value}")
-        if capability.token_id in self._revoked_tokens:
-            raise AuthorizationError("Capability has been revoked")
+    def verify_capability(self, capability: Capability) -> None:
         if capability.owner_id != self._owner_id:
             raise AuthorizationError("Capability owner is invalid")
-        if capability.principal != action.principal:
-            raise AuthorizationError("Principal mismatch")
-        if capability.action_class != action.action_class:
-            raise AuthorizationError("Action-class mismatch")
-        if capability.operation != action.operation:
-            raise AuthorizationError("Operation mismatch")
-        if capability.resource != action.resource:
-            raise AuthorizationError("Resource mismatch")
-        if capability.destination != action.destination:
-            raise AuthorizationError("Destination mismatch")
-        if capability.data_class != action.data_class:
-            raise AuthorizationError("Data-class mismatch")
-        now = int(self._clock())
-        if now < capability.issued_at or now >= capability.expires_at:
-            raise AuthorizationError("Capability is outside its validity window")
+        if capability.token_id in self._revoked_tokens:
+            raise AuthorizationError("Capability has been revoked")
         if capability.nonce in self._used_nonces:
             raise AuthorizationError("Capability nonce has already been used")
+        now = int(self._clock())
+        if capability.issued_at > now or capability.expires_at <= now:
+            raise AuthorizationError("Capability is outside its validity window")
+        if capability.expires_at - capability.issued_at > 900:
+            raise AuthorizationError("Capability lifetime exceeds maximum")
+        try:
+            self._public_key().verify(capability.signature, capability.canonical())
+        except Exception as exc:
+            raise AuthorizationError("Capability signature is invalid") from exc
 
-        expected = hmac.new(self._secret(), capability.canonical(), hashlib.sha256).hexdigest()
-        if not hmac.compare_digest(expected, capability.signature):
-            raise AuthorizationError("Invalid capability signature")
-
-        if action.action_id == "":
-            raise AuthorizationError("Action identity is required")
+    def authorize(self, action: Action, capability: Capability) -> None:
+        if self._state not in {EnforcementState.NORMAL, EnforcementState.VERIFIED}:
+            raise AuthorizationError(f"Execution denied in security state {self._state.value}")
+        if not action.action_id or not action.principal:
+            raise AuthorizationError("Action identity and principal are required")
+        self.verify_capability(capability)
+        if (
+            capability.principal != action.principal
+            or capability.action_class != action.action_class
+            or capability.operation != action.operation
+            or capability.resource != action.resource
+            or capability.destination != action.destination
+            or capability.data_class != action.data_class
+            or capability.parameters_digest != action.parameters_digest
+        ):
+            raise AuthorizationError("Capability does not authorize the exact requested action")
+        if action.action_class in HIGH_IMPACT and not os.environ.get("CEUTIA_HIGH_IMPACT_APPROVAL_EVIDENCE"):
+            raise AuthorizationError("Independent human approval evidence is required for high-impact action")
         self._used_nonces.add(capability.nonce)
 
     def execute(self, action: Action, capability: Capability, operation: Any) -> Any:

@@ -12,66 +12,38 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Repair malformed Python modules
+      - name: Normalize concatenated Python modules
         shell: bash
         run: |
           python - <<'PY'
           from pathlib import Path
 
-          def extract_canonical(path: str, marker: str) -> None:
+          def extract(path: str, marker: str) -> None:
               p = Path(path)
               text = p.read_text(encoding='utf-8')
               start = text.find(marker)
               if start < 0:
-                  raise SystemExit(f'{path}: canonical marker not found: {marker}')
-              doc_end = text.find('"""', start)
-              if doc_end < 0:
-                  raise SystemExit(f'{path}: canonical docstring terminator not found')
-              future = text.find('from __future__ import annotations', doc_end)
+                  raise SystemExit(f'{path}: marker not found: {marker}')
+              end = text.find('"""', start)
+              if end < 0:
+                  raise SystemExit(f'{path}: docstring end not found')
+              future = text.find('from __future__ import annotations', end)
               if future < 0:
-                  raise SystemExit(f'{path}: canonical future import not found')
-              p.write_text('"""' + text[start:doc_end + 3] + '\n\n' + text[future:], encoding='utf-8')
+                  raise SystemExit(f'{path}: future import not found')
+              p.write_text('"""' + text[start:end + 3] + '\n\n' + text[future:], encoding='utf-8')
 
-          extract_canonical('backend/app/core/adversarial_validation.py', 'CeutIA — Adversarial Validation Gate')
-          extract_canonical('backend/app/core/epistemic_validation.py', 'CEUTIA PUBLIC — Epistemic Validation Engine.')
-
-          # information_boundary.py already contains the canonical module; its
-          # first three quotes incorrectly turn the module into a string until
-          # the first class docstring. Remove only that erroneous prefix.
-          p = Path('backend/app/core/information_boundary.py')
-          text = p.read_text(encoding='utf-8')
-          if text.startswith('"""# CeutIA — Information Boundary'):
-              p.write_text(text[3:], encoding='utf-8')
-
-          for path in ('backend/app/core/models.py', 'backend/app/security/__init__.py'):
-              p = Path(path)
-              text = p.read_text(encoding='utf-8')
-              if not text.startswith('"""'):
-                  p.write_text('"""\n' + text, encoding='utf-8')
+          extract('backend/app/core/adversarial_validation.py', 'CeutIA — Adversarial Validation Gate')
+          extract('backend/app/core/epistemic_validation.py', 'CEUTIA PUBLIC — Epistemic Validation Engine.')
+          extract('backend/app/core/information_boundary.py', 'CeutIA information-flow confidentiality boundary.')
+          extract('backend/app/core/models.py', 'CeutIA — Dynamic Systems Model Layer.')
+          extract('backend/app/security/__init__.py', 'CEUTIA PUBLIC — Security Boundary.')
+          extract('backend/app/core/metrics.py', 'Catálogo matemático y motor de métricas de CeutIA.')
 
           p = Path('backend/app/core/system_integrator.py')
           text = p.read_text(encoding='utf-8')
-          marker = '\n    """\nCeutIA — System Integrator (skeleton, non-operational)'
-          cut = text.find(marker)
+          cut = text.find('\n    """\nCeutIA — System Integrator (skeleton, non-operational)')
           if cut >= 0:
               p.write_text(text[:cut].rstrip() + '\n', encoding='utf-8')
-
-          p = Path('backend/app/core/metrics.py')
-          text = p.read_text(encoding='utf-8')
-          start = text.find('cd /home/workdir/artifacts/Ceuta')
-          end_marker = '# ---------------------------------------------------------------------------\n# Métricas dinámicas adicionales de CeutIA'
-          if start >= 0:
-              end = text.find(end_marker, start)
-              if end < 0:
-                  raise SystemExit('metrics.py: injected block terminator not found')
-              text = text[:start] + text[end:]
-          lines = text.splitlines()
-          out = []
-          for i, line in enumerate(lines):
-              if line.strip() == 'from __future__ import annotations' and i > 0:
-                  continue
-              out.append(line)
-          p.write_text('\n'.join(out) + '\n', encoding='utf-8')
           PY
 
           python -m compileall -q backend api ceuta-final
@@ -80,6 +52,6 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add backend/app/core backend/app/security/__init__.py
           if ! git diff --cached --quiet; then
-            git commit -m 'repair: normalize malformed core modules'
+            git commit -m 'repair: normalize concatenated core modules'
             git push
           fi

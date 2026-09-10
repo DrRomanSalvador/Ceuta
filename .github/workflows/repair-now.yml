@@ -18,25 +18,34 @@ jobs:
           python - <<'PY'
           from pathlib import Path
 
-          # Keep the canonical adversarial-validation module and discard the
-          # unrelated concatenated legacy/generated prefix.
-          p = Path('backend/app/core/adversarial_validation.py')
-          text = p.read_text(encoding='utf-8')
-          marker = 'CeutIA — Adversarial Validation Gate'
-          start = text.find(marker)
-          if start < 0:
-              raise SystemExit('canonical adversarial marker not found')
-          doc_end = text.find('"""', start)
-          if doc_end < 0:
-              raise SystemExit('canonical adversarial docstring terminator not found')
-          future = text.find('from __future__ import annotations', doc_end)
-          if future < 0:
-              raise SystemExit('canonical adversarial future import not found')
-          canonical = '"""' + text[start:doc_end + 3] + '\n\n' + text[future:]
-          p.write_text(canonical, encoding='utf-8')
+          def extract_canonical(path: str, marker: str) -> None:
+              p = Path(path)
+              text = p.read_text(encoding='utf-8')
+              start = text.find(marker)
+              if start < 0:
+                  raise SystemExit(f'{path}: canonical marker not found: {marker}')
+              doc_end = text.find('"""', start)
+              if doc_end < 0:
+                  raise SystemExit(f'{path}: canonical docstring terminator not found')
+              future = text.find('from __future__ import annotations', doc_end)
+              if future < 0:
+                  raise SystemExit(f'{path}: canonical future import not found')
+              canonical = '"""' + text[start:doc_end + 3] + '\n\n' + text[future:]
+              p.write_text(canonical, encoding='utf-8')
 
-          # Remove the duplicated second system-integrator module, retaining
-          # the first complete implementation used by its tests.
+          extract_canonical('backend/app/core/adversarial_validation.py', 'CeutIA — Adversarial Validation Gate')
+          extract_canonical('backend/app/core/epistemic_validation.py', 'CEUTIA PUBLIC — Epistemic Validation Engine.')
+          extract_canonical('backend/app/core/information_boundary.py', 'CEUTIA PUBLIC — Information Boundary')
+
+          # models.py and security/__init__.py have unquoted documentation
+          # prefixes whose existing triple-quoted terminators are retained.
+          for path in ('backend/app/core/models.py', 'backend/app/security/__init__.py'):
+              p = Path(path)
+              text = p.read_text(encoding='utf-8')
+              if not text.startswith('"""'):
+                  p.write_text('"""\n' + text, encoding='utf-8')
+
+          # Remove the duplicated second system-integrator module.
           p = Path('backend/app/core/system_integrator.py')
           text = p.read_text(encoding='utf-8')
           marker = '\n    """\nCeutIA — System Integrator (skeleton, non-operational)'
@@ -44,21 +53,23 @@ jobs:
           if cut >= 0:
               p.write_text(text[:cut].rstrip() + '\n', encoding='utf-8')
 
-          # A future import after executable definitions is illegal. The
-          # dynamic metrics block may keep its ordinary imports in place.
+          # Remove an injected shell/instruction block from metrics.py while
+          # retaining the legitimate advanced-metrics code that follows it.
           p = Path('backend/app/core/metrics.py')
-          lines = p.read_text(encoding='utf-8').splitlines()
-          seen_future = False
+          text = p.read_text(encoding='utf-8')
+          start = text.find('cd /home/workdir/artifacts/Ceuta')
+          end_marker = '# ---------------------------------------------------------------------------\n# Métricas dinámicas adicionales de CeutIA'
+          if start >= 0:
+              end = text.find(end_marker, start)
+              if end < 0:
+                  raise SystemExit('metrics.py: injected block terminator not found')
+              text = text[:start] + text[end:]
+          # Remove future imports that occur after any real module content.
+          lines = text.splitlines()
           out = []
-          for line in lines:
-              if line.strip() == 'from __future__ import annotations':
-                  if seen_future:
-                      continue
-                  seen_future = True
-                  # If this is not at the top, drop it rather than moving
-                  # imports across the existing architecture.
-                  if out:
-                      continue
+          for i, line in enumerate(lines):
+              if line.strip() == 'from __future__ import annotations' and i > 0:
+                  continue
               out.append(line)
           p.write_text('\n'.join(out) + '\n', encoding='utf-8')
           PY
@@ -67,6 +78,8 @@ jobs:
 
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add backend/app/core/adversarial_validation.py backend/app/core/system_integrator.py backend/app/core/metrics.py
-          git diff --cached --quiet || git commit -m 'repair: normalize core Python modules'
-          git push
+          git add backend/app/core backend/app/security/__init__.py
+          if ! git diff --cached --quiet; then
+            git commit -m 'repair: normalize malformed core modules'
+            git push
+          fi

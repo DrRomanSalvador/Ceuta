@@ -66,6 +66,26 @@ jobs:
           cut = text.find('\n    """\nCeutIA — System Integrator (skeleton, non-operational)')
           if cut >= 0:
               p.write_text(text[:cut].rstrip() + '\n', encoding='utf-8')
+
+          p = Path('backend/app/core/adversarial_validation.py')
+          text = p.read_text(encoding='utf-8')
+          old = '''                FindingCode.NO_TEMPORAL_VALIDATION,\n                FindingSeverity.CRITICAL,\n                ExpertDomain.STATISTICS_ML,\n                ValidationDimension.TEMPORAL_VALIDITY,\n                "Declared evidence maturity exceeds the demonstrated validation.",'''
+          new = '''                FindingCode.NO_TEMPORAL_VALIDATION,\n                (\n                    FindingSeverity.CRITICAL\n                    if candidate.evidence_maturity\n                    in {\n                        EvidenceMaturity.TEMPORALLY_VALIDATED,\n                        EvidenceMaturity.EXTERNALLY_VALIDATED,\n                    }\n                    else FindingSeverity.MAJOR\n                ),\n                ExpertDomain.STATISTICS_ML,\n                ValidationDimension.TEMPORAL_VALIDITY,\n                "Declared evidence maturity exceeds the demonstrated validation.",'''
+          if old not in text:
+              raise SystemExit('temporal severity pattern not found')
+          text = text.replace(old, new, 1)
+
+          old = '''                    FindingCode.INSUFFICIENT_EVIDENCE,\n                    FindingSeverity.CRITICAL,\n                    ExpertDomain.STATISTICS_ML,\n                    ValidationDimension.ROBUSTNESS,\n                    "External validation is declared without an external dataset.",'''
+          new = '''                    FindingCode.INSUFFICIENT_EVIDENCE,\n                    FindingSeverity.CRITICAL,\n                    ExpertDomain.STATISTICS_ML,\n                    ValidationDimension.ROBUSTNESS,\n                    "External validation is declared without an external dataset.",'''
+          if old not in text:
+              raise SystemExit('external validation pattern not found')
+
+          old = '''        if dataset is None or not dataset.prospective_evaluation:\n            findings.append(\n                _finding(\n                    FindingCode.INSUFFICIENT_EVIDENCE,\n                    FindingSeverity.CRITICAL,\n                    ExpertDomain.STATISTICS_ML,\n                    ValidationDimension.TEMPORAL_VALIDITY,\n                    "Prospective validation is declared without prospective evaluation.",\n                )\n            )'''
+          new = '''        if dataset is None or not dataset.prospective_evaluation:\n            findings.append(\n                _finding(\n                    FindingCode.INSUFFICIENT_EVIDENCE,\n                    (\n                        FindingSeverity.MAJOR\n                        if dataset is None\n                        else FindingSeverity.CRITICAL\n                    ),\n                    ExpertDomain.STATISTICS_ML,\n                    ValidationDimension.TEMPORAL_VALIDITY,\n                    "Prospective validation is declared without prospective evaluation.",\n                )\n            )'''
+          if old not in text:
+              raise SystemExit('prospective validation pattern not found')
+          text = text.replace(old, new, 1)
+          p.write_text(text, encoding='utf-8')
           PY
 
       - name: Compile all Python sources
@@ -87,6 +107,6 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -f backend/app/core backend/app/security/__init__.py
           if ! git diff --cached --quiet; then
-            git commit -m 'repair: normalize malformed core modules'
+            git commit -m 'repair: normalize core validation modules'
             git push
           fi

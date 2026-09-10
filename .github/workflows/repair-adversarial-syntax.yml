@@ -1,0 +1,43 @@
+name: Repair adversarial validation syntax
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: ${{ !contains(github.event.head_commit.message, 'repair: normalize adversarial validation module') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Normalize malformed concatenated module
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('backend/app/core/adversarial_validation.py')
+          text = p.read_text(encoding='utf-8')
+          marker = 'CeutIA — Adversarial Validation Gate'
+          start = text.find(marker)
+          if start < 0:
+              raise SystemExit('canonical adversarial module marker not found')
+          opening = text.rfind('"""', 0, start)
+          if opening < 0:
+              raise SystemExit('canonical module docstring opening not found')
+          future = text.find('from __future__ import annotations', start)
+          if future < 0:
+              raise SystemExit('canonical future import not found')
+          close = text.find('"""', start)
+          if close < 0 or close > future:
+              raise SystemExit('canonical module docstring closing not found')
+          canonical = '"""' + text[start:close + 3] + '\n\n' + text[future:]
+          p.write_text(canonical, encoding='utf-8')
+          PY
+          python -m py_compile backend/app/core/adversarial_validation.py
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add backend/app/core/adversarial_validation.py
+          git commit -m 'repair: normalize adversarial validation module'
+          git push

@@ -42,7 +42,6 @@ jobs:
           for path, marker in paths:
               extract(path, marker)
 
-          # Keep only the first future import in each normalized module.
           for path, _ in paths:
               p = Path(path)
               lines = p.read_text(encoding='utf-8').splitlines()
@@ -71,7 +70,7 @@ jobs:
 
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add backend/app/core backend/app/security/__init__.py
+          git add -f backend/app/core backend/app/security/__init__.py
           if ! git diff --cached --quiet; then
             git commit -m 'repair: normalize concatenated core modules'
             git push

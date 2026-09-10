@@ -36,8 +36,14 @@ jobs:
           extract('backend/app/core/epistemic_validation.py', 'CEUTIA PUBLIC — Epistemic Validation Engine.')
           extract('backend/app/core/information_boundary.py', 'CeutIA information-flow confidentiality boundary.')
           extract('backend/app/core/models.py', 'CeutIA — Dynamic Systems Model Layer.')
-          extract('backend/app/security/__init__.py', 'CEUTIA PUBLIC — Security Boundary.')
           extract('backend/app/core/metrics.py', 'Catálogo matemático y motor de métricas de CeutIA.')
+
+          # The security package is documentation-only. Preserve it as a valid
+          # module docstring while neutralizing nested triple-quote delimiters.
+          p = Path('backend/app/security/__init__.py')
+          text = p.read_text(encoding='utf-8')
+          text = text.replace('"""', '')
+          p.write_text('"""\n' + text + '\n"""\n', encoding='utf-8')
 
           p = Path('backend/app/core/system_integrator.py')
           text = p.read_text(encoding='utf-8')

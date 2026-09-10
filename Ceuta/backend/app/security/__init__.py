@@ -8,6 +8,7 @@ from .enforcement import (
     EnforcementState,
     SecurityEnforcer,
 )
+from .tool_boundary import ToolBoundary
 
 __all__ = [
     "Action",
@@ -16,4 +17,5 @@ __all__ = [
     "Capability",
     "EnforcementState",
     "SecurityEnforcer",
+    "ToolBoundary",
 ]

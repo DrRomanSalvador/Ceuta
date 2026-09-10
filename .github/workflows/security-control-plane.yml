@@ -31,9 +31,20 @@ jobs:
 
           protected=(
             "SUPREME_SECURITY_LAW.md"
+            "OWNER_AUTHORITY_ROOT.md"
+            "OWNER_SECURITY_AND_LIABILITY_CONTROL_PLANE.md"
+            "HUMAN_RIGHTS_MEDICAL_LEGAL_NATIONAL_SECURITY_AND_DUAL_USE_CONTROL.md"
+            "AI_AUTONOMY_BOUNDARY.md"
+            "OWNER_COMPROMISE_RECOVERY_PROTOCOL.md"
+            "SECURITY_EXTREME_CONTROL_MATRIX.md"
+            "SECURITY_TECHNICAL_ENFORCEMENT_ARCHITECTURE.md"
+            "SECURITY_ENFORCEMENT_TEST_PLAN.md"
+            "SECURITY_RUNTIME_ENFORCEMENT.md"
             "AGENTS.md"
+            "AI_MANDATORY_SYSTEM_CONSTITUTION.md"
             "SUPRMIND_AI_COUNCIL_CONSTITUTION.md"
             "AI_SECURITY_INCIDENT_LESSONS.md"
+            "AI_SECURITY_INCIDENT_LESSONS_EXTENDED.md"
             ".github/CODEOWNERS"
             ".github/workflows/security-control-plane.yml"
           )
@@ -44,11 +55,10 @@ jobs:
               for protected_path in "${protected[@]}"; do
                 if [[ "$path" == "$protected_path" ]]; then
                   if [[ "$PR_TITLE" != \[SECURITY-CONTROL-CHANGE\]* ]]; then
-                    echo "BLOCKED: protected control-plane file changed without the required security-change marker: $path"
-                    echo "Required PR title prefix: [SECURITY-CONTROL-CHANGE]"
+                    echo "BLOCKED: protected control-plane file changed without [SECURITY-CONTROL-CHANGE]: $path"
                     exit 1
                   fi
-                  echo "REVIEW REQUIRED: protected control-plane change detected: $path"
+                  echo "REVIEW REQUIRED: protected control-plane change: $path"
                 fi
               done
             done

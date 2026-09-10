@@ -38,6 +38,9 @@ jobs:
             "SUPRMIND_AI_COUNCIL_CONSTITUTION.md"
             "AI_SECURITY_INCIDENT_LESSONS.md"
             "AI_SECURITY_INCIDENT_LESSONS_EXTENDED.md"
+            "SECURITY_TECHNICAL_ENFORCEMENT_ARCHITECTURE.md"
+            "SECURITY_ENFORCEMENT_TEST_PLAN.md"
+            "SECURITY_RUNTIME_ENFORCEMENT.md"
             ".github/CODEOWNERS"
             ".github/workflows/security-control-plane.yml"
           )

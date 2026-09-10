@@ -1,0 +1,43 @@
+name: Repair adversarial validation now
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Repair and verify
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('backend/app/core/adversarial_validation.py')
+          text = p.read_text(encoding='utf-8')
+          old = '''                FindingCode.NO_TEMPORAL_VALIDATION,\n                FindingSeverity.CRITICAL,\n                ExpertDomain.STATISTICS_ML,\n                ValidationDimension.TEMPORAL_VALIDITY,\n                "Declared evidence maturity exceeds the demonstrated validation.",'''
+          new = '''                FindingCode.NO_TEMPORAL_VALIDATION,\n                (\n                    FindingSeverity.CRITICAL\n                    if candidate.evidence_maturity\n                    in {\n                        EvidenceMaturity.TEMPORALLY_VALIDATED,\n                        EvidenceMaturity.EXTERNALLY_VALIDATED,\n                    }\n                    else FindingSeverity.MAJOR\n                ),\n                ExpertDomain.STATISTICS_ML,\n                ValidationDimension.TEMPORAL_VALIDITY,\n                "Declared evidence maturity exceeds the demonstrated validation.",'''
+          if old in text:
+              text = text.replace(old, new, 1)
+          old = '''        if dataset is None or not dataset.prospective_evaluation:\n            findings.append(\n                _finding(\n                    FindingCode.INSUFFICIENT_EVIDENCE,\n                    FindingSeverity.CRITICAL,\n                    ExpertDomain.STATISTICS_ML,\n                    ValidationDimension.TEMPORAL_VALIDITY,\n                    "Prospective validation is declared without prospective evaluation.",\n                )\n            )'''
+          new = '''        if dataset is None or not dataset.prospective_evaluation:\n            findings.append(\n                _finding(\n                    FindingCode.INSUFFICIENT_EVIDENCE,\n                    (\n                        FindingSeverity.MAJOR\n                        if dataset is None\n                        else FindingSeverity.CRITICAL\n                    ),\n                    ExpertDomain.STATISTICS_ML,\n                    ValidationDimension.TEMPORAL_VALIDITY,\n                    "Prospective validation is declared without prospective evaluation.",\n                )\n            )'''
+          if old in text:
+              text = text.replace(old, new, 1)
+          p.write_text(text, encoding='utf-8')
+          PY
+          python -m compileall -q backend api ceuta-final
+          python -m pip install '.[dev]'
+          python -m pytest
+          docker compose config -q
+      - name: Persist repair and remove workflow
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add backend/app/core/adversarial_validation.py
+          git commit -m 'repair: correct adversarial validation severity semantics' || true
+          git rm .github/workflows/repair-adversarial-now.yml
+          git commit -m 'chore: remove one-shot adversarial repair workflow'
+          git push

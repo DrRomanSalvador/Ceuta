@@ -29,24 +29,13 @@ jobs:
         run: |
           set -euo pipefail
           protected=(
+            "AUTHORITY_HIERARCHY.md"
             "SUPREME_SECURITY_LAW.md"
-            "OWNER_AUTHORITY_ROOT.md"
-            "OWNER_SECURITY_AND_LIABILITY_CONTROL_PLANE.md"
-            "HUMAN_RIGHTS_MEDICAL_LEGAL_NATIONAL_SECURITY_AND_DUAL_USE_CONTROL.md"
-            "AI_AUTONOMY_BOUNDARY.md"
-            "OWNER_COMPROMISE_RECOVERY_PROTOCOL.md"
-            "SECURITY_EXTREME_CONTROL_MATRIX.md"
-            "SECURITY_TECHNICAL_ENFORCEMENT_ARCHITECTURE.md"
-            "SECURITY_ENFORCEMENT_TEST_PLAN.md"
-            "SECURITY_RUNTIME_ENFORCEMENT.md"
-            "SECURITY_EXTERNAL_ROOT_OF_TRUST.md"
-            "SECURITY_EXTERNAL_TRUST_BOOTSTRAP.md"
-            "SECURITY_EXTERNAL_TRUST_IMPLEMENTATION.md"
             "AGENTS.md"
-            "AI_MANDATORY_SYSTEM_CONSTITUTION.md"
-            "SUPRMIND_AI_COUNCIL_CONSTITUTION.md"
-            "AI_SECURITY_INCIDENT_LESSONS.md"
-            "AI_SECURITY_INCIDENT_LESSONS_EXTENDED.md"
+            "00_GOVERNANCE/"
+            "01_HUMAN_SAFETY_AND_RIGHTS/"
+            "02_SECURITY_CONTROL_PLANE/"
+            "03_INCIDENTS_AND_RECOVERY/"
             ".github/CODEOWNERS"
             ".github/workflows/security-control-plane.yml"
           )
@@ -54,9 +43,11 @@ jobs:
             mapfile -t changed < <(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
             for path in "${changed[@]}"; do
               for protected_path in "${protected[@]}"; do
-                if [[ "$path" == "$protected_path" && "$PR_TITLE" != \[SECURITY-CONTROL-CHANGE\]* ]]; then
-                  echo "BLOCKED: protected control-plane file changed without [SECURITY-CONTROL-CHANGE]: $path"
-                  exit 1
+                if [[ "$path" == "$protected_path" || "$protected_path" == */ && "$path" == "$protected_path"* ]]; then
+                  if [[ "$PR_TITLE" != \[SECURITY-CONTROL-CHANGE\]* ]]; then
+                    echo "BLOCKED: protected control-plane file changed without [SECURITY-CONTROL-CHANGE]: $path"
+                    exit 1
+                  fi
                 fi
               done
             done
@@ -64,7 +55,9 @@ jobs:
             mapfile -t changed < <(git diff --name-only "${GITHUB_SHA}^" "$GITHUB_SHA")
             for path in "${changed[@]}"; do
               for protected_path in "${protected[@]}"; do
-                [[ "$path" == "$protected_path" ]] && echo "AUDIT: protected control-plane file changed on main: $path"
+                if [[ "$path" == "$protected_path" || "$protected_path" == */ && "$path" == "$protected_path"* ]]; then
+                  echo "AUDIT: protected control-plane file changed on main: $path"
+                fi
               done
             done
           fi

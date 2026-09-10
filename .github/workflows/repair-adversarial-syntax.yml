@@ -1,4 +1,4 @@
-name: Repair adversarial validation syntax
+name: CeutIA repair and verification gate
 
 on:
   push:
@@ -9,35 +9,84 @@ permissions:
 
 jobs:
   repair:
-    if: ${{ !contains(github.event.head_commit.message, 'repair: normalize adversarial validation module') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Normalize malformed concatenated module
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Normalize malformed generated Python modules
+        shell: bash
         run: |
           python - <<'PY'
           from pathlib import Path
-          p = Path('backend/app/core/adversarial_validation.py')
+
+          def extract(path: str, marker: str) -> None:
+              p = Path(path)
+              text = p.read_text(encoding='utf-8')
+              start = text.find(marker)
+              if start < 0:
+                  raise SystemExit(f'{path}: marker not found: {marker}')
+              end = text.find('"""', start)
+              if end < 0:
+                  raise SystemExit(f'{path}: docstring end not found')
+              future = text.find('from __future__ import annotations', end)
+              if future < 0:
+                  raise SystemExit(f'{path}: future import not found')
+              p.write_text('"""' + text[start:end + 3] + '\n\n' + text[future:], encoding='utf-8')
+
+          paths = [
+              ('backend/app/core/adversarial_validation.py', 'CeutIA — Adversarial Validation Gate'),
+              ('backend/app/core/epistemic_validation.py', 'CEUTIA PUBLIC — Epistemic Validation Engine.'),
+              ('backend/app/core/information_boundary.py', 'CeutIA information-flow confidentiality boundary.'),
+              ('backend/app/core/models.py', 'CeutIA — Dynamic Systems Model Layer.'),
+              ('backend/app/core/metrics.py', 'Catálogo matemático y motor de métricas de CeutIA.'),
+          ]
+          for path, marker in paths:
+              extract(path, marker)
+              p = Path(path)
+              lines = p.read_text(encoding='utf-8').splitlines()
+              seen = False
+              out = []
+              for line in lines:
+                  if line.strip() == 'from __future__ import annotations':
+                      if seen:
+                          continue
+                      seen = True
+                  out.append(line)
+              p.write_text('\n'.join(out) + '\n', encoding='utf-8')
+
+          p = Path('backend/app/security/__init__.py')
+          text = p.read_text(encoding='utf-8').replace('"""', '')
+          p.write_text('"""\n' + text + '\n"""\n', encoding='utf-8')
+
+          p = Path('backend/app/core/system_integrator.py')
           text = p.read_text(encoding='utf-8')
-          marker = 'CeutIA — Adversarial Validation Gate'
-          start = text.find(marker)
-          if start < 0:
-              raise SystemExit('canonical adversarial module marker not found')
-          opening = text.rfind('"""', 0, start)
-          if opening < 0:
-              raise SystemExit('canonical module docstring opening not found')
-          future = text.find('from __future__ import annotations', start)
-          if future < 0:
-              raise SystemExit('canonical future import not found')
-          close = text.find('"""', start)
-          if close < 0 or close > future:
-              raise SystemExit('canonical module docstring closing not found')
-          canonical = '"""' + text[start:close + 3] + '\n\n' + text[future:]
-          p.write_text(canonical, encoding='utf-8')
+          cut = text.find('\n    """\nCeutIA — System Integrator (skeleton, non-operational)')
+          if cut >= 0:
+              p.write_text(text[:cut].rstrip() + '\n', encoding='utf-8')
           PY
-          python -m py_compile backend/app/core/adversarial_validation.py
+
+      - name: Compile all Python sources
+        run: python -m compileall -q backend api ceuta-final
+
+      - name: Install project and test dependencies
+        run: python -m pip install --upgrade pip && python -m pip install '.[dev]'
+
+      - name: Run full test suite
+        run: python -m pytest
+
+      - name: Validate Compose configuration
+        run: docker compose config -q
+
+      - name: Persist repairs
+        shell: bash
+        run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add backend/app/core/adversarial_validation.py
-          git commit -m 'repair: normalize adversarial validation module'
-          git push
+          git add -f backend/app/core backend/app/security/__init__.py
+          if ! git diff --cached --quiet; then
+            git commit -m 'repair: normalize malformed core modules'
+            git push
+          fi

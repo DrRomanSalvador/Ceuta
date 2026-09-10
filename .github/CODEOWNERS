@@ -12,6 +12,9 @@
 /SECURITY_TECHNICAL_ENFORCEMENT_ARCHITECTURE.md @drsalvadorroman-beep
 /SECURITY_ENFORCEMENT_TEST_PLAN.md @drsalvadorroman-beep
 /SECURITY_RUNTIME_ENFORCEMENT.md @drsalvadorroman-beep
+/SECURITY_EXTERNAL_ROOT_OF_TRUST.md @drsalvadorroman-beep
+/SECURITY_EXTERNAL_TRUST_BOOTSTRAP.md @drsalvadorroman-beep
+/SECURITY_EXTERNAL_TRUST_IMPLEMENTATION.md @drsalvadorroman-beep
 /AGENTS.md @drsalvadorroman-beep
 /AI_MANDATORY_SYSTEM_CONSTITUTION.md @drsalvadorroman-beep
 /SUPRMIND_AI_COUNCIL_CONSTITUTION.md @drsalvadorroman-beep
@@ -19,3 +22,5 @@
 /AI_SECURITY_INCIDENT_LESSONS_EXTENDED.md @drsalvadorroman-beep
 /.github/CODEOWNERS @drsalvadorroman-beep
 /.github/workflows/security-control-plane.yml @drsalvadorroman-beep
+/Ceuta/backend/app/security/* @drsalvadorroman-beep
+/Ceuta/tests/test_external_trust.py @drsalvadorroman-beep

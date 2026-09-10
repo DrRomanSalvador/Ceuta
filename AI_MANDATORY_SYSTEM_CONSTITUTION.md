@@ -32,53 +32,6 @@ Chat gpt es el encargado de ordenar a la IA colaboradora que ordene a las demás
 
 Un Issue fijo llamado STATUS y otro llamado MISSION-STATUS que se actualizan siempre (es el punto de sincronización rápida) y otro issue fijo llamado AUTOMATIZACIÓN Y COLABORACIÓN CON OTRAS IAs que promueve la colaboración y compartir información solo dentro de este mismo espacio de trabajo para avanzar sin pisarnos entre nosotros para poder abordar un tema de manera tan compleja.
 
-Te concedo acceso a la ejecución real del servidor
- https://portal.clouding.io/dsb
-Ubuntu 26.04 (64 Bit)
-
-187.33.153.180
-
-Activo
-
-https://portal.clouding.io/dsb/vmm/vmdetails/tenant_316206/674c2ee4-f5e9-4d36-94e0-b37e5b9c3aab/info
-Sistema Operativo
-Ubuntu 26.04 (64 Bit)
-Características
-VCores: 2RAM: 4 GBSSD: 30GB
-Estado
-Activo
-
-SMTP de salida bloqueado 
-Dirección DNS
-3f6e4fda-af11-4fd1-808c-8d0f7743983c.clouding.host
-IP pública
-187.33.153.180
-Llaves SSH: 
-CeutIAKey
-User
-Linux: root
-Windows: administrator
-Contraseña CVCNI2026Ceuta
-Te doy mis llaves SSH 
-https://portal.clouding.io/api/vmm/user/keypairs/CeutIAKey
-
-En terminus https://sshid.io/administratorr
-ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIK88H8PIkpGzRNiLSHImwLJ/XDiDVHjTNePkLgRWhz5e #SSH ID - @administratorr
-ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDMDGNFxPRVRnT/52meg+s3M+Wlc90Iq7KkO9PCUGhh1F3jkn0BYemWiiWQ59MPBU7glPvCi/RxWniyyUQuAdhsB5mE2EnbaekHHpLeiKe6MHFq2KkgpfWlCQVnImtAnMhMSETv+jP+mp1d6PYZxyudrZJACekdlGGIfSrbYO7YFekIbT8hwlLVLUJAXWMIBP8wyeS0fZxHM/chJig7RRBSAkd/agS3aAMz7L0/0natEX1FvaNoUpoK2kU7wVtDASIDCwqpc460j0VfqFx6iAqP5fgIHvRvnAQ1CggU4Uu+Bbn4+dl0w5ME6TvWa+PYBMOxqOtwn5XZ64oYgSIS/uS6TJMp8/EXCVudldHXmSU+yNN0j113itZXxX+OpT3kt6YVDP74MafQsq8Mh82eIIhgMJUr1faQ5jb9xJ+RiLsDxDx6P10HTIyet8bTwwpHIx3db0ju9vdSzf44NFhzXc9U+f/WwFGTHLIDzbAC0TeFHT9DrK74q69uIgjOOmA8uIEULveU7Nb6pVmdOgG38TDw8+k8QE/Zg0lC1wHiU2JRbyewfePb+C6zCZ9rasZdx+nIIOzw14JglC/kYk1IUfZ/fXCaGspWaBmvt27PC8OzhcMcYngl2qrwJrSWGToECcOeCSXwZjUtxz/Kfreh+DuXLjs/3QEK7zs7gWSAjDh77w== #SSH ID - @administratorr
-
-
-Estos son los documentos con los que podemos crear una inteligencia artificial que ayude a las personas:
-Te concedo acceso token
-https://github.com/drsalvadorroman-beep/Ceuta
-Y te nombro comandante en esta misión 
-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
-Te doy el clon
-https://github.com/drsalvadorroman-beep/Ceuta.git
-Te concedo acceso a mi SSH
-git@github.com:drsalvadorroman-beep/Ceuta.git
-Te doy mi GitHub CLI 
-gh repo clone drsalvadorroman-beep/Ceuta
-
 A continuación comunico la arquitectura y marco de trabajo como límite riguroso y exhaustivo. 
 PROMPT MAESTRO DE GOBERNANZA, JERARQUÍA Y COLABORACIÓN OPERATIVA DE CeutIA
 0. IDENTIDAD DEL SISTEMA

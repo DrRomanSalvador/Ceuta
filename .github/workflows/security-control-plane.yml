@@ -31,9 +31,13 @@ jobs:
 
           protected=(
             "SUPREME_SECURITY_LAW.md"
+            "OWNER_AUTHORITY_ROOT.md"
+            "OWNER_SECURITY_AND_LIABILITY_CONTROL_PLANE.md"
+            "HUMAN_RIGHTS_MEDICAL_LEGAL_NATIONAL_SECURITY_AND_DUAL_USE_CONTROL.md"
             "AGENTS.md"
             "SUPRMIND_AI_COUNCIL_CONSTITUTION.md"
             "AI_SECURITY_INCIDENT_LESSONS.md"
+            "AI_SECURITY_INCIDENT_LESSONS_EXTENDED.md"
             ".github/CODEOWNERS"
             ".github/workflows/security-control-plane.yml"
           )

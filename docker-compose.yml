@@ -6,47 +6,77 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=postgresql://postgres:password@db:5432/ceuta
-      - REDIS_URL=redis://redis:6379/0
-      - LOG_LEVEL=INFO
+      - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@db:5432/ceuta}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - ENVIRONMENT=${ENVIRONMENT:-development}
     depends_on:
       - db
       - redis
     volumes:
+      - ./backend:/app/backend
       - ./src:/app/src
       - ./api:/app/api
+    networks:
+      - ceutia-net
 
   dashboard:
     image: nginx:alpine
     ports:
       - "3000:80"
     volumes:
-      - ./dashboard:/usr/share/nginx/html
+      - ./dashboard:/usr/share/nginx/html:ro
+    networks:
+      - ceutia-net
 
   db:
-    image: postgres:15
+    image: postgres:15-alpine
     environment:
-      - POSTGRES_DB=ceuta
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=${POSTGRES_DB:-ceuta}
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ceutia-net
 
   redis:
     image: redis:7-alpine
     volumes:
       - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ceutia-net
 
   monitor:
     build: .
     command: python -m src.monitor --interval 6
     environment:
-      - DATABASE_URL=postgresql://postgres:password@db:5432/ceuta
-      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@db:5432/ceuta}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - ENVIRONMENT=${ENVIRONMENT:-development}
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - ceutia-net
 
 volumes:
   postgres_data:
   redis_data:
+
+networks:
+  ceutia-net:
+    driver: bridge

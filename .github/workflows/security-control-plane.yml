@@ -74,3 +74,27 @@ jobs:
           fi
 
           echo "Protected control-plane integrity gate completed."
+
+  runtime-security:
+    name: Executable security enforcement gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install project and security test dependencies
+        run: python -m pip install --upgrade pip && python -m pip install -e ".[dev]"
+
+      - name: Run runtime security regression suite
+        run: python -m pytest Ceuta/tests/test_security_enforcement.py -q
+
+      - name: Run security static checks
+        run: |
+          python -m ruff check Ceuta/backend/app/security Ceuta/tests/test_security_enforcement.py
+          python -m bandit -q -r Ceuta/backend/app/security

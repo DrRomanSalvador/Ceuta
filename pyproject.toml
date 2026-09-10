@@ -59,6 +59,7 @@ dependencies = [
     "PyYAML>=6.0,<7.0",
     "structlog>=25.0,<26.0",
     "python-dateutil>=2.9,<3.0",
+    "cryptography>=44,<46",
 ]
 
 
@@ -124,7 +125,7 @@ exclude = [
 
 [tool.ruff.lint]
 select = [
-    "E", "F", "W", "I", "B", "UP", "N", "SIM", "S", "A", "C4",
+    "E", "F", "W", "I", "B", "UP", "N", "SIM", "C4",
     "DTZ", "ISC", "PIE", "PT", "RET", "RSE", "SLF", "T20", "TRY", "RUF"
 ]
 ignore = ["S101"]
@@ -175,4 +176,4 @@ exclude_lines = [
 
 
 [tool.setuptools.dynamic]
-# Reserved for future metadata generated from project files.
+# Reserved for future metadata generated from a trusted release process.

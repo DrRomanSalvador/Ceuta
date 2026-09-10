@@ -12,25 +12,21 @@ def test_metrics_importable():
 
 
 def test_epistemic_validation_importable():
-    module = importlib.import_module(
-        "app.core.epistemic_validation"
-    )
+    module = importlib.import_module("app.core.epistemic_validation")
     assert module is not None
 
 
 def test_evidence_policy_importable():
-    module = importlib.import_module(
-        "app.core.evidence_policy"
-    )
+    module = importlib.import_module("app.core.evidence_policy")
     assert module is not None
 
 
 def test_adversarial_validation_importable():
-    module = importlib.import_module(
-        "app.core.adversarial_validation"
-    )
+    module = importlib.import_module("app.core.adversarial_validation")
     assert module is not None
-    def test_risk_is_not_probability_by_default():
+
+
+def test_risk_is_not_probability_by_default():
     from app.core.models import RiskAssessment
 
     assessment = RiskAssessment(
@@ -53,11 +49,10 @@ def test_adversarial_validation_importable():
 
     assert assessment.probability is None
     assert assessment.calibrated is False
-    def test_signal_cannot_become_fact_automatically():
-    from app.core.evidence_policy import (
-        SourceClass,
-        assess_source_for_claim,
-    )
+
+
+def test_signal_cannot_become_fact_automatically():
+    from app.core.evidence_policy import SourceClass, assess_source_for_claim
 
     source = assess_source_for_claim(
         source_id="social-001",

@@ -1,0 +1,66 @@
+name: CeutIA Security Control Plane
+
+on:
+  pull_request:
+    branches: ["main"]
+  push:
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+jobs:
+  protected-control-plane:
+    name: Protected control-plane integrity gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect protected-control changes
+        shell: bash
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+
+          protected=(
+            "SUPREME_SECURITY_LAW.md"
+            "AGENTS.md"
+            "SUPRMIND_AI_COUNCIL_CONSTITUTION.md"
+            "AI_SECURITY_INCIDENT_LESSONS.md"
+            ".github/CODEOWNERS"
+            ".github/workflows/security-control-plane.yml"
+          )
+
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            mapfile -t changed < <(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
+            for path in "${changed[@]}"; do
+              for protected_path in "${protected[@]}"; do
+                if [[ "$path" == "$protected_path" ]]; then
+                  if [[ "$PR_TITLE" != \[SECURITY-CONTROL-CHANGE\]* ]]; then
+                    echo "BLOCKED: protected control-plane file changed without the required security-change marker: $path"
+                    echo "Required PR title prefix: [SECURITY-CONTROL-CHANGE]"
+                    exit 1
+                  fi
+                  echo "REVIEW REQUIRED: protected control-plane change detected: $path"
+                fi
+              done
+            done
+          else
+            mapfile -t changed < <(git diff --name-only "${GITHUB_SHA}^" "$GITHUB_SHA")
+            for path in "${changed[@]}"; do
+              for protected_path in "${protected[@]}"; do
+                if [[ "$path" == "$protected_path" ]]; then
+                  echo "AUDIT: protected control-plane file changed on main: $path"
+                fi
+              done
+            done
+          fi
+
+          echo "Protected control-plane integrity gate completed."

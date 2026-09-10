@@ -32,17 +32,32 @@ jobs:
                   raise SystemExit(f'{path}: future import not found')
               p.write_text('"""' + text[start:end + 3] + '\n\n' + text[future:], encoding='utf-8')
 
-          extract('backend/app/core/adversarial_validation.py', 'CeutIA — Adversarial Validation Gate')
-          extract('backend/app/core/epistemic_validation.py', 'CEUTIA PUBLIC — Epistemic Validation Engine.')
-          extract('backend/app/core/information_boundary.py', 'CeutIA information-flow confidentiality boundary.')
-          extract('backend/app/core/models.py', 'CeutIA — Dynamic Systems Model Layer.')
-          extract('backend/app/core/metrics.py', 'Catálogo matemático y motor de métricas de CeutIA.')
+          paths = [
+              ('backend/app/core/adversarial_validation.py', 'CeutIA — Adversarial Validation Gate'),
+              ('backend/app/core/epistemic_validation.py', 'CEUTIA PUBLIC — Epistemic Validation Engine.'),
+              ('backend/app/core/information_boundary.py', 'CeutIA information-flow confidentiality boundary.'),
+              ('backend/app/core/models.py', 'CeutIA — Dynamic Systems Model Layer.'),
+              ('backend/app/core/metrics.py', 'Catálogo matemático y motor de métricas de CeutIA.'),
+          ]
+          for path, marker in paths:
+              extract(path, marker)
 
-          # The security package is documentation-only. Preserve it as a valid
-          # module docstring while neutralizing nested triple-quote delimiters.
+          # Keep only the first future import in each normalized module.
+          for path, _ in paths:
+              p = Path(path)
+              lines = p.read_text(encoding='utf-8').splitlines()
+              seen = False
+              out = []
+              for line in lines:
+                  if line.strip() == 'from __future__ import annotations':
+                      if seen:
+                          continue
+                      seen = True
+                  out.append(line)
+              p.write_text('\n'.join(out) + '\n', encoding='utf-8')
+
           p = Path('backend/app/security/__init__.py')
-          text = p.read_text(encoding='utf-8')
-          text = text.replace('"""', '')
+          text = p.read_text(encoding='utf-8').replace('"""', '')
           p.write_text('"""\n' + text + '\n"""\n', encoding='utf-8')
 
           p = Path('backend/app/core/system_integrator.py')

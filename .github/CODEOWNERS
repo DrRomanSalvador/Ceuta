@@ -1,0 +1,9 @@
+# CeutIA protected control plane
+# Changes to these files must require review by the repository owner.
+
+/SUPREME_SECURITY_LAW.md @drsalvadorroman-beep
+/AGENTS.md @drsalvadorroman-beep
+/SUPRMIND_AI_COUNCIL_CONSTITUTION.md @drsalvadorroman-beep
+/AI_SECURITY_INCIDENT_LESSONS.md @drsalvadorroman-beep
+/.github/CODEOWNERS @drsalvadorroman-beep
+/.github/workflows/security-control-plane.yml @drsalvadorroman-beep

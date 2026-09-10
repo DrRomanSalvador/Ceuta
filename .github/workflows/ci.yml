@@ -25,6 +25,9 @@ jobs:
       - name: Install project and test dependencies
         run: python -m pip install --upgrade pip && python -m pip install '.[dev]'
 
+      - name: Compile all Python sources
+        run: python -m compileall -q backend api ceuta-final
+
       - name: Run smoke tests
         run: python -m pytest
 

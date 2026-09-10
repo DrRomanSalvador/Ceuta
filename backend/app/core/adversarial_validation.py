@@ -1397,7 +1397,15 @@ def validate_evidence_maturity(
         findings.append(
             _finding(
                 FindingCode.NO_TEMPORAL_VALIDATION,
-                FindingSeverity.CRITICAL,
+                (
+                    FindingSeverity.CRITICAL
+                    if candidate.evidence_maturity
+                    in {
+                        EvidenceMaturity.TEMPORALLY_VALIDATED,
+                        EvidenceMaturity.EXTERNALLY_VALIDATED,
+                    }
+                    else FindingSeverity.MAJOR
+                ),
                 ExpertDomain.STATISTICS_ML,
                 ValidationDimension.TEMPORAL_VALIDITY,
                 "Declared evidence maturity exceeds the demonstrated validation.",
@@ -1423,7 +1431,11 @@ def validate_evidence_maturity(
             findings.append(
                 _finding(
                     FindingCode.INSUFFICIENT_EVIDENCE,
-                    FindingSeverity.CRITICAL,
+                    (
+                        FindingSeverity.MAJOR
+                        if dataset is None
+                        else FindingSeverity.CRITICAL
+                    ),
                     ExpertDomain.STATISTICS_ML,
                     ValidationDimension.TEMPORAL_VALIDITY,
                     "Prospective validation is declared without prospective evaluation.",

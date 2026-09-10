@@ -1,5 +1,6 @@
 """CeutIA runtime security enforcement package."""
 
+from .deployment_gate import DeploymentAdmissionError, admit_current_artifact, protected_control_plane_digest
 from .enforcement import (
     Action,
     ActionClass,
@@ -8,6 +9,7 @@ from .enforcement import (
     EnforcementState,
     SecurityEnforcer,
 )
+from .external_trust import ExternalAttestation, ExternalTrustError, ExternalTrustVerifier
 from .tool_boundary import ToolBoundary
 
 __all__ = [
@@ -15,7 +17,13 @@ __all__ = [
     "ActionClass",
     "AuthorizationError",
     "Capability",
+    "DeploymentAdmissionError",
     "EnforcementState",
+    "ExternalAttestation",
+    "ExternalTrustError",
+    "ExternalTrustVerifier",
     "SecurityEnforcer",
     "ToolBoundary",
+    "admit_current_artifact",
+    "protected_control_plane_digest",
 ]

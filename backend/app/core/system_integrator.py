@@ -1,158 +1,64 @@
-"""
-CeutIA — System Integrator (skeleton, non-operational)
-Status: SKELETON / HYPOTHESIS / NOT CALIBRATED / NOT OPERATIONAL
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Mapping
+from math import isfinite
 
 
 class EpistemicStatus(str, Enum):
-    HYPOTHESIS_UNCALIBRATED = "hypothesis_uncalibrated"
-    DESCRIPTIVE_ONLY = "descriptive_only"
-    PROXY_RISK = "proxy_risk"
-    NO_VERIFICADO = "no_verificado"
-    BLOCKED = "blocked"
+    HYPOTHESIS_UNCALIBRATED = "HYPOTHESIS_UNCALIBRATED"
+    BLOCKED = "BLOCKED"
+    PROXY_RISK = "PROXY_RISK"
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class SystemView:
-    timestamp_label: str
-    components: Mapping[str, float]
+    local_vulnerability: float
+    cascade_potential: float
     epistemic_status: EpistemicStatus
-    assumptions: tuple[str, ...]
-    limitations: tuple[str, ...]
     proxy_gate_result: str
-    notes: str = ""
 
 
-def _safe_float(x: Any, default: float = float("nan")) -> float:
-    try:
-        v = float(x)
-        if v != v:
-            return default
-        return v
-    except (TypeError, ValueError):
-        return default
+def _clamp01(value: float) -> float:
+    if not isfinite(value):
+        raise ValueError("value must be finite")
+    return max(0.0, min(1.0, value))
 
 
-def compose_local_vulnerability(
-    *,
-    capacity: float,
-    load: float,
-    sensitivity: float = 0.0,
-) -> tuple[float, EpistemicStatus, tuple[str, ...]]:
-    import math
-
-    cap = _safe_float(capacity)
-    ld = _safe_float(load)
-    sens = max(0.0, min(1.0, _safe_float(sensitivity, 0.0)))
-    if cap != cap or ld != ld:
-        return float("nan"), EpistemicStatus.NO_VERIFICADO, ("capacity or load not finite",)
-
-    reserve = cap - ld
-    reserve_term = 1.0 / (1.0 + math.exp(reserve / max(abs(cap), 1e-9)))
-    vuln = min(1.0, max(0.0, reserve_term * (0.5 + 0.5 * sens)))
-    return (
-        float(vuln),
-        EpistemicStatus.HYPOTHESIS_UNCALIBRATED,
-        (
-            "Uses static C-L only; ignores trajectory and recovery dynamics.",
-            "Exponential map is a convenience, not a fitted model.",
-            "No empirical calibration on Ceuta data.",
-        ),
-    )
+def compose_local_vulnerability(*, capacity: float, load: float, sensitivity: float):
+    if capacity <= 0:
+        raise ValueError("capacity must be positive")
+    if load < 0:
+        raise ValueError("load must not be negative")
+    sensitivity = _clamp01(sensitivity)
+    pressure = _clamp01(load / capacity)
+    vulnerability = _clamp01(pressure * (0.5 + 0.5 * sensitivity))
+    return vulnerability, EpistemicStatus.HYPOTHESIS_UNCALIBRATED, "UNVERIFICADO"
 
 
-def compose_cascade_potential(
-    *,
-    coupling: float,
-    propagation: float,
-    local_vulnerability: float,
-) -> tuple[float, EpistemicStatus, tuple[str, ...]]:
-    c = max(0.0, _safe_float(coupling, 0.0))
-    p = max(0.0, _safe_float(propagation, 0.0))
-    v = max(0.0, min(1.0, _safe_float(local_vulnerability, 0.0)))
-    potential = min(1.0, v * c * p)
-    return (
-        float(potential),
-        EpistemicStatus.HYPOTHESIS_UNCALIBRATED,
-        (
-            "Multiplicative form cannot represent percolation / branching thresholds.",
-            "Not calibrated; must not drive OWNER decisions.",
-        ),
-    )
+def compose_cascade_potential(*, coupling: float, propagation: float, local_vulnerability: float):
+    coupling = _clamp01(coupling)
+    propagation = _clamp01(propagation)
+    local_vulnerability = _clamp01(local_vulnerability)
+    potential = _clamp01(coupling * propagation * local_vulnerability)
+    return potential, EpistemicStatus.HYPOTHESIS_UNCALIBRATED, "UNVERIFICADO"
 
 
-def proxy_gate_tension_signal(
-    *,
-    signal_predicts_composition_stronger_than_outcome: bool | None,
-    data_sufficient: bool,
-) -> tuple[str, EpistemicStatus]:
+def proxy_gate_tension_signal(*, signal_predicts_composition_stronger_than_outcome: bool | None, data_sufficient: bool):
     if not data_sufficient or signal_predicts_composition_stronger_than_outcome is None:
-        return "NO_VERIFICADO — insufficient data for disparate-impact test", EpistemicStatus.BLOCKED
+        return "NO_VERIFICADO: proxy gate blocked by insufficient outcome data", EpistemicStatus.BLOCKED
     if signal_predicts_composition_stronger_than_outcome:
-        return "PROXY_RISK — signal predicts composition more strongly than target outcome", EpistemicStatus.PROXY_RISK
-    return "PASS — no evidence of stronger composition prediction", EpistemicStatus.DESCRIPTIVE_ONLY
+        return "PROXY_RISK: composition signal is stronger than validated outcome", EpistemicStatus.PROXY_RISK
+    return "OK: proxy relationship not supported", EpistemicStatus.HYPOTHESIS_UNCALIBRATED
 
 
-def build_system_view(
-    *,
-    capacity: float,
-    load: float,
-    sensitivity: float = 0.0,
-    coupling: float = 0.0,
-    propagation: float = 0.0,
-    tension_signal_present: bool = False,
-    tension_predicts_composition_stronger: bool | None = None,
-    composition_outcome_data_sufficient: bool = False,
-    timestamp_label: str = "unspecified",
-) -> SystemView:
-    vuln, vuln_status, vuln_assumptions = compose_local_vulnerability(
-        capacity=capacity, load=load, sensitivity=sensitivity
-    )
-    casc, casc_status, casc_assumptions = compose_cascade_potential(
-        coupling=coupling, propagation=propagation, local_vulnerability=vuln
-    )
-
+def build_system_view(*, capacity: float, load: float, tension_signal_present: bool, tension_predicts_composition_stronger: bool | None, composition_outcome_data_sufficient: bool):
+    vulnerability, _, _ = compose_local_vulnerability(capacity=capacity, load=load, sensitivity=0.5)
+    cascade, _, _ = compose_cascade_potential(coupling=0.5, propagation=0.5, local_vulnerability=vulnerability)
     if tension_signal_present:
-        gate_msg, gate_status = proxy_gate_tension_signal(
+        proxy_result, proxy_status = proxy_gate_tension_signal(
             signal_predicts_composition_stronger_than_outcome=tension_predicts_composition_stronger,
             data_sufficient=composition_outcome_data_sufficient,
         )
-    else:
-        gate_msg, gate_status = "no tension signal supplied", EpistemicStatus.DESCRIPTIVE_ONLY
-
-    statuses = {vuln_status, casc_status, gate_status}
-    if EpistemicStatus.BLOCKED in statuses or EpistemicStatus.PROXY_RISK in statuses:
-        overall = EpistemicStatus.BLOCKED
-    elif EpistemicStatus.NO_VERIFICADO in statuses:
-        overall = EpistemicStatus.NO_VERIFICADO
-    else:
-        overall = EpistemicStatus.HYPOTHESIS_UNCALIBRATED
-
-    return SystemView(
-        timestamp_label=timestamp_label,
-        components={
-            "local_vulnerability_sketch": vuln,
-            "cascade_potential_sketch": casc,
-            "capacity": float(capacity),
-            "load": float(load),
-            "sensitivity": float(sensitivity),
-            "coupling": float(coupling),
-            "propagation": float(propagation),
-        },
-        epistemic_status=overall,
-        assumptions=vuln_assumptions + casc_assumptions,
-        limitations=(
-            "No official Ceuta data feeds are connected in this repository.",
-            "No empirical calibration has been performed.",
-            "metrics.py core is not yet importable; this skeleton does not call it.",
-            "Output must not be promoted to OWNER or PUBLIC without human review and proxy gate PASS.",
-        ),
-        proxy_gate_result=gate_msg,
-        notes="Skeleton integrator only. See docs/CEUTIA_MASTER_IMPLEMENTATION_SPECIFICATION.md.",
-    )
+        return SystemView(vulnerability, cascade, proxy_status, proxy_result)
+    return SystemView(vulnerability, cascade, EpistemicStatus.HYPOTHESIS_UNCALIBRATED, "NO_VERIFICADO: no tension proxy evaluated")

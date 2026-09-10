@@ -1,9 +1,14 @@
 # CeutIA protected control plane
-# Changes to these files must require review by the repository owner.
+# The sole repository owner is the only designated code owner for protected controls.
+# Repository-level CODEOWNERS is a review control; GitHub branch/ruleset enforcement is additionally required for non-bypassable protection.
 
 /SUPREME_SECURITY_LAW.md @drsalvadorroman-beep
+/OWNER_AUTHORITY_ROOT.md @drsalvadorroman-beep
+/OWNER_SECURITY_AND_LIABILITY_CONTROL_PLANE.md @drsalvadorroman-beep
+/HUMAN_RIGHTS_MEDICAL_LEGAL_NATIONAL_SECURITY_AND_DUAL_USE_CONTROL.md @drsalvadorroman-beep
 /AGENTS.md @drsalvadorroman-beep
 /SUPRMIND_AI_COUNCIL_CONSTITUTION.md @drsalvadorroman-beep
 /AI_SECURITY_INCIDENT_LESSONS.md @drsalvadorroman-beep
+/AI_SECURITY_INCIDENT_LESSONS_EXTENDED.md @drsalvadorroman-beep
 /.github/CODEOWNERS @drsalvadorroman-beep
 /.github/workflows/security-control-plane.yml @drsalvadorroman-beep

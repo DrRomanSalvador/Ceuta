@@ -30,22 +30,25 @@ jobs:
               future = text.find('from __future__ import annotations', doc_end)
               if future < 0:
                   raise SystemExit(f'{path}: canonical future import not found')
-              canonical = '"""' + text[start:doc_end + 3] + '\n\n' + text[future:]
-              p.write_text(canonical, encoding='utf-8')
+              p.write_text('"""' + text[start:doc_end + 3] + '\n\n' + text[future:], encoding='utf-8')
 
           extract_canonical('backend/app/core/adversarial_validation.py', 'CeutIA — Adversarial Validation Gate')
           extract_canonical('backend/app/core/epistemic_validation.py', 'CEUTIA PUBLIC — Epistemic Validation Engine.')
-          extract_canonical('backend/app/core/information_boundary.py', 'CEUTIA PUBLIC — Information Boundary')
 
-          # models.py and security/__init__.py have unquoted documentation
-          # prefixes whose existing triple-quoted terminators are retained.
+          # information_boundary.py already contains the canonical module; its
+          # first three quotes incorrectly turn the module into a string until
+          # the first class docstring. Remove only that erroneous prefix.
+          p = Path('backend/app/core/information_boundary.py')
+          text = p.read_text(encoding='utf-8')
+          if text.startswith('"""# CeutIA — Information Boundary'):
+              p.write_text(text[3:], encoding='utf-8')
+
           for path in ('backend/app/core/models.py', 'backend/app/security/__init__.py'):
               p = Path(path)
               text = p.read_text(encoding='utf-8')
               if not text.startswith('"""'):
                   p.write_text('"""\n' + text, encoding='utf-8')
 
-          # Remove the duplicated second system-integrator module.
           p = Path('backend/app/core/system_integrator.py')
           text = p.read_text(encoding='utf-8')
           marker = '\n    """\nCeutIA — System Integrator (skeleton, non-operational)'
@@ -53,8 +56,6 @@ jobs:
           if cut >= 0:
               p.write_text(text[:cut].rstrip() + '\n', encoding='utf-8')
 
-          # Remove an injected shell/instruction block from metrics.py while
-          # retaining the legitimate advanced-metrics code that follows it.
           p = Path('backend/app/core/metrics.py')
           text = p.read_text(encoding='utf-8')
           start = text.find('cd /home/workdir/artifacts/Ceuta')
@@ -64,7 +65,6 @@ jobs:
               if end < 0:
                   raise SystemExit('metrics.py: injected block terminator not found')
               text = text[:start] + text[end:]
-          # Remove future imports that occur after any real module content.
           lines = text.splitlines()
           out = []
           for i, line in enumerate(lines):

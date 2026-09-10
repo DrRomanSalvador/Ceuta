@@ -1,22 +1,20 @@
-version: '3.8'
-
 services:
   api:
-    build: .
+    build:
+      context: .
+      dockerfile: Ceuta/Dockerfile
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@db:5432/ceuta}
-      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
-      - LOG_LEVEL=${LOG_LEVEL:-INFO}
-      - ENVIRONMENT=${ENVIRONMENT:-development}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgres@db:5432/ceuta}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      ENVIRONMENT: ${ENVIRONMENT:-development}
     depends_on:
-      - db
-      - redis
-    volumes:
-      - ./backend:/app/backend
-      - ./src:/app/src
-      - ./api:/app/api
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - ceutia-net
 
@@ -32,16 +30,17 @@ services:
   db:
     image: postgres:15-alpine
     environment:
-      - POSTGRES_DB=${POSTGRES_DB:-ceuta}
-      - POSTGRES_USER=${POSTGRES_USER:-postgres}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-ceuta}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-ceuta}"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
     networks:
       - ceutia-net
 
@@ -54,17 +53,18 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 5s
     networks:
       - ceutia-net
 
   monitor:
-    build: .
-    command: python -m src.monitor --interval 6
+    build:
+      context: .
+      dockerfile: Ceuta/Dockerfile
+    command: ["python", "ceuta-final/ceuta_final.py"]
     environment:
-      - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@db:5432/ceuta}
-      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
-      - LOG_LEVEL=${LOG_LEVEL:-INFO}
-      - ENVIRONMENT=${ENVIRONMENT:-development}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      ENVIRONMENT: ${ENVIRONMENT:-development}
     depends_on:
       db:
         condition: service_healthy

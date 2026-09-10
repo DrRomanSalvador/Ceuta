@@ -62,3 +62,5 @@ def build_system_view(*, capacity: float, load: float, tension_signal_present: b
         )
         return SystemView(vulnerability, cascade, proxy_status, proxy_result)
     return SystemView(vulnerability, cascade, EpistemicStatus.HYPOTHESIS_UNCALIBRATED, "NO_VERIFICADO: no tension proxy evaluated")
+
+# Verified test entrypoint; this module intentionally contains no side effects.

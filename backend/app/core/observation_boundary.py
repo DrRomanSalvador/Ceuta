@@ -1,9 +1,7 @@
 """CeutIA observation boundary.
 
-This is the controlled boundary between retrieval/ingestion and downstream
-analysis. Retrieved material is preserved as evidence with provenance and
-point-in-time availability; downstream dynamic models must consume only the
-validated representation.
+Controlled boundary between retrieval/ingestion and downstream analysis.
+Evidence is admitted only with provenance-preserving, point-in-time availability.
 """
 
 from __future__ import annotations
@@ -22,15 +20,13 @@ class ObservationBoundaryError(ValueError):
 
 
 def available_at(evidence: EvidenceContract) -> datetime:
-    """Return the earliest defensible time at which evidence was available.
+    """Return the availability time of the exact evidence version.
 
-    The event time describes when the underlying event occurred and is therefore
-    not a point-in-time availability marker. Published evidence becomes
-    available at publication time; otherwise the observed time is used.
+    Revision time has precedence because a corrected version cannot be treated as
+    if it had existed in its corrected form at the original publication time.
+    Event time is never an availability marker.
     """
-    if evidence.publication_time is not None:
-        return evidence.publication_time
-    return evidence.observed_at
+    return evidence.available_at
 
 
 def validate_observation_for_analysis(
@@ -38,11 +34,7 @@ def validate_observation_for_analysis(
     *,
     evaluation_time: datetime,
 ) -> TemporalEligibility:
-    """Validate that evidence is admissible for an analysis at ``evaluation_time``.
-
-    This function does not upgrade epistemic status, resolve contradictions or
-    infer causality. It only enforces provenance-preserving temporal eligibility.
-    """
+    """Validate point-in-time admissibility without changing epistemic state."""
     available = available_at(evidence)
     eligibility = evaluate_temporal_eligibility(
         evidence_id=evidence.evidence_id,
@@ -62,7 +54,7 @@ def admit_observation(
     *,
     evaluation_time: datetime,
 ) -> tuple[EvidenceContract, TemporalEligibility]:
-    """Admit an observation to the analytical layer without changing its state."""
+    """Admit an observation without upgrading, resolving or rewriting it."""
     eligibility = validate_observation_for_analysis(
         evidence,
         evaluation_time=evaluation_time,

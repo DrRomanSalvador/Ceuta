@@ -93,6 +93,12 @@ class InformationRequest:
     acquisition_cost: float
     priority: float
 
+    def __post_init__(self) -> None:
+        if not self.question or not all(isfinite(float(x)) for x in (self.expected_value, self.acquisition_cost, self.priority)):
+            raise ValueError("invalid information request")
+        if self.acquisition_cost < 0 or self.priority < 0:
+            raise ValueError("information cost and priority must be non-negative")
+
     @property
     def net_value(self) -> float:
         return self.expected_value - self.acquisition_cost
@@ -135,12 +141,7 @@ class DecisionFeedback:
 
 
 class DecisionSystem:
-    """Deterministic decision layer for closed-loop decision analysis.
-
-    This layer does not claim causal identification. It consumes explicitly supplied
-    scenario outcomes, uncertainty, assumptions and provenance, and fails closed when
-    those contracts are incomplete.
-    """
+    """Deterministic decision layer for closed-loop decision analysis."""
 
     def rank_information(self, requests: Sequence[InformationRequest]) -> tuple[InformationRequest, ...]:
         return tuple(sorted(requests, key=lambda r: (r.net_value, r.priority), reverse=True))
@@ -155,6 +156,7 @@ class DecisionSystem:
         human_review_threshold: float = 0.35,
         provenance: Sequence[str] = (),
         reevaluation_triggers: Sequence[str] = (),
+        information_requests: Sequence[InformationRequest] = (),
     ) -> DecisionRecommendation:
         if not options:
             return self._abstain(context, mode, "no admissible options", provenance, reevaluation_triggers)
@@ -177,14 +179,16 @@ class DecisionSystem:
         disposition = (DecisionDisposition.HUMAN_REVIEW if normalized_uncertainty >= human_review_threshold
                        else DecisionDisposition.RECOMMEND)
         score = worst if mode is DecisionMode.ROBUST else expected if mode is DecisionMode.UTILITY else -regret if mode is DecisionMode.REGRET else -harm
+        information_value = max((request.net_value for request in information_requests), default=0.0)
         reasons = (
             f"policy={mode.value}",
             f"uncertainty={normalized_uncertainty:.6f}",
+            f"best_supplied_information_net_value={information_value:.6f}",
             "decision is conditional on supplied scenarios and assumptions",
         )
         return DecisionRecommendation(
             context.decision_id, chosen.option_id, disposition, mode, score,
-            worst, expected, harm, regret, 0.0, reasons,
+            worst, expected, harm, regret, information_value, reasons,
             tuple(provenance), tuple(reevaluation_triggers),
         )
 

@@ -7,7 +7,12 @@ from app.core.observation_boundary import (
     admit_observation,
     available_at,
 )
-from app.core.p0_contracts import EpistemicStatus, EvidenceContract, SourceRelation, Uncertainty
+from app.core.p0_contracts import (
+    EpistemicStatus,
+    EvidenceContract,
+    SourceRelation,
+    Uncertainty,
+)
 
 T0 = datetime(2026, 9, 13, 8, 0, tzinfo=UTC)
 

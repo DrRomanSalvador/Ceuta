@@ -1,11 +1,4 @@
-"""Scientific evidence quality, validation and decision-safety gate.
-
-This module operationalizes the evidence hierarchy required by CeutIA. It does
-not treat reporting guidance as validation, predictive discrimination as
-clinical utility, or an estimate as an observation. The gate is deliberately
-conservative: unresolved methodological deficiencies increase epistemic
-uncertainty and can force human review or abstention for high-impact use.
-"""
+"""Scientific evidence quality, validation and decision-safety gate."""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -79,6 +72,8 @@ class ScientificEvidence:
     missingness: Missingness = Missingness.NONE
     missingness_sensitivity: bool = False
     high_impact: bool = False
+    prediction_model: bool = False
+    primary_source_verified: bool = True
 
     def __post_init__(self) -> None:
         if not self.evidence_id:
@@ -102,20 +97,12 @@ class EvidenceGateResult:
 class ScientificEvidenceGate:
     """Applies minimum evidence requirements before decision use."""
 
-    _BLOCKED_CLASSES = {
-        EvidenceClass.BLOG,
-        EvidenceClass.COMMERCIAL,
-        EvidenceClass.WIKIPEDIA,
-    }
+    _BLOCKED_CLASSES = {EvidenceClass.BLOG, EvidenceClass.COMMERCIAL, EvidenceClass.WIKIPEDIA}
+    _PREDICTION_CLASSES = {EvidenceClass.METHODOLOGICAL, EvidenceClass.EMPIRICAL_VALIDATION, EvidenceClass.PROSPECTIVE_VALIDATION}
 
     def evaluate(self, evidence: Sequence[ScientificEvidence]) -> EvidenceGateResult:
         if not evidence:
-            return EvidenceGateResult(
-                GateDisposition.ABSTAIN,
-                1.0,
-                ("no_scientific_evidence_declared",),
-                ("declare_evidence_provenance",),
-            )
+            return EvidenceGateResult(GateDisposition.ABSTAIN, 1.0, ("no_scientific_evidence_declared",), ("declare_evidence_provenance",))
 
         reasons: list[str] = []
         controls: list[str] = []
@@ -135,31 +122,30 @@ class ScientificEvidenceGate:
                 uncertainty = max(uncertainty, 0.60)
                 disposition = max_disposition(disposition, GateDisposition.HUMAN_REVIEW)
 
-            if item.evidence_class in {EvidenceClass.GUIDELINE, EvidenceClass.STANDARD} and not item.doi_verified:
-                reasons.append(f"{item.evidence_id}:source_not_verified")
+            if item.evidence_class in {EvidenceClass.GUIDELINE, EvidenceClass.STANDARD} and not item.primary_source_verified:
+                reasons.append(f"{item.evidence_id}:primary_source_not_verified")
                 controls.append(f"{item.evidence_id}:verify_primary_source")
                 uncertainty = max(uncertainty, 0.55)
                 disposition = max_disposition(disposition, GateDisposition.HUMAN_REVIEW)
 
-            if item.validation_level in {ValidationLevel.NONE, ValidationLevel.APPARENT, ValidationLevel.INTERNAL}:
-                reasons.append(f"{item.evidence_id}:no_external_validation")
-                controls.append(f"{item.evidence_id}:external_validation")
-                uncertainty = max(uncertainty, 0.65)
-                disposition = max_disposition(disposition, GateDisposition.HUMAN_REVIEW)
-
-            if item.calibrated is False or (item.high_impact and item.calibrated is None):
-                reasons.append(f"{item.evidence_id}:calibration_not_established")
-                controls.append(f"{item.evidence_id}:calibration_assessment")
-                uncertainty = max(uncertainty, 0.70)
-                disposition = max_disposition(disposition, GateDisposition.HUMAN_REVIEW)
+            if item.prediction_model or item.evidence_class in self._PREDICTION_CLASSES:
+                if item.validation_level in {ValidationLevel.NONE, ValidationLevel.APPARENT, ValidationLevel.INTERNAL}:
+                    reasons.append(f"{item.evidence_id}:no_external_validation")
+                    controls.append(f"{item.evidence_id}:external_validation")
+                    uncertainty = max(uncertainty, 0.65)
+                    disposition = max_disposition(disposition, GateDisposition.HUMAN_REVIEW)
+                if item.calibrated is False or (item.high_impact and item.calibrated is None):
+                    reasons.append(f"{item.evidence_id}:calibration_not_established")
+                    controls.append(f"{item.evidence_id}:calibration_assessment")
+                    uncertainty = max(uncertainty, 0.70)
+                    disposition = max_disposition(disposition, GateDisposition.HUMAN_REVIEW)
 
             if item.missingness is Missingness.MNAR and not item.missingness_sensitivity:
                 reasons.append(f"{item.evidence_id}:mnar_without_sensitivity_analysis")
                 controls.append(f"{item.evidence_id}:mnar_sensitivity_analysis")
                 uncertainty = max(uncertainty, 0.75)
                 disposition = max_disposition(disposition, GateDisposition.HUMAN_REVIEW)
-
-            if item.missingness is Missingness.UNKNOWN:
+            elif item.missingness is Missingness.UNKNOWN:
                 reasons.append(f"{item.evidence_id}:missingness_mechanism_unknown")
                 controls.append(f"{item.evidence_id}:assess_mcar_mar_mnar")
                 uncertainty = max(uncertainty, 0.70)
@@ -188,27 +174,20 @@ class ScientificEvidenceGate:
                 reasons.append(f"{item.evidence_id}:high_risk_of_bias")
                 disposition = max_disposition(disposition, GateDisposition.HUMAN_REVIEW)
 
+            if item.independence < 0.50:
+                uncertainty = max(uncertainty, 0.65)
+                reasons.append(f"{item.evidence_id}:low_independence")
+                controls.append(f"{item.evidence_id}:independent_corroboration")
+                disposition = max_disposition(disposition, GateDisposition.HUMAN_REVIEW)
+
         if uncertainty >= 0.90:
             disposition = GateDisposition.ABSTAIN
         return EvidenceGateResult(disposition, min(1.0, uncertainty), tuple(dict.fromkeys(reasons)), tuple(dict.fromkeys(controls)))
 
 
 def max_disposition(left: GateDisposition, right: GateDisposition) -> GateDisposition:
-    rank = {
-        GateDisposition.ALLOW: 0,
-        GateDisposition.HUMAN_REVIEW: 1,
-        GateDisposition.ABSTAIN: 2,
-    }
+    rank = {GateDisposition.ALLOW: 0, GateDisposition.HUMAN_REVIEW: 1, GateDisposition.ABSTAIN: 2}
     return left if rank[left] >= rank[right] else right
 
 
-__all__ = [
-    "Certainty",
-    "EvidenceClass",
-    "EvidenceGateResult",
-    "GateDisposition",
-    "Missingness",
-    "ScientificEvidence",
-    "ScientificEvidenceGate",
-    "ValidationLevel",
-]
+__all__ = ["Certainty", "EvidenceClass", "EvidenceGateResult", "GateDisposition", "Missingness", "ScientificEvidence", "ScientificEvidenceGate", "ValidationLevel"]

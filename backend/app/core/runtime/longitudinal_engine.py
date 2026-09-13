@@ -45,6 +45,8 @@ class LongitudinalMonitoringEngine:
         now: datetime,
         required_signals: Sequence[str],
         deadline_seconds: float = 60.0,
+        calibrated: bool = False,
+        model_valid: bool = False,
     ) -> LongitudinalCycle:
         decisions: list[IngestionDecision] = []
         accepted_signals: list[RawSignal] = []
@@ -73,9 +75,9 @@ class LongitudinalMonitoringEngine:
         gate = self.safety.evaluate(
             observable=obs.identifiable,
             identifiable=obs.identifiable,
-            calibrated=False,
+            calibrated=calibrated,
             source_integrity=source_integrity,
-            model_valid=False,
+            model_valid=model_valid,
         )
         return LongitudinalCycle(
             tuple(decisions),

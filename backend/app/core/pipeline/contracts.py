@@ -200,3 +200,7 @@ class SystemStateContract:
             raise TypeError("interactions must contain only Interaction objects")
         if any(not isinstance(item, InteractionEffect) for item in self.interaction_effects):
             raise TypeError("interaction_effects must contain only InteractionEffect objects")
+        for domain in self.domains:
+            for variable in domain.variables:
+                if variable.updated_at > self.as_of:
+                    raise ValueError("variable state cannot be newer than system as_of")

@@ -9,6 +9,8 @@ from typing import Protocol
 
 from ..decision.control_plane import ConflictResolution, DecisionControlPlane, DecisionDisposition as ControlDisposition, DecisionManifest, EvidenceAssessment, UncertaintyState
 from ..decision.decision_system import DecisionContext, DecisionMode, DecisionOption, DecisionRecommendation, DecisionSystem, InformationRequest
+from ..decision.decision_terminal import TerminalDisposition
+from ..decision.lineage import DecisionLineage, LineageNode
 from ..errors import ContractViolation, TemporalViolation
 from ..inference.inference_engine import EvidenceContribution, EpistemicLevel, InferencePlan, InferenceProblem, InferenceResult, ScientificInferenceEngine
 from ..integration.system_context import SystemContext
@@ -47,6 +49,7 @@ class StageRecord:
 
 class CycleStore(Protocol):
     def record_cycle(self, *, system_id: str, as_of: str, decision_id: str | None, option_id: str | None, disposition: str | None, lineage: tuple[str, ...], stages: tuple[dict[str, object], ...]) -> None: ...
+    def record_lineage(self, lineage: DecisionLineage) -> None: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -101,6 +104,7 @@ class ClosedLoopSnapshot:
     response_ids: tuple[str, ...]
     learning_ids: tuple[str, ...]
     lineage: tuple[str, ...]
+    decision_lineage: DecisionLineage | None = None
 
     @property
     def decision_ready(self) -> bool:
@@ -117,7 +121,7 @@ class ClosedLoopSnapshot:
 
 @dataclass(slots=True)
 class SystemKernel:
-    """Append-only temporal memory with optional durable cycle persistence."""
+    """Append-only temporal memory with durable lifecycle lineage when available."""
     system_id: str
     persistence: CycleStore | None = None
     snapshots: list[ClosedLoopSnapshot] = field(default_factory=list)
@@ -132,6 +136,8 @@ class SystemKernel:
             decision = snapshot.decision
             stages = tuple({"stage": stage.stage.value, "record_ids": stage.record_ids, "epistemic_level": stage.epistemic_level.value, "as_of": stage.as_of.isoformat(), "depends_on": tuple(item.value for item in stage.depends_on), "notes": stage.notes} for stage in snapshot.stages)
             self.persistence.record_cycle(system_id=snapshot.system_id, as_of=snapshot.as_of.isoformat(), decision_id=decision.decision_id if decision else None, option_id=decision.option_id if decision else None, disposition=decision.disposition.value if decision else None, lineage=snapshot.lineage, stages=stages)
+            if snapshot.decision_lineage is not None:
+                self.persistence.record_lineage(snapshot.decision_lineage)
 
     @property
     def latest(self) -> ClosedLoopSnapshot | None:
@@ -148,8 +154,8 @@ class ClosedLoopEngine:
     """Bounded real-time orchestration over the complete scientific lifecycle."""
 
     def __init__(self, *, inference_engine: ScientificInferenceEngine | None = None, decision_system: DecisionSystem | None = None, control_plane: DecisionControlPlane | None = None, code_revision: str = "unknown"):
-        if not code_revision.strip():
-            raise ValueError("code_revision must not be empty")
+        if not code_revision.strip() or code_revision.strip().lower() in {"unknown", "unresolved", "dirty"}:
+            raise ValueError("code_revision must identify an exact reproducible revision")
         self.inference_engine = inference_engine or ScientificInferenceEngine()
         self.decision_system = decision_system or DecisionSystem()
         self.control_plane = control_plane or DecisionControlPlane()
@@ -172,6 +178,7 @@ class ClosedLoopEngine:
         inference = self.inference_engine.compose(event.inference_problem, evidence=event.evidence, epistemic_level=EpistemicLevel.ESTIMATED, claims=event.claims, uncertainty_summary=event.uncertainty_summary, uncertainty_state=event.uncertainty_state, limitations=event.limitations)
         decision: DecisionRecommendation | None = None
         audit_id: str | None = None
+        terminal = TerminalDisposition.ABSTENTION
         if event.decision_context is not None:
             provenance = tuple(dict.fromkeys([f"state:{context.state.state.state_id}"] + [f"observation:{x.observation_id}" for x in context.observations] + [f"evidence:{x.evidence_id}" for x in context.evidence] + [f"evidence:{x.evidence_id}" for x in event.evidence] + [f"model:{x.model_id}" for x in context.models] + [f"hypothesis:{x}" for x in event.hypothesis_ids] + [f"causal:{x}" for x in event.causal_model_ids] + [f"prediction:{x}" for x in event.prediction_ids]))
             triggers = ("new observation", "material state change", "model validity change", "decision validity window expired")
@@ -185,12 +192,15 @@ class ClosedLoopEngine:
                 control = self.control_plane.authorize(decision_id=event.decision_context.decision_id, purpose=event.purpose, uncertainty=propagated_uncertainty, restricted=event.restricted, manifest=manifest, evidence_assessments=event.evidence_assessments, conflict_resolutions=event.conflict_resolutions)
                 audit_id = control.audit_event_id
                 if control.disposition in {ControlDisposition.ABSTAIN, ControlDisposition.HUMAN_REVIEW}:
+                    terminal = TerminalDisposition.HUMAN_REVIEW if control.disposition is ControlDisposition.HUMAN_REVIEW else TerminalDisposition.ABSTENTION
                     reason = control.reason if control.disposition is ControlDisposition.ABSTAIN else "human review required before execution"
                     decision = self.decision_system._abstain(event.decision_context, event.decision_mode, reason, (*provenance, f"audit:{audit_id}"), triggers)
                 else:
                     decision = self.decision_system.recommend(event.decision_context, event.decision_options, mode=event.decision_mode, provenance=(*provenance, f"audit:{audit_id}"), reevaluation_triggers=triggers, information_requests=event.information_requests, at=context.as_of)
-        stages = self._build_stage_records(event, inference.plan)
-        return ClosedLoopSnapshot(context.system_id, context.as_of, context, stages, inference, decision, event.prediction_ids, event.relation_ids, event.hypothesis_ids, event.causal_model_ids, event.response_ids, event.learning_ids, self._lineage(event, inference, decision, audit_id=audit_id))
+                    terminal = TerminalDisposition.DECISION
+        stages = self._build_stage_records(event, inference)
+        decision_lineage = self._decision_lineage(event, inference, decision, terminal, audit_id)
+        return ClosedLoopSnapshot(context.system_id, context.as_of, context, stages, inference, decision, event.prediction_ids, event.relation_ids, event.hypothesis_ids, event.causal_model_ids, event.response_ids, event.learning_ids, self._lineage(event, inference, decision, audit_id=audit_id), decision_lineage)
 
     def process_into(self, kernel: SystemKernel, event: ClosedLoopInput) -> ClosedLoopSnapshot:
         snapshot = self.process(event)
@@ -218,6 +228,21 @@ class ClosedLoopEngine:
             StageRecord(Stage.RESPONSE, event.response_ids, EpistemicLevel.OBSERVED, context.as_of, (Stage.DECISION,)),
             StageRecord(Stage.LEARNING, event.learning_ids, EpistemicLevel.ESTIMATED, context.as_of, (Stage.RESPONSE,)),
         )
+
+    def _decision_lineage(self, event: ClosedLoopInput, inference: InferenceResult, decision: DecisionRecommendation | None, terminal: TerminalDisposition, audit_id: str | None) -> DecisionLineage | None:
+        if event.decision_context is None:
+            return None
+        decision_id = event.decision_context.decision_id
+        execution_id = audit_id or f"execution:{decision_id}:{event.context.as_of.isoformat()}"
+        common = {"configuration_hash": sha256((event.context.as_of.isoformat() + self.code_revision).encode()).hexdigest(), "code_revision": self.code_revision, "as_of": event.context.as_of.isoformat(), "execution_id": execution_id}
+        nodes = (
+            LineageNode("state", Stage.STATE.value, (f"system:{event.context.system_id}",), (f"state:{event.context.state.state.state_id}",), (), (), (), **common),
+            LineageNode("inference", Stage.PREDICTION.value, (f"state:{event.context.state.state.state_id}",), (f"inference:{inference.plan.primary.value}",), tuple(f"evidence:{x.evidence_id}" for x in event.evidence), tuple(f"model:{x.model_id}" for x in event.context.models), (), **common),
+            LineageNode("control", Stage.DECISION.value, (f"inference:{inference.plan.primary.value}",), (f"audit:{audit_id}" if audit_id else "terminal:pre-control" ,), tuple(f"evidence:{x.evidence_id}" for x in event.evidence_assessments), (), (), **common),
+        )
+        if decision is not None:
+            nodes += (LineageNode("decision", Stage.DECISION.value, (f"audit:{audit_id}" if audit_id else "terminal:pre-control",), (f"decision:{decision.decision_id}", f"option:{decision.option_id}"), (), (), (), **common),)
+        return DecisionLineage(decision_id=decision_id, nodes=nodes, terminal_disposition=terminal.value, semantic_identity=f"decision:{decision_id}")
 
     @staticmethod
     def _lineage(event: ClosedLoopInput, inference: InferenceResult, decision: DecisionRecommendation | None, *, audit_id: str | None = None) -> tuple[str, ...]:

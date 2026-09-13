@@ -47,5 +47,8 @@ jobs:
       - name: Verify Phase 3 Shadow Mode invariants
         run: python scripts/verify_phase3.py
 
+      - name: Verify Phases 4-8 implementation inventory
+        run: python scripts/verify_phases_4_8.py
+
       - name: Validate Compose configuration
         run: docker compose config -q

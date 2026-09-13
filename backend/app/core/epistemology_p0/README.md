@@ -1,46 +1,42 @@
-# CeutIA — Capa Epistemológica (P0 Foundations)
-
-Implementación de los fundamentos de la auditoría de separación CeutIA / Serpiente.
+# CeutIA — Capa Epistemológica (P0)
 
 **Rama:** `p0-epistemic-foundations`  
-**Repo:** `drsalvadorroman-beep/Ceuta`  
-**Regla central:** ninguna salida de CeutIA debe perder significado, procedencia, incertidumbre, temporalidad ni estado epistemológico al llegar a Serpiente.
+**Ubicación:** `backend/app/core/epistemology_p0/` (paquete aislado, aplanado)
 
-## Qué se ha implementado (P0)
+## Por qué aquí
 
-| Módulo | Contenido |
-|--------|-----------|
-| `epistemology/states.py` | Máquina de estados tipados + transiciones válidas |
-| `temporal/multitemporal.py` | 7 tiempos distintos + filtro backtesting |
-| `sources/independence.py` | Grafo de independencia (red, no contador) |
-| `schemas/observation_v1.json` | Contrato versionado CeutIA→Serpiente |
-| `contracts/` | Observation, pull_context, ContextDossier |
+- Aislado de `metrics.py`, `epistemic.py` y `models.py` legacy (enums distintos; no se sobrescriben).
+- Misma raíz `backend/app/core/` que el resto del dominio, pero en subpaquete dedicado.
+- Tests en `tests/core/test_epistemology_p0.py` (mismo patrón del proyecto).
+- Cuando P0 esté estable, se puede promover a `backend/app/epistemology/` como capa canónica.
 
-## Estados epistemológicos tipados
+## Estructura
 
-`ATTRIBUTED_CLAIM` → estado inicial de toda afirmación de una sola fuente.  
-Solo pasa a `CORROBORATED_FACT` con evidencia independiente documentada.  
-Las correcciones **nunca sobrescriben**: crean nueva versión.
+```
+epistemology_p0/
+├── epistemology/states.py     # Máquina de estados tipados
+├── evidence/models.py         # Evidence versionado e inmutable
+├── sources/independence.py    # Grafo de independencia de fuentes
+├── temporal/multitemporal.py  # Modelo temporal + backtesting
+├── contracts/ceutia_serpiente.py  # Observation + pull_context
+├── schemas/observation_v1.json
+├── registry.py                # ClaimRegistry (aplanado, no core/core)
+└── __init__.py
+```
 
-## MUST NOT TOUCH
+## Regla central
 
-- `metrics.py` del core legacy (inventario de 127 duplicados pendiente)
-- Documentación de gobernanza / seguridad ya consolidada
+> Ninguna salida de CeutIA debe perder significado, procedencia, incertidumbre, temporalidad ni estado epistemológico al llegar a Serpiente.
+
+## MUST NOT TOUCH (esta rama)
+
+- `backend/app/core/metrics.py`
+- `backend/app/core/epistemic.py` (enum legacy distinto)
+- `backend/app/core/models.py`
+- Gobernanza y seguridad ya consolidadas
 
 ## Tests
 
-Los tests P0 viven en `tests/test_p0_foundations.py` (pendiente de subir en este commit si no está). Cubren:
-
-- Afirmación única fuente → ATTRIBUTED_CLAIM
-- Diez documentos del mismo comunicado → peso ≈ 1
-- Contradicciones explícitas
-- Backtest sin contaminación retrospectiva
-- Observation no entrega escalares desnudos
-
-## Siguiente (P1)
-
-1. Completar `evidence/models.py` (Evidence versionado e inmutable)
-2. Completar `core/registry.py` (ClaimRegistry + linaje)
-3. Completar contrato `contracts/ceutia_serpiente.py`
-4. Tests E2E
-5. Integrar sin tocar metrics.py
+```bash
+pytest tests/core/test_epistemology_p0.py -v
+```

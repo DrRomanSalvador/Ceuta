@@ -7,10 +7,11 @@ state and never infer event time from retrieval time.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime
 from hashlib import sha256
-from typing import Iterable, Protocol
+from typing import Protocol
 from urllib.parse import urlsplit, urlunsplit
 
 from ..contracts import ObservationRecord
@@ -54,13 +55,7 @@ class RealSourceEnvelope:
 
 @dataclass(frozen=True, slots=True)
 class SourceObservation:
-    """Adapter-level observation before source-independent normalization.
-
-    ``content_fingerprint`` is the parser's semantic identity for the underlying
-    event/article/sensor sample. It deliberately excludes publisher identity so
-    independently fetched mirrors can be clustered without treating propagation
-    as independent evidence.
-    """
+    """Adapter-level observation before source-independent normalization."""
 
     variable: str
     value: float

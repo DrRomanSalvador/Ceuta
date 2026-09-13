@@ -99,10 +99,9 @@ class EvidenceGateResult:
 
 
 class ScientificEvidenceGate:
-    """Applies minimum evidence requirements before decision use."""
+    """Applies evidence controls conditionally on the evidence type and use."""
 
     _BLOCKED_CLASSES = {EvidenceClass.BLOG, EvidenceClass.COMMERCIAL, EvidenceClass.WIKIPEDIA}
-    _PREDICTION_CLASSES = {EvidenceClass.METHODOLOGICAL, EvidenceClass.EMPIRICAL_VALIDATION, EvidenceClass.PROSPECTIVE_VALIDATION}
 
     def evaluate(self, evidence: Sequence[ScientificEvidence]) -> EvidenceGateResult:
         if not evidence:
@@ -131,7 +130,12 @@ class ScientificEvidenceGate:
                 controls.append(f"{item.evidence_id}:verify_primary_source")
                 uncertainty = max(uncertainty, 0.55)
                 disposition = max_disposition(disposition, GateDisposition.HUMAN_REVIEW)
-            if item.prediction_model or item.evidence_class in self._PREDICTION_CLASSES:
+
+            # External validation and calibration are conditional on actual
+            # prediction-model use. A methodological or validation paper can
+            # legitimately be evidence about methods without itself being a
+            # deployed prediction model.
+            if item.prediction_model:
                 if item.validation_level in {ValidationLevel.NONE, ValidationLevel.APPARENT, ValidationLevel.INTERNAL}:
                     reasons.append(f"{item.evidence_id}:no_external_validation")
                     controls.append(f"{item.evidence_id}:external_validation")
@@ -142,6 +146,7 @@ class ScientificEvidenceGate:
                     controls.append(f"{item.evidence_id}:calibration_assessment")
                     uncertainty = max(uncertainty, 0.70)
                     disposition = max_disposition(disposition, GateDisposition.HUMAN_REVIEW)
+
             if item.missingness is Missingness.MNAR and not item.missingness_sensitivity:
                 reasons.append(f"{item.evidence_id}:mnar_without_sensitivity_analysis")
                 controls.append(f"{item.evidence_id}:mnar_sensitivity_analysis")
@@ -152,6 +157,7 @@ class ScientificEvidenceGate:
                 controls.append(f"{item.evidence_id}:assess_mcar_mar_mnar")
                 uncertainty = max(uncertainty, 0.70)
                 disposition = max_disposition(disposition, GateDisposition.HUMAN_REVIEW)
+
             if item.high_impact:
                 required = (("decision_utility_evaluated", item.decision_utility_evaluated), ("harms_evaluated", item.harms_evaluated), ("human_factors_evaluated", item.human_factors_evaluated))
                 for name, satisfied in required:
@@ -160,6 +166,7 @@ class ScientificEvidenceGate:
                         controls.append(f"{item.evidence_id}:{name}")
                         uncertainty = max(uncertainty, 0.80)
                         disposition = max_disposition(disposition, GateDisposition.HUMAN_REVIEW)
+
             if item.certainty in {Certainty.LOW, Certainty.VERY_LOW}:
                 uncertainty = max(uncertainty, 0.75)
                 reasons.append(f"{item.evidence_id}:low_certainty")

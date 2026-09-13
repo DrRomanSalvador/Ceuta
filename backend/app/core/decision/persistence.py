@@ -4,7 +4,7 @@ from __future__ import annotations
 from dataclasses import asdict
 import json
 import sqlite3
-from typing import Sequence
+from typing import Mapping, Sequence
 
 from .control_plane import DecisionAuditEvent, DecisionOutcome, HumanDecisionReview
 

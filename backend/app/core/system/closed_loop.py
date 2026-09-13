@@ -170,9 +170,10 @@ class ClosedLoopEngine:
             for scenario in option.outcomes
         )
         constraint_refs = tuple(f"constraint:{key}" for key in event.decision_context.constraints) if event.decision_context else ()
+        assumptions = event.decision_context.assumptions if event.decision_context else ()
         raw_config = "|".join(sorted((
             *state_refs, *evidence_refs, *model_refs, *hypothesis_refs,
-            *scenario_refs, *constraint_refs, *event.decision_context.assumptions if event.decision_context else (),
+            *scenario_refs, *constraint_refs, *assumptions,
         )))
         configuration_hash = sha256(raw_config.encode("utf-8")).hexdigest()
         return DecisionManifest(
@@ -182,7 +183,7 @@ class ClosedLoopEngine:
             model_refs=model_refs,
             hypothesis_refs=hypothesis_refs,
             transformation_refs=(),
-            assumption_refs=event.decision_context.assumptions if event.decision_context else (),
+            assumption_refs=assumptions,
             scenario_refs=scenario_refs,
             utility_definition_ref="decision-objectives:v1",
             constraint_refs=constraint_refs,

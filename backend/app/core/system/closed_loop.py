@@ -60,6 +60,7 @@ class ClosedLoopInput:
     response_ids: tuple[str, ...] = ()
     learning_ids: tuple[str, ...] = ()
     uncertainty_summary: str = "uncertainty not yet quantified"
+    uncertainty_state: UncertaintyState | None = None
     claims: tuple[str, ...] = ()
     limitations: tuple[str, ...] = ()
     purpose: str = "closed-loop decision"
@@ -172,11 +173,19 @@ class ClosedLoopEngine:
 
     def process(self, event: ClosedLoopInput) -> ClosedLoopSnapshot:
         context = event.context
-        inference = self.inference_engine.compose(event.inference_problem, evidence=event.evidence, epistemic_level=EpistemicLevel.ESTIMATED, claims=event.claims, uncertainty_summary=event.uncertainty_summary, limitations=event.limitations)
+        inference = self.inference_engine.compose(
+            event.inference_problem,
+            evidence=event.evidence,
+            epistemic_level=EpistemicLevel.ESTIMATED,
+            claims=event.claims,
+            uncertainty_summary=event.uncertainty_summary,
+            uncertainty_state=event.uncertainty_state,
+            limitations=event.limitations,
+        )
         decision: DecisionRecommendation | None = None
         audit_id: str | None = None
         if event.decision_context is not None:
-            provenance = tuple(dict.fromkeys([f"state:{context.state.state.state_id"] + [f"observation:{x.observation_id}" for x in context.observations] + [f"evidence:{x.evidence_id}" for x in context.evidence] + [f"evidence:{x.evidence_id}" for x in event.evidence] + [f"model:{x.model_id}" for x in context.models] + [f"hypothesis:{x}" for x in event.hypothesis_ids] + [f"causal:{x}" for x in event.causal_model_ids] + [f"prediction:{x}" for x in event.prediction_ids]))
+            provenance = tuple(dict.fromkeys([f"state:{context.state.state.state_id}"] + [f"observation:{x.observation_id}" for x in context.observations] + [f"evidence:{x.evidence_id}" for x in context.evidence] + [f"evidence:{x.evidence_id}" for x in event.evidence] + [f"model:{x.model_id}" for x in context.models] + [f"hypothesis:{x}" for x in event.hypothesis_ids] + [f"causal:{x}" for x in event.causal_model_ids] + [f"prediction:{x}" for x in event.prediction_ids]))
             triggers = ("new observation", "material state change", "model validity change", "decision validity window expired")
             if not inference.usable:
                 decision = self.decision_system._abstain(event.decision_context, event.decision_mode, "inference is not decision-ready", provenance, triggers)
@@ -184,14 +193,18 @@ class ClosedLoopEngine:
                 decision = self.decision_system._abstain(event.decision_context, event.decision_mode, "no admissible options", provenance, triggers)
             else:
                 manifest = self._decision_manifest(event)
+                propagated_uncertainty = inference.uncertainty_state.propagate(
+                    UncertaintyState(
+                        max(option.uncertainty for option in event.decision_options),
+                        source_refs=tuple(f"option:{option.option_id}" for option in event.decision_options),
+                        method="declared-option-uncertainty",
+                    ),
+                    method="conservative",
+                )
                 control = self.control_plane.authorize(
                     decision_id=event.decision_context.decision_id,
                     purpose=event.purpose,
-                    uncertainty=UncertaintyState(
-                        max(option.uncertainty for option in event.decision_options),
-                        source_refs=tuple(dict.fromkeys((*provenance, *event.causal_model_ids))),
-                        method="decision-option-conservative-max",
-                    ),
+                    uncertainty=propagated_uncertainty,
                     restricted=event.restricted,
                     manifest=manifest,
                 )

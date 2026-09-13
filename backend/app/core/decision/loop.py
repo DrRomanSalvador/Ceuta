@@ -7,7 +7,7 @@ not replace specialist engines; it enforces their ordering and contracts.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Sequence
+from hashlib import sha256
 
 from .control_plane import (
     DecisionControlPlane,
@@ -61,6 +61,8 @@ class DecisionLoop:
                        kind.lower() if sep else "", "evidence")
             buckets[key].append(value if sep else ref)
         scenarios = tuple(f"scenario:{s.scenario_id}" for o in item.options for s in o.scenarios)
+        raw_configuration = "|".join(sorted((*item.provenance, *item.assumptions)))
+        configuration_hash = sha256(raw_configuration.encode("utf-8")).hexdigest()
         return DecisionManifest(
             decision_id=item.decision_id,
             state_refs=tuple(buckets["state"] or (f"decision-state:{item.decision_id}",)),
@@ -73,7 +75,7 @@ class DecisionLoop:
             utility_definition_ref="decision-utility:v1",
             constraint_refs=tuple(buckets["constraint"]),
             policy_version="1.0",
-            configuration_hash="|".join(sorted(item.provenance + item.assumptions)),
+            configuration_hash=configuration_hash,
             code_revision="decision-loop-v1",
             created_at="runtime",
         )
@@ -97,7 +99,8 @@ class DecisionLoop:
             return DecisionCycleResult(
                 DecisionAudit(item.decision_id, DecisionAction.ABSTAIN, "ABSTAIN", item.mode.value,
                               (control.reason,), None, None, None, None, 0.0,
-                              item.assumptions, item.provenance, item.reevaluation_triggers),
+                              item.assumptions, (*item.provenance, f"audit:{control.audit_event_id}"),
+                              item.reevaluation_triggers),
                 None, item.information_request,
             )
 

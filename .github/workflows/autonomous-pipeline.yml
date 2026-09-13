@@ -1,31 +1,23 @@
 name: CeutIA Autonomous Pipeline
 
 on:
-  workflow_run:
-    workflows: [CeutIA CI]
-    types: [completed]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: ceutia-autonomous-${{ github.event.workflow_run.head_branch || github.ref }}
+  group: ceutia-autonomous-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
   gate:
     name: Activate validated integration stage
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      (github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.head_branch == 'main')
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout validated revision
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -43,8 +35,6 @@ jobs:
     steps:
       - name: Checkout validated revision
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -62,8 +52,6 @@ jobs:
     steps:
       - name: Checkout validated revision
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -83,8 +71,6 @@ jobs:
     steps:
       - name: Checkout validated revision
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
       - name: Set up Python
         uses: actions/setup-python@v5
         with:

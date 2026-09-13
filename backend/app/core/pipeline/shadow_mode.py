@@ -7,10 +7,11 @@ write forecasts and evaluation metrics, but has no parameter-update capability.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass, replace
 from datetime import datetime
 from math import isfinite
-from typing import Callable, Iterable, Protocol
+from typing import Protocol
 
 from app.core.epistemology_p0.advanced import Forecast, ForecastLedger, Observation
 
@@ -67,8 +68,6 @@ class ShadowModeExecutor:
         eligible = tuple(
             observation for observation in observations if observation.available_at <= cutoff_time
         )
-        if any(observation.available_at > cutoff_time for observation in eligible):
-            raise AssertionError("unreachable future observation passed shadow boundary")
         forecast = forecast_fn(eligible, cutoff_time=cutoff_time)
         if forecast.cutoff_time != cutoff_time:
             raise ValueError("forecast cutoff_time must equal shadow cutoff_time")

@@ -82,15 +82,40 @@ class DecisionRuntime:
 
     def decide(self, context: DecisionContext, options: Sequence[DecisionOption],
                escalation: EscalationAssessment, *, mode: DecisionMode = DecisionMode.ROBUST,
-               provenance: Sequence[str] = ()) -> DecisionRuntimeResult:
-        if escalation.state.value in {"abstain", "critical"}:
+               provenance: Sequence[str] = (), purpose: str = "decision",
+               restricted: bool = False) -> DecisionRuntimeResult:
+        triggers = ("reevaluate after new evidence", "material state change", "model validity change")
+        scenario_refs = tuple(
+            f"scenario:{scenario.scenario_id}"
+            for option in options
+            for scenario in option.outcomes
+        )
+        manifest = self._manifest(context.decision_id, provenance, context.assumptions, scenario_refs)
+        uncertainty = UncertaintyState(
+            max((option.uncertainty for option in options), default=1.0),
+            source_refs=tuple(provenance),
+            method="max-option-uncertainty",
+        )
+        control = self.control.authorize(
+            decision_id=context.decision_id,
+            purpose=purpose,
+            uncertainty=uncertainty,
+            restricted=restricted,
+            manifest=manifest,
+        )
+        if escalation.state.value in {"abstain", "critical"} or control.disposition is ControlDisposition.ABSTAIN:
+            reason = (f"escalation gate: {escalation.state.value}" if escalation.state.value in {"abstain", "critical"}
+                      else control.reason)
             recommendation = self.decisions._abstain(
-                context, mode, f"escalation gate: {escalation.state.value}",
-                provenance, ("reevaluate after new evidence",),
+                context, mode, reason, (*provenance, f"audit:{control.audit_event_id}"), triggers,
             )
         else:
-            recommendation = self.decisions.recommend(context, options, mode=mode, provenance=provenance)
-        return DecisionRuntimeResult(recommendation, escalation, {})
+            recommendation = self.decisions.recommend(
+                context, options, mode=mode,
+                provenance=(*provenance, f"audit:{control.audit_event_id}"),
+                reevaluation_triggers=triggers,
+            )
+        return DecisionRuntimeResult(recommendation, escalation, {}, None)
 
     def decide_scenarios(self, *, decision_id: str, options: Sequence[ActionAlternative],
                          escalation: EscalationAssessment, observable: bool, identifiable: bool,

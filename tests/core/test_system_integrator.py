@@ -95,6 +95,13 @@ def test_spatial_proxy_gate_blocks_with_insufficient_sample():
 
 
 def test_spatial_proxy_gate_flags_stronger_composition_association():
+    """When signal is identical to composition, gate must return PROXY_RISK.
+
+    Partial correlation may legitimately be None when residuals are constant
+    (fail-closed). The test must not require a numeric partial association in
+    that case; the epistemic status and the perfect composition association
+    are the decisive signals.
+    """
     composition = tuple(float(i) for i in range(1, 21))
     signal = composition
     outcome = tuple(float((i % 3) * 10) for i in range(1, 21))
@@ -109,7 +116,11 @@ def test_spatial_proxy_gate_flags_stronger_composition_association():
     assert assessment.status == EpistemicStatus.PROXY_RISK
     assert assessment.signal_composition_association == pytest.approx(1.0)
     assert assessment.signal_outcome_association is not None
-    assert assessment.signal_outcome_partial_association is not None
+    # Partial association is optional: when residuals are constant the
+    # implementation correctly returns None (correlation undefined).
+    if assessment.signal_outcome_partial_association is not None:
+        assert isinstance(assessment.signal_outcome_partial_association, float)
+    assert "PROXY_RISK" in assessment.explanation or "proxy" in assessment.explanation.lower()
 
 
 def test_spatial_proxy_gate_does_not_claim_safety_when_gate_passes():

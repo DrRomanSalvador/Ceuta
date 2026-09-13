@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from hashlib import sha256
 from typing import Mapping, Sequence
 
-from app.core.decision.control_plane import DecisionControlPlane, DecisionDisposition as ControlDisposition, DecisionManifest, UncertaintyState
+from app.core.decision.control_plane import DecisionControlPlane, DecisionDisposition as ControlDisposition, DecisionManifest, EvidenceAssessment, EvidenceDisposition, UncertaintyState
 from app.core.decision.decision_system import DecisionContext, DecisionMode, DecisionOption, DecisionRecommendation, DecisionSystem, InformationRequest
 from app.core.decision.engine import ActionAlternative, DecisionAudit, DecisionCycleResult, DecisionEngine, EpistemicGate
 from app.core.decision.epistemic_gate import EpistemicDecisionGate, EpistemicDisposition
@@ -54,7 +54,6 @@ class DecisionRuntime:
 
     @staticmethod
     def _formal_information_requests(evaluated: Sequence[EvaluatedInformationRequest]) -> tuple[InformationRequest, ...]:
-        """Expose only formally evaluated, decision-justified information requests to ranking."""
         requests: list[InformationRequest] = []
         for item in evaluated:
             if not item.decision_justified:
@@ -64,12 +63,16 @@ class DecisionRuntime:
         return tuple(requests)
 
     @staticmethod
+    def _scientific_assessments(evidence: Sequence[ScientificEvidence], disposition: GateDisposition | None) -> tuple[EvidenceAssessment, ...]:
+        mapped = EvidenceDisposition.ACCEPT if disposition is GateDisposition.ALLOW else EvidenceDisposition.REQUIRE_CORROBORATION if disposition is GateDisposition.HUMAN_REVIEW else EvidenceDisposition.BLOCK
+        return tuple(EvidenceAssessment(evidence_id=item.evidence_id, source_id=item.evidence_id, base_weight=1.0, disposition=mapped) for item in evidence)
+
+    @staticmethod
     def _enforce_information_boundary(boundaries: Sequence[InformationBoundary], target: InformationVisibility) -> None:
         for boundary in boundaries:
             boundary.assert_emit(target)
 
     def decide(self, context: DecisionContext, options: Sequence[DecisionOption], escalation: EscalationAssessment, *, mode: DecisionMode = DecisionMode.ROBUST, provenance: Sequence[str] = (), purpose: str = "decision", restricted: bool = False, information_requests: Sequence[InformationRequest] = (), evaluated_information_requests: Sequence[EvaluatedInformationRequest] = (), at: datetime | None = None, epistemic_uncertainty: float | None = None, epistemic_refs: Sequence[str] = (), epistemic_status: EpistemicStatus | None = None, scientific_evidence: Sequence[ScientificEvidence] = (), runtime_safety: RuntimeSafetyAssessment | None = None, information_boundaries: Sequence[InformationBoundary] = (), output_visibility: InformationVisibility = InformationVisibility.PUBLIC) -> DecisionRuntimeResult:
-        """Authorize a decision with epistemic, scientific, VoI, safety and information-boundary controls."""
         if epistemic_uncertainty is not None and not 0.0 <= epistemic_uncertainty <= 1.0:
             raise ValueError("epistemic_uncertainty must be in [0,1]")
         self._enforce_information_boundary(information_boundaries, output_visibility)
@@ -87,7 +90,8 @@ class DecisionRuntime:
         safety_uncertainty = max(runtime_safety.evidence_uncertainty, runtime_safety.decision_uncertainty) if runtime_safety else 0.0
         combined_uncertainty = max(option_uncertainty, epistemic_uncertainty or 0.0, science_uncertainty, safety_uncertainty)
         uncertainty = UncertaintyState(combined_uncertainty, source_refs=tuple((*provenance, *epistemic_refs, *science_refs, *voi_refs)), method="conservative-max-model-epistemic-scientific-evidence-runtime-safety")
-        control = self.control.authorize(decision_id=context.decision_id, purpose=purpose, uncertainty=uncertainty, restricted=restricted, manifest=manifest)
+        assessments = self._scientific_assessments(scientific_evidence, science.disposition if science else None)
+        control = self.control.authorize(decision_id=context.decision_id, purpose=purpose, uncertainty=uncertainty, restricted=restricted, manifest=manifest, evidence_assessments=assessments)
         audit_provenance = (*provenance, *epistemic_refs, *science_refs, *voi_refs, f"audit:{control.audit_event_id}")
         if escalation.state.value in {"abstain", "critical"} or control.disposition is ControlDisposition.ABSTAIN:
             reason = f"escalation gate: {escalation.state.value}" if escalation.state.value in {"abstain", "critical"} else control.reason

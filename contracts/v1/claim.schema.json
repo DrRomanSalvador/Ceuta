@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ceutia.local/contracts/v1/claim.schema.json",
+  "title": "CeutIA Claim Contract v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["claim_id", "content", "epistemic_status", "evidence_ids", "uncertainty", "created_at", "schema_version"],
+  "properties": {
+    "claim_id": {"type": "string", "minLength": 1},
+    "content": {"type": "string", "minLength": 1},
+    "epistemic_status": {"enum": ["OBSERVED_FACT", "CORROBORATED_FACT", "ATTRIBUTED_CLAIM", "INFERENCE", "HYPOTHESIS", "UNVERIFIED", "CONTRADICTED", "DISPROVEN", "UNKNOWN"]},
+    "evidence_ids": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "uncertainty": {"type": "object"},
+    "created_at": {"type": "string", "format": "date-time"},
+    "schema_version": {"const": "1.0.0"}
+  }
+}

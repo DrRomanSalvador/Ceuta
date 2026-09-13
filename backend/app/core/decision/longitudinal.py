@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Sequence
 
 
 @dataclass(frozen=True, slots=True)
@@ -18,7 +17,7 @@ class LongitudinalObservation:
             raise ValueError("longitudinal observation requires entity and decision identity")
         self._timestamp()
 
-    def _timestamp(self) -> datetime:
+    def timestamp(self) -> datetime:
         try:
             timestamp = datetime.fromisoformat(self.observed_at.replace("Z", "+00:00"))
         except ValueError as exc:
@@ -41,8 +40,9 @@ class LongitudinalEvaluation:
         start = self._parse(self.evaluation_start)
         if start <= cutoff:
             raise ValueError("evaluation must start after training cutoff")
-        if any(item._timestamp() >= start for item in self.observations if item._timestamp() < start):
-            raise ValueError("invalid longitudinal observation ordering")
+        timestamps = [item.timestamp() for item in self.observations]
+        if any(timestamp > start and timestamp <= cutoff for timestamp in timestamps):
+            raise ValueError("observation falls inside an invalid temporal gap")
 
     @staticmethod
     def _parse(value: str) -> datetime:
@@ -54,9 +54,13 @@ class LongitudinalEvaluation:
             raise ValueError("evaluation timestamps must be timezone-aware")
         return parsed
 
+    def training_observations(self) -> tuple[LongitudinalObservation, ...]:
+        cutoff = self._parse(self.training_cutoff)
+        return tuple(item for item in self.observations if item.timestamp() <= cutoff)
+
     def evaluation_observations(self) -> tuple[LongitudinalObservation, ...]:
         start = self._parse(self.evaluation_start)
-        return tuple(item for item in self.observations if item._timestamp() >= start)
+        return tuple(item for item in self.observations if item.timestamp() >= start)
 
 
 __all__ = ["LongitudinalEvaluation", "LongitudinalObservation"]

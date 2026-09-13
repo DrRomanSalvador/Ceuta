@@ -119,23 +119,24 @@ CREATE INDEX IF NOT EXISTS idx_citation_traces_claim ON citation_traces(claim_id
         self.connection.execute("INSERT OR REPLACE INTO evidence_sources(source_id,payload_json) VALUES(?,?)", (source.source_id, json.dumps(asdict(source), sort_keys=True, default=lambda value: value.value)))
         self.connection.commit()
 
+    @staticmethod
+    def _source_from_payload(payload: dict[str, object]) -> SourceRecord:
+        payload = dict(payload)
+        payload["verification"] = SourceVerification(payload["verification"])
+        payload["role"] = SourceRole(payload["role"])
+        payload["assumptions"] = tuple(payload.get("assumptions", ()))
+        payload["limitations"] = tuple(payload.get("limitations", ()))
+        return SourceRecord(**payload)
+
     def source(self, source_id: str) -> SourceRecord | None:
         row = self.connection.execute("SELECT payload_json FROM evidence_sources WHERE source_id=?", (source_id,)).fetchone()
-        if row is None:
-            return None
-        payload = json.loads(row[0])
-        return SourceRecord(**payload, verification=SourceVerification(payload["verification"]), role=SourceRole(payload["role"]))
+        return None if row is None else self._source_from_payload(json.loads(row[0]))
 
     def source_registry(self) -> SourceRegistry:
         registry = SourceRegistry()
         rows = self.connection.execute("SELECT payload_json FROM evidence_sources ORDER BY source_id").fetchall()
         for row in rows:
-            payload = json.loads(row[0])
-            payload["verification"] = SourceVerification(payload["verification"])
-            payload["role"] = SourceRole(payload["role"])
-            payload["assumptions"] = tuple(payload.get("assumptions", ()))
-            payload["limitations"] = tuple(payload.get("limitations", ()))
-            registry.register(SourceRecord(**payload))
+            registry.register(self._source_from_payload(json.loads(row[0])))
         return registry
 
     def record_claim_evidence_link(self, link: ClaimEvidenceLink) -> None:

@@ -2,13 +2,33 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from math import isfinite
+from math import isfinite, sqrt
+from statistics import mean
+from typing import Sequence
 
 
 class EpistemicStatus(str, Enum):
     HYPOTHESIS_UNCALIBRATED = "HYPOTHESIS_UNCALIBRATED"
     BLOCKED = "BLOCKED"
     PROXY_RISK = "PROXY_RISK"
+
+
+@dataclass(frozen=True, slots=True)
+class ProxyGateAssessment:
+    """Auditable screening result for spatial-composition proxy risk.
+
+    This is an association screen, not a causal or predictive model. A positive
+    result blocks operational promotion; a negative result does not establish
+    safety or causal validity.
+    """
+
+    status: EpistemicStatus
+    sample_size: int
+    signal_composition_association: float | None
+    signal_outcome_association: float | None
+    signal_outcome_partial_association: float | None
+    method: str
+    explanation: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -23,6 +43,138 @@ def _clamp01(value: float) -> float:
     if not isfinite(value):
         raise ValueError("value must be finite")
     return max(0.0, min(1.0, value))
+
+
+def _as_finite_vector(values: Sequence[float], *, name: str) -> tuple[float, ...]:
+    result = tuple(float(value) for value in values)
+    if not result:
+        raise ValueError(f"{name} must not be empty")
+    if any(not isfinite(value) for value in result):
+        raise ValueError(f"{name} must contain only finite values")
+    return result
+
+
+def _pearson(x: Sequence[float], y: Sequence[float]) -> float:
+    if len(x) != len(y) or len(x) < 2:
+        raise ValueError("vectors must have equal length and at least two observations")
+    x_mean = mean(x)
+    y_mean = mean(y)
+    dx = tuple(value - x_mean for value in x)
+    dy = tuple(value - y_mean for value in y)
+    xx = sum(value * value for value in dx)
+    yy = sum(value * value for value in dy)
+    if xx == 0.0 or yy == 0.0:
+        raise ValueError("correlation is undefined for a constant vector")
+    return sum(a * b for a, b in zip(dx, dy)) / sqrt(xx * yy)
+
+
+def _residualize(values: Sequence[float], control: Sequence[float]) -> tuple[float, ...]:
+    control_mean = mean(control)
+    value_mean = mean(values)
+    centered_control = tuple(value - control_mean for value in control)
+    centered_values = tuple(value - value_mean for value in values)
+    denominator = sum(value * value for value in centered_control)
+    if denominator == 0.0:
+        raise ValueError("partial correlation is undefined for a constant control")
+    beta = sum(v * c for v, c in zip(centered_values, centered_control)) / denominator
+    intercept = value_mean - beta * control_mean
+    return tuple(value - (intercept + beta * c) for value, c in zip(values, control))
+
+
+def partial_correlation(
+    signal: Sequence[float],
+    outcome: Sequence[float],
+    control: Sequence[float],
+) -> float:
+    """Return Pearson partial correlation of signal and outcome controlling for one variable."""
+    signal_values = _as_finite_vector(signal, name="signal")
+    outcome_values = _as_finite_vector(outcome, name="outcome")
+    control_values = _as_finite_vector(control, name="control")
+    if not (len(signal_values) == len(outcome_values) == len(control_values)):
+        raise ValueError("signal, outcome and control must have equal length")
+    return _pearson(
+        _residualize(signal_values, control_values),
+        _residualize(outcome_values, control_values),
+    )
+
+
+def evaluate_spatial_proxy_gate(
+    *,
+    signal: Sequence[float],
+    composition: Sequence[float],
+    outcome: Sequence[float],
+    minimum_sample_size: int = 10,
+) -> ProxyGateAssessment:
+    """Screen a spatial signal for geographic-composition proxy risk.
+
+    The gate compares absolute association strengths. It deliberately does not
+    infer intent, causality, discrimination, or safety. Insufficient data blocks
+    operational use and returns ``BLOCKED``.
+    """
+    if minimum_sample_size < 3:
+        raise ValueError("minimum_sample_size must be at least 3")
+
+    signal_values = _as_finite_vector(signal, name="signal")
+    composition_values = _as_finite_vector(composition, name="composition")
+    outcome_values = _as_finite_vector(outcome, name="outcome")
+
+    sample_size = len(signal_values)
+    if not (len(composition_values) == sample_size == len(outcome_values)):
+        raise ValueError("signal, composition and outcome must have equal length")
+
+    if sample_size < minimum_sample_size:
+        return ProxyGateAssessment(
+            status=EpistemicStatus.BLOCKED,
+            sample_size=sample_size,
+            signal_composition_association=None,
+            signal_outcome_association=None,
+            signal_outcome_partial_association=None,
+            method="pearson_screening_plus_partial_correlation",
+            explanation="NO_VERIFICADO: insufficient observations for proxy screening",
+        )
+
+    try:
+        signal_composition = _pearson(signal_values, composition_values)
+        signal_outcome = _pearson(signal_values, outcome_values)
+        partial = partial_correlation(signal_values, outcome_values, composition_values)
+    except ValueError as exc:
+        return ProxyGateAssessment(
+            status=EpistemicStatus.BLOCKED,
+            sample_size=sample_size,
+            signal_composition_association=None,
+            signal_outcome_association=None,
+            signal_outcome_partial_association=None,
+            method="pearson_screening_plus_partial_correlation",
+            explanation=f"NO_VERIFICADO: association screening undefined: {exc}",
+        )
+
+    composition_strength = abs(signal_composition)
+    outcome_strength = abs(signal_outcome)
+    partial_strength = abs(partial)
+
+    if composition_strength > outcome_strength or composition_strength > partial_strength:
+        status = EpistemicStatus.PROXY_RISK
+        explanation = (
+            "PROXY_RISK: signal-composition association is stronger than the "
+            "signal-outcome association or its composition-controlled association; "
+            "the signal is not operationally promotable without human review."
+        )
+    else:
+        status = EpistemicStatus.HYPOTHESIS_UNCALIBRATED
+        explanation = (
+            "OK: this screening gate did not identify stronger composition association. "
+            "This does not establish causal validity, absence of bias, or operational safety."
+        )
+
+    return ProxyGateAssessment(
+        status=status,
+        sample_size=sample_size,
+        signal_composition_association=round(signal_composition, 6),
+        signal_outcome_association=round(signal_outcome, 6),
+        signal_outcome_partial_association=round(partial, 6),
+        method="pearson_screening_plus_partial_correlation",
+        explanation=explanation,
+    )
 
 
 def compose_local_vulnerability(*, capacity: float, load: float, sensitivity: float):
@@ -63,4 +215,4 @@ def build_system_view(*, capacity: float, load: float, tension_signal_present: b
         return SystemView(vulnerability, cascade, proxy_status, proxy_result)
     return SystemView(vulnerability, cascade, EpistemicStatus.HYPOTHESIS_UNCALIBRATED, "NO_VERIFICADO: no tension proxy evaluated")
 
-# Verified test entrypoint; this module intentionally contains no side effects.
+# This module intentionally has no side effects and does not ingest data or emit operational risk.

@@ -28,5 +28,8 @@ from .integrity import IntegrityEngine, IntegrityAssessment, ProvenanceEnvelope,
 from .scientific_guards import ScientificIntegrityEngine, ScientificGate
 from .resilience import ResilienceEngine, RuntimeMode, CapacityAssessment, Checkpoint
 from .spatiotemporal import SpatialTemporalEngine, SpatialObservation
+from .official_sources import OfficialSource, OfficialSourceRegistry, SourceFreshness, SourceSnapshot
+from .source_client import OfficialSourceClient, RetrievedSource
+from .scientific_pipeline import PipelineDisposition, ScientificLongitudinalPipeline, ScientificPipelineResult, SpecialistResult
 
-__all__=[name for name in globals() if not name.startswith("_")]
+__all__ = [name for name in globals() if not name.startswith("_")]

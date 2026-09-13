@@ -19,5 +19,17 @@ This file records material implementation decisions made by the primary implemen
 - Decision: Layer 1 classified `BLOCKED`; Layer 2 and later layers are prohibited until the observation boundary is enforced across all real consumers.
 - CI evidence: `CeutIA CI` run `34750836710` succeeded; `CeutIA Security Control Plane` run `34750836633` failed in static checks after the runtime security and P0 observation suites passed.
 - Direct inspection identified alternative legacy ingestion, registry, temporal and data-fetching paths that can bypass the new `EvidenceContract` / `observation_boundary.py` controls.
-- Critical findings include ingestion-time-based backtest eligibility, a corroboration path capable of upgrading from a single link, optional uncertainty in the legacy evidence model, and direct legacy ingestion without observation-boundary admission.
-- Documentation updated in `CURRENT_STATUS.md` with the exact blockers and prohibited next actions.
+- Critical findings included ingestion-time-based backtest eligibility, a corroboration path capable of upgrading from a single link, optional uncertainty in the legacy evidence model, and direct legacy ingestion without observation-boundary admission.
+
+## 2026-09-13 — Layer 1 remediation
+
+- Legacy evidence now exposes a single `available_at` boundary with revision-aware precedence: `revision_time -> publication_time -> ingestion_time`.
+- Event time is explicitly excluded from analytical availability.
+- Legacy temporal filtering delegates to the canonical `available_at` boundary; callers cannot select ingestion time as an alternative analytical gate.
+- Legacy ingestion validates the generated representation through `EvidenceContract` before registry/graph admission and fails closed on malformed temporal input.
+- Missing quantitative uncertainty is represented explicitly as `UNKNOWN` uncertainty rather than silently omitted.
+- Corroboration no longer upgrades epistemic state from a numerical independence score alone; explicit independent relationships and distinct source IDs are required.
+- `contracts/v1/evidence.schema.json` now includes `revision_time`.
+- Added integration/adversarial tests for revision leakage, event-time substitution, malformed timestamps, unknown epistemic state, dependent corroboration and historical backtesting.
+- Current status remains `BLOCKED` pending new CI evidence and closure of the remaining `context_service` and `VerifiedData` alternative-path findings.
+- No prediction layer was implemented. A mathematically complex predictor is explicitly gated on verified point-in-time integrity and out-of-sample validation.

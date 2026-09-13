@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from enum import Enum
 from math import isfinite
 from typing import Mapping, Sequence
@@ -59,6 +60,30 @@ class DecisionContext:
         unsupported = set(self.constraints) - {item.value for item in DecisionConstraint}
         if unsupported:
             raise ValueError(f"unsupported decision constraints: {sorted(unsupported)}")
+        if self.validity_window:
+            self._parse_validity_window()
+
+    def _parse_validity_window(self) -> tuple[datetime, datetime]:
+        parts = self.validity_window.split("/", 1)
+        if len(parts) != 2:
+            raise ValueError("validity_window must use ISO-8601 start/end format")
+        try:
+            start = datetime.fromisoformat(parts[0].replace("Z", "+00:00"))
+            end = datetime.fromisoformat(parts[1].replace("Z", "+00:00"))
+        except ValueError as exc:
+            raise ValueError("validity_window must contain ISO-8601 timestamps") from exc
+        if start.tzinfo is None or end.tzinfo is None or start >= end:
+            raise ValueError("validity_window must contain ordered timezone-aware timestamps")
+        return start, end
+
+    def is_valid_at(self, at: datetime) -> bool:
+        if at.tzinfo is None or at.utcoffset() is None:
+            raise ValueError("decision validity check requires a timezone-aware timestamp")
+        if not self.validity_window:
+            return True
+        start, end = self._parse_validity_window()
+        normalized = at.astimezone(timezone.utc)
+        return start.astimezone(timezone.utc) <= normalized < end.astimezone(timezone.utc)
 
 
 @dataclass(frozen=True, slots=True)
@@ -156,29 +181,18 @@ class DecisionSystem:
     def rank_information(self, requests: Sequence[InformationRequest]) -> tuple[InformationRequest, ...]:
         return tuple(sorted(requests, key=lambda r: (r.net_value, r.priority), reverse=True))
 
-    def recommend(
-        self,
-        context: DecisionContext,
-        options: Sequence[DecisionOption],
-        *,
-        mode: DecisionMode = DecisionMode.ROBUST,
-        max_uncertainty: float = 0.5,
-        human_review_threshold: float = 0.35,
-        provenance: Sequence[str] = (),
-        reevaluation_triggers: Sequence[str] = (),
-        information_requests: Sequence[InformationRequest] = (),
-    ) -> DecisionRecommendation:
+    def recommend(self, context: DecisionContext, options: Sequence[DecisionOption], *, mode: DecisionMode = DecisionMode.ROBUST, max_uncertainty: float = 0.5, human_review_threshold: float = 0.35, provenance: Sequence[str] = (), reevaluation_triggers: Sequence[str] = (), information_requests: Sequence[InformationRequest] = (), at: datetime | None = None) -> DecisionRecommendation:
+        if at is not None and not context.is_valid_at(at):
+            return self._abstain(context, mode, "decision validity window has expired or is not active", provenance, reevaluation_triggers)
         if not options:
             return self._abstain(context, mode, "no admissible options", provenance, reevaluation_triggers)
         eligible = tuple(o for o in options if o.uncertainty <= max_uncertainty)
         if not eligible:
             return self._abstain(context, mode, "all options exceed uncertainty threshold", provenance, reevaluation_triggers)
-
         scored = [(o, self._metrics(o)) for o in eligible]
         constrained = tuple((o, metrics) for o, metrics in scored if self._satisfies_constraints(context.constraints, o, metrics))
         if not constrained:
             return self._abstain(context, mode, "no option satisfies decision constraints", provenance, reevaluation_triggers)
-
         if mode is DecisionMode.ROBUST:
             chosen, metrics = max(constrained, key=lambda item: item[1][0])
         elif mode is DecisionMode.HARM_MINIMIZATION:
@@ -187,28 +201,18 @@ class DecisionSystem:
             chosen, metrics = min(constrained, key=lambda item: (item[1][3], -item[1][1]))
         else:
             chosen, metrics = max(constrained, key=lambda item: item[1][1])
-
         worst, expected, harm, regret = metrics
         normalized_uncertainty = chosen.uncertainty
         disposition = DecisionDisposition.HUMAN_REVIEW if normalized_uncertainty >= human_review_threshold else DecisionDisposition.RECOMMEND
         score = worst if mode is DecisionMode.ROBUST else expected if mode is DecisionMode.UTILITY else -regret if mode is DecisionMode.REGRET else -harm
         information_value = max((request.net_value for request in information_requests), default=0.0)
-        reasons = (
-            f"policy={mode.value}",
-            f"uncertainty={normalized_uncertainty:.6f}",
-            f"best_supplied_information_net_value={information_value:.6f}",
-            "decision is conditional on supplied scenarios and assumptions",
-        )
+        reasons = (f"policy={mode.value}", f"uncertainty={normalized_uncertainty:.6f}", f"best_supplied_information_net_value={information_value:.6f}", "decision is conditional on supplied scenarios and assumptions")
         return DecisionRecommendation(context.decision_id, chosen.option_id, disposition, mode, score, worst, expected, harm, regret, information_value, reasons, tuple(provenance), tuple(reevaluation_triggers))
 
     @staticmethod
     def _satisfies_constraints(constraints: Mapping[str, float], option: DecisionOption, metrics: tuple[float, float, float, float]) -> bool:
-        worst, expected, harm, regret = metrics
-        return all((key != DecisionConstraint.MAX_RESOURCE_COST.value or option.resource_cost <= limit) and
-                   (key != DecisionConstraint.MAX_EXPECTED_HARM.value or harm <= limit) and
-                   (key != DecisionConstraint.MAX_REGRET.value or regret <= limit) and
-                   (key != DecisionConstraint.MIN_WORST_CASE_UTILITY.value or worst >= limit)
-                   for key, limit in constraints.items())
+        worst, _, harm, regret = metrics
+        return all((key != DecisionConstraint.MAX_RESOURCE_COST.value or option.resource_cost <= limit) and (key != DecisionConstraint.MAX_EXPECTED_HARM.value or harm <= limit) and (key != DecisionConstraint.MAX_REGRET.value or regret <= limit) and (key != DecisionConstraint.MIN_WORST_CASE_UTILITY.value or worst >= limit) for key, limit in constraints.items())
 
     @staticmethod
     def _metrics(option: DecisionOption) -> tuple[float, float, float, float]:
@@ -223,8 +227,4 @@ class DecisionSystem:
         return DecisionRecommendation(context.decision_id, "ABSTAIN", DecisionDisposition.ABSTAIN, mode, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, (reason,), tuple(provenance), tuple(triggers))
 
 
-__all__ = [
-    "DecisionConstraint", "DecisionContext", "DecisionDisposition", "DecisionFeedback",
-    "DecisionMode", "DecisionObjective", "DecisionOption", "DecisionRecommendation",
-    "DecisionSystem", "InformationRequest", "ScenarioOutcome",
-]
+__all__ = ["DecisionConstraint", "DecisionContext", "DecisionDisposition", "DecisionFeedback", "DecisionMode", "DecisionObjective", "DecisionOption", "DecisionRecommendation", "DecisionSystem", "InformationRequest", "ScenarioOutcome"]

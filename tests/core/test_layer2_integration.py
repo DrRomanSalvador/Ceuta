@@ -3,7 +3,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from app.core.epistemology_p0.advanced.semantic_graph import NodeKind, SemanticGraph
-from app.core.epistemology_p0.p0_contracts import (
+from app.core.p0_contracts import (
     EpistemicStatus,
     EvidenceContract,
     SourceRelation,

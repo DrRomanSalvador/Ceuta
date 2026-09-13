@@ -129,14 +129,7 @@ class SystemKernel:
 class ClosedLoopEngine:
     """Bounded real-time orchestration over the complete scientific lifecycle."""
 
-    def __init__(
-        self,
-        *,
-        inference_engine: ScientificInferenceEngine | None = None,
-        decision_system: DecisionSystem | None = None,
-        control_plane: DecisionControlPlane | None = None,
-        code_revision: str = "unknown",
-    ):
+    def __init__(self, *, inference_engine: ScientificInferenceEngine | None = None, decision_system: DecisionSystem | None = None, control_plane: DecisionControlPlane | None = None, code_revision: str = "unknown"):
         if not code_revision.strip():
             raise ValueError("code_revision must not be empty")
         self.inference_engine = inference_engine or ScientificInferenceEngine()
@@ -154,34 +147,11 @@ class ClosedLoopEngine:
         constraint_refs = tuple(f"constraint:{key}" for key in event.decision_context.constraints) if event.decision_context else ()
         assumptions = event.decision_context.assumptions if event.decision_context else ()
         raw_config = "|".join(sorted((*state_refs, *evidence_refs, *model_refs, *hypothesis_refs, *scenario_refs, *constraint_refs, *assumptions)))
-        return DecisionManifest(
-            decision_id=event.decision_context.decision_id if event.decision_context else "",
-            state_refs=state_refs,
-            evidence_refs=evidence_refs,
-            model_refs=model_refs,
-            hypothesis_refs=hypothesis_refs,
-            transformation_refs=(),
-            assumption_refs=assumptions,
-            scenario_refs=scenario_refs,
-            utility_definition_ref="decision-objectives:v1",
-            constraint_refs=constraint_refs,
-            policy_version="1.0",
-            configuration_hash=sha256(raw_config.encode("utf-8")).hexdigest(),
-            code_revision=self.code_revision,
-            created_at=event.context.as_of.isoformat(),
-        )
+        return DecisionManifest(event.decision_context.decision_id if event.decision_context else "", state_refs, evidence_refs, model_refs, hypothesis_refs, (), assumptions, scenario_refs, "decision-objectives:v1", constraint_refs, "1.0", sha256(raw_config.encode("utf-8")).hexdigest(), self.code_revision, event.context.as_of.isoformat())
 
     def process(self, event: ClosedLoopInput) -> ClosedLoopSnapshot:
         context = event.context
-        inference = self.inference_engine.compose(
-            event.inference_problem,
-            evidence=event.evidence,
-            epistemic_level=EpistemicLevel.ESTIMATED,
-            claims=event.claims,
-            uncertainty_summary=event.uncertainty_summary,
-            uncertainty_state=event.uncertainty_state,
-            limitations=event.limitations,
-        )
+        inference = self.inference_engine.compose(event.inference_problem, evidence=event.evidence, epistemic_level=EpistemicLevel.ESTIMATED, claims=event.claims, uncertainty_summary=event.uncertainty_summary, uncertainty_state=event.uncertainty_state, limitations=event.limitations)
         decision: DecisionRecommendation | None = None
         audit_id: str | None = None
         if event.decision_context is not None:
@@ -193,34 +163,14 @@ class ClosedLoopEngine:
                 decision = self.decision_system._abstain(event.decision_context, event.decision_mode, "no admissible options", provenance, triggers)
             else:
                 manifest = self._decision_manifest(event)
-                propagated_uncertainty = inference.uncertainty_state.propagate(
-                    UncertaintyState(
-                        max(option.uncertainty for option in event.decision_options),
-                        source_refs=tuple(f"option:{option.option_id}" for option in event.decision_options),
-                        method="declared-option-uncertainty",
-                    ),
-                    method="conservative",
-                )
-                control = self.control_plane.authorize(
-                    decision_id=event.decision_context.decision_id,
-                    purpose=event.purpose,
-                    uncertainty=propagated_uncertainty,
-                    restricted=event.restricted,
-                    manifest=manifest,
-                )
+                propagated_uncertainty = inference.uncertainty_state.propagate(UncertaintyState(max(option.uncertainty for option in event.decision_options), source_refs=tuple(f"option:{option.option_id}" for option in event.decision_options), method="declared-option-uncertainty"), method="conservative")
+                control = self.control_plane.authorize(decision_id=event.decision_context.decision_id, purpose=event.purpose, uncertainty=propagated_uncertainty, restricted=event.restricted, manifest=manifest)
                 audit_id = control.audit_event_id
                 if control.disposition in {ControlDisposition.ABSTAIN, ControlDisposition.HUMAN_REVIEW}:
                     reason = control.reason if control.disposition is ControlDisposition.ABSTAIN else "human review required before execution"
                     decision = self.decision_system._abstain(event.decision_context, event.decision_mode, reason, (*provenance, f"audit:{audit_id}"), triggers)
                 else:
-                    decision = self.decision_system.recommend(
-                        event.decision_context,
-                        event.decision_options,
-                        mode=event.decision_mode,
-                        provenance=(*provenance, f"audit:{audit_id}"),
-                        reevaluation_triggers=triggers,
-                        information_requests=event.information_requests,
-                    )
+                    decision = self.decision_system.recommend(event.decision_context, event.decision_options, mode=event.decision_mode, provenance=(*provenance, f"audit:{audit_id}"), reevaluation_triggers=triggers, information_requests=event.information_requests)
         stages = self._build_stage_records(event, inference.plan)
         return ClosedLoopSnapshot(context.system_id, context.as_of, context, stages, inference, decision, event.prediction_ids, event.relation_ids, event.hypothesis_ids, event.causal_model_ids, event.response_ids, event.learning_ids, self._lineage(event, inference, decision, audit_id=audit_id))
 

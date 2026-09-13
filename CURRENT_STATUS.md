@@ -10,7 +10,8 @@ Status: IN_PROGRESS — NOT YET HUMAN-APPROVED
 - The repository requires explicit evidence IDs for corroboration transitions.
 - P0 contracts now provide explicit uncertainty, provenance, source-dependence and point-in-time eligibility primitives on this branch.
 - Immutable v1 JSON Schemas now exist under `contracts/v1/` for evidence, claims, alert dossiers, contradictions, falsification results, review decisions, provenance, epistemic transitions, temporal eligibility and the CeutIA-Serpiente `pull_context` contract.
-- The repository's normal CI has previously reported success on the current main lineage; this document does not replace fresh CI evidence for this branch.
+- The normal CI for this branch is running; its final outcome is not yet known.
+- The protected security workflow is intentionally changed by this PR and the PR title is marked `[SECURITY-CONTROL-CHANGE]` as required by its integrity gate.
 
 ## Not yet verified
 

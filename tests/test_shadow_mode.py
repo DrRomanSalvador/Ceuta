@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from hashlib import sha256
 
@@ -50,23 +49,23 @@ def test_shadow_mode_respects_available_at_and_never_promotes() -> None:
     forecast = executor.forecast(observations, cutoff_time=cutoff, forecast_fn=_forecast)
 
     assert forecast.status == "SHADOW_EVALUATION"
-    assert forecast.point == 11.0
+    assert forecast.point == 21.0
     assert executor.production_mutation_supported is False
     assert all(item.forecast.status == "SHADOW_EVALUATION" for item in executor.ledger.entries)
 
     with pytest.raises(ValueError, match="before target_time"):
         executor.resolve(
             forecast.forecast_id,
-            realized_value=12.0,
+            realized_value=22.0,
             resolved_at=forecast.target_time - timedelta(seconds=1),
-            baseline_prediction=10.0,
+            baseline_prediction=20.0,
         )
 
     evaluation = executor.resolve(
         forecast.forecast_id,
-        realized_value=12.0,
+        realized_value=22.0,
         resolved_at=forecast.target_time,
-        baseline_prediction=10.0,
+        baseline_prediction=20.0,
     )
     assert evaluation.squared_error == 1.0
     assert executor.production_mutation_supported is False

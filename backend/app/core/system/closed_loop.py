@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from hashlib import sha256
+from typing import Protocol
 
 from ..decision.control_plane import ConflictResolution, DecisionControlPlane, DecisionDisposition as ControlDisposition, DecisionManifest, EvidenceAssessment, UncertaintyState
 from ..decision.decision_system import DecisionContext, DecisionMode, DecisionOption, DecisionRecommendation, DecisionSystem, InformationRequest
@@ -42,6 +43,10 @@ class StageRecord:
             raise TemporalViolation("stage timestamp must be timezone-aware")
         if any(not item.strip() for item in self.record_ids):
             raise ContractViolation("stage record IDs must be non-empty strings")
+
+
+class CycleStore(Protocol):
+    def record_cycle(self, *, system_id: str, as_of: str, decision_id: str | None, option_id: str | None, disposition: str | None, lineage: tuple[str, ...], stages: tuple[dict[str, object], ...]) -> None: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -112,8 +117,9 @@ class ClosedLoopSnapshot:
 
 @dataclass(slots=True)
 class SystemKernel:
-    """Append-only temporal memory of the complete system lifecycle."""
+    """Append-only temporal memory with optional durable cycle persistence."""
     system_id: str
+    persistence: CycleStore | None = None
     snapshots: list[ClosedLoopSnapshot] = field(default_factory=list)
 
     def append(self, snapshot: ClosedLoopSnapshot) -> None:
@@ -122,6 +128,10 @@ class SystemKernel:
         if self.snapshots and snapshot.as_of <= self.snapshots[-1].as_of:
             raise TemporalViolation("kernel cycles must advance strictly in time")
         self.snapshots.append(snapshot)
+        if self.persistence is not None:
+            decision = snapshot.decision
+            stages = tuple({"stage": stage.stage.value, "record_ids": stage.record_ids, "epistemic_level": stage.epistemic_level.value, "as_of": stage.as_of.isoformat(), "depends_on": tuple(item.value for item in stage.depends_on), "notes": stage.notes} for stage in snapshot.stages)
+            self.persistence.record_cycle(system_id=snapshot.system_id, as_of=snapshot.as_of.isoformat(), decision_id=decision.decision_id if decision else None, option_id=decision.option_id if decision else None, disposition=decision.disposition.value if decision else None, lineage=snapshot.lineage, stages=stages)
 
     @property
     def latest(self) -> ClosedLoopSnapshot | None:
@@ -231,4 +241,4 @@ class ClosedLoopEngine:
         return tuple(dict.fromkeys(ids))
 
 
-__all__ = ["ClosedLoopEngine", "ClosedLoopInput", "ClosedLoopSnapshot", "Stage", "StageRecord", "SystemKernel"]
+__all__ = ["ClosedLoopEngine", "ClosedLoopInput", "ClosedLoopSnapshot", "CycleStore", "Stage", "StageRecord", "SystemKernel"]

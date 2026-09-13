@@ -6,6 +6,8 @@ from enum import Enum
 from math import isfinite
 from typing import Mapping, Sequence
 
+from .review_policy import DecisionRisk, ReviewDisposition, ReviewPolicy
+
 
 class DecisionMode(str, Enum):
     ROBUST = "robust"
@@ -63,6 +65,7 @@ class DecisionContext:
     constraints: Mapping[str, float] = field(default_factory=dict)
     assumptions: tuple[str, ...] = ()
     validity_window: str = ""
+    risk_class: DecisionRisk = DecisionRisk.MODERATE
 
     def __post_init__(self) -> None:
         if not self.decision_id or not self.decision_maker or not self.horizon:
@@ -76,6 +79,8 @@ class DecisionContext:
             raise ValueError(f"unsupported decision constraints: {sorted(unsupported)}")
         if self.validity_window:
             self._parse_validity_window()
+        if not isinstance(self.risk_class, DecisionRisk):
+            raise ValueError("risk_class must be a DecisionRisk")
 
     def _parse_validity_window(self) -> tuple[datetime, datetime]:
         parts = self.validity_window.split("/", 1)
@@ -190,19 +195,31 @@ class DecisionFeedback:
 
 
 class DecisionSystem:
-    """Deterministic decision layer for closed-loop decision analysis."""
+    """Deterministic decision layer with explicit risk-based review policy."""
+
+    def __init__(self, review_policy: ReviewPolicy | None = None) -> None:
+        self.review_policy = review_policy or ReviewPolicy(
+            policy_version="default-risk-v1",
+            auto_allowed=frozenset({DecisionRisk.LOW}),
+            review_required=frozenset({DecisionRisk.MODERATE, DecisionRisk.HIGH}),
+            abstain_required=frozenset({DecisionRisk.CRITICAL}),
+        )
 
     def rank_information(self, requests: Sequence[InformationRequest]) -> tuple[InformationRequest, ...]:
         return tuple(sorted(requests, key=lambda r: (r.net_value, r.priority), reverse=True))
 
-    def recommend(self, context: DecisionContext, options: Sequence[DecisionOption], *, mode: DecisionMode = DecisionMode.ROBUST, max_uncertainty: float = 0.5, human_review_threshold: float = 0.35, provenance: Sequence[str] = (), reevaluation_triggers: Sequence[str] = (), information_requests: Sequence[InformationRequest] = (), at: datetime | None = None) -> DecisionRecommendation:
+    def recommend(self, context: DecisionContext, options: Sequence[DecisionOption], *, mode: DecisionMode = DecisionMode.ROBUST, max_uncertainty: float | None = None, human_review_threshold: float | None = None, provenance: Sequence[str] = (), reevaluation_triggers: Sequence[str] = (), information_requests: Sequence[InformationRequest] = (), at: datetime | None = None) -> DecisionRecommendation:
         if at is not None and not context.is_valid_at(at):
             return self._abstain(context, mode, "decision validity window has expired or is not active", provenance, reevaluation_triggers)
         if not options:
             return self._abstain(context, mode, "no admissible options", provenance, reevaluation_triggers)
-        eligible = tuple(o for o in options if o.uncertainty <= max_uncertainty)
+        if max_uncertainty is not None:
+            raise ValueError("arbitrary uncertainty cutoffs are not permitted; use the risk policy and control plane")
+        if human_review_threshold is not None:
+            raise ValueError("arbitrary human-review uncertainty thresholds are not permitted; use the risk policy and control plane")
+        eligible = tuple(o for o in options if o.uncertainty < 1.0)
         if not eligible:
-            return self._abstain(context, mode, "all options exceed uncertainty threshold", provenance, reevaluation_triggers)
+            return self._abstain(context, mode, "all options have indeterminate uncertainty", provenance, reevaluation_triggers)
         scored = [(o, self._metrics(o)) for o in eligible]
         constrained = tuple((o, metrics) for o, metrics in scored if self._satisfies_constraints(context.constraints, o, metrics))
         if not constrained:
@@ -217,12 +234,20 @@ class DecisionSystem:
         else:
             chosen, metrics = max(constrained, key=lambda item: (item[1][1], objective_scores[item[0].option_id]))
         worst, expected, harm, regret = metrics
-        normalized_uncertainty = chosen.uncertainty
-        disposition = DecisionDisposition.HUMAN_REVIEW if normalized_uncertainty >= human_review_threshold else DecisionDisposition.RECOMMEND
+        review_disposition = self.review_policy.disposition(context.risk_class)
+        if review_disposition is ReviewDisposition.ABSTAIN:
+            disposition = DecisionDisposition.ABSTAIN
+            review_reason = f"risk policy {self.review_policy.policy_version} requires abstention for {context.risk_class.value} decisions"
+        elif review_disposition is ReviewDisposition.HUMAN_REVIEW:
+            disposition = DecisionDisposition.HUMAN_REVIEW
+            review_reason = f"risk policy {self.review_policy.policy_version} requires human review for {context.risk_class.value} decisions"
+        else:
+            disposition = DecisionDisposition.RECOMMEND
+            review_reason = f"risk policy {self.review_policy.policy_version} permits automated recommendation for {context.risk_class.value} decisions"
         score = worst if mode is DecisionMode.ROBUST else expected if mode is DecisionMode.UTILITY else -regret if mode is DecisionMode.REGRET else -harm
         information_value = max((request.net_value for request in information_requests), default=0.0)
         objective_score = objective_scores[chosen.option_id]
-        reasons = (f"policy={mode.value}", f"uncertainty={normalized_uncertainty:.6f}", f"objective_score={objective_score:.6f}", f"best_supplied_information_net_value={information_value:.6f}", "decision is conditional on supplied scenarios and assumptions")
+        reasons = (f"policy={mode.value}", f"risk_class={context.risk_class.value}", f"review={review_disposition.value}", f"objective_score={objective_score:.6f}", f"best_supplied_information_net_value={information_value:.6f}", review_reason, "decision is conditional on supplied scenarios and assumptions")
         return DecisionRecommendation(context.decision_id, chosen.option_id, disposition, mode, score, worst, expected, harm, regret, information_value, reasons, tuple(provenance), tuple(reevaluation_triggers))
 
     @staticmethod

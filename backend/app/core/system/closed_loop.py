@@ -1,47 +1,28 @@
 """Canonical closed-loop representation for arbitrary complex systems.
 
-The engine turns CeutIA's previously separate scientific primitives into one
-reusable lifecycle:
-
 observations -> state -> trajectory -> dynamics -> uncertainty -> relations
 -> hypotheses/causality -> prediction -> decision -> response -> learning.
 
-This module is deliberately a kernel, not a monolithic implementation of every
-scientific method. Specialist engines remain responsible for estimation,
-causal identification, forecasting, network analysis and decision mathematics.
 The kernel owns identity, temporal ordering, provenance, epistemic boundaries,
-state continuity and closed-loop orchestration.
-
-No stage silently upgrades epistemic status. A forecast is not causal evidence;
-a state estimate is not an observation; a recommendation is not an intervention;
-and an intervention outcome is not automatically a causal effect.
+state continuity and orchestration. Specialist scientific engines retain
+responsibility for estimation, causal identification, forecasting, network
+analysis and decision mathematics.
 """
-
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Iterable, Mapping, Sequence
 
 from ..decision.decision_system import (
-    DecisionContext,
-    DecisionMode,
-    DecisionOption,
-    DecisionRecommendation,
-    DecisionSystem,
+    DecisionContext, DecisionMode, DecisionOption, DecisionRecommendation, DecisionSystem,
 )
 from ..errors import ContractViolation, TemporalViolation
 from ..inference.inference_engine import (
-    EvidenceContribution,
-    EpistemicLevel,
-    InferencePlan,
-    InferenceProblem,
-    InferenceResult,
-    ScientificInferenceEngine,
+    EvidenceContribution, EpistemicLevel, InferencePlan, InferenceProblem,
+    InferenceResult, ScientificInferenceEngine,
 )
 from ..integration.system_context import SystemContext
-from ..pipeline.contracts import ObservationRecord
 
 
 class Stage(str, Enum):
@@ -61,8 +42,6 @@ class Stage(str, Enum):
 
 @dataclass(frozen=True, slots=True)
 class StageRecord:
-    """Auditable statement about one lifecycle stage."""
-
     stage: Stage
     record_ids: tuple[str, ...]
     epistemic_level: EpistemicLevel
@@ -79,8 +58,6 @@ class StageRecord:
 
 @dataclass(frozen=True, slots=True)
 class ClosedLoopInput:
-    """Runtime input required to advance the integrated kernel."""
-
     context: SystemContext
     inference_problem: InferenceProblem
     decision_context: DecisionContext | None = None
@@ -106,8 +83,6 @@ class ClosedLoopInput:
 
 @dataclass(frozen=True, slots=True)
 class ClosedLoopSnapshot:
-    """Complete machine-readable view of one closed-loop inference cycle."""
-
     system_id: str
     as_of: datetime
     context: SystemContext
@@ -137,12 +112,7 @@ class ClosedLoopSnapshot:
 
 @dataclass(slots=True)
 class SystemKernel:
-    """Canonical reusable representation of one evolving complex system.
-
-    The kernel is intentionally domain-neutral. Domain-specific semantics enter
-    through typed context records and specialist engines rather than through a
-    hard-coded ontology.
-    """
+    """Append-only temporal memory of the complete system lifecycle."""
 
     system_id: str
     snapshots: list[ClosedLoopSnapshot] = field(default_factory=list)
@@ -166,35 +136,10 @@ class SystemKernel:
 
 
 class ClosedLoopEngine:
-    """Orchestrates the full observation-to-learning cycle in real time.
+    """Bounded real-time orchestration over the complete scientific lifecycle."""
 
-    Real-time here means deterministic, bounded orchestration at event arrival;
-    it does not imply that every scientific method is computationally real-time.
-    Expensive specialist inference may remain asynchronous while the kernel
-    preserves the same causal/epistemic lifecycle and provenance.
-    """
-
-    _STAGE_ORDER = (
-        Stage.OBSERVATION,
-        Stage.STATE,
-        Stage.TRAJECTORY,
-        Stage.DYNAMICS,
-        Stage.UNCERTAINTY,
-        Stage.RELATIONS,
-        Stage.HYPOTHESES,
-        Stage.CAUSALITY,
-        Stage.PREDICTION,
-        Stage.DECISION,
-        Stage.RESPONSE,
-        Stage.LEARNING,
-    )
-
-    def __init__(
-        self,
-        *,
-        inference_engine: ScientificInferenceEngine | None = None,
-        decision_system: DecisionSystem | None = None,
-    ) -> None:
+    def __init__(self, *, inference_engine: ScientificInferenceEngine | None = None,
+                 decision_system: DecisionSystem | None = None) -> None:
         self.inference_engine = inference_engine or ScientificInferenceEngine()
         self.decision_system = decision_system or DecisionSystem()
 
@@ -208,29 +153,23 @@ class ClosedLoopEngine:
             uncertainty_summary=event.uncertainty_summary,
             limitations=event.limitations,
         )
-
-        stages = self._build_stage_records(event, inference.plan)
         decision: DecisionRecommendation | None = None
         if event.decision_context is not None:
+            provenance = tuple(context.evidence_ids)
+            triggers = ("new observation", "material state change", "model validity change")
             if not inference.usable:
                 decision = self.decision_system._abstain(
-                    event.decision_context,
-                    event.decision_mode,
-                    "inference is not decision-ready",
-                    context.current_state.evidence_ids,
-                    ("new evidence", "state update", "model validity change"),
+                    event.decision_context, event.decision_mode,
+                    "inference is not decision-ready", provenance, triggers,
                 )
             else:
                 decision = self.decision_system.recommend(
-                    event.decision_context,
-                    event.decision_options,
-                    mode=event.decision_mode,
-                    provenance=tuple(context.current_state.evidence_ids),
-                    reevaluation_triggers=("new observation", "material state change", "model validity change"),
+                    event.decision_context, event.decision_options,
+                    mode=event.decision_mode, provenance=provenance,
+                    reevaluation_triggers=triggers,
                 )
-
-        lineage = self._lineage(event, inference, decision)
-        snapshot = ClosedLoopSnapshot(
+        stages = self._build_stage_records(event, inference.plan)
+        return ClosedLoopSnapshot(
             system_id=context.system_id,
             as_of=context.as_of,
             context=context,
@@ -243,67 +182,61 @@ class ClosedLoopEngine:
             causal_model_ids=event.causal_model_ids,
             response_ids=event.response_ids,
             learning_ids=event.learning_ids,
-            lineage=lineage,
+            lineage=self._lineage(event, inference, decision),
         )
+
+    def process_into(self, kernel: SystemKernel, event: ClosedLoopInput) -> ClosedLoopSnapshot:
+        """Process and atomically append the resulting cycle to system memory."""
+        snapshot = self.process(event)
+        kernel.append(snapshot)
         return snapshot
 
     def _build_stage_records(self, event: ClosedLoopInput, plan: InferencePlan) -> tuple[StageRecord, ...]:
         context = event.context
-        observation_ids = tuple(item.observation_id for item in context.observations)
+        observations = tuple(item.observation_id for item in context.observations)
         state_id = context.state.state.state_id
-        trajectory_ids = tuple(item.state.state_id for item in context.trajectory.snapshots)
-        dynamics_ids = tuple(
-            f"transition:{item.from_state_id}->{item.to_state_id}"
-            for item in context.trajectory.transitions()
-        )
-        uncertainty_ids = tuple(item.model_id for item in context.models)
-        records = (
-            StageRecord(Stage.OBSERVATION, observation_ids, EpistemicLevel.OBSERVED, context.as_of),
+        trajectory = tuple(item.state.state_id for item in context.trajectory.snapshots)
+        dynamics = tuple(f"transition:{x.from_state_id}->{x.to_state_id}" for x in context.trajectory.transitions())
+        uncertainty = tuple(item.model_id for item in context.models)
+        return (
+            StageRecord(Stage.OBSERVATION, observations, EpistemicLevel.OBSERVED, context.as_of),
             StageRecord(Stage.STATE, (state_id,), EpistemicLevel.ESTIMATED, context.as_of, (Stage.OBSERVATION,)),
-            StageRecord(Stage.TRAJECTORY, trajectory_ids, EpistemicLevel.ESTIMATED, context.as_of, (Stage.STATE,)),
-            StageRecord(Stage.DYNAMICS, dynamics_ids, EpistemicLevel.ESTIMATED, context.as_of, (Stage.TRAJECTORY,)),
-            StageRecord(Stage.UNCERTAINTY, uncertainty_ids, EpistemicLevel.ESTIMATED, context.as_of, (Stage.STATE, Stage.DYNAMICS), (event.uncertainty_summary,)),
-            StageRecord(Stage.RELATIONS, event.relation_ids, EpistemicLevel.ESTIMATED, context.as_of, (Stage.STATE, Stage.TRAJECTORY)),
-            StageRecord(Stage.HYPOTHESES, event.hypothesis_ids, EpistemicLevel.ESTIMATED, context.as_of, (Stage.OBSERVATION, Stage.RELATIONS)),
-            StageRecord(Stage.CAUSALITY, event.causal_model_ids, EpistemicLevel.CAUSAL if event.causal_model_ids else EpistemicLevel.ESTIMATED, context.as_of, (Stage.HYPOTHESES,)),
-            StageRecord(Stage.PREDICTION, event.prediction_ids, EpistemicLevel.PREDICTIVE, context.as_of, (Stage.STATE, Stage.DYNAMICS, Stage.UNCERTAINTY), plan.warnings),
-            StageRecord(Stage.DECISION, (event.decision_context.decision_id,) if event.decision_context else (), EpistemicLevel.DECISIONAL, context.as_of, (Stage.PREDICTION, Stage.UNCERTAINTY)),
+            StageRecord(Stage.TRAJECTORY, trajectory, EpistemicLevel.ESTIMATED, context.as_of, (Stage.STATE,)),
+            StageRecord(Stage.DYNAMICS, dynamics, EpistemicLevel.ESTIMATED, context.as_of, (Stage.TRAJECTORY,)),
+            StageRecord(Stage.UNCERTAINTY, uncertainty, EpistemicLevel.ESTIMATED, context.as_of,
+                        (Stage.STATE, Stage.DYNAMICS), (event.uncertainty_summary,)),
+            StageRecord(Stage.RELATIONS, event.relation_ids, EpistemicLevel.ESTIMATED, context.as_of,
+                        (Stage.STATE, Stage.TRAJECTORY)),
+            StageRecord(Stage.HYPOTHESES, event.hypothesis_ids, EpistemicLevel.ESTIMATED, context.as_of,
+                        (Stage.OBSERVATION, Stage.RELATIONS)),
+            StageRecord(Stage.CAUSALITY, event.causal_model_ids,
+                        EpistemicLevel.CAUSAL if event.causal_model_ids else EpistemicLevel.ESTIMATED,
+                        context.as_of, (Stage.HYPOTHESES,)),
+            StageRecord(Stage.PREDICTION, event.prediction_ids, EpistemicLevel.PREDICTIVE, context.as_of,
+                        (Stage.STATE, Stage.DYNAMICS, Stage.UNCERTAINTY), plan.warnings),
+            StageRecord(Stage.DECISION, (event.decision_context.decision_id,) if event.decision_context else (),
+                        EpistemicLevel.DECISIONAL, context.as_of, (Stage.PREDICTION, Stage.UNCERTAINTY)),
             StageRecord(Stage.RESPONSE, event.response_ids, EpistemicLevel.OBSERVED, context.as_of, (Stage.DECISION,)),
             StageRecord(Stage.LEARNING, event.learning_ids, EpistemicLevel.ESTIMATED, context.as_of, (Stage.RESPONSE,)),
         )
-        return records
 
     @staticmethod
-    def _lineage(
-        event: ClosedLoopInput,
-        inference: InferenceResult,
-        decision: DecisionRecommendation | None,
-    ) -> tuple[str, ...]:
+    def _lineage(event: ClosedLoopInput, inference: InferenceResult,
+                 decision: DecisionRecommendation | None) -> tuple[str, ...]:
         context = event.context
-        ids: list[str] = [
-            f"system:{context.system_id}",
-            f"state:{context.state.state.state_id}",
-            *sorted(f"observation:{item.observation_id}" for item in context.observations),
-            *sorted(f"evidence:{item.evidence_id}" for item in context.evidence),
-        ]
-        ids.extend(f"model:{item.model_id}" for item in context.models)
-        ids.extend(f"hypothesis:{item}" for item in event.hypothesis_ids)
-        ids.extend(f"causal:{item}" for item in event.causal_model_ids)
-        ids.extend(f"prediction:{item}" for item in event.prediction_ids)
+        ids = [f"system:{context.system_id}", f"state:{context.state.state.state_id}"]
+        ids.extend(sorted(f"observation:{x.observation_id}" for x in context.observations))
+        ids.extend(sorted(f"evidence:{x.evidence_id}" for x in context.evidence))
+        ids.extend(f"model:{x.model_id}" for x in context.models)
+        ids.extend(f"hypothesis:{x}" for x in event.hypothesis_ids)
+        ids.extend(f"causal:{x}" for x in event.causal_model_ids)
+        ids.extend(f"prediction:{x}" for x in event.prediction_ids)
         if decision is not None:
-            ids.append(f"decision:{decision.decision_id}")
-            ids.append(f"option:{decision.option_id}")
-        ids.extend(f"response:{item}" for item in event.response_ids)
-        ids.extend(f"learning:{item}" for item in event.learning_ids)
+            ids.extend((f"decision:{decision.decision_id}", f"option:{decision.option_id}"))
+        ids.extend(f"response:{x}" for x in event.response_ids)
+        ids.extend(f"learning:{x}" for x in event.learning_ids)
         ids.append(f"inference-regime:{inference.plan.primary.value}")
         return tuple(dict.fromkeys(ids))
 
 
-__all__ = [
-    "ClosedLoopEngine",
-    "ClosedLoopInput",
-    "ClosedLoopSnapshot",
-    "Stage",
-    "StageRecord",
-    "SystemKernel",
-]
+__all__ = ["ClosedLoopEngine", "ClosedLoopInput", "ClosedLoopSnapshot", "Stage", "StageRecord", "SystemKernel"]

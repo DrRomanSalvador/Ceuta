@@ -14,6 +14,13 @@ from .dynamic_system import (
     SystemState,
     VariableState,
 )
+from .anticipation import (
+    ComplexSystemAnticipationEngine,
+    ForecastLedger,
+    ForecastLedgerEntry,
+    RegimeAssessment,
+    TrajectoryPoint,
+)
 
 __all__ = [
     "SemanticGraph",
@@ -38,4 +45,9 @@ __all__ = [
     "Observation",
     "SystemState",
     "VariableState",
+    "ComplexSystemAnticipationEngine",
+    "ForecastLedger",
+    "ForecastLedgerEntry",
+    "RegimeAssessment",
+    "TrajectoryPoint",
 ]

@@ -1,0 +1,47 @@
+name: CeutIA State Trajectory Validation
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-state-trajectory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            backend/pyproject.toml
+            backend/requirements*.txt
+
+      - name: Install project dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
+          if [ -f pyproject.toml ]; then pip install -e .; fi
+
+      - name: Compile changed state substrate
+        run: python -m compileall -q app/core/state app/core/pipeline app/core/epistemology_p0
+
+      - name: Run state trajectory tests
+        run: python -m pytest ../tests/test_state_trajectory.py -q
+
+      - name: Run deterministic state trajectory verifier
+        run: python ../scripts/verify_state_trajectory.py

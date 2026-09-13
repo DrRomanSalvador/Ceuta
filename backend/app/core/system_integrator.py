@@ -136,7 +136,6 @@ def evaluate_spatial_proxy_gate(
     try:
         signal_composition = _pearson(signal_values, composition_values)
         signal_outcome = _pearson(signal_values, outcome_values)
-        partial = partial_correlation(signal_values, outcome_values, composition_values)
     except ValueError as exc:
         return ProxyGateAssessment(
             status=EpistemicStatus.BLOCKED,
@@ -148,22 +147,43 @@ def evaluate_spatial_proxy_gate(
             explanation=f"NO_VERIFICADO: association screening undefined: {exc}",
         )
 
+    try:
+        partial = partial_correlation(
+            signal_values,
+            outcome_values,
+            composition_values,
+        )
+        partial_explanation = ""
+    except ValueError as exc:
+        partial = None
+        partial_explanation = (
+            f" Partial association unavailable: {exc}."
+        )
+
     composition_strength = abs(signal_composition)
     outcome_strength = abs(signal_outcome)
-    partial_strength = abs(partial)
+    partial_strength = abs(partial) if partial is not None else None
 
-    if composition_strength > outcome_strength or composition_strength > partial_strength:
+    composition_exceeds_outcome = composition_strength > outcome_strength
+    composition_exceeds_partial = (
+        partial_strength is not None
+        and composition_strength > partial_strength
+    )
+
+    if composition_exceeds_outcome or composition_exceeds_partial:
         status = EpistemicStatus.PROXY_RISK
         explanation = (
             "PROXY_RISK: signal-composition association is stronger than the "
             "signal-outcome association or its composition-controlled association; "
             "the signal is not operationally promotable without human review."
+            + partial_explanation
         )
     else:
         status = EpistemicStatus.HYPOTHESIS_UNCALIBRATED
         explanation = (
             "OK: this screening gate did not identify stronger composition association. "
             "This does not establish causal validity, absence of bias, or operational safety."
+            + partial_explanation
         )
 
     return ProxyGateAssessment(
@@ -171,7 +191,9 @@ def evaluate_spatial_proxy_gate(
         sample_size=sample_size,
         signal_composition_association=round(signal_composition, 6),
         signal_outcome_association=round(signal_outcome, 6),
-        signal_outcome_partial_association=round(partial, 6),
+        signal_outcome_partial_association=(
+            round(partial, 6) if partial is not None else None
+        ),
         method="pearson_screening_plus_partial_correlation",
         explanation=explanation,
     )

@@ -48,6 +48,9 @@ class HumanReviewService:
             "modified_option": review.modified_option,
             "reason": review.reason,
         })
+        record_review = getattr(self.audit.store, "record_review", None)
+        if record_review is not None:
+            record_review(review)
         return review
 
 

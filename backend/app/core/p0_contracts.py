@@ -1,15 +1,15 @@
 """P0 contracts for epistemic state, temporal eligibility and provenance.
 
-This module deliberately separates epistemic status from implementation/validation
-status. It is conservative: missing, dependent or future information cannot silently
-upgrade a claim.
+This module separates epistemic status from implementation and validation
+status. Missing, dependent, contradictory, or future information cannot
+silently upgrade a claim.
 """
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from collections.abc import Iterable
+from datetime import UTC, datetime
 from enum import StrEnum
-from typing import Iterable
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -42,11 +42,11 @@ class Uncertainty(BaseModel):
     description: str = Field(min_length=1)
 
     @model_validator(mode="after")
-    def validate_interval(self) -> "Uncertainty":
+    def validate_interval(self) -> Uncertainty:
         if (self.lower is None) != (self.upper is None):
-            raise ValueError("lower and upper must be supplied together")
+            raise ValueError("lower and upper must be supplied together")  # noqa: TRY003
         if self.lower is not None and self.upper is not None and self.lower > self.upper:
-            raise ValueError("uncertainty lower bound cannot exceed upper bound")
+            raise ValueError("uncertainty lower bound cannot exceed upper bound")  # noqa: TRY003
         return self
 
 
@@ -83,27 +83,31 @@ class EvidenceContract(BaseModel):
     schema_version: str = Field(default="1.0.0", min_length=1)
 
     @model_validator(mode="after")
-    def validate_temporal_order(self) -> "EvidenceContract":
+    def validate_temporal_order(self) -> EvidenceContract:
         for name, value in (
             ("observed_at", self.observed_at),
             ("publication_time", self.publication_time),
             ("revision_time", self.revision_time),
         ):
             if value is not None and value.tzinfo is None:
-                raise ValueError(f"{name} must be timezone-aware")
+                raise ValueError(f"{name} must be timezone-aware")  # noqa: TRY003
         if self.ingestion_time.tzinfo is None:
-            raise ValueError("ingestion_time must be timezone-aware")
+            raise ValueError("ingestion_time must be timezone-aware")  # noqa: TRY003
         if self.publication_time is not None and self.ingestion_time < self.publication_time:
-            raise ValueError("ingestion_time cannot precede publication_time")
+            raise ValueError("ingestion_time cannot precede publication_time")  # noqa: TRY003
         if self.revision_time is not None and self.revision_time > self.ingestion_time:
-            raise ValueError("revision_time cannot be later than ingestion_time")
+            raise ValueError("revision_time cannot be later than ingestion_time")  # noqa: TRY003
         if self.observed_at > self.ingestion_time:
-            raise ValueError("observed_at cannot be later than ingestion_time")
+            raise ValueError("observed_at cannot be later than ingestion_time")  # noqa: TRY003
         if self.epistemic_status == EpistemicStatus.CORROBORATED_FACT:
             if self.independent_source_count < 2:
-                raise ValueError("CORROBORATED_FACT requires at least two independent sources")
+                raise ValueError(
+                    "CORROBORATED_FACT requires at least two independent sources"
+                )  # noqa: TRY003
             if not self.corroborating_evidence_ids:
-                raise ValueError("CORROBORATED_FACT requires corroborating evidence IDs")
+                raise ValueError(
+                    "CORROBORATED_FACT requires corroborating evidence IDs"
+                )  # noqa: TRY003
         return self
 
     @property
@@ -122,12 +126,16 @@ class TemporalEligibility(BaseModel):
     reason: str = Field(min_length=1)
 
     @model_validator(mode="after")
-    def validate_eligibility(self) -> "TemporalEligibility":
+    def validate_eligibility(self) -> TemporalEligibility:
         if self.evaluation_time.tzinfo is None or self.available_at.tzinfo is None:
-            raise ValueError("evaluation_time and available_at must be timezone-aware")
+            raise ValueError(
+                "evaluation_time and available_at must be timezone-aware"
+            )  # noqa: TRY003
         expected = self.available_at <= self.evaluation_time
         if self.eligible != expected:
-            raise ValueError("eligible must equal available_at <= evaluation_time")
+            raise ValueError(
+                "eligible must equal available_at <= evaluation_time"
+            )  # noqa: TRY003
         return self
 
 
@@ -136,7 +144,7 @@ def evaluate_temporal_eligibility(
 ) -> TemporalEligibility:
     """Return deterministic feature eligibility for a point-in-time evaluation."""
     if available_at.tzinfo is None or evaluation_time.tzinfo is None:
-        raise ValueError("timestamps must be timezone-aware")
+        raise ValueError("timestamps must be timezone-aware")  # noqa: TRY003
     eligible = available_at <= evaluation_time
     return TemporalEligibility(
         evidence_id=evidence_id,
@@ -157,4 +165,4 @@ def independent_source_count(relations: Iterable[SourceRelation]) -> int:
 
 
 def utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)

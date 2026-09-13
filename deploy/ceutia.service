@@ -1,0 +1,23 @@
+[Unit]
+Description=CeutIA autonomous complex-system inference daemon
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ceutia
+Group=ceutia
+WorkingDirectory=/opt/ceutia
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/ceutia/.venv/bin/python -m app.monitor
+Restart=always
+RestartSec=10
+TimeoutStopSec=30
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/ceutia
+
+[Install]
+WantedBy=multi-user.target

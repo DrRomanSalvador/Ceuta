@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ceutia.local/contracts/evidence.schema.json",
+  "title": "Evidence",
+  "type": "object",
+  "required": ["provenance", "independence", "epistemic_state", "usage_boundary"],
+  "properties": {
+    "provenance": {
+      "type": "object",
+      "required": ["source", "captured_at", "method"],
+      "properties": {
+        "source": { "type": "string" },
+        "captured_at": { "type": "string", "format": "date-time" },
+        "method": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "independence": {
+      "type": "string",
+      "enum": ["PRIMARY", "DERIVATIVE"]
+    },
+    "epistemic_state": {
+      "type": "string",
+      "enum": ["NO_VERIFICADO", "INSUFICIENTE", "PROXY_RISK", "CONSISTENTE", "CONTRADICTORIO", "DEPENDIENTE", "TEMPORAL_LEAKAGE", "BLOQUEADO", "VALIDADO"]
+    },
+    "usage_boundary": {
+      "type": "string",
+      "enum": ["PUBLIC", "OWNER"]
+    }
+  },
+  "additionalProperties": true
+}

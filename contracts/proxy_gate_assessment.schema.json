@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ceutia.local/contracts/proxy_gate_assessment.schema.json",
+  "title": "ProxyGateAssessment",
+  "type": "object",
+  "required": [
+    "sample_size",
+    "method",
+    "epistemic_state",
+    "association_signal_composition",
+    "explanation"
+  ],
+  "properties": {
+    "sample_size": { "type": "integer", "minimum": 0 },
+    "method": { "type": "string" },
+    "epistemic_state": {
+      "type": "string",
+      "enum": ["NO_VERIFICADO", "INSUFICIENTE", "PROXY_RISK", "CONSISTENTE", "BLOQUEADO", "VALIDADO"]
+    },
+    "association_signal_composition": { "type": ["number", "null"] },
+    "association_signal_outcome": { "type": ["number", "null"] },
+    "partial_correlation_signal_outcome_given_composition": { "type": ["number", "null"] },
+    "explanation": { "type": "string" },
+    "causal_claim": { "type": "boolean", "const": false }
+  },
+  "additionalProperties": false
+}

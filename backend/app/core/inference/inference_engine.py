@@ -17,6 +17,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Iterable
 
+from ..decision.control_plane import UncertaintyState
 from ..errors import ContractViolation
 
 
@@ -43,12 +44,7 @@ class EpistemicLevel(str, Enum):
 
 @dataclass(frozen=True, slots=True)
 class InferenceProblem:
-    """Declared structure of an inference problem.
-
-    These are scientific properties of the problem, not guesses inferred from
-    the data by the orchestrator. This prevents the selector from silently
-    choosing a convenient model whose assumptions are unsupported.
-    """
+    """Declared structure of an inference problem."""
 
     dimension: int
     nonlinear: bool = False
@@ -111,6 +107,7 @@ class InferenceResult:
     epistemic_level: EpistemicLevel
     evidence: tuple[EvidenceContribution, ...]
     uncertainty_summary: str
+    uncertainty_state: UncertaintyState
     claims: tuple[str, ...]
     limitations: tuple[str, ...]
 
@@ -140,9 +137,6 @@ class ScientificInferenceEngine:
         if blockers:
             return InferencePlan(InferenceRegime.ABSTAIN, (), tuple(blockers), tuple(warnings), (), tuple(rationale), True)
 
-        # Structural complexity takes precedence over convenience. A problem
-        # may require more than one specialist method; this plan records that
-        # rather than collapsing everything into a single algorithm.
         if problem.causal_estimand:
             required.append(InferenceRegime.CAUSAL)
             rationale.append("causal estimand requires an identification/causal-inference layer")
@@ -181,7 +175,6 @@ class ScientificInferenceEngine:
         if problem.sample_size is not None and problem.sample_size < max(20, 5 * problem.dimension):
             warnings.append("finite-sample uncertainty may dominate asymptotic approximations")
 
-        # Preserve ordering but remove duplicate regimes.
         unique = tuple(dict.fromkeys(required))
         primary = unique[0] if unique else InferenceRegime.ABSTAIN
         assumptions = (
@@ -200,6 +193,7 @@ class ScientificInferenceEngine:
         epistemic_level: EpistemicLevel = EpistemicLevel.ESTIMATED,
         claims: Iterable[str] = (),
         uncertainty_summary: str = "uncertainty not yet quantified",
+        uncertainty_state: UncertaintyState | None = None,
         limitations: Iterable[str] = (),
     ) -> InferenceResult:
         plan = self.plan(problem)
@@ -209,12 +203,18 @@ class ScientificInferenceEngine:
         if plan.abstain:
             claims_tuple = ()
             limitations_tuple = tuple(dict.fromkeys((*plan.blockers, *limitations_tuple)))
+        state = uncertainty_state or UncertaintyState(
+            1.0 if plan.abstain else 0.5,
+            source_refs=tuple(item.evidence_id for item in evidence_tuple),
+            method="declared-inference-uncertainty",
+        )
         return InferenceResult(
             problem=problem,
             plan=plan,
             epistemic_level=epistemic_level,
             evidence=evidence_tuple,
             uncertainty_summary=uncertainty_summary,
+            uncertainty_state=state,
             claims=claims_tuple,
             limitations=limitations_tuple,
         )
@@ -228,11 +228,6 @@ class ScientificInferenceEngine:
 
 
 __all__ = [
-    "EpistemicLevel",
-    "EvidenceContribution",
-    "InferencePlan",
-    "InferenceProblem",
-    "InferenceRegime",
-    "InferenceResult",
-    "ScientificInferenceEngine",
+    "EpistemicLevel", "EvidenceContribution", "InferencePlan", "InferenceProblem",
+    "InferenceRegime", "InferenceResult", "ScientificInferenceEngine",
 ]

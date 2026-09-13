@@ -10,6 +10,7 @@ from .dynamic_network import DynamicNetwork, DynamicEdge
 from .evidence_intelligence import EvidenceIntelligence, EvidenceItem, EvidenceSynthesis
 from .risk_escalation import RiskEscalationEngine, EscalationAssessment, Escalation
 from .decision_runtime import DecisionRuntime, DecisionRuntimeResult
+from .decision_control import DecisionControlPlane, DecisionAudit, HumanReview, ReassessmentTrigger
 from .intervention_response import InterventionResponseEngine, InterventionExecution, ResponseAssessment
 from .online_learning import OnlineLearningEngine, PredictionOutcome, ModelStatus
 from .observability import ObservabilityEngine, ObservabilityAssessment
@@ -23,5 +24,9 @@ from .validation import ProspectiveValidator, ValidationResult
 from .advanced import AdvancedRuntime, AdaptationState, AdversarialAssessment, TailRisk, SimulationPath
 from .flows import FlowEngine, FlowState
 from .longitudinal_engine import LongitudinalMonitoringEngine, LongitudinalCycle
+from .integrity import IntegrityEngine, IntegrityAssessment, ProvenanceEnvelope, PrivacyPolicy
+from .scientific_guards import ScientificIntegrityEngine, ScientificGate
+from .resilience import ResilienceEngine, RuntimeMode, CapacityAssessment, Checkpoint
+from .spatiotemporal import SpatialTemporalEngine, SpatialObservation
 
 __all__=[name for name in globals() if not name.startswith("_")]

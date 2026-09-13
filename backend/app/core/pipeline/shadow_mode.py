@@ -79,27 +79,11 @@ class ShadowModeExecutor:
         forecast_fn: ForecastFunction,
     ) -> Forecast:
         """Forecast using only observations available by cutoff_time."""
-        result = self._engine.execute(
+        return self._engine.execute(
             observations,
             cutoff_time=cutoff_time,
             forecast_fn=forecast_fn,
-        )
-        # The returned object is reconstructed from the isolated record only;
-        # no ForecastLedger or production persistence API is touched.
-        record = result.record
-        return Forecast(
-            forecast_id=record.forecast_id,
-            variable=record.variable,
-            cutoff_time=record.cutoff_time,
-            target_time=record.target_time,
-            point=record.point,
-            lower=record.point,
-            upper=record.point,
-            method="shadow",
-            state_id="shadow",
-            evidence_ids=(),
-            status="SHADOW_EVALUATION",
-        )
+        ).forecast
 
     def resolve(
         self,

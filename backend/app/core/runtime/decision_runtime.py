@@ -10,6 +10,7 @@ from app.core.decision.control_plane import DecisionControlPlane, DecisionDispos
 from app.core.decision.decision_system import DecisionContext, DecisionMode, DecisionOption, DecisionRecommendation, DecisionSystem, InformationRequest
 from app.core.decision.engine import ActionAlternative, DecisionAudit, DecisionCycleResult, DecisionEngine, EpistemicGate
 from app.core.decision.epistemic_gate import EpistemicDecisionGate, EpistemicDisposition
+from app.core.decision.information_boundary import InformationBoundary, InformationVisibility
 from app.core.decision.optimization import ValueOfInformation as DecisionValueOfInformation
 from app.core.decision.value_of_information import ValueOfInformationEngine
 from app.core.decision.voi_contract import EvaluatedInformationRequest
@@ -58,20 +59,19 @@ class DecisionRuntime:
             if not item.decision_justified:
                 continue
             voi = item.voi
-            requests.append(
-                InformationRequest(
-                    question=item.request.signal,
-                    expected_value=voi.gross_value + voi.acquisition_cost,
-                    acquisition_cost=voi.acquisition_cost,
-                    priority=max(0.0, voi.net_value),
-                )
-            )
+            requests.append(InformationRequest(question=item.request.signal, expected_value=voi.gross_value + voi.acquisition_cost, acquisition_cost=voi.acquisition_cost, priority=max(0.0, voi.net_value)))
         return tuple(requests)
 
-    def decide(self, context: DecisionContext, options: Sequence[DecisionOption], escalation: EscalationAssessment, *, mode: DecisionMode = DecisionMode.ROBUST, provenance: Sequence[str] = (), purpose: str = "decision", restricted: bool = False, information_requests: Sequence[InformationRequest] = (), evaluated_information_requests: Sequence[EvaluatedInformationRequest] = (), at: datetime | None = None, epistemic_uncertainty: float | None = None, epistemic_refs: Sequence[str] = (), epistemic_status: EpistemicStatus | None = None, scientific_evidence: Sequence[ScientificEvidence] = (), runtime_safety: RuntimeSafetyAssessment | None = None) -> DecisionRuntimeResult:
-        """Authorize a decision using model, epistemic, scientific, runtime-safety and formal VoI controls."""
+    @staticmethod
+    def _enforce_information_boundary(boundaries: Sequence[InformationBoundary], target: InformationVisibility) -> None:
+        for boundary in boundaries:
+            boundary.assert_emit(target)
+
+    def decide(self, context: DecisionContext, options: Sequence[DecisionOption], escalation: EscalationAssessment, *, mode: DecisionMode = DecisionMode.ROBUST, provenance: Sequence[str] = (), purpose: str = "decision", restricted: bool = False, information_requests: Sequence[InformationRequest] = (), evaluated_information_requests: Sequence[EvaluatedInformationRequest] = (), at: datetime | None = None, epistemic_uncertainty: float | None = None, epistemic_refs: Sequence[str] = (), epistemic_status: EpistemicStatus | None = None, scientific_evidence: Sequence[ScientificEvidence] = (), runtime_safety: RuntimeSafetyAssessment | None = None, information_boundaries: Sequence[InformationBoundary] = (), output_visibility: InformationVisibility = InformationVisibility.PUBLIC) -> DecisionRuntimeResult:
+        """Authorize a decision with epistemic, scientific, VoI, safety and information-boundary controls."""
         if epistemic_uncertainty is not None and not 0.0 <= epistemic_uncertainty <= 1.0:
             raise ValueError("epistemic_uncertainty must be in [0,1]")
+        self._enforce_information_boundary(information_boundaries, output_visibility)
         triggers = ("reevaluate after new evidence", "material state change", "model validity change")
         science = self.scientific_gate.evaluate(scientific_evidence) if scientific_evidence else None
         epistemic = self.epistemic_gate.evaluate(epistemic_status) if epistemic_status is not None else None

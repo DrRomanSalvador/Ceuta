@@ -69,20 +69,21 @@ def _capability(
         nonce=nonce,
         signature=b"",
     )
-    return Capability(**{**{
-        "token_id": capability.token_id,
-        "owner_id": capability.owner_id,
-        "principal": capability.principal,
-        "action_class": capability.action_class,
-        "operation": capability.operation,
-        "resource": capability.resource,
-        "destination": capability.destination,
-        "data_class": capability.data_class,
-        "parameters_digest": capability.parameters_digest,
-        "issued_at": capability.issued_at,
-        "expires_at": capability.expires_at,
-        "nonce": capability.nonce,
-    }, "signature": private.sign(capability.canonical())})
+    return Capability(
+        token_id=capability.token_id,
+        owner_id=capability.owner_id,
+        principal=capability.principal,
+        action_class=capability.action_class,
+        operation=capability.operation,
+        resource=capability.resource,
+        destination=capability.destination,
+        data_class=capability.data_class,
+        parameters_digest=capability.parameters_digest,
+        issued_at=capability.issued_at,
+        expires_at=capability.expires_at,
+        nonce=capability.nonce,
+        signature=private.sign(capability.canonical()),
+    )
 
 
 def _action(cap: Capability) -> Action:
@@ -115,20 +116,21 @@ def test_missing_owner_key_is_fail_closed(monkeypatch: pytest.MonkeyPatch) -> No
 def test_tampered_capability_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
     enforcer, _, private = _setup(monkeypatch)
     cap = _capability(private)
-    tampered = Capability(**{**{
-        "token_id": cap.token_id,
-        "owner_id": cap.owner_id,
-        "principal": cap.principal,
-        "action_class": cap.action_class,
-        "operation": "delete",
-        "resource": cap.resource,
-        "destination": cap.destination,
-        "data_class": cap.data_class,
-        "parameters_digest": cap.parameters_digest,
-        "issued_at": cap.issued_at,
-        "expires_at": cap.expires_at,
-        "nonce": cap.nonce,
-    }, "signature": cap.signature})
+    tampered = Capability(
+        token_id=cap.token_id,
+        owner_id=cap.owner_id,
+        principal=cap.principal,
+        action_class=cap.action_class,
+        operation="delete",
+        resource=cap.resource,
+        destination=cap.destination,
+        data_class=cap.data_class,
+        parameters_digest=cap.parameters_digest,
+        issued_at=cap.issued_at,
+        expires_at=cap.expires_at,
+        nonce=cap.nonce,
+        signature=cap.signature,
+    )
     with pytest.raises(AuthorizationError):
         enforcer.authorize(_action(tampered), tampered)
 

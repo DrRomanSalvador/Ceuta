@@ -9,10 +9,10 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from hashlib import sha256
 import math
-from uuid import uuid5, NAMESPACE_URL
+from uuid import NAMESPACE_URL, uuid5
 
 from ..contracts import ObservationRecord
 
@@ -25,7 +25,7 @@ class SyntheticSource:
     variable: str = "synthetic.signal"
     domain: str = "synthetic"
     unit: str = "index"
-    start_time: datetime = datetime(2026, 1, 1, tzinfo=__import__("datetime").timezone.utc)
+    start_time: datetime = datetime(2026, 1, 1, tzinfo=timezone.utc)
     available_delay: timedelta = timedelta(seconds=5)
     values: tuple[float, ...] = (1.0, 1.25, 1.5, 1.25, 1.75)
     quality: float = 1.0

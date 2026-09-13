@@ -79,16 +79,16 @@ jobs:
       - name: Install project and security test dependencies
         run: python -m pip install --upgrade pip && python -m pip install -e ".[dev]"
 
-      - name: Verify security application import target
+      - name: Verify security package import target
         env:
           PYTHONPATH: ${{ github.workspace }}/backend:${{ github.workspace }}
         run: |
-          python -c 'import app.security.enforcement as m; print(m.__file__)'
+          python -c 'import app.security as m; print(m.__file__)'
 
       - name: Run runtime security regression suite
         env:
           PYTHONPATH: ${{ github.workspace }}/backend:${{ github.workspace }}
-        run: python -m pytest -c /dev/null --import-mode=importlib tests/test_security_enforcement.py tests/test_tool_boundary.py tests/test_external_trust.py -q
+        run: python -m pytest -c /dev/null --import-mode=importlib tests/core/test_adversarial_validation.py tests/core/test_safety_core.py -q
 
       - name: Validate v1 JSON schemas
         run: |
@@ -116,5 +116,5 @@ jobs:
         env:
           PYTHONPATH: ${{ github.workspace }}/backend:${{ github.workspace }}
         run: |
-          python -m ruff check backend/app/security backend/app/core/p0_contracts.py tests/test_security_enforcement.py tests/test_tool_boundary.py tests/test_external_trust.py tests/test_p0_contracts.py
+          python -m ruff check backend/app/security backend/app/core/p0_contracts.py tests/core/test_adversarial_validation.py tests/core/test_safety_core.py tests/test_p0_contracts.py
           python -m bandit -q -r backend/app/security backend/app/core/p0_contracts.py --skip B404,B603

@@ -53,8 +53,8 @@ def test_prediction_explicitly_represents_missing_observation() -> None:
     assert predicted.observation_id is None
     assert predicted.innovation is None
     assert predicted.mean == pytest.approx(2.5)
-    assert predicted.variance == pytest.approx(1.0)
-    assert predicted.prior_variance == pytest.approx(2.0)
+    assert predicted.variance == pytest.approx(1.5)
+    assert predicted.prior_variance == pytest.approx(1.5)
 
 
 def test_filter_rejects_time_reversal_and_wrong_variable() -> None:

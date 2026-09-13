@@ -204,9 +204,9 @@ class ScientificInferenceEngine:
             claims_tuple = ()
             limitations_tuple = tuple(dict.fromkeys((*plan.blockers, *limitations_tuple)))
         state = uncertainty_state or UncertaintyState(
-            1.0 if plan.abstain else 0.5,
+            1.0,
             source_refs=tuple(item.evidence_id for item in evidence_tuple),
-            method="declared-inference-uncertainty",
+            method="unquantified-inference-uncertainty",
         )
         return InferenceResult(
             problem=problem,

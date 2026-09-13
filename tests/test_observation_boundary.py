@@ -28,7 +28,11 @@ def evidence(**overrides: object) -> EvidenceContract:
 
 
 def test_event_time_never_controls_availability() -> None:
-    ev = evidence(event_time=T0 - timedelta(days=30), publication_time=T0 + timedelta(days=1))
+    ev = evidence(
+        event_time=T0 - timedelta(days=30),
+        publication_time=T0 + timedelta(days=1),
+        ingestion_time=T0 + timedelta(days=1, minutes=1),
+    )
     assert available_at(ev) == T0 + timedelta(days=1)
 
 
@@ -47,7 +51,10 @@ def test_revision_time_controls_exact_version_availability() -> None:
 
 
 def test_future_publication_is_rejected() -> None:
-    ev = evidence(publication_time=T0 + timedelta(hours=1))
+    ev = evidence(
+        publication_time=T0 + timedelta(hours=1),
+        ingestion_time=T0 + timedelta(hours=1, minutes=1),
+    )
     with pytest.raises(ObservationBoundaryError):
         admit_observation(ev, evaluation_time=T0)
 

@@ -41,8 +41,8 @@ class LongitudinalEvaluation:
         if start <= cutoff:
             raise ValueError("evaluation must start after training cutoff")
         timestamps = [item.timestamp() for item in self.observations]
-        if any(timestamp > start and timestamp <= cutoff for timestamp in timestamps):
-            raise ValueError("observation falls inside an invalid temporal gap")
+        if any(cutoff < timestamp < start for timestamp in timestamps):
+            raise ValueError("observation falls inside the excluded temporal gap")
 
     @staticmethod
     def _parse(value: str) -> datetime:

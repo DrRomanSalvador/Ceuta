@@ -9,7 +9,7 @@ from typing import Protocol
 
 from ..decision.control_plane import ConflictResolution, DecisionControlPlane, DecisionDisposition as ControlDisposition, DecisionManifest, EvidenceAssessment, UncertaintyState
 from ..decision.decision_system import DecisionContext, DecisionMode, DecisionOption, DecisionRecommendation, DecisionSystem, InformationRequest
-from ..decision.decision_terminal import TerminalDisposition
+from ..decision.decision_terminal import TerminalDisposition, validate_terminal
 from ..decision.lineage import DecisionLineage, LineageNode
 from ..errors import ContractViolation, TemporalViolation
 from ..inference.inference_engine import EvidenceContribution, EpistemicLevel, InferencePlan, InferenceProblem, InferenceResult, ScientificInferenceEngine
@@ -198,6 +198,7 @@ class ClosedLoopEngine:
                 else:
                     decision = self.decision_system.recommend(event.decision_context, event.decision_options, mode=event.decision_mode, provenance=(*provenance, f"audit:{audit_id}"), reevaluation_triggers=triggers, information_requests=event.information_requests, at=context.as_of)
                     terminal = TerminalDisposition.DECISION
+        terminal = validate_terminal(terminal)
         stages = self._build_stage_records(event, inference)
         decision_lineage = self._decision_lineage(event, inference, decision, terminal, audit_id)
         return ClosedLoopSnapshot(context.system_id, context.as_of, context, stages, inference, decision, event.prediction_ids, event.relation_ids, event.hypothesis_ids, event.causal_model_ids, event.response_ids, event.learning_ids, self._lineage(event, inference, decision, audit_id=audit_id), decision_lineage)
@@ -234,11 +235,12 @@ class ClosedLoopEngine:
             return None
         decision_id = event.decision_context.decision_id
         execution_id = audit_id or f"execution:{decision_id}:{event.context.as_of.isoformat()}"
-        common = {"configuration_hash": sha256((event.context.as_of.isoformat() + self.code_revision).encode()).hexdigest(), "code_revision": self.code_revision, "as_of": event.context.as_of.isoformat(), "execution_id": execution_id}
+        configuration_hash = sha256((event.context.as_of.isoformat() + self.code_revision).encode()).hexdigest()
+        common = {"configuration_hash": configuration_hash, "code_revision": self.code_revision, "as_of": event.context.as_of.isoformat(), "execution_id": execution_id}
         nodes = (
             LineageNode("state", Stage.STATE.value, (f"system:{event.context.system_id}",), (f"state:{event.context.state.state.state_id}",), (), (), (), **common),
             LineageNode("inference", Stage.PREDICTION.value, (f"state:{event.context.state.state.state_id}",), (f"inference:{inference.plan.primary.value}",), tuple(f"evidence:{x.evidence_id}" for x in event.evidence), tuple(f"model:{x.model_id}" for x in event.context.models), (), **common),
-            LineageNode("control", Stage.DECISION.value, (f"inference:{inference.plan.primary.value}",), (f"audit:{audit_id}" if audit_id else "terminal:pre-control" ,), tuple(f"evidence:{x.evidence_id}" for x in event.evidence_assessments), (), (), **common),
+            LineageNode("control", Stage.DECISION.value, (f"inference:{inference.plan.primary.value}",), (f"audit:{audit_id}" if audit_id else "terminal:pre-control",), tuple(f"evidence:{x.evidence_id}" for x in event.evidence_assessments), (), (), **common),
         )
         if decision is not None:
             nodes += (LineageNode("decision", Stage.DECISION.value, (f"audit:{audit_id}" if audit_id else "terminal:pre-control",), (f"decision:{decision.decision_id}", f"option:{decision.option_id}"), (), (), (), **common),)

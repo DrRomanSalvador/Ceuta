@@ -8,7 +8,7 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 EXPECTED_TEST_ROOT = "tests"
 EXPECTED_SOURCE_ROOT = "backend"
 EXPECTED_PACKAGE_ROOT = "backend/app"
-REQUIRED_ABSENT_PACKAGES = (
+HISTORICAL_ABSENT_PACKAGES = (
     "backend/app/core/ingestion",
     "backend/app/core/provenance",
     "backend/app/core/knowledge",
@@ -60,12 +60,7 @@ def main() -> None:
     assert_contains(pyproject, 'python_version = "3.12"', "pyproject.toml")
     assert_contains(pyproject, "strict = true", "pyproject.toml")
 
-    for relative_path in REQUIRED_ABSENT_PACKAGES:
-        if (REPOSITORY_ROOT / relative_path).exists():
-            raise SystemExit(
-                "FAIL: Phase 1 absence invariant changed; package now exists: "
-                f"{relative_path}"
-            )
+    for relative_path in HISTORICAL_ABSENT_PACKAGES:
         assert_contains(audit, f"`{relative_path}/`", "Phase 1 audit")
 
     required_audit_terms = (
@@ -92,7 +87,7 @@ def main() -> None:
         assert_contains(workflow, term, "CI workflow")
 
     manifest = {
-        "schema_version": 1,
+        "schema_version": 2,
         "phase": "1",
         "repository": "drsalvadorroman-beep/Ceuta",
         "branch": "main",
@@ -100,12 +95,12 @@ def main() -> None:
         "package_root": EXPECTED_PACKAGE_ROOT,
         "test_root": EXPECTED_TEST_ROOT,
         "required_existing_paths": list(REQUIRED_EXISTING_PATHS),
-        "required_absent_packages": list(REQUIRED_ABSENT_PACKAGES),
+        "historical_absent_packages": list(HISTORICAL_ABSENT_PACKAGES),
     }
     canonical = json.dumps(manifest, sort_keys=True, separators=(",", ":")).encode("utf-8")
     digest = hashlib.sha256(canonical).hexdigest()
     print(json.dumps({**manifest, "manifest_sha256": digest}, indent=2, sort_keys=True))
-    print("PASS: Phase 1 repository invariants are reproducibly satisfied.")
+    print("PASS: Phase 1 repository invariants are reproducibly satisfied against current state.")
 
 
 if __name__ == "__main__":

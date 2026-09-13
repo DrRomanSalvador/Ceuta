@@ -8,9 +8,9 @@ parameter store, or production promotion API is reachable from this stage.
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Callable
 from uuid import uuid4
 
 from app.core.epistemology_p0.advanced import Observation

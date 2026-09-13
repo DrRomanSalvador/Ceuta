@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ceutia.local/contracts/alert.schema.json",
+  "title": "Alert",
+  "description": "Alert artefact. Must reference evidence and declare epistemic state. Never implies validated operational authority by itself.",
+  "type": "object",
+  "required": [
+    "alert_id",
+    "created_at",
+    "severity",
+    "epistemic_state",
+    "evidence_refs",
+    "summary"
+  ],
+  "properties": {
+    "alert_id": { "type": "string", "minLength": 1 },
+    "created_at": { "type": "string", "format": "date-time" },
+    "severity": {
+      "type": "string",
+      "enum": ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"]
+    },
+    "epistemic_state": {
+      "type": "string",
+      "enum": ["NO_VERIFICADO", "INSUFICIENTE", "PROXY_RISK", "CONSISTENTE", "CONTRADICTORIO", "DEPENDIENTE", "TEMPORAL_LEAKAGE", "BLOQUEADO", "VALIDADO"]
+    },
+    "evidence_refs": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1
+    },
+    "summary": { "type": "string", "minLength": 1 },
+    "operational_recommendation": { "type": ["string", "null"] },
+    "causal_claim": { "type": "boolean", "const": false }
+  },
+  "additionalProperties": false
+}

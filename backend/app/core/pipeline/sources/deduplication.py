@@ -7,9 +7,9 @@ so propagation through multiple outlets does not inflate independent evidence.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from hashlib import sha256
-from typing import Iterable
 
 from .real_base import RealSourceEnvelope, SourceObservation
 

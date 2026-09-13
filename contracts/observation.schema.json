@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ceutia.local/contracts/observation.schema.json",
+  "title": "Observation",
+  "description": "Raw recorded datum. Must never be treated as Evidence without explicit promotion under the evidence contract.",
+  "type": "object",
+  "required": [
+    "observation_id",
+    "captured_at",
+    "source_id",
+    "payload",
+    "capture_method"
+  ],
+  "properties": {
+    "observation_id": { "type": "string", "minLength": 1 },
+    "captured_at": { "type": "string", "format": "date-time" },
+    "source_id": { "type": "string", "minLength": 1 },
+    "payload": {},
+    "capture_method": { "type": "string", "minLength": 1 },
+    "raw_hash": { "type": ["string", "null"] },
+    "notes": { "type": ["string", "null"] }
+  },
+  "additionalProperties": false
+}

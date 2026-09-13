@@ -130,16 +130,58 @@ Phase 1 does not:
 - move tests to `backend/tests/`;
 - treat the existing related components as equivalent to the missing architectural layers without contract verification.
 
+## Reproducibility and audit protocol
+
+Phase 1 is not considered scientifically closed merely because its conclusions are documented. The repository must contain a deterministic verifier that can independently re-evaluate the structural claims.
+
+The canonical verifier is:
+
+`python scripts/verify_phase1.py`
+
+The verifier checks, fail-closed:
+
+- required repository roots and files exist;
+- `pyproject.toml` still establishes `backend` as the source root and `tests` as the canonical test root;
+- strict typing configuration remains present;
+- every Phase 1 declared missing DSS package remains absent;
+- every declared missing package is explicitly represented in the audit document;
+- the audit document contains its required architectural sections and historical-state invariant;
+- the CI workflow still contains compilation, dependency installation, full pytest and Compose validation;
+- a canonical SHA-256 digest is generated from the audit manifest.
+
+This verifier is structural by design. It does not claim that absence of a package proves absence of equivalent functionality elsewhere; that distinction remains explicit in the audit. It also does not substitute for the full CI suite.
+
+The verifier itself must pass in CI before Phase 1 can be considered reproducibly closed.
+
+## CI validation standard
+
+The repository CI is authoritative for executable validation. The Phase 1 closure requires a successful workflow run on the final Phase 1 commit, with all required checks completed successfully.
+
+The required CI sequence is:
+
+1. compile all Python sources;
+2. install the project and development dependencies;
+3. execute the complete pytest suite;
+4. validate Docker Compose configuration;
+5. execute the Phase 1 structural verifier.
+
+A missing CI result is not interpreted as success. A failed or absent check prevents the phase from being certified.
+
 ## Exit criteria
 
-Phase 1 is complete when:
+Phase 1 is complete only when all of the following are true:
 
 - the existing foundation has been inventoried;
 - the missing package boundaries have been identified;
 - the canonical test location has been confirmed from repository configuration;
 - existing and future responsibilities have been separated;
 - the P0 dependency order is explicit;
-- no implementation has been silently represented as complete merely because a similarly named component exists elsewhere.
+- no implementation has been silently represented as complete merely because a similarly named component exists elsewhere;
+- the structural verifier passes;
+- the complete CI workflow passes on the final Phase 1 commit;
+- the exact commit SHA and CI result are recorded as the closure evidence.
+
+Until the last two conditions are satisfied, Phase 1 remains `IMPLEMENTED — NOT YET VALIDATED` rather than `CLOSED`.
 
 ## Next phase
 

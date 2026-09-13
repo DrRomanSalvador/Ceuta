@@ -6,23 +6,10 @@ from hashlib import sha256
 import pytest
 
 from app.core.epistemology_p0.advanced import Forecast, Observation
-from app.core.pipeline.bus import EventBus
-from app.core.pipeline.contracts import ObservationRecord, PipelineEvent
-from app.core.pipeline.shadow_metrics import compute_shadow_gap
-from app.core.pipeline.shadow_mode import ShadowModeExecutor
-from app.core.pipeline.sources.deduplication import EvidenceDeduplicator
-from app.core.pipeline.sources.real_base import RealSourceEnvelope, SourceObservation
-from app.core.pipeline.stages.causality_guard import (
-    AssociationEvidence,
-    CausalityGuard,
-    InteractionStatus,
-)
-from app.core.pipeline.stages.shadow import (
-    SHADOW_FORECAST_EVENT,
-    SHADOW_OBSERVATION_EVENT,
-    ShadowForecastEvent,
-    ShadowModeStage,
-)
+from app.core.pipeline.deduplication import EvidenceDeduplicator
+from app.core.pipeline.sources.real_base import RealSourceEnvelope
+from app.core.pipeline.sources.shadow_engine import ShadowEngine, TemporalLeakageError
+from app.core.pipeline.stages.causality_guard import AssociationEvidence, CausalityGuard, InteractionStatus
 
 UTC = timezone.utc
 
@@ -41,146 +28,56 @@ def _forecast(observations: tuple[Observation, ...], *, cutoff_time: datetime) -
         method="shadow-test",
         state_id="shadow-state",
         evidence_ids=current.evidence_ids,
-        status="UNVERIFIED",
+        status="SHADOW_EVALUATION",
     )
 
 
-def test_shadow_mode_respects_available_at_and_never_promotes() -> None:
+def test_temporal_leakage_fails_closed() -> None:
+    t0 = datetime(2026, 1, 1, tzinfo=UTC)
+    observation = Observation("risk", 10.0, t0, t0 - timedelta(seconds=1), ("source-a",), ("e1",))
+    with pytest.raises(TemporalLeakageError, match="cannot precede"):
+        ShadowEngine.validate_temporal_boundary(observation)
+
+
+def test_shadow_engine_uses_secondary_ledger_only() -> None:
     t0 = datetime(2026, 1, 1, tzinfo=UTC)
     cutoff = t0 + timedelta(hours=1)
     observations = (
         Observation("risk", 10.0, t0, t0 + timedelta(minutes=10), ("source-a",), ("e1",)),
         Observation("risk", 20.0, cutoff, cutoff + timedelta(minutes=20), ("source-a",), ("e2",)),
     )
-    executor = ShadowModeExecutor(model_version="shadow-test-v1")
+    engine = ShadowEngine(model_version="shadow-test-v1")
+    result = engine.execute(observations, cutoff_time=cutoff, forecast_fn=_forecast)
+    assert result.record.status == "SHADOW_EVALUATION"
+    assert result.record.point == 11.0
+    assert engine.production_mutation_supported is False
+    assert len(engine.ledger.records) == 1
 
-    forecast = executor.forecast(observations, cutoff_time=cutoff, forecast_fn=_forecast)
 
-    assert forecast.status == "SHADOW_EVALUATION"
-    assert forecast.point == 11.0
-    assert executor.production_mutation_supported is False
-    assert all(item.forecast.status == "SHADOW_EVALUATION" for item in executor.ledger.entries)
+def test_shadow_engine_rejects_forecast_target_before_cutoff() -> None:
+    t0 = datetime(2026, 1, 1, tzinfo=UTC)
+    observation = Observation("risk", 10.0, t0, t0, ("source-a",), ("e1",))
 
-    with pytest.raises(ValueError, match="before target_time"):
-        executor.resolve(
-            forecast.forecast_id,
-            realized_value=12.0,
-            resolved_at=forecast.target_time - timedelta(seconds=1),
-            baseline_prediction=10.0,
+    def bad_forecast(observations: tuple[Observation, ...], *, cutoff_time: datetime) -> Forecast:
+        return Forecast(
+            forecast_id="bad",
+            variable="risk",
+            cutoff_time=cutoff_time,
+            target_time=cutoff_time - timedelta(seconds=1),
+            point=1.0,
+            lower=0.0,
+            upper=2.0,
+            method="test",
+            state_id="state",
+            evidence_ids=("e1",),
+            status="SHADOW_EVALUATION",
         )
 
-    evaluation = executor.resolve(
-        forecast.forecast_id,
-        realized_value=12.0,
-        resolved_at=forecast.target_time,
-        baseline_prediction=10.0,
-    )
-    assert evaluation.squared_error == 1.0
-    assert executor.production_mutation_supported is False
+    with pytest.raises(TemporalLeakageError, match="target"):
+        ShadowEngine().execute((observation,), cutoff_time=t0, forecast_fn=bad_forecast)
 
 
-@pytest.mark.asyncio
-async def test_shadow_stage_isolated_through_event_bus() -> None:
-    t0 = datetime(2026, 1, 1, tzinfo=UTC)
-    record = ObservationRecord(
-        observation_id="obs-1",
-        variable="risk",
-        value=10.0,
-        unit=None,
-        event_time=t0,
-        available_at=t0,
-        source_ids=("source-a",),
-        evidence_ids=("e1",),
-        domain="social",
-        quality=1.0,
-        provenance_hash="hash-1",
-    )
-    bus = EventBus(queue_maxsize=4)
-    executor = ShadowModeExecutor(model_version="shadow-event-v1")
-    output = await bus.subscribe(SHADOW_FORECAST_EVENT)
-    stage = ShadowModeStage(
-        bus,
-        executor=executor,
-        forecast_fn=_forecast,
-        cutoff_time_fn=lambda _: t0,
-    )
-    await stage.start()
-    try:
-        await bus.publish(
-            PipelineEvent(
-                event_id="event-1",
-                event_type=SHADOW_OBSERVATION_EVENT,
-                created_at=t0,
-                correlation_id="obs-1",
-                source_stage="test",
-                schema_version="1.0",
-                payload=record,
-            )
-        )
-        event = await output.get()
-        assert isinstance(event.payload, ShadowForecastEvent)
-        assert event.payload.status == "SHADOW_EVALUATION"
-        assert executor.production_mutation_supported is False
-        output.task_done()
-    finally:
-        await stage.stop()
-        await bus.unsubscribe(SHADOW_FORECAST_EVENT, output)
-        await bus.close()
-
-
-def test_shadow_metrics_measure_gap_against_baseline() -> None:
-    t0 = datetime(2026, 1, 1, tzinfo=UTC)
-    executor = ShadowModeExecutor(model_version="shadow-test-v1")
-    observations = (
-        Observation("risk", 10.0, t0, t0, ("source-a",), ("e1",)),
-        Observation("risk", 11.0, t0 + timedelta(hours=1), t0 + timedelta(hours=1), ("source-a",), ("e2",)),
-    )
-    forecast = executor.forecast(observations, cutoff_time=t0 + timedelta(hours=1), forecast_fn=_forecast)
-    executor.resolve(
-        forecast.forecast_id,
-        realized_value=13.0,
-        resolved_at=forecast.target_time,
-        baseline_prediction=12.0,
-    )
-    report = compute_shadow_gap(executor.evaluations)
-    assert report.sample_size == 1
-    assert report.model_mse == 1.0
-    assert report.baseline_mse == 1.0
-    assert report.mse_gap == 0.0
-
-
-def test_association_cannot_become_causal_without_prospective_history() -> None:
-    guard = CausalityGuard(min_prospective_evaluations=30)
-    evidence = AssociationEvidence(
-        upstream="migration",
-        downstream="health",
-        observations=100,
-        prospective_evaluations=29,
-        directional_accuracy=0.90,
-        baseline_improvement=0.20,
-    )
-    decision = guard.evaluate(evidence)
-    assert decision.status is InteractionStatus.OBSERVED_ASSOCIATION
-    assert decision.allowed_in_scenarios is False
-
-
-def test_prospective_support_allows_scenario_influence_but_not_causal_label() -> None:
-    guard = CausalityGuard(min_prospective_evaluations=30)
-    evidence = AssociationEvidence(
-        upstream="migration",
-        downstream="health",
-        observations=100,
-        prospective_evaluations=30,
-        directional_accuracy=0.70,
-        baseline_improvement=0.10,
-    )
-    decision = guard.evaluate(evidence)
-    assert decision.status is InteractionStatus.PROSPECTIVELY_SUPPORTED
-    assert decision.allowed_in_scenarios is True
-    assert "causal" in decision.reason
-
-
-def test_real_source_preserves_temporal_boundary_and_mirror_deduplication() -> None:
+def test_mirror_sources_do_not_inflate_independent_evidence() -> None:
     t0 = datetime(2026, 1, 1, tzinfo=UTC)
     payload = b"same-source-event"
     digest = sha256(payload).hexdigest()
@@ -208,17 +105,39 @@ def test_real_source_preserves_temporal_boundary_and_mirror_deduplication() -> N
     decision = dedup.register_envelope(mirror)
     assert decision.independent is False
     assert decision.reason == "exact_payload_duplicate"
+    cluster = dedup.cluster(decision.cluster_id)
+    assert cluster.canonical_source_id == "publisher-a"
+    assert cluster.member_source_ids == ("publisher-a", "publisher-b")
 
-    observation = SourceObservation(
-        variable="risk",
-        value=1.0,
-        event_time=t0,
-        available_at=t0 + timedelta(hours=1),
-        domain="social",
-        source_id="publisher-a",
-        evidence_id="e1",
-        provenance_hash=digest,
-    )
-    record = observation.to_record()
-    assert record.event_time == t0
-    assert record.available_at > record.event_time
+
+def test_association_is_blocked_without_prospective_history() -> None:
+    guard = CausalityGuard(min_prospective_evaluations=30)
+    evidence = AssociationEvidence("migration", "health", 100, 29, 0.90, 0.20)
+    decision = guard.evaluate(evidence)
+    assert decision.status is InteractionStatus.OBSERVED_ASSOCIATION
+    assert decision.allowed_in_scenarios is False
+
+
+def test_prospective_support_is_not_causality() -> None:
+    guard = CausalityGuard(min_prospective_evaluations=30)
+    evidence = AssociationEvidence("migration", "health", 100, 30, 0.70, 0.10)
+    decision = guard.evaluate(evidence)
+    assert decision.status is InteractionStatus.PROSPECTIVELY_SUPPORTED
+    assert decision.allowed_in_scenarios is True
+    assert decision.status is not InteractionStatus.CAUSAL
+
+
+def test_causality_guard_rejects_below_directional_threshold() -> None:
+    guard = CausalityGuard(min_prospective_evaluations=30, min_directional_accuracy=0.60)
+    evidence = AssociationEvidence("migration", "health", 100, 30, 0.59, 0.50)
+    decision = guard.evaluate(evidence)
+    assert decision.status is InteractionStatus.REJECTED
+    assert decision.allowed_in_scenarios is False
+
+
+def test_causality_guard_rejects_without_baseline_improvement() -> None:
+    guard = CausalityGuard(min_prospective_evaluations=30, min_baseline_improvement=0.01)
+    evidence = AssociationEvidence("migration", "health", 100, 30, 0.90, 0.00)
+    decision = guard.evaluate(evidence)
+    assert decision.status is InteractionStatus.REJECTED
+    assert decision.allowed_in_scenarios is False

@@ -1,6 +1,8 @@
 from backend.app.core.decision.control_plane import DecisionManifest
 from backend.app.core.decision.serialization import (
+    manifest_execution_fingerprint,
     manifest_execution_payload,
+    manifest_semantic_fingerprint,
     manifest_semantic_payload,
     serialize_manifest,
 )
@@ -33,6 +35,7 @@ def test_semantic_manifest_serialization_excludes_execution_timestamp() -> None:
     assert serialize_manifest(first, include_execution_metadata=False) == serialize_manifest(
         second, include_execution_metadata=False
     )
+    assert manifest_semantic_fingerprint(first) == manifest_semantic_fingerprint(second)
 
 
 def test_execution_serialization_retains_timestamp() -> None:
@@ -41,3 +44,4 @@ def test_execution_serialization_retains_timestamp() -> None:
 
     assert manifest_execution_payload(first) != manifest_execution_payload(second)
     assert serialize_manifest(first) != serialize_manifest(second)
+    assert manifest_execution_fingerprint(first) != manifest_execution_fingerprint(second)

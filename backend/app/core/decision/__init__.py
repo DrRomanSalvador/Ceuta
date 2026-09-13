@@ -9,6 +9,7 @@ from .engine import (
     EpistemicGate,
     Scenario,
 )
+from .rigorous_engine import Alternative, DecisionAnalysis, RigorousDecisionEngine
 
 __all__ = [
     "ActionAlternative",
@@ -18,4 +19,7 @@ __all__ = [
     "DecisionEngine",
     "EpistemicGate",
     "Scenario",
+    "Alternative",
+    "DecisionAnalysis",
+    "RigorousDecisionEngine",
 ]

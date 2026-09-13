@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import dataclass
-from math import isfinite, sqrt
+from math import isfinite
 from statistics import mean
 
 from .shadow_mode import ShadowEvaluation
@@ -32,9 +32,11 @@ def compute_shadow_gap(evaluations: Iterable[ShadowEvaluation]) -> ShadowGapRepo
     if not rows:
         raise ValueError("at least one shadow evaluation is required")
     model_errors = [item.error for item in rows]
+    baseline_errors = [item.baseline_error for item in rows]
     model_squared = [item.squared_error for item in rows]
     baseline_squared = [item.baseline_squared_error for item in rows]
-    if any(not isfinite(value) for value in (*model_errors, *model_squared, *baseline_squared)):
+    values = (*model_errors, *baseline_errors, *model_squared, *baseline_squared)
+    if any(not isfinite(value) for value in values):
         raise ValueError("shadow metrics require finite values")
     model_mse = mean(model_squared)
     baseline_mse = mean(baseline_squared)
@@ -46,7 +48,7 @@ def compute_shadow_gap(evaluations: Iterable[ShadowEvaluation]) -> ShadowGapRepo
         mse_gap=model_mse - baseline_mse,
         relative_mse_gap=(model_mse - baseline_mse) / baseline_mse if baseline_mse > 0 else None,
         model_mae=mean(abs(value) for value in model_errors),
-        baseline_mae=sqrt(baseline_mse),
+        baseline_mae=mean(abs(value) for value in baseline_errors),
         bias=mean(model_errors),
         directional_accuracy=mean(bool(value) for value in directional) if directional else None,
     )

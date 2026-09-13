@@ -4,12 +4,13 @@ from __future__ import annotations
 from dataclasses import asdict
 import json
 import sqlite3
+from typing import Sequence
 
 from .control_plane import DecisionAuditEvent, DecisionOutcome, HumanDecisionReview
 
 
 class SQLiteDecisionStore:
-    """Append-only SQLite store for decision audit, review and outcome records."""
+    """Append-only SQLite store for decision audit, review, outcomes and cycle summaries."""
 
     def __init__(self, path: str) -> None:
         self.connection = sqlite3.connect(path)
@@ -41,6 +42,17 @@ class SQLiteDecisionStore:
                 PRIMARY KEY(decision_id, option_id, outcome_at)
             );
             CREATE INDEX IF NOT EXISTS idx_decision_outcomes_decision ON decision_outcomes(decision_id, outcome_at);
+            CREATE TABLE IF NOT EXISTS decision_cycles (
+                system_id TEXT NOT NULL,
+                as_of TEXT NOT NULL,
+                decision_id TEXT,
+                option_id TEXT,
+                disposition TEXT,
+                lineage_json TEXT NOT NULL,
+                stages_json TEXT NOT NULL,
+                PRIMARY KEY(system_id, as_of)
+            );
+            CREATE INDEX IF NOT EXISTS idx_decision_cycles_decision ON decision_cycles(decision_id, as_of);
             """
         )
         self.connection.commit()
@@ -71,11 +83,19 @@ class SQLiteDecisionStore:
         rows = self.connection.execute("SELECT payload_json FROM decision_outcomes WHERE decision_id=? ORDER BY outcome_at", (decision_id,)).fetchall()
         return tuple(DecisionOutcome(**json.loads(row[0])) for row in rows)
 
+    def record_cycle(self, *, system_id: str, as_of: str, decision_id: str | None, option_id: str | None, disposition: str | None, lineage: Sequence[str], stages: Sequence[Mapping[str, object]]) -> None:
+        self.connection.execute("INSERT OR REPLACE INTO decision_cycles(system_id,as_of,decision_id,option_id,disposition,lineage_json,stages_json) VALUES(?,?,?,?,?,?,?)", (system_id, as_of, decision_id, option_id, disposition, json.dumps(tuple(lineage), sort_keys=True), json.dumps(tuple(stages), sort_keys=True, default=str)))
+        self.connection.commit()
+
+    def cycles(self, system_id: str) -> tuple[dict[str, object], ...]:
+        rows = self.connection.execute("SELECT system_id,as_of,decision_id,option_id,disposition,lineage_json,stages_json FROM decision_cycles WHERE system_id=? ORDER BY as_of", (system_id,)).fetchall()
+        return tuple({"system_id": r[0], "as_of": r[1], "decision_id": r[2], "option_id": r[3], "disposition": r[4], "lineage": tuple(json.loads(r[5])), "stages": tuple(json.loads(r[6]))} for r in rows)
+
     def verify_chain(self, decision_id: str) -> bool:
         previous = "GENESIS"
+        import hashlib
         for event in self.events(decision_id):
             canonical = json.dumps(dict(event.payload), sort_keys=True, default=str, separators=(",", ":"))
-            import hashlib
             expected = hashlib.sha256(f"{previous}|{event.event_id}|{canonical}".encode()).hexdigest()
             if event.previous_hash != previous or event.event_hash != expected:
                 return False

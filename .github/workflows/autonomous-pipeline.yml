@@ -1,0 +1,112 @@
+name: CeutIA Autonomous Pipeline
+
+on:
+  workflow_run:
+    workflows: [CeutIA CI]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ceutia-autonomous-${{ github.event.workflow_run.head_branch || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    name: Activate validated integration stage
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout validated revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install project and test dependencies
+        run: python -m pip install --upgrade pip && python -m pip install '.[dev]'
+
+      - name: Activate pipeline contract and integration stage
+        run: python -m pytest tests/test_pipeline_fase1.py -q
+
+  state:
+    name: Activate multidomain state stage
+    needs: gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout validated revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install project and test dependencies
+        run: python -m pip install --upgrade pip && python -m pip install '.[dev]'
+
+      - name: Activate multidomain state and interaction stage
+        run: python -m pytest tests/test_pipeline_state.py -q
+
+  runtime:
+    name: Activate executable runtime stage
+    needs: state
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout validated revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install project and test dependencies
+        run: python -m pip install --upgrade pip && python -m pip install '.[dev]'
+
+      - name: Activate anticipation and runtime tests
+        run: python -m pytest tests/core/test_anticipation.py tests/core/test_runtime.py -q
+
+      - name: Execute runtime module
+        run: python -m app.core.epistemology_p0.advanced.runtime
+
+  prospective:
+    name: Activate prospective validation stage
+    needs: runtime
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout validated revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install project and test dependencies
+        run: python -m pip install --upgrade pip && python -m pip install '.[dev]'
+
+      - name: Activate prospective validation
+        run: python -m pytest tests/core/test_anticipation.py -q
+
+      - name: Activate next engineering stage
+        run: echo "CeutIA autonomous pipeline completed successfully; the next validated revision is now eligible to enter the next engineering stage."

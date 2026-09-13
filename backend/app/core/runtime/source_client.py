@@ -44,14 +44,19 @@ class OfficialSourceClient:
         timestamp = now or datetime.now(timezone.utc)
         if timestamp.tzinfo is None or timestamp.utcoffset() is None:
             raise ValueError("now must be timezone-aware")
-        # Conditional requests prevent needless downloads and make freshness
-        # auditable through the HTTP validators supplied by the publisher.
-        previous = next((s for s in self.registry.freshness(timestamp) if s.source_id == source_id), None)
+        previous = self.registry.latest_snapshot(source_id)
         headers: dict[str, str] = {"Accept": "application/json, text/html, text/plain, */*"}
-        # Read prior validator metadata through a private snapshot accessor only
-        # via the registry's public refresh policy; a future persistent backend can
-        # replace this in-memory client without changing the inference contract.
+        if previous is not None:
+            if previous.etag:
+                headers["If-None-Match"] = previous.etag
+            if previous.last_modified:
+                headers["If-Modified-Since"] = previous.last_modified
         response = self._client.get(source.url, headers=headers)
+        if response.status_code == 304 and previous is not None:
+            snapshot = SourceSnapshot(source_id, timestamp, previous.content_hash, 304,
+                                      previous.etag, previous.last_modified, True)
+            self.registry.register_snapshot(snapshot)
+            return RetrievedSource(source_id, 304, b"", snapshot, dict(response.headers))
         content = response.content
         if len(content) > self.max_bytes:
             raise ValueError("official source response exceeds configured size limit")

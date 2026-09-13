@@ -9,8 +9,10 @@ from typing import Mapping, Sequence
 from app.core.decision.control_plane import DecisionControlPlane, DecisionDisposition as ControlDisposition, DecisionManifest, UncertaintyState
 from app.core.decision.decision_system import DecisionContext, DecisionMode, DecisionOption, DecisionRecommendation, DecisionSystem, InformationRequest
 from app.core.decision.engine import ActionAlternative, DecisionAudit, DecisionCycleResult, DecisionEngine, EpistemicGate
+from app.core.decision.epistemic_gate import EpistemicDecisionGate, EpistemicDisposition
 from app.core.decision.optimization import ValueOfInformation as DecisionValueOfInformation
 from app.core.decision.value_of_information import ValueOfInformationEngine
+from app.core.evidence.epistemic import EpistemicStatus
 from app.core.evidence.scientific_evidence import GateDisposition, ScientificEvidence, ScientificEvidenceGate
 from app.core.evidence.scientific_assurance import RuntimeSafetyAssessment
 from .risk_escalation import EscalationAssessment
@@ -26,7 +28,7 @@ class DecisionRuntimeResult:
 
 
 class DecisionRuntime:
-    def __init__(self, decision_system: DecisionSystem | None = None, voi: ValueOfInformationEngine | None = None, decision_engine: DecisionEngine | None = None, control_plane: DecisionControlPlane | None = None, scientific_gate: ScientificEvidenceGate | None = None, *, code_revision: str = "unknown"):
+    def __init__(self, decision_system: DecisionSystem | None = None, voi: ValueOfInformationEngine | None = None, decision_engine: DecisionEngine | None = None, control_plane: DecisionControlPlane | None = None, scientific_gate: ScientificEvidenceGate | None = None, epistemic_gate: EpistemicDecisionGate | None = None, *, code_revision: str = "unknown"):
         if not code_revision.strip() or code_revision.strip().lower() in {"unknown", "unresolved", "dirty"}:
             raise ValueError("code_revision must identify an exact reproducible revision")
         self.decisions = decision_system or DecisionSystem()
@@ -34,6 +36,7 @@ class DecisionRuntime:
         self.engine = decision_engine or DecisionEngine()
         self.control = control_plane or DecisionControlPlane()
         self.scientific_gate = scientific_gate or ScientificEvidenceGate()
+        self.epistemic_gate = epistemic_gate or EpistemicDecisionGate()
         self.code_revision = code_revision
 
     def _manifest(self, decision_id: str, provenance: Sequence[str], assumptions: Sequence[str], scenario_refs: Sequence[str]) -> DecisionManifest:
@@ -46,12 +49,13 @@ class DecisionRuntime:
         raw_config = "|".join(sorted(provenance)) + "|" + "|".join(sorted(assumptions))
         return DecisionManifest(decision_id, tuple(buckets["state"]), tuple(buckets["evidence"]), tuple(buckets["model"]), tuple(buckets["hypothesis"]), tuple(buckets["transformation"]), tuple(assumptions), tuple(buckets["scenario"]), "decision-utility:v1", tuple(buckets["constraint"]), "1.0", sha256(raw_config.encode("utf-8")).hexdigest(), self.code_revision, datetime.now(timezone.utc).isoformat())
 
-    def decide(self, context: DecisionContext, options: Sequence[DecisionOption], escalation: EscalationAssessment, *, mode: DecisionMode = DecisionMode.ROBUST, provenance: Sequence[str] = (), purpose: str = "decision", restricted: bool = False, information_requests: Sequence[InformationRequest] = (), at: datetime | None = None, epistemic_uncertainty: float | None = None, epistemic_refs: Sequence[str] = (), scientific_evidence: Sequence[ScientificEvidence] = (), runtime_safety: RuntimeSafetyAssessment | None = None) -> DecisionRuntimeResult:
+    def decide(self, context: DecisionContext, options: Sequence[DecisionOption], escalation: EscalationAssessment, *, mode: DecisionMode = DecisionMode.ROBUST, provenance: Sequence[str] = (), purpose: str = "decision", restricted: bool = False, information_requests: Sequence[InformationRequest] = (), at: datetime | None = None, epistemic_uncertainty: float | None = None, epistemic_refs: Sequence[str] = (), epistemic_status: EpistemicStatus | None = None, scientific_evidence: Sequence[ScientificEvidence] = (), runtime_safety: RuntimeSafetyAssessment | None = None) -> DecisionRuntimeResult:
         """Authorize a decision using model, epistemic, scientific and runtime-safety controls."""
         if epistemic_uncertainty is not None and not 0.0 <= epistemic_uncertainty <= 1.0:
             raise ValueError("epistemic_uncertainty must be in [0,1]")
         triggers = ("reevaluate after new evidence", "material state change", "model validity change")
         science = self.scientific_gate.evaluate(scientific_evidence) if scientific_evidence else None
+        epistemic = self.epistemic_gate.evaluate(epistemic_status) if epistemic_status is not None else None
         science_refs = tuple(f"evidence:{item.evidence_id}" for item in scientific_evidence)
         scenario_refs = tuple(f"scenario:{scenario.scenario_id}" for option in options for scenario in option.outcomes)
         manifest = self._manifest(context.decision_id, (*provenance, *epistemic_refs, *science_refs), context.assumptions, scenario_refs)
@@ -65,11 +69,13 @@ class DecisionRuntime:
         if escalation.state.value in {"abstain", "critical"} or control.disposition is ControlDisposition.ABSTAIN:
             reason = f"escalation gate: {escalation.state.value}" if escalation.state.value in {"abstain", "critical"} else control.reason
             recommendation = self.decisions._abstain(context, mode, reason, audit_provenance, triggers)
+        elif epistemic and epistemic.disposition is EpistemicDisposition.ABSTAIN:
+            recommendation = self.decisions._abstain(context, mode, f"epistemic gate requires abstention: {epistemic.reason}", audit_provenance, triggers)
         elif runtime_safety and runtime_safety.disposition.value == "abstain":
             recommendation = self.decisions._abstain(context, mode, "runtime safety assurance requires abstention", audit_provenance, triggers)
         elif science and science.disposition is GateDisposition.ABSTAIN:
             recommendation = self.decisions._abstain(context, mode, "scientific evidence gate requires abstention", audit_provenance, triggers)
-        elif control.disposition is ControlDisposition.HUMAN_REVIEW or (science and science.disposition is GateDisposition.HUMAN_REVIEW) or (runtime_safety and runtime_safety.disposition.value == "human_review"):
+        elif control.disposition is ControlDisposition.HUMAN_REVIEW or (epistemic and epistemic.disposition is EpistemicDisposition.HUMAN_REVIEW) or (science and science.disposition is GateDisposition.HUMAN_REVIEW) or (runtime_safety and runtime_safety.disposition.value == "human_review"):
             recommendation = self.decisions._abstain(context, mode, "human review required before execution", audit_provenance, triggers)
         else:
             recommendation = self.decisions.recommend(context, options, mode=mode, provenance=audit_provenance, reevaluation_triggers=triggers, information_requests=information_requests, at=at)

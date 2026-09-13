@@ -7,7 +7,7 @@ from hashlib import sha256
 from typing import Mapping, Sequence
 
 from app.core.decision.control_plane import DecisionControlPlane, DecisionDisposition as ControlDisposition, DecisionManifest, UncertaintyState
-from app.core.decision.decision_system import DecisionContext, DecisionMode, DecisionOption, DecisionRecommendation, DecisionSystem
+from app.core.decision.decision_system import DecisionContext, DecisionMode, DecisionOption, DecisionRecommendation, DecisionSystem, InformationRequest
 from app.core.decision.engine import ActionAlternative, DecisionAudit, DecisionCycleResult, DecisionEngine, EpistemicGate
 from app.core.decision.optimization import ValueOfInformation as DecisionValueOfInformation
 from app.core.decision.value_of_information import ValueOfInformationEngine
@@ -83,7 +83,7 @@ class DecisionRuntime:
         provenance: Sequence[str] = (),
         purpose: str = "decision",
         restricted: bool = False,
-        information_requests: Sequence = (),
+        information_requests: Sequence[InformationRequest] = (),
     ) -> DecisionRuntimeResult:
         triggers = ("reevaluate after new evidence", "material state change", "model validity change")
         scenario_refs = tuple(f"scenario:{scenario.scenario_id}" for option in options for scenario in option.outcomes)

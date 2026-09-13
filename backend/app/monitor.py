@@ -59,19 +59,20 @@ class CeutIADaemon:
         accepted = 0
         failures = self._health.source_failures
         errors: list[str] = []
+        new_records = []
         for source in self.sources:
             try:
                 envelope = await source.fetch(now=evaluation_time)
                 self.registry.register_envelope(envelope)
                 records = self.registry.accept(source.parse(envelope))
                 self.store.append(records)
+                new_records.extend(records)
                 accepted += len(records)
-            except Exception as exc:  # noqa: BLE001 - daemon must isolate source failures
+            except Exception as exc:  # noqa: BLE001 - isolate source failures
                 failures += 1
                 errors.append(f"{source.source_id}: {type(exc).__name__}: {exc}")
 
-        snapshot = self.store.snapshot(as_of=evaluation_time)
-        if snapshot.observations:
+        if new_records:
             observations = tuple(
                 Observation(
                     variable=item.variable,
@@ -82,17 +83,22 @@ class CeutIADaemon:
                     evidence_ids=item.evidence_ids,
                     quality=item.quality,
                 )
-                for item in snapshot.observations
+                for item in new_records
+                if item.available_at <= evaluation_time
             )
-            state, forecasts = self.engine.cycle(
-                observations,
-                as_of=evaluation_time,
-                forecast_horizon=self.interval,
-            )
-            for forecast in forecasts:
-                self.calibrator.register(forecast)
-            _ = state
+            if observations:
+                state, forecasts = self.engine.cycle(
+                    observations,
+                    as_of=evaluation_time,
+                    forecast_horizon=self.interval,
+                )
+                for forecast in forecasts:
+                    self.calibrator.register(forecast)
+                _ = state
 
+        # The store remains authoritative for temporal state even when no new
+        # source payload arrived during this cycle.
+        _ = self.store.snapshot(as_of=evaluation_time)
         cycles = self._health.cycles + 1
         self._health = RuntimeHealth(
             healthy=not errors,
@@ -105,7 +111,7 @@ class CeutIADaemon:
         return self._health
 
     async def run_forever(self) -> None:
-        """Run until cancelled or stop() is called; source failures never fail open."""
+        """Run until stopped; source failures never promote or terminate the daemon."""
         while not self._stop.is_set():
             await self.cycle()
             try:

@@ -3,11 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from math import isfinite
-from statistics import mean
 from datetime import datetime
+from math import isfinite
 
-from .epistemology_p0.advanced import Forecast
+from ..epistemology_p0.advanced import Forecast
 from app.validation.circuit_breaker import CalibrationCircuitBreaker
 
 
@@ -32,6 +31,11 @@ class ValidationReport:
             raise ValueError("sample_size must be positive")
         if self.evaluated_at.tzinfo is None or self.evaluated_at.utcoffset() is None:
             raise ValueError("evaluated_at must be timezone-aware")
+        numeric = (self.mae, self.mse, self.bias)
+        if not all(isfinite(value) for value in numeric):
+            raise ValueError("validation metrics must be finite")
+        if self.mae < 0.0 or self.mse < 0.0:
+            raise ValueError("mae and mse must be non-negative")
 
 
 @dataclass(frozen=True, slots=True)
@@ -80,6 +84,8 @@ class ClosedLoopCalibrator:
             raise ValueError("forecast cannot be resolved before target_time")
         if not isfinite(float(realized_value)):
             raise ValueError("realized_value must be finite")
+        if interval_coverage is not None and not 0.0 <= interval_coverage <= 1.0:
+            raise ValueError("interval_coverage must be between 0 and 1")
         error = forecast.point - float(realized_value)
         baseline_error = baseline - float(realized_value)
         mse = error * error

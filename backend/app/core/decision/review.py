@@ -36,8 +36,6 @@ class HumanReviewService:
                 raise ValueError("automation-bias review protocol is incomplete")
         timestamp = datetime.now(timezone.utc).isoformat()
         review_id = sha256(f"{decision_id}|{actor_id}|{timestamp}".encode()).hexdigest()
-        if automation_protocol is not None and automation_protocol.review_id != review_id:
-            raise ValueError("automation-bias protocol must reference the generated review_id")
         review = HumanDecisionReview(
             decision_id=decision_id,
             review_id=review_id,

@@ -49,6 +49,7 @@ class ValidationSummary:
 
     @property
     def status(self) -> ValidationStatus:
+        lead_time_valid = self.lead_time_seconds is not None and self.lead_time_seconds >= 0
         return (
             ValidationStatus.VALIDATED
             if all(
@@ -60,8 +61,7 @@ class ValidationSummary:
                     self.adversarial_passed,
                     self.drift_assessed,
                     self.test_samples > 0,
-                    self.lead_time_seconds is not None,
-                    self.lead_time_seconds >= 0,
+                    lead_time_valid,
                 )
             )
             else ValidationStatus.BLOCKED

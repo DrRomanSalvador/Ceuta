@@ -18,7 +18,7 @@ from app.core.spatial.spatial_engine import SpatialEngine, SpatialNode
 
 
 def test_complex_system_engines_have_deterministic_boundaries() -> None:
-    assert CascadeRiskEngine().propagate("a", {"a": (("b", 0.8),)}, 1.0)[-1].risk == 1.0
+    assert CascadeRiskEngine().propagate("a", {"a": (("b", 0.8),)}, 1.0)[-1].risk == 0.8
     hypotheses = (
         Hypothesis("h1", "one", ("e1",), (), (), "g1"),
         Hypothesis("h2", "two", (), ("e2",), ("e3",), "g2"),

@@ -13,6 +13,7 @@
     "event_time": {"type": ["string", "null"], "format": "date-time"},
     "observed_at": {"type": "string", "format": "date-time"},
     "ingestion_time": {"type": "string", "format": "date-time"},
+    "revision_time": {"type": ["string", "null"], "format": "date-time"},
     "uncertainty": {
       "type": "object",
       "additionalProperties": false,

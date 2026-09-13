@@ -43,5 +43,14 @@ jobs:
       - name: Run state trajectory tests
         run: python -m pytest ../tests/test_state_trajectory.py -q
 
+      - name: Run longitudinal state estimation tests
+        run: python -m pytest ../tests/test_state_estimation.py -q
+
       - name: Run deterministic state trajectory verifier
         run: python ../scripts/verify_state_trajectory.py
+
+      - name: Run deterministic state estimation verifier
+        run: python ../scripts/verify_state_estimation.py
+
+      - name: Emit validation checkpoint
+        run: echo "CeutIA state trajectory and estimation validation checkpoint completed"

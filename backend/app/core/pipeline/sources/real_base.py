@@ -54,7 +54,13 @@ class RealSourceEnvelope:
 
 @dataclass(frozen=True, slots=True)
 class SourceObservation:
-    """Adapter-level observation before source-independent normalization."""
+    """Adapter-level observation before source-independent normalization.
+
+    ``content_fingerprint`` is the parser's semantic identity for the underlying
+    event/article/sensor sample. It deliberately excludes publisher identity so
+    independently fetched mirrors can be clustered without treating propagation
+    as independent evidence.
+    """
 
     variable: str
     value: float
@@ -64,8 +70,19 @@ class SourceObservation:
     source_id: str
     evidence_id: str
     provenance_hash: str
+    content_fingerprint: str | None = None
     quality: float = 1.0
     unit: str | None = None
+
+    def __post_init__(self) -> None:
+        if self.event_time.tzinfo is None or self.event_time.utcoffset() is None:
+            raise ValueError("event_time must be timezone-aware")
+        if self.available_at.tzinfo is None or self.available_at.utcoffset() is None:
+            raise ValueError("available_at must be timezone-aware")
+        if self.available_at < self.event_time:
+            raise ValueError("available_at cannot precede event_time")
+        if self.content_fingerprint is not None and not self.content_fingerprint:
+            raise ValueError("content_fingerprint must not be empty when provided")
 
     def to_record(self) -> ObservationRecord:
         return ObservationRecord(

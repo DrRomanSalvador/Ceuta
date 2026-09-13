@@ -5,12 +5,18 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: ceutia-ci-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   test:
+    name: Compile, test and validate Compose
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

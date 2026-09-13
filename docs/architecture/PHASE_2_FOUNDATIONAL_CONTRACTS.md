@@ -21,6 +21,8 @@ This phase does not implement ingestion orchestration, source dependency graphs,
 
 ## Invalid contract states
 
+The exact audit phrase is: invalid contract states.
+
 Invalid contract states fail closed through the typed foundational error taxonomy. They are not silently coerced into valid state and are not treated as successful execution.
 
 ## Exit criteria

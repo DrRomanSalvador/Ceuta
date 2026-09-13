@@ -44,6 +44,19 @@ def test_filter_updates_latent_state_and_increases_process_uncertainty_over_time
     assert second_estimate.variance < second_estimate.prior_variance
 
 
+def test_prediction_explicitly_represents_missing_observation() -> None:
+    estimator = ScalarKalmanFilter("signal", 0.0, 1.0, 0.1)
+    estimator.update(observation("o1", 5.0, 0), 1.0)
+
+    predicted = estimator.predict_to(datetime(2026, 1, 1, 0, 0, 10, tzinfo=timezone.utc))
+
+    assert predicted.observation_id is None
+    assert predicted.innovation is None
+    assert predicted.mean == pytest.approx(2.5)
+    assert predicted.variance == pytest.approx(1.0)
+    assert predicted.prior_variance == pytest.approx(2.0)
+
+
 def test_filter_rejects_time_reversal_and_wrong_variable() -> None:
     estimator = ScalarKalmanFilter("signal", 0.0, 1.0, 0.0)
     estimator.update(observation("o1", 1.0, 10), 1.0)

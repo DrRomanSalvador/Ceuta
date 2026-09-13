@@ -13,6 +13,10 @@ from enum import Enum
 from typing import Any, Dict, List, Optional, Set
 import uuid
 
+from ..observation_boundary import admit_observation
+from ..p0_contracts import EvidenceContract
+from .hypotheses import Hypothesis
+
 
 class NodeKind(str, Enum):
     SOURCE = "source"
@@ -145,6 +149,63 @@ class SemanticGraph:
         self._out.setdefault(from_id, []).append(eid)
         self._in.setdefault(to_id, []).append(eid)
         return edge
+
+    def add_evidence_contract(
+        self,
+        evidence: EvidenceContract,
+        *,
+        evaluation_time: datetime,
+    ) -> GraphNode:
+        """Integrate only a temporally eligible canonical P0 evidence contract."""
+        admitted, eligibility = admit_observation(evidence, evaluation_time=evaluation_time)
+        source = self.add_node(
+            NodeKind.SOURCE,
+            admitted.source_id,
+            admitted.source_id,
+            {"source_relation": admitted.source_relation.value},
+        )
+        claim = self.add_node(
+            NodeKind.CLAIM,
+            admitted.claim,
+            f"claim-{admitted.evidence_id}",
+            {
+                "epistemic_status": admitted.epistemic_status.value,
+                "available_at": admitted.available_at.isoformat(),
+            },
+        )
+        evidence_node = self.add_node(
+            NodeKind.EVIDENCE,
+            admitted.evidence_id,
+            admitted.evidence_id,
+            {
+                "epistemic_status": admitted.epistemic_status.value,
+                "available_at": admitted.available_at.isoformat(),
+                "eligible_at": eligibility.evaluation_time.isoformat(),
+                "source_relation": admitted.source_relation.value,
+                "uncertainty": admitted.uncertainty.model_dump(mode="json"),
+                "provenance": [item.model_dump(mode="json") for item in admitted.provenance],
+            },
+        )
+        self.add_edge(EdgeKind.SUPPORTS, evidence_node.node_id, claim.node_id)
+        self.add_edge(EdgeKind.ABOUT, evidence_node.node_id, source.node_id)
+        if admitted.event_time is not None:
+            event_id = f"event-{admitted.evidence_id}"
+            self.add_node(
+                NodeKind.EVENT,
+                admitted.event_time.isoformat(),
+                event_id,
+                {"event_time": admitted.event_time.isoformat()},
+            )
+            self.add_edge(EdgeKind.ABOUT, evidence_node.node_id, event_id)
+        return evidence_node
+
+    def add_hypothesis(self, hypothesis: Hypothesis) -> GraphNode:
+        return self.add_node(
+            NodeKind.HYPOTHESIS,
+            hypothesis.statement,
+            hypothesis.hypothesis_id,
+            hypothesis.to_dict(),
+        )
 
     def _validate_causal_edge(self, kind: EdgeKind, properties: Dict[str, Any]) -> None:
         missing = [field for field in self._CAUSAL_FIELDS if not properties.get(field)]

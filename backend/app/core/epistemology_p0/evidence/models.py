@@ -159,6 +159,25 @@ class Evidence:
             raise ValueError("source_reliability debe estar entre 0.0 y 1.0")
         if self.ingestion_time is None:
             raise ValueError("ingestion_time es obligatorio")
+        if self.ingestion_time.tzinfo is None:
+            raise ValueError("ingestion_time debe ser timezone-aware")
+        for name in (
+            "event_time", "publication_time", "revision_time", "detection_time",
+            "assessment_time", "impact_time", "created_at",
+        ):
+            value = getattr(self, name)
+            if value is not None and value.tzinfo is None:
+                raise ValueError(f"{name} debe ser timezone-aware")
+
+    @property
+    def available_at(self) -> datetime:
+        """Single legacy-compatible analytical availability boundary.
+
+        Event time is deliberately excluded. A revised version becomes available
+        at its revision time; otherwise publication time is preferred, and the
+        ingestion timestamp is the conservative lower-information fallback.
+        """
+        return self.revision_time or self.publication_time or self.ingestion_time
 
     def to_dict(self) -> dict:
         def _ser(obj: Any) -> Any:
@@ -187,6 +206,7 @@ class Evidence:
             "location": _ser(self.location) if self.location else None,
             "event_time": _ser(self.event_time),
             "publication_time": _ser(self.publication_time),
+            "available_at": _ser(self.available_at),
             "ingestion_time": _ser(self.ingestion_time),
             "revision_time": _ser(self.revision_time),
             "detection_time": _ser(self.detection_time),
@@ -287,8 +307,12 @@ def create_evidence(
     provenance: Optional[List[ProvenanceStep]] = None,
     unavailable_fields: Optional[Dict[str, str]] = None,
 ) -> Evidence:
-    """Toda evidencia nueva nace como ATTRIBUTED_CLAIM salvo justificación explícita."""
+    """Create evidence with explicit uncertainty; unknown uncertainty is preserved, not omitted."""
     now = datetime.now(timezone.utc)
+    explicit_uncertainty = uncertainty or Uncertainty(
+        type=UncertaintyType.UNKNOWN,
+        qualitative="uncertainty not quantified by source",
+    )
     return Evidence(
         evidence_id=f"ev-{uuid.uuid4().hex[:12]}",
         version=1,
@@ -310,7 +334,7 @@ def create_evidence(
         methodology=methodology,
         source_reliability=source_reliability,
         source_independence=source_independence,
-        uncertainty=uncertainty,
+        uncertainty=explicit_uncertainty,
         provenance=provenance or [],
         transformation_history=[],
         corroboration=[],

@@ -18,14 +18,14 @@ def _require_aware(value: datetime, field_name: str) -> None:
         raise ValueError(f"{field_name} must be timezone-aware")
 
 
+def _require_nonempty_sequence(values: tuple[str, ...], field_name: str) -> None:
+    if not values or any(not value for value in values):
+        raise ValueError(f"{field_name} must contain at least one non-empty value")
+
+
 @dataclass(frozen=True, slots=True)
 class PipelineEvent:
-    """Envelope used by the asynchronous event bus.
-
-    ``payload`` is intentionally transport-level and may be any object, but
-    stage boundaries must exchange the typed contracts defined below rather
-    than unvalidated dictionaries.
-    """
+    """Envelope used by the asynchronous event bus."""
 
     event_id: str
     event_type: str
@@ -65,12 +65,7 @@ class ObservationRecord:
     provenance_hash: str
 
     def __post_init__(self) -> None:
-        for name in (
-            "observation_id",
-            "variable",
-            "domain",
-            "provenance_hash",
-        ):
+        for name in ("observation_id", "variable", "domain", "provenance_hash"):
             if not getattr(self, name):
                 raise ValueError(f"{name} must not be empty")
         if not isfinite(float(self.value)):
@@ -79,52 +74,129 @@ class ObservationRecord:
         _require_aware(self.available_at, "available_at")
         if self.available_at < self.event_time:
             raise ValueError("available_at cannot precede event_time")
-        if not self.source_ids:
-            raise ValueError("at least one source_id is required")
+        _require_nonempty_sequence(self.source_ids, "source_ids")
+        if any(not value for value in self.evidence_ids):
+            raise ValueError("evidence_ids must not contain empty values")
         if not 0.0 <= self.quality <= 1.0:
             raise ValueError("quality must be between 0 and 1")
 
 
 @dataclass(frozen=True, slots=True)
-class ValidationReport:
-    """Prospective forecast-validation result.
-
-    A report is evidence about model performance, not evidence about the
-    underlying world. The calibration gate therefore treats malformed or
-    incomplete mathematical inputs as failures rather than silently passing.
-    """
+class VariableState:
+    """Current dynamic state of one observed variable."""
 
     variable: str
-    sample_size: int
-    mae: float
-    mse: float
-    bias: float
-    interval_coverage: float | None
-    baseline_mse: float | None
-    degradation_ratio: float | None
-    passed: bool
-    reason: str
+    value: float
+    previous_value: float | None
+    velocity: float | None
+    acceleration: float | None
+    observations: int
+    updated_at: datetime
+    evidence_ids: tuple[str, ...]
 
     def __post_init__(self) -> None:
         if not self.variable:
             raise ValueError("variable must not be empty")
-        if self.sample_size < 0:
-            raise ValueError("sample_size must be non-negative")
-        for name in ("mae", "mse", "bias"):
-            value = float(getattr(self, name))
-            if not isfinite(value):
+        for name in ("value", "previous_value", "velocity", "acceleration"):
+            value = getattr(self, name)
+            if value is not None and not isfinite(float(value)):
+                raise ValueError(f"{name} must be finite when provided")
+        if self.observations < 1:
+            raise ValueError("observations must be positive")
+        _require_aware(self.updated_at, "updated_at")
+        if any(not value for value in self.evidence_ids):
+            raise ValueError("evidence_ids must not contain empty values")
+
+
+@dataclass(frozen=True, slots=True)
+class DomainState:
+    """Immutable aggregate state for one system domain."""
+
+    domain: str
+    variables: tuple[VariableState, ...]
+    observation_ids: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        if not self.domain:
+            raise ValueError("domain must not be empty")
+        if any(not isinstance(item, VariableState) for item in self.variables):
+            raise TypeError("variables must contain only VariableState objects")
+        _require_nonempty_sequence(self.observation_ids, "observation_ids")
+        if len({item.variable for item in self.variables}) != len(self.variables):
+            raise ValueError("domain variables must be unique")
+
+
+@dataclass(frozen=True, slots=True)
+class Interaction:
+    """Observed association between two variables; not a causal assertion."""
+
+    upstream: str
+    downstream: str
+    coupling: float
+    lag_steps: int = 1
+    mechanism: str = "association"
+
+    def __post_init__(self) -> None:
+        if not self.upstream or not self.downstream:
+            raise ValueError("interaction endpoints are required")
+        if self.upstream == self.downstream:
+            raise ValueError("self-interactions are not supported")
+        if not isfinite(float(self.coupling)) or not 0.0 <= self.coupling <= 1.0:
+            raise ValueError("coupling must be finite and between 0 and 1")
+        if self.lag_steps < 1:
+            raise ValueError("lag_steps must be >= 1")
+        if not self.mechanism:
+            raise ValueError("mechanism must not be empty")
+
+
+@dataclass(frozen=True, slots=True)
+class InteractionEffect:
+    """Computed dynamic association effect; explicitly non-causal."""
+
+    upstream: str
+    downstream: str
+    coupling: float
+    upstream_velocity: float
+    estimated_effect: float
+    interpretation: str = "association-based dynamic coupling; not causal"
+    status: str = "UNVERIFIED"
+
+    def __post_init__(self) -> None:
+        if not self.upstream or not self.downstream:
+            raise ValueError("interaction endpoints are required")
+        for name in ("coupling", "upstream_velocity", "estimated_effect"):
+            if not isfinite(float(getattr(self, name))):
                 raise ValueError(f"{name} must be finite")
-            if name in {"mae", "mse"} and value < 0.0:
-                raise ValueError(f"{name} must be non-negative")
-        if self.interval_coverage is not None and not 0.0 <= self.interval_coverage <= 1.0:
-            raise ValueError("interval_coverage must be between 0 and 1")
-        if self.baseline_mse is not None:
-            if not isfinite(self.baseline_mse) or self.baseline_mse < 0.0:
-                raise ValueError("baseline_mse must be finite and non-negative")
-        if self.degradation_ratio is not None:
-            if not isfinite(self.degradation_ratio) or self.degradation_ratio < 0.0:
-                raise ValueError("degradation_ratio must be finite and non-negative")
-        if not isinstance(self.passed, bool):
-            raise ValueError("passed must be a boolean")
-        if not self.reason:
-            raise ValueError("reason must not be empty")
+        if not 0.0 <= self.coupling <= 1.0:
+            raise ValueError("coupling must be between 0 and 1")
+        if not self.interpretation or not self.status:
+            raise ValueError("interpretation and status must not be empty")
+
+
+@dataclass(frozen=True, slots=True)
+class SystemStateContract:
+    """Auditable multidomain system state emitted by the state stage."""
+
+    state_id: str
+    as_of: datetime
+    domains: tuple[DomainState, ...]
+    interactions: tuple[Interaction, ...]
+    interaction_effects: tuple[InteractionEffect, ...]
+    observation_ids: tuple[str, ...]
+    schema_version: str
+
+    def __post_init__(self) -> None:
+        if not self.state_id or not self.schema_version:
+            raise ValueError("state_id and schema_version must not be empty")
+        _require_aware(self.as_of, "as_of")
+        if not self.domains:
+            raise ValueError("system state must contain at least one domain")
+        if any(not isinstance(item, DomainState) for item in self.domains):
+            raise TypeError("domains must contain only DomainState objects")
+        if len({item.domain for item in self.domains}) != len(self.domains):
+            raise ValueError("system state domains must be unique")
+        _require_nonempty_sequence(self.observation_ids, "observation_ids")
+        if any(not isinstance(item, Interaction) for item in self.interactions):
+            raise TypeError("interactions must contain only Interaction objects")
+        if any(not isinstance(item, InteractionEffect) for item in self.interaction_effects):
+            raise TypeError("interaction_effects must contain only InteractionEffect objects")

@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ceutia.local/contracts/event.schema.json",
+  "title": "Event",
+  "description": "Discrete event record. Must carry provenance and must not silently upgrade epistemic status.",
+  "type": "object",
+  "required": [
+    "event_id",
+    "occurred_at",
+    "recorded_at",
+    "event_type",
+    "source_id",
+    "payload"
+  ],
+  "properties": {
+    "event_id": { "type": "string", "minLength": 1 },
+    "occurred_at": { "type": "string", "format": "date-time" },
+    "recorded_at": { "type": "string", "format": "date-time" },
+    "event_type": { "type": "string", "minLength": 1 },
+    "source_id": { "type": "string", "minLength": 1 },
+    "payload": {},
+    "related_observation_ids": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "related_evidence_ids": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "notes": { "type": ["string", "null"] }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ceutia.local/contracts/v1/alert-dossier.schema.json",
+  "title": "CeutIA Alert Dossier Contract v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["alert_id", "level", "status", "claim_ids", "evidence_ids", "uncertainty", "provenance", "created_at", "schema_version"],
+  "properties": {
+    "alert_id": {"type": "string", "minLength": 1},
+    "level": {"type": "integer", "minimum": 0},
+    "status": {"enum": ["PROPOSED", "PENDING_VERIFICATION", "ACTIVE", "REJECTED", "SUPERSEDED", "UNKNOWN"]},
+    "claim_ids": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "evidence_ids": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "uncertainty": {"type": "object"},
+    "provenance": {"type": "array", "items": {"type": "object"}},
+    "created_at": {"type": "string", "format": "date-time"},
+    "review_required": {"type": "boolean", "default": true},
+    "schema_version": {"const": "1.0.0"}
+  }
+}

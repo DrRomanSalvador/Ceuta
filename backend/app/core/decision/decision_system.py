@@ -19,6 +19,13 @@ class DecisionDisposition(str, Enum):
     HUMAN_REVIEW = "human_review"
 
 
+class DecisionConstraint(str, Enum):
+    MAX_RESOURCE_COST = "max_resource_cost"
+    MAX_EXPECTED_HARM = "max_expected_harm"
+    MAX_REGRET = "max_regret"
+    MIN_WORST_CASE_UTILITY = "min_worst_case_utility"
+
+
 @dataclass(frozen=True, slots=True)
 class DecisionObjective:
     name: str
@@ -49,6 +56,9 @@ class DecisionContext:
             raise ValueError("at least one decision objective is required")
         if any(not isfinite(float(v)) for v in self.constraints.values()):
             raise ValueError("decision constraints must be finite")
+        unsupported = set(self.constraints) - {item.value for item in DecisionConstraint}
+        if unsupported:
+            raise ValueError(f"unsupported decision constraints: {sorted(unsupported)}")
 
 
 @dataclass(frozen=True, slots=True)
@@ -165,19 +175,22 @@ class DecisionSystem:
             return self._abstain(context, mode, "all options exceed uncertainty threshold", provenance, reevaluation_triggers)
 
         scored = [(o, self._metrics(o)) for o in eligible]
+        constrained = tuple((o, metrics) for o, metrics in scored if self._satisfies_constraints(context.constraints, o, metrics))
+        if not constrained:
+            return self._abstain(context, mode, "no option satisfies decision constraints", provenance, reevaluation_triggers)
+
         if mode is DecisionMode.ROBUST:
-            chosen, metrics = max(scored, key=lambda item: item[1][0])
+            chosen, metrics = max(constrained, key=lambda item: item[1][0])
         elif mode is DecisionMode.HARM_MINIMIZATION:
-            chosen, metrics = min(scored, key=lambda item: (item[1][2], -item[1][0]))
+            chosen, metrics = min(constrained, key=lambda item: (item[1][2], -item[1][0]))
         elif mode is DecisionMode.REGRET:
-            chosen, metrics = min(scored, key=lambda item: (item[1][3], -item[1][1]))
+            chosen, metrics = min(constrained, key=lambda item: (item[1][3], -item[1][1]))
         else:
-            chosen, metrics = max(scored, key=lambda item: item[1][1])
+            chosen, metrics = max(constrained, key=lambda item: item[1][1])
 
         worst, expected, harm, regret = metrics
         normalized_uncertainty = chosen.uncertainty
-        disposition = (DecisionDisposition.HUMAN_REVIEW if normalized_uncertainty >= human_review_threshold
-                       else DecisionDisposition.RECOMMEND)
+        disposition = DecisionDisposition.HUMAN_REVIEW if normalized_uncertainty >= human_review_threshold else DecisionDisposition.RECOMMEND
         score = worst if mode is DecisionMode.ROBUST else expected if mode is DecisionMode.UTILITY else -regret if mode is DecisionMode.REGRET else -harm
         information_value = max((request.net_value for request in information_requests), default=0.0)
         reasons = (
@@ -186,11 +199,16 @@ class DecisionSystem:
             f"best_supplied_information_net_value={information_value:.6f}",
             "decision is conditional on supplied scenarios and assumptions",
         )
-        return DecisionRecommendation(
-            context.decision_id, chosen.option_id, disposition, mode, score,
-            worst, expected, harm, regret, information_value, reasons,
-            tuple(provenance), tuple(reevaluation_triggers),
-        )
+        return DecisionRecommendation(context.decision_id, chosen.option_id, disposition, mode, score, worst, expected, harm, regret, information_value, reasons, tuple(provenance), tuple(reevaluation_triggers))
+
+    @staticmethod
+    def _satisfies_constraints(constraints: Mapping[str, float], option: DecisionOption, metrics: tuple[float, float, float, float]) -> bool:
+        worst, expected, harm, regret = metrics
+        return all((key != DecisionConstraint.MAX_RESOURCE_COST.value or option.resource_cost <= limit) and
+                   (key != DecisionConstraint.MAX_EXPECTED_HARM.value or harm <= limit) and
+                   (key != DecisionConstraint.MAX_REGRET.value or regret <= limit) and
+                   (key != DecisionConstraint.MIN_WORST_CASE_UTILITY.value or worst >= limit)
+                   for key, limit in constraints.items())
 
     @staticmethod
     def _metrics(option: DecisionOption) -> tuple[float, float, float, float]:
@@ -202,7 +220,11 @@ class DecisionSystem:
 
     @staticmethod
     def _abstain(context: DecisionContext, mode: DecisionMode, reason: str, provenance: Sequence[str], triggers: Sequence[str]) -> DecisionRecommendation:
-        return DecisionRecommendation(
-            context.decision_id, "ABSTAIN", DecisionDisposition.ABSTAIN, mode,
-            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, (reason,), tuple(provenance), tuple(triggers)
-        )
+        return DecisionRecommendation(context.decision_id, "ABSTAIN", DecisionDisposition.ABSTAIN, mode, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, (reason,), tuple(provenance), tuple(triggers))
+
+
+__all__ = [
+    "DecisionConstraint", "DecisionContext", "DecisionDisposition", "DecisionFeedback",
+    "DecisionMode", "DecisionObjective", "DecisionOption", "DecisionRecommendation",
+    "DecisionSystem", "InformationRequest", "ScenarioOutcome",
+]

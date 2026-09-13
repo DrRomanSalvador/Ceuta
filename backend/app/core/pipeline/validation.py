@@ -7,35 +7,7 @@ from datetime import datetime
 from math import isfinite
 
 from ..epistemology_p0.advanced import Forecast
-from app.validation.circuit_breaker import CalibrationCircuitBreaker
-
-
-@dataclass(frozen=True, slots=True)
-class ValidationReport:
-    forecast_id: str
-    variable: str
-    sample_size: int
-    mae: float
-    mse: float
-    bias: float
-    baseline_mse: float | None
-    degradation_ratio: float | None
-    interval_coverage: float | None
-    passed: bool
-    evaluated_at: datetime
-
-    def __post_init__(self) -> None:
-        if not self.forecast_id or not self.variable:
-            raise ValueError("forecast_id and variable are required")
-        if self.sample_size < 1:
-            raise ValueError("sample_size must be positive")
-        if self.evaluated_at.tzinfo is None or self.evaluated_at.utcoffset() is None:
-            raise ValueError("evaluated_at must be timezone-aware")
-        numeric = (self.mae, self.mse, self.bias)
-        if not all(isfinite(value) for value in numeric):
-            raise ValueError("validation metrics must be finite")
-        if self.mae < 0.0 or self.mse < 0.0:
-            raise ValueError("mae and mse must be non-negative")
+from app.validation.circuit_breaker import CalibrationCircuitBreaker, ValidationReport
 
 
 @dataclass(frozen=True, slots=True)
@@ -84,6 +56,8 @@ class ClosedLoopCalibrator:
             raise ValueError("forecast cannot be resolved before target_time")
         if not isfinite(float(realized_value)):
             raise ValueError("realized_value must be finite")
+        if sample_size < 1:
+            raise ValueError("sample_size must be positive")
         if interval_coverage is not None and not 0.0 <= interval_coverage <= 1.0:
             raise ValueError("interval_coverage must be between 0 and 1")
         error = forecast.point - float(realized_value)

@@ -51,6 +51,7 @@ class CeutIADaemon:
         self.store = TemporalStateStore()
         self.engine = ComplexSystemAnticipationEngine(DynamicSystemMonitor(interactions))
         self.calibrator = calibrator or ClosedLoopCalibrator()
+        self._processed_observation_ids: set[str] = set()
         self._stop = asyncio.Event()
         self._health = RuntimeHealth(True, None, 0, 0, 0, None)
 
@@ -59,20 +60,22 @@ class CeutIADaemon:
         accepted = 0
         failures = self._health.source_failures
         errors: list[str] = []
-        new_records = []
         for source in self.sources:
             try:
                 envelope = await source.fetch(now=evaluation_time)
                 self.registry.register_envelope(envelope)
                 records = self.registry.accept(source.parse(envelope))
                 self.store.append(records)
-                new_records.extend(records)
                 accepted += len(records)
             except Exception as exc:  # noqa: BLE001 - isolate source failures
                 failures += 1
                 errors.append(f"{source.source_id}: {type(exc).__name__}: {exc}")
 
-        if new_records:
+        snapshot = self.store.snapshot(as_of=evaluation_time)
+        eligible = tuple(
+            record for record in snapshot.observations if record.observation_id not in self._processed_observation_ids
+        )
+        if eligible:
             observations = tuple(
                 Observation(
                     variable=item.variable,
@@ -83,22 +86,18 @@ class CeutIADaemon:
                     evidence_ids=item.evidence_ids,
                     quality=item.quality,
                 )
-                for item in new_records
-                if item.available_at <= evaluation_time
+                for item in eligible
             )
-            if observations:
-                state, forecasts = self.engine.cycle(
-                    observations,
-                    as_of=evaluation_time,
-                    forecast_horizon=self.interval,
-                )
-                for forecast in forecasts:
-                    self.calibrator.register(forecast)
-                _ = state
+            state, forecasts = self.engine.cycle(
+                observations,
+                as_of=evaluation_time,
+                forecast_horizon=self.interval,
+            )
+            self._processed_observation_ids.update(item.observation_id for item in eligible)
+            for forecast in forecasts:
+                self.calibrator.register(forecast)
+            _ = state
 
-        # The store remains authoritative for temporal state even when no new
-        # source payload arrived during this cycle.
-        _ = self.store.snapshot(as_of=evaluation_time)
         cycles = self._health.cycles + 1
         self._health = RuntimeHealth(
             healthy=not errors,

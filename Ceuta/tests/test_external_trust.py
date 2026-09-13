@@ -22,7 +22,9 @@ def configure(private: Ed25519PrivateKey) -> None:
     os.environ["CEUTIA_EXTERNAL_TRUST_KEY_ID"] = "owner-key-1"
 
 
-def make_attestation(private: Ed25519PrivateKey, *, artifact: str, control: str, policy: str) -> ExternalAttestation:
+def make_attestation(
+    private: Ed25519PrivateKey, *, artifact: str, control: str, policy: str
+) -> ExternalAttestation:
     now = int(time.time())
     unsigned = ExternalAttestation(
         authority="external-owner-authority",
@@ -36,7 +38,17 @@ def make_attestation(private: Ed25519PrivateKey, *, artifact: str, control: str,
         signature="placeholder",
     )
     signature = base64.b64encode(private.sign(unsigned.unsigned_payload())).decode()
-    return ExternalAttestation(**{**unsigned.__dict__, "signature": signature})
+    return ExternalAttestation(
+        authority=unsigned.authority,
+        key_id=unsigned.key_id,
+        artifact_digest=unsigned.artifact_digest,
+        control_plane_digest=unsigned.control_plane_digest,
+        policy_version=unsigned.policy_version,
+        issued_at=unsigned.issued_at,
+        expires_at=unsigned.expires_at,
+        nonce=unsigned.nonce,
+        signature=signature,
+    )
 
 
 def test_valid_external_attestation() -> None:
@@ -44,7 +56,12 @@ def test_valid_external_attestation() -> None:
     configure(private)
     verifier = ExternalTrustVerifier()
     attestation = make_attestation(private, artifact="a" * 64, control="b" * 64, policy="2026-09-10")
-    verifier.verify(attestation, artifact_digest="a" * 64, control_plane_digest="b" * 64, policy_version="2026-09-10")
+    verifier.verify(
+        attestation,
+        artifact_digest="a" * 64,
+        control_plane_digest="b" * 64,
+        policy_version="2026-09-10",
+    )
 
 
 def test_missing_external_root_fails_closed(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -61,7 +78,12 @@ def test_tampered_artifact_is_rejected() -> None:
     verifier = ExternalTrustVerifier()
     attestation = make_attestation(private, artifact="a" * 64, control="b" * 64, policy="2026-09-10")
     with pytest.raises(ExternalTrustError):
-        verifier.verify(attestation, artifact_digest="c" * 64, control_plane_digest="b" * 64, policy_version="2026-09-10")
+        verifier.verify(
+            attestation,
+            artifact_digest="c" * 64,
+            control_plane_digest="b" * 64,
+            policy_version="2026-09-10",
+        )
 
 
 def test_tampered_signature_is_rejected() -> None:
@@ -69,6 +91,21 @@ def test_tampered_signature_is_rejected() -> None:
     configure(private)
     verifier = ExternalTrustVerifier()
     attestation = make_attestation(private, artifact="a" * 64, control="b" * 64, policy="2026-09-10")
-    bad = ExternalAttestation(**{**attestation.__dict__, "signature": base64.b64encode(b"bad").decode()})
+    bad = ExternalAttestation(
+        authority=attestation.authority,
+        key_id=attestation.key_id,
+        artifact_digest=attestation.artifact_digest,
+        control_plane_digest=attestation.control_plane_digest,
+        policy_version=attestation.policy_version,
+        issued_at=attestation.issued_at,
+        expires_at=attestation.expires_at,
+        nonce=attestation.nonce,
+        signature=base64.b64encode(b"bad").decode(),
+    )
     with pytest.raises(ExternalTrustError):
-        verifier.verify(bad, artifact_digest="a" * 64, control_plane_digest="b" * 64, policy_version="2026-09-10")
+        verifier.verify(
+            bad,
+            artifact_digest="a" * 64,
+            control_plane_digest="b" * 64,
+            policy_version="2026-09-10",
+        )

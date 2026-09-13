@@ -160,7 +160,7 @@ class EpistemicEngine:
             probability_status = ProbabilityStatus.NOT_CALIBRATED
 
         if (
-            opposition_score > support_score
+            opposition_score >= support_score
             and opposition_score > 0.65
         ):
             state = EpistemicState.EVIDENCE_CONTRADICTED

@@ -20,37 +20,25 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
           cache: pip
-          cache-dependency-path: |
-            backend/pyproject.toml
-            backend/requirements*.txt
-
+          cache-dependency-path: pyproject.toml
       - name: Install project dependencies
         run: |
           python -m pip install --upgrade pip
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-          if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
-          if [ -f pyproject.toml ]; then pip install -e .; fi
-
+          pip install -e ".[dev]"
       - name: Compile changed state substrate
         run: python -m compileall -q app/core/state app/core/pipeline app/core/epistemology_p0
-
       - name: Run state trajectory tests
         run: python -m pytest ../tests/test_state_trajectory.py -q
-
       - name: Run longitudinal state estimation tests
         run: python -m pytest ../tests/test_state_estimation.py -q
-
       - name: Run deterministic state trajectory verifier
         run: python ../scripts/verify_state_trajectory.py
-
       - name: Run deterministic state estimation verifier
         run: python ../scripts/verify_state_estimation.py
-
       - name: Emit validation checkpoint
         run: echo "CeutIA state trajectory and estimation validation checkpoint completed"

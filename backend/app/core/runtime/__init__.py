@@ -20,5 +20,8 @@ from .uncertainty_flow import UncertaintyFlow
 from .model_governance import ModelGovernance, ModelGovernanceRecord
 from .safety import SafetyEngine, SafetyGate
 from .validation import ProspectiveValidator, ValidationResult
+from .advanced import AdvancedRuntime, AdaptationState, AdversarialAssessment, TailRisk, SimulationPath
+from .flows import FlowEngine, FlowState
+from .longitudinal_engine import LongitudinalMonitoringEngine, LongitudinalCycle
 
 __all__=[name for name in globals() if not name.startswith("_")]

@@ -13,8 +13,8 @@ from enum import Enum
 from typing import Any, Dict, List, Optional, Set
 import uuid
 
-from ..observation_boundary import admit_observation
-from ..p0_contracts import EvidenceContract
+from ...observation_boundary import admit_observation
+from ...p0_contracts import EvidenceContract
 from .hypotheses import Hypothesis
 
 

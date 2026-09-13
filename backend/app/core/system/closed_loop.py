@@ -13,7 +13,14 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
+from hashlib import sha256
 
+from ..decision.control_plane import (
+    DecisionControlPlane,
+    DecisionDisposition as ControlDisposition,
+    DecisionManifest,
+    UncertaintyState,
+)
 from ..decision.decision_system import (
     DecisionContext, DecisionMode, DecisionOption, DecisionRecommendation, DecisionSystem,
 )
@@ -73,6 +80,8 @@ class ClosedLoopInput:
     uncertainty_summary: str = "uncertainty not yet quantified"
     claims: tuple[str, ...] = ()
     limitations: tuple[str, ...] = ()
+    purpose: str = "closed-loop decision"
+    restricted: bool = False
 
     def __post_init__(self) -> None:
         if self.context.as_of.tzinfo is None or self.context.as_of.utcoffset() is None:
@@ -139,9 +148,49 @@ class ClosedLoopEngine:
     """Bounded real-time orchestration over the complete scientific lifecycle."""
 
     def __init__(self, *, inference_engine: ScientificInferenceEngine | None = None,
-                 decision_system: DecisionSystem | None = None) -> None:
+                 decision_system: DecisionSystem | None = None,
+                 control_plane: DecisionControlPlane | None = None) -> None:
         self.inference_engine = inference_engine or ScientificInferenceEngine()
         self.decision_system = decision_system or DecisionSystem()
+        self.control_plane = control_plane or DecisionControlPlane()
+
+    @staticmethod
+    def _decision_manifest(event: ClosedLoopInput) -> DecisionManifest:
+        context = event.context
+        state_refs = (f"state:{context.state.state.state_id}",)
+        evidence_refs = tuple(dict.fromkeys(
+            [f"evidence:{x.evidence_id}" for x in context.evidence]
+            + [f"evidence:{x.evidence_id}" for x in event.evidence]
+        ))
+        model_refs = tuple(f"model:{x.model_id}" for x in context.models)
+        hypothesis_refs = tuple(f"hypothesis:{x}" for x in event.hypothesis_ids)
+        scenario_refs = tuple(
+            f"scenario:{scenario.scenario_id}"
+            for option in event.decision_options
+            for scenario in option.outcomes
+        )
+        constraint_refs = tuple(f"constraint:{key}" for key in event.decision_context.constraints) if event.decision_context else ()
+        raw_config = "|".join(sorted((
+            *state_refs, *evidence_refs, *model_refs, *hypothesis_refs,
+            *scenario_refs, *constraint_refs, *event.decision_context.assumptions if event.decision_context else (),
+        )))
+        configuration_hash = sha256(raw_config.encode("utf-8")).hexdigest()
+        return DecisionManifest(
+            decision_id=event.decision_context.decision_id if event.decision_context else "",
+            state_refs=state_refs,
+            evidence_refs=evidence_refs,
+            model_refs=model_refs,
+            hypothesis_refs=hypothesis_refs,
+            transformation_refs=(),
+            assumption_refs=event.decision_context.assumptions if event.decision_context else (),
+            scenario_refs=scenario_refs,
+            utility_definition_ref="decision-objectives:v1",
+            constraint_refs=constraint_refs,
+            policy_version="1.0",
+            configuration_hash=configuration_hash,
+            code_revision="closed-loop-v1",
+            created_at=event.context.as_of.isoformat(),
+        )
 
     def process(self, event: ClosedLoopInput) -> ClosedLoopSnapshot:
         context = event.context
@@ -154,20 +203,55 @@ class ClosedLoopEngine:
             limitations=event.limitations,
         )
         decision: DecisionRecommendation | None = None
+        audit_id: str | None = None
         if event.decision_context is not None:
-            provenance = tuple(context.evidence_ids)
-            triggers = ("new observation", "material state change", "model validity change")
+            provenance = tuple(dict.fromkeys(
+                [f"state:{context.state.state.state_id}"]
+                + [f"observation:{x.observation_id}" for x in context.observations]
+                + [f"evidence:{x.evidence_id}" for x in context.evidence]
+                + [f"evidence:{x.evidence_id}" for x in event.evidence]
+                + [f"model:{x.model_id}" for x in context.models]
+                + [f"hypothesis:{x}" for x in event.hypothesis_ids]
+                + [f"causal:{x}" for x in event.causal_model_ids]
+                + [f"prediction:{x}" for x in event.prediction_ids]
+            ))
+            triggers = ("new observation", "material state change", "model validity change", "decision validity window expired")
             if not inference.usable:
                 decision = self.decision_system._abstain(
                     event.decision_context, event.decision_mode,
                     "inference is not decision-ready", provenance, triggers,
                 )
-            else:
-                decision = self.decision_system.recommend(
-                    event.decision_context, event.decision_options,
-                    mode=event.decision_mode, provenance=provenance,
-                    reevaluation_triggers=triggers,
+            elif not event.decision_options:
+                decision = self.decision_system._abstain(
+                    event.decision_context, event.decision_mode,
+                    "no admissible options", provenance, triggers,
                 )
+            else:
+                uncertainty = max(option.uncertainty for option in event.decision_options)
+                manifest = self._decision_manifest(event)
+                control = self.control_plane.authorize(
+                    decision_id=event.decision_context.decision_id,
+                    purpose=event.purpose,
+                    uncertainty=UncertaintyState(
+                        uncertainty,
+                        source_refs=tuple(dict.fromkeys((*provenance, *event.causal_model_ids))),
+                        method="decision-option-conservative-max",
+                    ),
+                    restricted=event.restricted,
+                    manifest=manifest,
+                )
+                audit_id = control.audit_event_id
+                if control.disposition is ControlDisposition.ABSTAIN:
+                    decision = self.decision_system._abstain(
+                        event.decision_context, event.decision_mode,
+                        control.reason, (*provenance, f"audit:{audit_id}"), triggers,
+                    )
+                else:
+                    decision = self.decision_system.recommend(
+                        event.decision_context, event.decision_options,
+                        mode=event.decision_mode, provenance=(*provenance, f"audit:{audit_id}"),
+                        reevaluation_triggers=triggers,
+                    )
         stages = self._build_stage_records(event, inference.plan)
         return ClosedLoopSnapshot(
             system_id=context.system_id,
@@ -182,7 +266,7 @@ class ClosedLoopEngine:
             causal_model_ids=event.causal_model_ids,
             response_ids=event.response_ids,
             learning_ids=event.learning_ids,
-            lineage=self._lineage(event, inference, decision),
+            lineage=self._lineage(event, inference, decision, audit_id=audit_id),
         )
 
     def process_into(self, kernel: SystemKernel, event: ClosedLoopInput) -> ClosedLoopSnapshot:
@@ -222,7 +306,7 @@ class ClosedLoopEngine:
 
     @staticmethod
     def _lineage(event: ClosedLoopInput, inference: InferenceResult,
-                 decision: DecisionRecommendation | None) -> tuple[str, ...]:
+                 decision: DecisionRecommendation | None, *, audit_id: str | None = None) -> tuple[str, ...]:
         context = event.context
         ids = [f"system:{context.system_id}", f"state:{context.state.state.state_id}"]
         ids.extend(sorted(f"observation:{x.observation_id}" for x in context.observations))
@@ -233,6 +317,8 @@ class ClosedLoopEngine:
         ids.extend(f"prediction:{x}" for x in event.prediction_ids)
         if decision is not None:
             ids.extend((f"decision:{decision.decision_id}", f"option:{decision.option_id}"))
+        if audit_id is not None:
+            ids.append(f"audit:{audit_id}")
         ids.extend(f"response:{x}" for x in event.response_ids)
         ids.extend(f"learning:{x}" for x in event.learning_ids)
         ids.append(f"inference-regime:{inference.plan.primary.value}")

@@ -316,7 +316,7 @@ class DecisionControlPlane:
     def authorize(self, *, decision_id: str, purpose: str, uncertainty: UncertaintyState, restricted: bool, manifest: DecisionManifest, evidence_assessments: Sequence[EvidenceAssessment] = (), conflict_resolutions: Sequence[ConflictResolution] = ()) -> DecisionControlResult:
         complete = manifest.complete()
         evidence_ids = set(manifest.evidence_refs)
-        assessed_ids = {item.evidence_id for item in evidence_assessments}
+        assessed_ids = {item.evidence_id for item in evidence_assessments} | {f"evidence:{item.evidence_id}" for item in evidence_assessments}
         missing_assessments = tuple(sorted(evidence_ids - assessed_ids))
         blocked = tuple(item.evidence_id for item in evidence_assessments if item.disposition in {EvidenceDisposition.BLOCK, EvidenceDisposition.QUARANTINE})
         corroboration = tuple(item.evidence_id for item in evidence_assessments if item.disposition is EvidenceDisposition.REQUIRE_CORROBORATION)

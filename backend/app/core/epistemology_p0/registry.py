@@ -11,12 +11,6 @@ from datetime import UTC, datetime
 import uuid
 from typing import Dict, List, Optional
 
-from ..p0_contracts import (
-    EvidenceContract,
-    ProvenanceLink,
-    SourceRelation,
-    Uncertainty as P0Uncertainty,
-)
 from .epistemology.states import EpistemicStatus
 from .evidence.models import CorroborationLink, ContradictionLink, Evidence, UncertaintyType
 from .sources.independence import SourceIndependenceGraph
@@ -64,10 +58,13 @@ class ClaimRegistry:
             self.claims[evidence.claim_id]["evidence_ids"].append(eid)
         return eid
 
-    def _validate_p0_contract(self, evidence: Evidence) -> EvidenceContract:
+    def _validate_p0_contract(self, evidence: Evidence) -> object:
         """Normalize legacy Evidence into the canonical contract without upgrading it."""
-        relation = self._source_relation(evidence.source_independence)
-        uncertainty = self._uncertainty_contract(evidence)
+        from ..p0_contracts import EvidenceContract, ProvenanceLink, SourceRelation
+        from ..p0_contracts import Uncertainty as P0Uncertainty
+
+        relation = self._source_relation(evidence.source_independence, SourceRelation)
+        uncertainty = self._uncertainty_contract(evidence, P0Uncertainty)
         independent_ids = {
             evidence.source_id if relation is SourceRelation.INDEPENDENT else None
         }
@@ -117,15 +114,17 @@ class ClaimRegistry:
         )
 
     @staticmethod
-    def _source_relation(value: str) -> SourceRelation:
+    def _source_relation(value: str, source_relation: object) -> object:
         normalized = value.strip().upper()
         try:
-            return SourceRelation(normalized)
+            return source_relation(normalized)
         except ValueError:
-            return SourceRelation.UNKNOWN
+            return source_relation.UNKNOWN
 
     @staticmethod
-    def _uncertainty_contract(evidence: Evidence) -> P0Uncertainty:
+    def _uncertainty_contract(evidence: Evidence, uncertainty_type: type) -> object:
+        from ..p0_contracts import Uncertainty as P0Uncertainty
+
         if evidence.uncertainty is None or evidence.uncertainty.type is UncertaintyType.UNKNOWN:
             return P0Uncertainty(
                 kind="unknown",

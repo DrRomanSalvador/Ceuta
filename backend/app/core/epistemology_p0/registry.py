@@ -6,12 +6,19 @@ permite que una única relación de corroboración produzca un hecho corroborado
 """
 
 from __future__ import annotations
-from typing import Dict, List, Optional
-from datetime import datetime, timezone
-import uuid
 
+from datetime import UTC, datetime
+import uuid
+from typing import Dict, List, Optional
+
+from ..p0_contracts import (
+    EvidenceContract,
+    ProvenanceLink,
+    SourceRelation,
+    Uncertainty as P0Uncertainty,
+)
 from .epistemology.states import EpistemicStatus
-from .evidence.models import Evidence, ContradictionLink, CorroborationLink
+from .evidence.models import CorroborationLink, ContradictionLink, Evidence, UncertaintyType
 from .sources.independence import SourceIndependenceGraph
 from .temporal.multitemporal import TemporalFilter
 
@@ -42,12 +49,14 @@ class ClaimRegistry:
             "document_id": document_id,
             "entities": entities or [],
             "epistemic_status": EpistemicStatus.ATTRIBUTED_CLAIM.value,
-            "registered_at": datetime.now(timezone.utc).isoformat(),
+            "registered_at": datetime.now(UTC).isoformat(),
             "evidence_ids": [],
         }
         return cid
 
     def add_evidence(self, evidence: Evidence) -> str:
+        """Admit legacy evidence only after canonical P0 contract validation."""
+        self._validate_p0_contract(evidence)
         eid = evidence.evidence_id
         self.evidences[eid] = evidence
         self.evidence_versions.setdefault(eid, []).append(evidence)
@@ -55,12 +64,90 @@ class ClaimRegistry:
             self.claims[evidence.claim_id]["evidence_ids"].append(eid)
         return eid
 
+    def _validate_p0_contract(self, evidence: Evidence) -> EvidenceContract:
+        """Normalize legacy Evidence into the canonical contract without upgrading it."""
+        relation = self._source_relation(evidence.source_independence)
+        uncertainty = self._uncertainty_contract(evidence)
+        independent_ids = {
+            evidence.source_id if relation is SourceRelation.INDEPENDENT else None
+        }
+        corroborating_ids: list[str] = []
+        for link in evidence.corroboration:
+            if (
+                link.relationship_type.strip().upper() == SourceRelation.INDEPENDENT.value
+                and link.independence_score >= 0.6
+            ):
+                independent_ids.add(link.source_id)
+                corroborating_ids.append(link.evidence_id)
+        independent_ids.discard(None)
+
+        revision = evidence.revision_time
+        ingestion = max(evidence.ingestion_time, revision) if revision else evidence.ingestion_time
+        claim = self.claims.get(evidence.claim_id, {}).get(
+            "statement", evidence.semantic_definition
+        )
+        return EvidenceContract(
+            evidence_id=evidence.evidence_id,
+            claim=str(claim),
+            source_id=evidence.source_id,
+            publication_time=evidence.publication_time,
+            event_time=evidence.event_time,
+            observed_at=evidence.publication_time or evidence.ingestion_time,
+            ingestion_time=ingestion,
+            revision_time=revision,
+            uncertainty=uncertainty,
+            epistemic_status=evidence.epistemic_status,
+            source_relation=relation,
+            provenance=(
+                ProvenanceLink(
+                    source_id=evidence.source_id,
+                    source_version=f"v{evidence.version}",
+                    relation=relation,
+                    transformation="legacy-evidence-to-p0-contract",
+                ),
+            ),
+            corroborating_evidence_ids=tuple(dict.fromkeys(corroborating_ids)),
+            independent_source_count=len(independent_ids),
+            limitations=tuple(
+                [
+                    "Legacy Evidence normalized through the canonical P0 contract.",
+                    *evidence.unavailable_fields.values(),
+                ]
+            ),
+        )
+
+    @staticmethod
+    def _source_relation(value: str) -> SourceRelation:
+        normalized = value.strip().upper()
+        try:
+            return SourceRelation(normalized)
+        except ValueError:
+            return SourceRelation.UNKNOWN
+
+    @staticmethod
+    def _uncertainty_contract(evidence: Evidence) -> P0Uncertainty:
+        if evidence.uncertainty is None or evidence.uncertainty.type is UncertaintyType.UNKNOWN:
+            return P0Uncertainty(
+                kind="unknown",
+                description="uncertainty not quantified by legacy source",
+            )
+        return P0Uncertainty(
+            kind=evidence.uncertainty.type.value,
+            lower=evidence.uncertainty.lower,
+            upper=evidence.uncertainty.upper,
+            description=(
+                evidence.uncertainty.qualitative
+                or "uncertainty represented by legacy evidence contract"
+            ),
+        )
+
     def add_evidence_version(self, new_version: Evidence) -> str:
         base_id = new_version.evidence_id
         if ":v" in base_id:
             base_id = base_id.split(":v")[0]
         if base_id not in self.evidence_versions:
             self.evidence_versions[base_id] = []
+        self._validate_p0_contract(new_version)
         self.evidence_versions[base_id].append(new_version)
         self.evidences[base_id] = new_version
         return new_version.evidence_id
@@ -119,8 +206,6 @@ class ClaimRegistry:
         new_corr_list = list(self.evidences[target_evidence_id].corroboration) + [link]
         target = self.evidences[target_evidence_id]
 
-        # A numerical score is not an epistemic upgrade. Corroboration requires
-        # explicit independent source relationships and distinct source IDs.
         independent_sources = {
             target.source_id
             if target.source_independence.strip().lower() == "independent"

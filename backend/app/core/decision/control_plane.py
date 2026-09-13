@@ -1,11 +1,4 @@
-"""Decision-system control plane for CeutIA.
-
-This module closes the operational gaps between evidence, epistemic state,
-scenario evaluation, governance, decision provenance, audit, outcomes and
-retrospective decision-quality measurement. It is deliberately deterministic:
-LLM-generated text may be attached as an explanation, but it cannot create a
-probability, policy authorization, evidence weight or decision state here.
-"""
+"""Decision-system control plane for CeutIA."""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -88,19 +81,13 @@ class ConflictResolution:
 
 
 class EvidenceConflictResolver:
-    """Resolve evidence conflicts without pretending disagreement is certainty."""
-
-    def resolve(self, claim_id: str, supporting: Sequence[EvidenceAssessment],
-                contradicting: Sequence[EvidenceAssessment]) -> ConflictResolution:
+    def resolve(self, claim_id: str, supporting: Sequence[EvidenceAssessment], contradicting: Sequence[EvidenceAssessment]) -> ConflictResolution:
         support = tuple(x for x in supporting if x.independent_origin)
         contradiction = tuple(x for x in contradicting if x.independent_origin)
         sw = sum(x.effective_weight() for x in support)
         cw = sum(x.effective_weight() for x in contradiction)
         unresolved = bool(support and contradiction and abs(sw - cw) <= max(0.25, 0.25 * max(sw, cw)))
-        return ConflictResolution(
-            claim_id, tuple(x.evidence_id for x in supporting),
-            tuple(x.evidence_id for x in contradicting), sw, cw, unresolved,
-        )
+        return ConflictResolution(claim_id, tuple(x.evidence_id for x in supporting), tuple(x.evidence_id for x in contradicting), sw, cw, unresolved)
 
 
 @dataclass(frozen=True, slots=True)
@@ -157,8 +144,6 @@ class ScenarioSpec:
 
 
 class ScenarioGenerator:
-    """Generate only explicitly supplied branches; never invent probabilities."""
-
     def generate(self, branches: Sequence[ScenarioSpec]) -> tuple[ScenarioSpec, ...]:
         if not branches:
             raise ValueError("at least one scenario is required")
@@ -193,8 +178,7 @@ class DefaultDecisionPolicy:
             return PolicyDecision(False, False, "restricted information requires an authorized policy path", self.version)
         if uncertainty >= self.abstain_uncertainty:
             return PolicyDecision(False, False, "uncertainty exceeds abstention threshold", self.version)
-        return PolicyDecision(True, uncertainty >= self.human_review_uncertainty,
-                              "authorized", self.version)
+        return PolicyDecision(True, uncertainty >= self.human_review_uncertainty, "authorized", self.version)
 
 
 @dataclass(frozen=True, slots=True)
@@ -215,29 +199,10 @@ class DecisionManifest:
     created_at: str
 
     def complete(self) -> bool:
-        return bool(
-            self.decision_id and self.state_refs and self.evidence_refs and
-            self.model_refs and self.scenario_refs and self.utility_definition_ref and
-            self.policy_version and self.configuration_hash and self.code_revision
-        )
+        return bool(self.decision_id and self.state_refs and self.evidence_refs and self.model_refs and self.scenario_refs and self.utility_definition_ref and self.policy_version and self.configuration_hash and self.code_revision)
 
     def fingerprint(self) -> str:
-        payload = {
-            "decision_id": self.decision_id,
-            "state_refs": self.state_refs,
-            "evidence_refs": self.evidence_refs,
-            "model_refs": self.model_refs,
-            "hypothesis_refs": self.hypothesis_refs,
-            "transformation_refs": self.transformation_refs,
-            "assumption_refs": self.assumption_refs,
-            "scenario_refs": self.scenario_refs,
-            "utility_definition_ref": self.utility_definition_ref,
-            "constraint_refs": self.constraint_refs,
-            "policy_version": self.policy_version,
-            "configuration_hash": self.configuration_hash,
-            "code_revision": self.code_revision,
-            "created_at": self.created_at,
-        }
+        payload = {"decision_id": self.decision_id, "state_refs": self.state_refs, "evidence_refs": self.evidence_refs, "model_refs": self.model_refs, "hypothesis_refs": self.hypothesis_refs, "transformation_refs": self.transformation_refs, "assumption_refs": self.assumption_refs, "scenario_refs": self.scenario_refs, "utility_definition_ref": self.utility_definition_ref, "constraint_refs": self.constraint_refs, "policy_version": self.policy_version, "configuration_hash": self.configuration_hash, "code_revision": self.code_revision, "created_at": self.created_at}
         return sha256(json.dumps(payload, sort_keys=True, default=str, separators=(",", ":")).encode()).hexdigest()
 
 
@@ -258,8 +223,6 @@ class AuditStore(Protocol):
 
 
 class InMemoryAuditStore:
-    """Reference store; production adapters may persist the same immutable events."""
-
     def __init__(self) -> None:
         self._events: list[DecisionAuditEvent] = []
 
@@ -333,10 +296,7 @@ class DecisionQualityEvaluator:
     def evaluate(self, outcome: DecisionOutcome, *, best_alternative_utility: float | None = None) -> DecisionQuality:
         regret = None if best_alternative_utility is None else max(0.0, best_alternative_utility - outcome.observed_utility)
         score = outcome.observed_utility - outcome.observed_harm
-        return DecisionQuality(
-            outcome.decision_id, outcome.utility_error, outcome.harm_error,
-            outcome.observed_utility, outcome.observed_harm, regret, score,
-        )
+        return DecisionQuality(outcome.decision_id, outcome.utility_error, outcome.harm_error, outcome.observed_utility, outcome.observed_harm, regret, score)
 
 
 @dataclass(frozen=True, slots=True)
@@ -349,68 +309,43 @@ class DecisionControlResult:
 
 
 class DecisionControlPlane:
-    """Mandatory control-plane gate around the existing decision engine."""
-
     def __init__(self, *, policy: DecisionPolicy | None = None, audit: DecisionAuditChain | None = None) -> None:
         self.policy = policy or DefaultDecisionPolicy()
         self.audit = audit or DecisionAuditChain()
 
-    def authorize(
-        self,
-        *,
-        decision_id: str,
-        purpose: str,
-        uncertainty: UncertaintyState,
-        restricted: bool,
-        manifest: DecisionManifest,
-    ) -> DecisionControlResult:
+    def authorize(self, *, decision_id: str, purpose: str, uncertainty: UncertaintyState, restricted: bool, manifest: DecisionManifest, evidence_assessments: Sequence[EvidenceAssessment] = (), conflict_resolutions: Sequence[ConflictResolution] = ()) -> DecisionControlResult:
         complete = manifest.complete()
+        evidence_ids = set(manifest.evidence_refs)
+        assessed_ids = {f"evidence:{item.evidence_id}" for item in evidence_assessments}
+        missing_assessments = tuple(sorted(evidence_ids - assessed_ids)) if evidence_assessments else ()
+        blocked = tuple(item.evidence_id for item in evidence_assessments if item.disposition in {EvidenceDisposition.BLOCK, EvidenceDisposition.QUARANTINE})
+        corroboration = tuple(item.evidence_id for item in evidence_assessments if item.disposition is EvidenceDisposition.REQUIRE_CORROBORATION)
+        high_adversarial = tuple(item.evidence_id for item in evidence_assessments if item.adversarial_risk >= 0.75)
+        unresolved_conflicts = tuple(item.claim_id for item in conflict_resolutions if item.unresolved)
         if not complete:
             reason = "decision manifest is incomplete; decision execution is blocked"
-            event = self.audit.append(decision_id, "decision_control", {
-                "disposition": DecisionDisposition.ABSTAIN.value,
-                "reason": reason,
-                "uncertainty": uncertainty.value,
-                "manifest_complete": False,
-                "manifest_fingerprint": manifest.fingerprint(),
-            })
+            event = self.audit.append(decision_id, "decision_control", {"disposition": DecisionDisposition.ABSTAIN.value, "reason": reason, "uncertainty": uncertainty.value, "manifest_complete": False, "manifest_fingerprint": manifest.fingerprint()})
             return DecisionControlResult(DecisionDisposition.ABSTAIN, reason, uncertainty, manifest, event.event_id)
-
-        policy = self.policy.evaluate(purpose=purpose, uncertainty=uncertainty.value, restricted=restricted)
-        if not policy.allowed:
-            disposition = DecisionDisposition.ABSTAIN
-        elif policy.human_review_required:
+        if missing_assessments:
             disposition = DecisionDisposition.HUMAN_REVIEW
+            reason = "evidence assessment is incomplete for declared decision evidence"
+        elif blocked:
+            disposition = DecisionDisposition.ABSTAIN
+            reason = "decision evidence contains blocked or quarantined items"
+        elif unresolved_conflicts or corroboration or high_adversarial:
+            disposition = DecisionDisposition.HUMAN_REVIEW
+            reason = "evidence requires unresolved-conflict, corroboration or adversarial review"
         else:
-            disposition = DecisionDisposition.RECOMMEND
-        event = self.audit.append(
-            decision_id, "decision_control", {
-                "disposition": disposition.value,
-                "reason": policy.reason,
-                "uncertainty": uncertainty.value,
-                "policy_version": policy.policy_version,
-                "manifest_complete": True,
-                "manifest_fingerprint": manifest.fingerprint(),
-                "state_refs": manifest.state_refs,
-                "evidence_refs": manifest.evidence_refs,
-                "model_refs": manifest.model_refs,
-                "hypothesis_refs": manifest.hypothesis_refs,
-                "transformation_refs": manifest.transformation_refs,
-                "assumption_refs": manifest.assumption_refs,
-                "scenario_refs": manifest.scenario_refs,
-                "constraint_refs": manifest.constraint_refs,
-                "configuration_hash": manifest.configuration_hash,
-                "code_revision": manifest.code_revision,
-            },
-        )
-        return DecisionControlResult(disposition, policy.reason, uncertainty, manifest, event.event_id)
+            policy = self.policy.evaluate(purpose=purpose, uncertainty=uncertainty.value, restricted=restricted)
+            if not policy.allowed:
+                disposition = DecisionDisposition.ABSTAIN
+            elif policy.human_review_required:
+                disposition = DecisionDisposition.HUMAN_REVIEW
+            else:
+                disposition = DecisionDisposition.RECOMMEND
+            reason = policy.reason
+        event = self.audit.append(decision_id, "decision_control", {"disposition": disposition.value, "reason": reason, "uncertainty": uncertainty.value, "manifest_complete": True, "manifest_fingerprint": manifest.fingerprint(), "policy_version": manifest.policy_version, "state_refs": manifest.state_refs, "evidence_refs": manifest.evidence_refs, "assessed_evidence_refs": tuple(sorted(assessed_ids)), "missing_evidence_assessments": missing_assessments, "blocked_evidence": blocked, "corroboration_required": corroboration, "high_adversarial_evidence": high_adversarial, "unresolved_conflicts": unresolved_conflicts, "model_refs": manifest.model_refs, "hypothesis_refs": manifest.hypothesis_refs, "transformation_refs": manifest.transformation_refs, "assumption_refs": manifest.assumption_refs, "scenario_refs": manifest.scenario_refs, "constraint_refs": manifest.constraint_refs, "configuration_hash": manifest.configuration_hash, "code_revision": manifest.code_revision})
+        return DecisionControlResult(disposition, reason, uncertainty, manifest, event.event_id)
 
 
-__all__ = [
-    "AuditStore", "ConflictResolution", "DecisionAuditChain", "DecisionAuditEvent",
-    "DecisionControlPlane", "DecisionControlResult", "DecisionDisposition", "DecisionManifest",
-    "DecisionOutcome", "DecisionPolicy", "DecisionQuality", "DecisionQualityEvaluator",
-    "DefaultDecisionPolicy", "EpistemicKind", "EpistemicRecord", "EvidenceAssessment",
-    "EvidenceConflictResolver", "EvidenceDisposition", "HumanDecisionReview", "InMemoryAuditStore",
-    "ScenarioGenerator", "ScenarioSpec", "UncertaintyState",
-]
+__all__ = ["AuditStore", "ConflictResolution", "DecisionAuditChain", "DecisionAuditEvent", "DecisionControlPlane", "DecisionControlResult", "DecisionDisposition", "DecisionManifest", "DecisionOutcome", "DecisionPolicy", "DecisionQuality", "DecisionQualityEvaluator", "DefaultDecisionPolicy", "EpistemicKind", "EpistemicRecord", "EvidenceAssessment", "EvidenceConflictResolver", "EvidenceDisposition", "HumanDecisionReview", "InMemoryAuditStore", "ScenarioGenerator", "ScenarioSpec", "UncertaintyState"]

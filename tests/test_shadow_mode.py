@@ -6,6 +6,8 @@ from hashlib import sha256
 import pytest
 
 from app.core.epistemology_p0.advanced import Forecast, Observation
+from app.core.pipeline.bus import EventBus
+from app.core.pipeline.contracts import ObservationRecord, PipelineEvent
 from app.core.pipeline.shadow_metrics import compute_shadow_gap
 from app.core.pipeline.shadow_mode import ShadowModeExecutor
 from app.core.pipeline.sources.deduplication import EvidenceDeduplicator
@@ -14,6 +16,12 @@ from app.core.pipeline.stages.causality_guard import (
     AssociationEvidence,
     CausalityGuard,
     InteractionStatus,
+)
+from app.core.pipeline.stages.shadow import (
+    SHADOW_FORECAST_EVENT,
+    SHADOW_OBSERVATION_EVENT,
+    ShadowForecastEvent,
+    ShadowModeStage,
 )
 
 UTC = timezone.utc
@@ -69,6 +77,55 @@ def test_shadow_mode_respects_available_at_and_never_promotes() -> None:
     )
     assert evaluation.squared_error == 1.0
     assert executor.production_mutation_supported is False
+
+
+@pytest.mark.asyncio
+async def test_shadow_stage_isolated_through_event_bus() -> None:
+    t0 = datetime(2026, 1, 1, tzinfo=UTC)
+    record = ObservationRecord(
+        observation_id="obs-1",
+        variable="risk",
+        value=10.0,
+        unit=None,
+        event_time=t0,
+        available_at=t0,
+        source_ids=("source-a",),
+        evidence_ids=("e1",),
+        domain="social",
+        quality=1.0,
+        provenance_hash="hash-1",
+    )
+    bus = EventBus(queue_maxsize=4)
+    executor = ShadowModeExecutor(model_version="shadow-event-v1")
+    output = await bus.subscribe(SHADOW_FORECAST_EVENT)
+    stage = ShadowModeStage(
+        bus,
+        executor=executor,
+        forecast_fn=_forecast,
+        cutoff_time_fn=lambda _: t0,
+    )
+    await stage.start()
+    try:
+        await bus.publish(
+            PipelineEvent(
+                event_id="event-1",
+                event_type=SHADOW_OBSERVATION_EVENT,
+                created_at=t0,
+                correlation_id="obs-1",
+                source_stage="test",
+                schema_version="1.0",
+                payload=record,
+            )
+        )
+        event = await output.get()
+        assert isinstance(event.payload, ShadowForecastEvent)
+        assert event.payload.status == "SHADOW_EVALUATION"
+        assert executor.production_mutation_supported is False
+        output.task_done()
+    finally:
+        await stage.stop()
+        await bus.unsubscribe(SHADOW_FORECAST_EVENT, output)
+        await bus.close()
 
 
 def test_shadow_metrics_measure_gap_against_baseline() -> None:

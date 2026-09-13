@@ -12,6 +12,7 @@ from app.core.decision.engine import ActionAlternative, DecisionAudit, DecisionC
 from app.core.decision.epistemic_gate import EpistemicDecisionGate, EpistemicDisposition
 from app.core.decision.information_boundary import InformationBoundary, InformationVisibility
 from app.core.decision.optimization import ValueOfInformation as DecisionValueOfInformation
+from app.core.decision.review_policy import DecisionRisk
 from app.core.decision.value_of_information import ValueOfInformationEngine
 from app.core.decision.voi_contract import EvaluatedInformationRequest
 from app.core.evidence.epistemic import EpistemicStatus
@@ -103,7 +104,7 @@ class DecisionRuntime:
             recommendation = self.decisions.recommend(context, options, mode=mode, provenance=audit_provenance, reevaluation_triggers=triggers, information_requests=all_information_requests, at=at)
         return DecisionRuntimeResult(recommendation, escalation, {request.question: request.net_value for request in all_information_requests}, None, control.audit_event_id)
 
-    def decide_scenarios(self, *, decision_id: str, options: Sequence[ActionAlternative], escalation: EscalationAssessment, observable: bool, identifiable: bool, calibrated: bool, model_valid: bool, causal_identified: bool = True, assumptions_satisfied: bool = True, mode: DecisionMode = DecisionMode.ROBUST, max_harm: float | None = None, information_request: DecisionValueOfInformation | None = None, assumptions: Sequence[str] = (), provenance: Sequence[str] = (), reevaluation_triggers: Sequence[str] = (), purpose: str = "decision", restricted: bool = False) -> DecisionCycleResult:
+    def decide_scenarios(self, *, decision_id: str, options: Sequence[ActionAlternative], escalation: EscalationAssessment, observable: bool, identifiable: bool, calibrated: bool, model_valid: bool, causal_identified: bool = True, assumptions_satisfied: bool = True, mode: DecisionMode = DecisionMode.ROBUST, max_harm: float | None = None, information_request: DecisionValueOfInformation | None = None, assumptions: Sequence[str] = (), provenance: Sequence[str] = (), reevaluation_triggers: Sequence[str] = (), purpose: str = "decision", restricted: bool = False, risk_class: DecisionRisk = DecisionRisk.LOW) -> DecisionCycleResult:
         gate = EpistemicGate(False, False, calibrated, model_valid, causal_identified, assumptions_satisfied) if not options or escalation.state.value in {"abstain", "critical"} else EpistemicGate(observable, identifiable, calibrated, model_valid, causal_identified, assumptions_satisfied)
         scenario_refs = tuple(f"scenario:{s.scenario_id}" for o in options for s in o.scenarios)
         manifest = self._manifest(decision_id, provenance, assumptions, scenario_refs)
@@ -112,4 +113,4 @@ class DecisionRuntime:
         if control.disposition in {ControlDisposition.ABSTAIN, ControlDisposition.HUMAN_REVIEW}:
             gate = EpistemicGate(False, False, calibrated, model_valid, causal_identified, assumptions_satisfied)
         control_assumption = ("human review required before execution",) if control.disposition is ControlDisposition.HUMAN_REVIEW else ()
-        return self.engine.evaluate(decision_id=decision_id, options=options, gate=gate, mode=mode, max_harm=max_harm, information_request=information_request, assumptions=(*assumptions, *control_assumption), provenance=(*provenance, f"audit:{control.audit_event_id}"), reevaluation_triggers=reevaluation_triggers)
+        return self.engine.evaluate(decision_id=decision_id, options=options, gate=gate, mode=mode, max_harm=max_harm, information_request=information_request, assumptions=(*assumptions, *control_assumption), provenance=(*provenance, f"audit:{control.audit_event_id}"), reevaluation_triggers=reevaluation_triggers, risk_class=risk_class)

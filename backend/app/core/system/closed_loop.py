@@ -128,13 +128,22 @@ class SystemKernel:
 class ClosedLoopEngine:
     """Bounded real-time orchestration over the complete scientific lifecycle."""
 
-    def __init__(self, *, inference_engine: ScientificInferenceEngine | None = None, decision_system: DecisionSystem | None = None, control_plane: DecisionControlPlane | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        inference_engine: ScientificInferenceEngine | None = None,
+        decision_system: DecisionSystem | None = None,
+        control_plane: DecisionControlPlane | None = None,
+        code_revision: str = "unknown",
+    ):
+        if not code_revision.strip():
+            raise ValueError("code_revision must not be empty")
         self.inference_engine = inference_engine or ScientificInferenceEngine()
         self.decision_system = decision_system or DecisionSystem()
         self.control_plane = control_plane or DecisionControlPlane()
+        self.code_revision = code_revision
 
-    @staticmethod
-    def _decision_manifest(event: ClosedLoopInput) -> DecisionManifest:
+    def _decision_manifest(self, event: ClosedLoopInput) -> DecisionManifest:
         context = event.context
         state_refs = (f"state:{context.state.state.state_id}",)
         evidence_refs = tuple(dict.fromkeys([f"evidence:{x.evidence_id}" for x in context.evidence] + [f"evidence:{x.evidence_id}" for x in event.evidence]))
@@ -146,12 +155,19 @@ class ClosedLoopEngine:
         raw_config = "|".join(sorted((*state_refs, *evidence_refs, *model_refs, *hypothesis_refs, *scenario_refs, *constraint_refs, *assumptions)))
         return DecisionManifest(
             decision_id=event.decision_context.decision_id if event.decision_context else "",
-            state_refs=state_refs, evidence_refs=evidence_refs, model_refs=model_refs,
-            hypothesis_refs=hypothesis_refs, transformation_refs=(), assumption_refs=assumptions,
-            scenario_refs=scenario_refs, utility_definition_ref="decision-objectives:v1",
-            constraint_refs=constraint_refs, policy_version="1.0",
+            state_refs=state_refs,
+            evidence_refs=evidence_refs,
+            model_refs=model_refs,
+            hypothesis_refs=hypothesis_refs,
+            transformation_refs=(),
+            assumption_refs=assumptions,
+            scenario_refs=scenario_refs,
+            utility_definition_ref="decision-objectives:v1",
+            constraint_refs=constraint_refs,
+            policy_version="1.0",
             configuration_hash=sha256(raw_config.encode("utf-8")).hexdigest(),
-            code_revision="closed-loop-v1", created_at=event.context.as_of.isoformat(),
+            code_revision=self.code_revision,
+            created_at=event.context.as_of.isoformat(),
         )
 
     def process(self, event: ClosedLoopInput) -> ClosedLoopSnapshot:
@@ -160,7 +176,7 @@ class ClosedLoopEngine:
         decision: DecisionRecommendation | None = None
         audit_id: str | None = None
         if event.decision_context is not None:
-            provenance = tuple(dict.fromkeys([f"state:{context.state.state.state_id}"] + [f"observation:{x.observation_id}" for x in context.observations] + [f"evidence:{x.evidence_id}" for x in context.evidence] + [f"evidence:{x.evidence_id}" for x in event.evidence] + [f"model:{x.model_id}" for x in context.models] + [f"hypothesis:{x}" for x in event.hypothesis_ids] + [f"causal:{x}" for x in event.causal_model_ids] + [f"prediction:{x}" for x in event.prediction_ids]))
+            provenance = tuple(dict.fromkeys([f"state:{context.state.state.state_id"] + [f"observation:{x.observation_id}" for x in context.observations] + [f"evidence:{x.evidence_id}" for x in context.evidence] + [f"evidence:{x.evidence_id}" for x in event.evidence] + [f"model:{x.model_id}" for x in context.models] + [f"hypothesis:{x}" for x in event.hypothesis_ids] + [f"causal:{x}" for x in event.causal_model_ids] + [f"prediction:{x}" for x in event.prediction_ids]))
             triggers = ("new observation", "material state change", "model validity change", "decision validity window expired")
             if not inference.usable:
                 decision = self.decision_system._abstain(event.decision_context, event.decision_mode, "inference is not decision-ready", provenance, triggers)
@@ -169,16 +185,29 @@ class ClosedLoopEngine:
             else:
                 manifest = self._decision_manifest(event)
                 control = self.control_plane.authorize(
-                    decision_id=event.decision_context.decision_id, purpose=event.purpose,
-                    uncertainty=UncertaintyState(max(option.uncertainty for option in event.decision_options), source_refs=tuple(dict.fromkeys((*provenance, *event.causal_model_ids))), method="decision-option-conservative-max"),
-                    restricted=event.restricted, manifest=manifest,
+                    decision_id=event.decision_context.decision_id,
+                    purpose=event.purpose,
+                    uncertainty=UncertaintyState(
+                        max(option.uncertainty for option in event.decision_options),
+                        source_refs=tuple(dict.fromkeys((*provenance, *event.causal_model_ids))),
+                        method="decision-option-conservative-max",
+                    ),
+                    restricted=event.restricted,
+                    manifest=manifest,
                 )
                 audit_id = control.audit_event_id
                 if control.disposition in {ControlDisposition.ABSTAIN, ControlDisposition.HUMAN_REVIEW}:
                     reason = control.reason if control.disposition is ControlDisposition.ABSTAIN else "human review required before execution"
                     decision = self.decision_system._abstain(event.decision_context, event.decision_mode, reason, (*provenance, f"audit:{audit_id}"), triggers)
                 else:
-                    decision = self.decision_system.recommend(event.decision_context, event.decision_options, mode=event.decision_mode, provenance=(*provenance, f"audit:{audit_id}"), reevaluation_triggers=triggers, information_requests=event.information_requests)
+                    decision = self.decision_system.recommend(
+                        event.decision_context,
+                        event.decision_options,
+                        mode=event.decision_mode,
+                        provenance=(*provenance, f"audit:{audit_id}"),
+                        reevaluation_triggers=triggers,
+                        information_requests=event.information_requests,
+                    )
         stages = self._build_stage_records(event, inference.plan)
         return ClosedLoopSnapshot(context.system_id, context.as_of, context, stages, inference, decision, event.prediction_ids, event.relation_ids, event.hypothesis_ids, event.causal_model_ids, event.response_ids, event.learning_ids, self._lineage(event, inference, decision, audit_id=audit_id))
 

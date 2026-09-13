@@ -46,6 +46,23 @@ def test_publication_time_controls_availability_when_present():
     assert available_at(item) == publication
 
 
+def test_revision_time_controls_availability_of_corrected_version():
+    publication = T0
+    revision = T0 + timedelta(days=2)
+    item = evidence(
+        publication_time=publication,
+        observed_at=publication,
+        ingestion_time=revision + timedelta(minutes=1),
+        revision_time=revision,
+    )
+    assert available_at(item) == revision
+    with pytest.raises(ObservationBoundaryError, match="not eligible"):
+        admit_observation(item, evaluation_time=T0 + timedelta(hours=1))
+    admitted, eligibility = admit_observation(item, evaluation_time=revision)
+    assert admitted.epistemic_status == EpistemicStatus.ATTRIBUTED_CLAIM
+    assert eligibility.eligible is True
+
+
 def test_future_publication_cannot_enter_historical_analysis():
     item = evidence(
         publication_time=T0 + timedelta(hours=1),
@@ -62,6 +79,12 @@ def test_current_observation_is_admitted_without_epistemic_upgrade():
     assert admitted.evidence_id == item.evidence_id
     assert admitted.epistemic_status == EpistemicStatus.ATTRIBUTED_CLAIM
     assert eligibility.eligible is True
+
+
+def test_unknown_status_is_preserved():
+    item = evidence(epistemic_status=EpistemicStatus.UNKNOWN)
+    admitted, _ = admit_observation(item, evaluation_time=T0 + timedelta(minutes=5))
+    assert admitted.epistemic_status == EpistemicStatus.UNKNOWN
 
 
 def test_boundary_does_not_resolve_contradiction():

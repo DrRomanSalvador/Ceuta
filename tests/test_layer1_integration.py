@@ -1,14 +1,13 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
 from backend.app.core.epistemology_p0.advanced.ingestion import BulkIngestionPipeline, IngestionRecord
 from backend.app.core.epistemology_p0.epistemology.states import EpistemicStatus
-from backend.app.core.epistemology_p0.registry import ClaimRegistry
 from backend.app.core.epistemology_p0.evidence.models import create_evidence
+from backend.app.core.epistemology_p0.registry import ClaimRegistry
 
-
-T0 = datetime(2026, 9, 13, 8, 0, tzinfo=timezone.utc)
+T0 = datetime(2026, 9, 13, 8, 0, tzinfo=UTC)
 
 
 def test_ingestion_admits_through_contract_and_preserves_unknown_uncertainty():
@@ -63,11 +62,10 @@ def test_legacy_backtest_uses_available_at_not_event_time():
         publication_time=T0 + timedelta(days=1),
     )
     registry.add_evidence(evidence)
-    available = registry.get_evidences_for_backtest(T0)
-    assert available == []
+    assert registry.get_evidences_for_backtest(T0) == []
 
 
-def test_single_corroboration_never_upgrades_to_corrob_fact():
+def test_two_independent_source_groups_upgrade_to_corrob_fact():
     registry = ClaimRegistry()
     claim = registry.register_claim("x=1", "source-a", "doc-a")
     target = create_evidence(
@@ -149,3 +147,20 @@ def test_revision_version_cannot_reenter_historical_backtest_at_original_publica
     registry.add_evidence_version(revised)
     assert revised.available_at > T0
     assert registry.get_evidences_for_backtest(T0) == []
+
+
+def test_direct_registry_admission_cannot_create_corrob_fact_from_one_source():
+    registry = ClaimRegistry()
+    claim = registry.register_claim("x=1", "source-a", "doc-a")
+    invalid = create_evidence(
+        source_id="source-a",
+        document_id="doc-a",
+        claim_id=claim,
+        value=1,
+        semantic_definition="x",
+        source_reliability=0.9,
+        source_independence="independent",
+        epistemic_status=EpistemicStatus.CORROBORATED_FACT,
+    )
+    with pytest.raises(ValueError, match="at least two independent sources"):
+        registry.add_evidence(invalid)

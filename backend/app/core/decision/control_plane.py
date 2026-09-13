@@ -2,19 +2,19 @@
 
 This module closes the operational gaps between evidence, epistemic state,
 scenario evaluation, governance, decision provenance, audit, outcomes and
-retrospective decision-quality measurement.  It is deliberately deterministic:
+retrospective decision-quality measurement. It is deliberately deterministic:
 LLM-generated text may be attached as an explanation, but it cannot create a
 probability, policy authorization, evidence weight or decision state here.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import StrEnum
 from hashlib import sha256
 import json
 from math import isfinite
-from typing import Iterable, Mapping, Protocol, Sequence
+from typing import Mapping, Protocol, Sequence
 
 
 class EpistemicKind(StrEnum):
@@ -53,10 +53,18 @@ class EvidenceAssessment:
     independent_origin: bool = True
     disposition: EvidenceDisposition = EvidenceDisposition.ACCEPT
 
+    def __post_init__(self) -> None:
+        if not self.evidence_id or not self.source_id:
+            raise ValueError("evidence requires identity and source")
+        if not 0.0 <= self.base_weight <= 1.0:
+            raise ValueError("base_weight must be in [0,1]")
+        if not 0.0 <= self.adversarial_risk <= 1.0:
+            raise ValueError("adversarial_risk must be in [0,1]")
+        if not 0.0 <= self.contradiction_weight <= 1.0:
+            raise ValueError("contradiction_weight must be in [0,1]")
+
     def effective_weight(self) -> float:
-        if self.disposition is EvidenceDisposition.BLOCK:
-            return 0.0
-        if self.disposition is EvidenceDisposition.QUARANTINE:
+        if self.disposition in {EvidenceDisposition.BLOCK, EvidenceDisposition.QUARANTINE}:
             return 0.0
         multiplier = 0.5 if self.disposition is EvidenceDisposition.DOWNWEIGHT else 1.0
         multiplier *= 0.5 if self.disposition is EvidenceDisposition.REQUIRE_CORROBORATION else 1.0
@@ -82,12 +90,8 @@ class ConflictResolution:
 class EvidenceConflictResolver:
     """Resolve evidence conflicts without pretending disagreement is certainty."""
 
-    def resolve(
-        self,
-        claim_id: str,
-        supporting: Sequence[EvidenceAssessment],
-        contradicting: Sequence[EvidenceAssessment],
-    ) -> ConflictResolution:
+    def resolve(self, claim_id: str, supporting: Sequence[EvidenceAssessment],
+                contradicting: Sequence[EvidenceAssessment]) -> ConflictResolution:
         support = tuple(x for x in supporting if x.independent_origin)
         contradiction = tuple(x for x in contradicting if x.independent_origin)
         sw = sum(x.effective_weight() for x in support)
@@ -217,6 +221,25 @@ class DecisionManifest:
             self.policy_version and self.configuration_hash and self.code_revision
         )
 
+    def fingerprint(self) -> str:
+        payload = {
+            "decision_id": self.decision_id,
+            "state_refs": self.state_refs,
+            "evidence_refs": self.evidence_refs,
+            "model_refs": self.model_refs,
+            "hypothesis_refs": self.hypothesis_refs,
+            "transformation_refs": self.transformation_refs,
+            "assumption_refs": self.assumption_refs,
+            "scenario_refs": self.scenario_refs,
+            "utility_definition_ref": self.utility_definition_ref,
+            "constraint_refs": self.constraint_refs,
+            "policy_version": self.policy_version,
+            "configuration_hash": self.configuration_hash,
+            "code_revision": self.code_revision,
+            "created_at": self.created_at,
+        }
+        return sha256(json.dumps(payload, sort_keys=True, default=str, separators=(",", ":")).encode()).hexdigest()
+
 
 @dataclass(frozen=True, slots=True)
 class DecisionAuditEvent:
@@ -341,8 +364,18 @@ class DecisionControlPlane:
         restricted: bool,
         manifest: DecisionManifest,
     ) -> DecisionControlResult:
-        if not manifest.complete():
-            raise ValueError("decision manifest is incomplete")
+        complete = manifest.complete()
+        if not complete:
+            reason = "decision manifest is incomplete; decision execution is blocked"
+            event = self.audit.append(decision_id, "decision_control", {
+                "disposition": DecisionDisposition.ABSTAIN.value,
+                "reason": reason,
+                "uncertainty": uncertainty.value,
+                "manifest_complete": False,
+                "manifest_fingerprint": manifest.fingerprint(),
+            })
+            return DecisionControlResult(DecisionDisposition.ABSTAIN, reason, uncertainty, manifest, event.event_id)
+
         policy = self.policy.evaluate(purpose=purpose, uncertainty=uncertainty.value, restricted=restricted)
         if not policy.allowed:
             disposition = DecisionDisposition.ABSTAIN
@@ -356,7 +389,18 @@ class DecisionControlPlane:
                 "reason": policy.reason,
                 "uncertainty": uncertainty.value,
                 "policy_version": policy.policy_version,
-                "manifest_complete": manifest.complete(),
+                "manifest_complete": True,
+                "manifest_fingerprint": manifest.fingerprint(),
+                "state_refs": manifest.state_refs,
+                "evidence_refs": manifest.evidence_refs,
+                "model_refs": manifest.model_refs,
+                "hypothesis_refs": manifest.hypothesis_refs,
+                "transformation_refs": manifest.transformation_refs,
+                "assumption_refs": manifest.assumption_refs,
+                "scenario_refs": manifest.scenario_refs,
+                "constraint_refs": manifest.constraint_refs,
+                "configuration_hash": manifest.configuration_hash,
+                "code_revision": manifest.code_revision,
             },
         )
         return DecisionControlResult(disposition, policy.reason, uncertainty, manifest, event.event_id)

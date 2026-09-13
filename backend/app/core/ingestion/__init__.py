@@ -1,0 +1,1 @@
+"""Deterministic ingestion orchestration contracts."""

@@ -55,6 +55,11 @@ The next architectural core should provide a system-level context/aggregate cont
 18. Active shocks, perturbations and propagation paths.
 19. Regime-transition and early-warning state.
 20. Model disagreement and unresolved alternative scenarios.
+21. Observability and identifiability status.
+22. Observation-process and selection-process metadata.
+23. Structural constraints and feasibility bounds.
+24. Temporal resolution and aggregation semantics.
+25. Structural/model uncertainty separate from parameter and measurement uncertainty.
 
 The aggregate is a coordination and provenance boundary, not a requirement that every analytical model be implemented inside one class.
 
@@ -87,7 +92,11 @@ The mapping must preserve:
 - transformation history;
 - epistemic status;
 - intervention status;
-- lineage back to the original observations.
+- lineage back to the original observations;
+- observability and identifiability limitations;
+- observation and selection mechanisms;
+- structural constraints;
+- temporal resolution and aggregation choices.
 
 No duplicate representation should become canonical merely because a new module needs a convenient local structure.
 
@@ -133,105 +142,167 @@ A system may have multiple stable or metastable configurations. CeutIA must be a
 
 Effects may depend on combinations of variables rather than isolated marginal effects. Interaction terms, thresholds, saturation, amplification and damping should be representable without assuming that every observed interaction is causal.
 
-### 6.9 Dynamic networks and feedback
+### 6.9 Higher-order interactions
+
+Some behaviour emerges only from combinations of three or more variables or agents. The architecture must not assume that pairwise edges are sufficient. Higher-order interactions should be representable while preserving their statistical or causal status.
+
+### 6.10 Dynamic networks and feedback
 
 Dependencies should be represented as changing relationships, including direction, strength, delays and feedback loops. Static graphs are insufficient for systems whose topology or interaction strength changes over time.
 
-### 6.10 Cross-scale coupling
+### 6.11 Cross-scale coupling
 
 Micro-, meso- and macro-scale processes can interact. The architecture should retain scale metadata and allow propagation across scales without assuming that a relationship observed at one scale transfers automatically to another.
 
-### 6.11 Heterogeneity and effect modification
+### 6.12 Temporal resolution and aggregation
+
+Signals can appear or disappear depending on the temporal resolution at which a system is observed. The architecture must preserve sampling interval, aggregation window and temporal granularity so that relationships estimated at one resolution are not silently transferred to another.
+
+### 6.13 Heterogeneity and effect modification
 
 Different entities, populations, locations or regimes can respond differently to the same perturbation or intervention. Aggregate effects must not erase relevant heterogeneity.
 
-### 6.12 Bottlenecks, queues and constrained flows
+### 6.14 Bottlenecks, queues and constrained flows
 
 Capacity constraints can produce nonlinear system behaviour even when individual components remain functional. Queues, arrival rates, service capacity, bottlenecks and flow dependencies should therefore be representable where relevant.
 
-### 6.13 Cascades and propagation
+### 6.15 Cascades and propagation
 
 A local perturbation may propagate through coupled dependencies and produce system-level consequences. CeutIA should preserve propagation paths and intermediate states rather than attributing the final outcome directly to the initial perturbation.
 
-### 6.14 Exogenous versus endogenous shocks
+### 6.16 Exogenous versus endogenous shocks
 
 A change can originate outside the system or emerge from the system's own feedback. This distinction matters for attribution, intervention and forecasting and must remain explicit.
 
-### 6.15 Mechanism discrimination
+### 6.17 Observability and identifiability
+
+CeutIA must distinguish the latent state that exists in the system from the portion that is observable and the portion that is identifiable from available evidence. Multiple latent configurations may remain compatible with the same observations.
+
+An unobserved variable must not be treated as absent, and a non-identifiable mechanism must not be presented as uniquely established.
+
+### 6.18 Observation-process change
+
+A measured change can arise from a change in the underlying system or from a change in how the system is measured. Sensor replacement, reporting policy, sampling frame, coding practice, source availability and other observation-process changes must remain distinguishable from state transitions.
+
+### 6.19 Structural constraints and feasibility
+
+Known physical, biological, economic, institutional or logical constraints should be representable as restrictions on possible states and transitions. Constraints can rule out impossible explanations before probabilistic ranking of the remaining hypotheses.
+
+### 6.20 Mechanism discrimination
 
 When multiple mechanisms can explain the same observed trajectory, the system should identify observations or interventions capable of discriminating among them. It should not collapse competing hypotheses simply because one currently has the highest score.
 
-### 6.16 Counterfactuals conditioned on state
+### 6.21 Counterfactuals conditioned on state
 
 Counterfactual reasoning should be conditioned on the state, context, regime and assumptions under which the counterfactual is meaningful. Counterfactual outputs must retain their assumptions and uncertainty.
 
-### 6.17 Intervention as an experiment
+### 6.22 Intervention as an experiment
 
 An intervention changes the system. It therefore needs its own representation: target, timing, dose/intensity where relevant, scope, implementation fidelity, concurrent interventions and post-intervention response.
 
-### 6.18 Prospective falsification
+### 6.23 Intervention interactions
+
+The effect of one intervention may depend on another intervention, prior exposure, timing, regime or system state. CeutIA should preserve these dependencies instead of assuming independent additive effects.
+
+### 6.24 Prospective falsification
 
 Important hypotheses should generate predictions that could prove them wrong. CeutIA should preserve those predictions, expected observations, time horizon and falsification status.
 
-### 6.19 Negative-result and failed-hypothesis memory
+### 6.25 Negative-result and failed-hypothesis memory
 
 The system must remember hypotheses that failed, predictions that were wrong and interventions that did not produce the expected response. Otherwise learning can repeatedly rediscover the same false explanation.
 
-### 6.20 Contradiction preservation
+### 6.26 Equifinality and multifinality
+
+Different causal paths can converge on the same observed outcome, while the same initial perturbation can produce different outcomes under different states or regimes. CeutIA must preserve both possibilities and avoid retrospective single-cause explanations when the evidence does not identify one.
+
+### 6.27 Contradiction preservation
 
 Contradictory observations or sources must not be silently averaged away. Contradiction itself can be an informative state of the evidence system and may indicate measurement problems, regime differences, source dependence or adversarial manipulation.
 
-### 6.21 Missingness as information
+### 6.28 Missingness as information
 
 Missing data should retain its mechanism where knowable: MCAR, MAR, MNAR or unknown. Missingness caused by system failure, selection, censorship or behavioural adaptation can itself carry information.
 
-### 6.22 Measurement and selection processes
+### 6.29 Measurement and selection processes
 
 Observed data are generated by measurement and selection mechanisms. Sensor error, sampling bias, survivorship, collider structures, reporting changes and temporal leakage must remain distinguishable from changes in the underlying system.
 
-### 6.23 Source dependency and evidence contamination
+### 6.30 Source dependency and evidence contamination
 
 Multiple apparently independent observations may derive from the same underlying source. Provenance should permit dependency detection and prevent duplicated evidence from being mistaken for independent confirmation.
 
-### 6.24 Distribution shift and model validity
+### 6.31 Structural and parameter uncertainty
+
+Uncertainty about a numerical parameter is different from uncertainty about the model structure itself. CeutIA must distinguish measurement uncertainty, parameter uncertainty, structural/model uncertainty, regime uncertainty, scenario uncertainty and uncertainty caused by limited observability.
+
+### 6.32 Dependent uncertainty
+
+Uncertainty contributions from different modules or evidence streams must not be assumed independent without justification. Shared data, shared assumptions and common sources can correlate apparently separate uncertainties.
+
+### 6.33 Distribution shift and model validity
 
 Every forecast or model-dependent inference should have a validity context. Changes in population, regime, data-generating process or intervention environment can invalidate historical performance.
 
-### 6.25 Calibration and uncertainty coverage
+### 6.34 Calibration and uncertainty coverage
 
 A probabilistic output is useful only if its uncertainty has empirical meaning. Forecast calibration, coverage, drift and failure under distribution shift must be treated as first-class properties.
 
-### 6.26 Rare events and tail risk
+### 6.35 Rare events and tail risk
 
 Mean behaviour is often insufficient for complex systems. Where justified, CeutIA should represent tail probabilities, extreme outcomes and asymmetric loss without turning speculative tail estimates into facts.
 
-### 6.27 Model disagreement
+### 6.36 Model disagreement
 
 Disagreement among models can be more informative than an artificial consensus. Competing models, assumptions and forecasts should remain distinguishable and their disagreement should be available to downstream decision logic.
 
-### 6.28 Active sensing and value of information
+### 6.37 Active sensing and value of information
 
 The system should be able to identify observations or measurements that would materially reduce decision-relevant uncertainty. Information acquisition should be treated separately from intervention and its value should be decision-context dependent.
 
-### 6.29 Robust decisions under deep uncertainty
+### 6.38 Robust decisions under deep uncertainty
 
 When probabilities are poorly identified, decisions should not depend exclusively on a single best model. Robustness, regret, worst-case consequences, opportunity cost and sensitivity to alternative models should be representable.
 
-### 6.30 Abstention and human review
+### 6.39 Abstention and human review
 
 The system must have a principled ability to say that evidence is insufficient, models disagree materially or assumptions are violated. Abstention is a valid output, not a failure of the system.
 
-### 6.31 Adversarial and information robustness
+### 6.40 Adversarial and information robustness
 
 The evidence layer should be able to represent suspected manipulation, coordinated information effects, source contamination, perception-versus-event discrepancies and adversarial hypotheses without automatically declaring an operation or actor responsible.
 
-### 6.32 Intervention-response feedback without self-contamination
+### 6.41 Intervention-response feedback without self-contamination
 
 When model recommendations influence the system, subsequent observations are partly consequences of the model itself. Learning loops must therefore distinguish observational outcomes from model-induced outcomes and prevent uncontrolled self-reinforcement.
 
-### 6.33 Reversibility and degradation
+### 6.42 Reversibility and degradation
 
 The architecture should represent whether an intervention or transition is reversible, partially reversible or associated with hysteresis/path dependence. This is essential for prioritising early action when recovery capacity may decline after a threshold.
+
+### 6.43 Compositionality and emergence
+
+The behaviour of the whole system may not be derivable from isolated component behaviour. CeutIA should represent system-level properties that emerge from interactions among components and avoid assuming that complete component knowledge guarantees global predictability.
+
+### 6.44 State-dependent transition pathways
+
+The same perturbation can lead to different transition pathways depending on the current state, reserve, regime, history and network context. Transition reasoning should therefore remain state-conditioned rather than use universal perturbation-response rules.
+
+### 6.45 Scale-dependent validity
+
+A relationship, threshold or causal effect identified at one spatial or temporal scale should not be assumed valid at another scale without evidence. Aggregation and disaggregation can create or destroy apparent relationships.
+
+### 6.46 Evidence for non-occurrence
+
+Failure of an expected event to occur is evidence and should update hypotheses. CeutIA must record predicted-but-not-observed outcomes explicitly rather than treating them as missing data.
+
+### 6.47 Instrument/model change detection
+
+CeutIA itself is part of an evolving measurement and inference system. Changes to sensors, data sources, models, preprocessing, feature definitions or decision policies must be versioned so that apparent system changes can be separated from changes in the observer.
+
+### 6.48 Alternative explanations with observational equivalence
+
+When competing explanations make indistinguishable predictions under available evidence, the system should preserve that equivalence and identify what additional observation or intervention would discriminate between them.
 
 ## 7. Scientific safeguards for the integration layer
 

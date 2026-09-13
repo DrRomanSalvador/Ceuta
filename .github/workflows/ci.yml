@@ -38,5 +38,8 @@ jobs:
       - name: Run full test suite
         run: python -m pytest
 
+      - name: Verify Phase 1 repository invariants
+        run: python scripts/verify_phase1.py
+
       - name: Validate Compose configuration
         run: docker compose config -q

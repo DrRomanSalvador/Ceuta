@@ -71,7 +71,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: "3.12"
           cache: "pip"
@@ -90,7 +90,7 @@ jobs:
         working-directory: Ceuta
         env:
           PYTHONPATH: ${{ github.workspace }}/Ceuta/backend:${{ github.workspace }}/Ceuta
-        run: python -m pytest tests/test_security_enforcement.py tests/test_tool_boundary.py tests/test_external_trust.py -q
+        run: python -m pytest --import-mode=importlib tests/test_security_enforcement.py tests/test_tool_boundary.py tests/test_external_trust.py -q
 
       - name: Run security static checks
         working-directory: Ceuta

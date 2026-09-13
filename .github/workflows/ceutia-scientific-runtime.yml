@@ -14,9 +14,6 @@ jobs:
   scientific-runtime:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    defaults:
-      run:
-        working-directory: backend
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -25,14 +22,12 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-          cache-dependency-path: |
-            backend/pyproject.toml
-            backend/requirements*.txt
+          cache-dependency-path: pyproject.toml
       - name: Install project
         run: |
           python -m pip install --upgrade pip
-          pip install -e .
+          pip install -e ".[dev]"
       - name: Compile scientific runtime
-        run: python -m compileall -q app/core/runtime app/core/causal app/core/forecasting app/core/decision
+        run: python -m compileall -q backend/app/core/runtime backend/app/core/causal backend/app/core/forecasting backend/app/core/decision
       - name: Run scientific runtime tests
-        run: python -m pytest ../tests/test_scientific_runtime.py -q
+        run: python -m pytest tests/test_scientific_runtime.py -q

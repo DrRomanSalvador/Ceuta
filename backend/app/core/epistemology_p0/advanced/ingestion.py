@@ -1,8 +1,8 @@
 """
 P2 — Ingesta masiva estructurada.
 
-Cada registro debe traer (o declarar unavailable) procedencia, tiempo y definición.
-No inventa hechos; registra claims como ATTRIBUTED_CLAIM.
+Cada registro debe declarar suficiente temporalidad para establecer cuándo la
+información pudo entrar en análisis. No se usa event_time como disponibilidad.
 """
 
 from __future__ import annotations
@@ -11,7 +11,8 @@ from typing import Any, Dict, List, Optional, Iterable
 from datetime import datetime, timezone
 import uuid
 
-from ..evidence.models import create_evidence, Evidence, Location, Uncertainty, UncertaintyType
+from app.core.p0_contracts import EvidenceContract, SourceRelation, Uncertainty as ContractUncertainty
+from ..evidence.models import create_evidence, Evidence, Location, UncertaintyType, ProvenanceStep
 from ..epistemology.states import EpistemicStatus
 from ..registry import ClaimRegistry
 from .semantic_graph import SemanticGraph
@@ -69,11 +70,7 @@ class IngestionResult:
 class BulkIngestionPipeline:
     """Ingesta por lotes hacia ClaimRegistry + SemanticGraph."""
 
-    def __init__(
-        self,
-        registry: ClaimRegistry,
-        graph: Optional[SemanticGraph] = None,
-    ):
+    def __init__(self, registry: ClaimRegistry, graph: Optional[SemanticGraph] = None):
         self.registry = registry
         self.graph = graph or SemanticGraph()
 
@@ -93,15 +90,28 @@ class BulkIngestionPipeline:
                     source_id=rec.source_id,
                     document_id=rec.document_id,
                 )
-                loc = None
-                if rec.geography:
-                    loc = Location(type="region", value=rec.geography)
+                loc = Location(type="region", value=rec.geography) if rec.geography else None
 
                 event_time = self._parse_dt(rec.event_time)
                 publication_time = self._parse_dt(rec.publication_time)
                 unavailable = dict(rec.unavailable_fields)
                 if event_time is None and "event_time" not in unavailable:
                     unavailable["event_time"] = "not_provided_in_batch"
+
+                now = datetime.now(timezone.utc)
+                # Without a trustworthy publication/observation timestamp, the
+                # first system observation is the conservative availability bound.
+                observed_at = publication_time or now
+                relation = self._source_relation(rec.source_independence)
+                provenance = [
+                    ProvenanceStep(
+                        operation="ingest",
+                        rule="P0 observation boundary admission",
+                        actor=batch.actor,
+                        timestamp=now,
+                        input_refs=(rec.external_id,) if rec.external_id else (),
+                    )
+                ]
 
                 ev = create_evidence(
                     source_id=rec.source_id,
@@ -116,8 +126,16 @@ class BulkIngestionPipeline:
                     event_time=event_time,
                     publication_time=publication_time,
                     methodology=rec.methodology,
+                    provenance=provenance,
                     unavailable_fields=unavailable,
                     epistemic_status=EpistemicStatus.ATTRIBUTED_CLAIM,
+                )
+                # Validate the exact representation before registry/graph admission.
+                self._validate_contract(
+                    ev,
+                    claim=rec.statement,
+                    observed_at=observed_at,
+                    source_relation=relation,
                 )
                 eid = self.registry.add_evidence(ev)
                 claim_ids.append(cid)
@@ -140,7 +158,6 @@ class BulkIngestionPipeline:
                 errors.append({"index": i, "external_id": rec.external_id, "error": str(exc)})
 
         t1 = datetime.now(timezone.utc)
-        duration_ms = (t1 - t0).total_seconds() * 1000.0
         return IngestionResult(
             batch_id=batch.batch_id,
             accepted=accepted,
@@ -148,16 +165,17 @@ class BulkIngestionPipeline:
             claim_ids=claim_ids,
             evidence_ids=evidence_ids,
             errors=errors,
-            duration_ms=round(duration_ms, 3),
+            duration_ms=round((t1 - t0).total_seconds() * 1000.0, 3),
         )
 
     def ingest_records(self, records: Iterable[IngestionRecord], *, actor: str = "ingestion_pipeline") -> IngestionResult:
-        batch = IngestionBatch(
-            batch_id=f"batch-{uuid.uuid4().hex[:12]}",
-            records=list(records),
-            actor=actor,
+        return self.ingest_batch(
+            IngestionBatch(
+                batch_id=f"batch-{uuid.uuid4().hex[:12]}",
+                records=list(records),
+                actor=actor,
+            )
         )
-        return self.ingest_batch(batch)
 
     @staticmethod
     def _validate(rec: IngestionRecord) -> None:
@@ -173,6 +191,54 @@ class BulkIngestionPipeline:
         if not value:
             return None
         try:
-            return datetime.fromisoformat(value.replace("Z", "+00:00"))
-        except ValueError:
-            return None
+            parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError as exc:
+            raise ValueError(f"invalid temporal value: {value!r}") from exc
+        if parsed.tzinfo is None:
+            raise ValueError("temporal values must be timezone-aware")
+        return parsed
+
+    @staticmethod
+    def _source_relation(value: str) -> SourceRelation:
+        normalized = value.strip().lower()
+        mapping = {
+            "independent": SourceRelation.INDEPENDENT,
+            "primary": SourceRelation.INDEPENDENT,
+            "dependent": SourceRelation.DEPENDENT,
+            "copy": SourceRelation.COPY,
+            "amplifier": SourceRelation.AMPLIFIER,
+            "unknown": SourceRelation.UNKNOWN,
+        }
+        return mapping.get(normalized, SourceRelation.UNKNOWN)
+
+    @staticmethod
+    def _validate_contract(
+        evidence: Evidence,
+        *,
+        claim: str,
+        observed_at: datetime,
+        source_relation: SourceRelation,
+    ) -> EvidenceContract:
+        uncertainty = evidence.uncertainty
+        assert uncertainty is not None
+        return EvidenceContract(
+            evidence_id=evidence.evidence_id,
+            claim=claim,
+            source_id=evidence.source_id,
+            publication_time=evidence.publication_time,
+            event_time=evidence.event_time,
+            observed_at=observed_at,
+            ingestion_time=evidence.ingestion_time,
+            revision_time=evidence.revision_time,
+            uncertainty=ContractUncertainty(
+                kind=uncertainty.type.value,
+                lower=uncertainty.lower,
+                upper=uncertainty.upper,
+                description=uncertainty.qualitative or "uncertainty not quantified by source",
+            ),
+            epistemic_status=evidence.epistemic_status,
+            source_relation=source_relation,
+            limitations=tuple(
+                f"unavailable:{key}={value}" for key, value in evidence.unavailable_fields.items()
+            ),
+        )

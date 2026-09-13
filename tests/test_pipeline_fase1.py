@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from hashlib import sha256
 
@@ -58,7 +59,13 @@ async def test_phase1_rejects_observation_not_yet_available() -> None:
     pipeline = LocalDeterministicPipeline(source)
     await pipeline.start()
     try:
-        future_observation = next(source.records())
+        available_observation = next(source.records())
+        assert available_observation.available_at == pipeline.normalization.evaluation_time
+
+        future_observation = replace(
+            available_observation,
+            available_at=available_observation.available_at + timedelta(seconds=1),
+        )
         assert future_observation.available_at > pipeline.normalization.evaluation_time
         with pytest.raises(ValueError, match="not available"):
             pipeline.normalization._normalize(future_observation)

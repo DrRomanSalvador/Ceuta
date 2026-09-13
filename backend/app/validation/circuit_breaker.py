@@ -1,16 +1,25 @@
-"""Fail-closed mathematical gate for prospective calibration.
-
-The circuit breaker prevents an unvalidated model revision from replacing the
-last validated revision. It is intentionally conservative: insufficient data,
-non-finite metrics, missing comparators, poor interval coverage, or excessive
-regression all block promotion.
-"""
+"""Fail-closed mathematical gate for prospective calibration."""
 
 from __future__ import annotations
 
 import math
+from dataclasses import dataclass
+from datetime import datetime
 
-from app.core.pipeline.contracts import ValidationReport
+
+@dataclass(frozen=True, slots=True)
+class ValidationReport:
+    forecast_id: str
+    variable: str
+    sample_size: int
+    mae: float
+    mse: float
+    bias: float
+    baseline_mse: float | None
+    degradation_ratio: float | None
+    interval_coverage: float | None
+    passed: bool
+    evaluated_at: datetime
 
 
 class CalibrationCircuitBreaker:
@@ -31,7 +40,6 @@ class CalibrationCircuitBreaker:
             raise ValueError("min_coverage must be between 0 and 1")
         if min_sample_size < 1:
             raise ValueError("min_sample_size must be positive")
-
         self.max_degradation = max_degradation
         self.min_coverage = min_coverage
         self.min_sample_size = min_sample_size
@@ -39,55 +47,37 @@ class CalibrationCircuitBreaker:
         self.require_interval_coverage = require_interval_coverage
 
     def evaluate(self, report: ValidationReport) -> bool:
-        """Return True only when the report is safe to promote.
-
-        This method deliberately ignores ``report.passed`` as a source of
-        truth. Promotion is recomputed from the numerical evidence so a caller
-        cannot bypass the gate by setting a boolean flag.
-        """
+        """Return True only when the numerical evidence satisfies every gate."""
         if not isinstance(report, ValidationReport):
             raise TypeError("report must be a ValidationReport")
-
         if report.sample_size < self.min_sample_size:
             return False
         if not all(math.isfinite(value) for value in (report.mae, report.mse, report.bias)):
             return False
         if report.mae < 0.0 or report.mse < 0.0:
             return False
-
         if self.require_baseline:
             if report.baseline_mse is None or not math.isfinite(report.baseline_mse):
                 return False
             if report.baseline_mse < 0.0:
                 return False
-            # A zero baseline with a non-zero model error has an undefined /
-            # infinite degradation ratio and must never be promoted.
             if report.baseline_mse == 0.0:
                 if report.mse > 0.0:
                     return False
             elif report.degradation_ratio is None:
                 return False
-
         if report.degradation_ratio is not None:
             if not math.isfinite(report.degradation_ratio):
                 return False
-            if report.degradation_ratio < 0.0:
+            if report.degradation_ratio < 0.0 or report.degradation_ratio > self.max_degradation:
                 return False
-            if report.degradation_ratio > self.max_degradation:
-                return False
-
-        if self.require_interval_coverage:
-            if report.interval_coverage is None:
-                return False
+        if self.require_interval_coverage and report.interval_coverage is None:
+            return False
+        if report.interval_coverage is not None:
             if not math.isfinite(report.interval_coverage):
                 return False
-        if report.interval_coverage is not None:
             if not 0.0 <= report.interval_coverage <= 1.0:
                 return False
             if report.interval_coverage < self.min_coverage:
                 return False
-
-        # The report's own flag is useful as an audit field but cannot turn a
-        # failed mathematical gate into a pass. Conversely, a report marked
-        # failed is never promoted even if its raw metrics happen to pass.
         return report.passed

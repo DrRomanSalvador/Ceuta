@@ -13,24 +13,14 @@ from typing import Iterable
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from app.core.epistemology_p0.epistemology.states import EpistemicStatus
+
 
 class ImplementationStatus(StrEnum):
     EXISTING_VERIFIED = "EXISTENTE_VERIFICADO"
     PROPOSED = "PROPUESTO"
     PENDING = "PENDIENTE"
     NOT_VERIFIED = "NO_VERIFICADO"
-    UNKNOWN = "UNKNOWN"
-
-
-class EpistemicStatus(StrEnum):
-    OBSERVED_FACT = "OBSERVED_FACT"
-    CORROBORATED_FACT = "CORROBORATED_FACT"
-    ATTRIBUTED_CLAIM = "ATTRIBUTED_CLAIM"
-    INFERENCE = "INFERENCE"
-    HYPOTHESIS = "HYPOTHESIS"
-    UNVERIFIED = "UNVERIFIED"
-    CONTRADICTED = "CONTRADICTED"
-    DISPROVEN = "DISPROVEN"
     UNKNOWN = "UNKNOWN"
 
 

@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Sequence
 
-from .scientific_assurance import GradeAssessment
+from .scientific_assurance import GradeAssessment, GradeRating
 
 
 class EvidenceClass(StrEnum):
@@ -170,7 +170,7 @@ class ScientificEvidenceGate:
                     controls.append(f"{item.evidence_id}:complete_grade_domains")
                     uncertainty = max(uncertainty, 0.65)
                     disposition = max_disposition(disposition, GateDisposition.HUMAN_REVIEW)
-                if item.grade.certainty in {item.grade.certainty.LOW, item.grade.certainty.VERY_LOW}:
+                if item.grade.certainty in {GradeRating.LOW, GradeRating.VERY_LOW}:
                     uncertainty = max(uncertainty, 0.75)
                     reasons.append(f"{item.evidence_id}:grade_low_certainty")
                     disposition = max_disposition(disposition, GateDisposition.HUMAN_REVIEW)

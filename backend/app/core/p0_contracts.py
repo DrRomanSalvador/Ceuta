@@ -101,13 +101,13 @@ class EvidenceContract(BaseModel):
             raise ValueError("observed_at cannot be later than ingestion_time")  # noqa: TRY003
         if self.epistemic_status == EpistemicStatus.CORROBORATED_FACT:
             if self.independent_source_count < 2:
-                raise ValueError(
+                raise ValueError(  # noqa: TRY003
                     "CORROBORATED_FACT requires at least two independent sources"
-                )  # noqa: TRY003
+                )
             if not self.corroborating_evidence_ids:
-                raise ValueError(
+                raise ValueError(  # noqa: TRY003
                     "CORROBORATED_FACT requires corroborating evidence IDs"
-                )  # noqa: TRY003
+                )
         return self
 
     @property
@@ -128,14 +128,14 @@ class TemporalEligibility(BaseModel):
     @model_validator(mode="after")
     def validate_eligibility(self) -> TemporalEligibility:
         if self.evaluation_time.tzinfo is None or self.available_at.tzinfo is None:
-            raise ValueError(
+            raise ValueError(  # noqa: TRY003
                 "evaluation_time and available_at must be timezone-aware"
-            )  # noqa: TRY003
+            )
         expected = self.available_at <= self.evaluation_time
         if self.eligible != expected:
-            raise ValueError(
+            raise ValueError(  # noqa: TRY003
                 "eligible must equal available_at <= evaluation_time"
-            )  # noqa: TRY003
+            )
         return self
 
 

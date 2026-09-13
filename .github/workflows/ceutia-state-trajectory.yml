@@ -45,3 +45,6 @@ jobs:
 
       - name: Run deterministic state trajectory verifier
         run: python ../scripts/verify_state_trajectory.py
+
+      - name: Report validation checkpoint
+        run: echo "CeutIA state trajectory validation checkpoint completed"

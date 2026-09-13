@@ -41,7 +41,7 @@ La implementación incluye bloqueo ante datos insuficientes y clasificación `PR
 
 ## CI
 
-`.github/workflows/ci.yml` mantiene ejecución automática para `push` a `main` y pull requests, y ahora admite también `workflow_dispatch`.
+`.github/workflows/ci.yml` mantiene ejecución automática para `push` a `main` y pull requests, y admite también `workflow_dispatch`.
 
 La ejecución comprueba:
 
@@ -50,17 +50,19 @@ La ejecución comprueba:
 - suite completa de `pytest`;
 - configuración de Docker Compose.
 
-El último commit de `main` tras la reconciliación documental y la actualización de CI es:
+Además, `.github/workflows/security-control-plane.yml` ejecuta una suite de regresión de seguridad y comprobaciones estáticas sobre el control plane protegido.
 
-`d9f352808dede52c80bad181be95b3fa49edaa00`
+## Resultado CI observado
 
-**Importante:** la interfaz GitHub disponible para esta sesión no expone de forma utilizable las ejecuciones `push` del workflow; por tanto, no se declara aquí un resultado `PASS` o `FAIL` que no haya sido observado. La ejecución CI queda habilitada y reproducible, pero su resultado debe verificarse en GitHub Actions.
+La ejecución de `CeutIA Security Control Plane` correspondiente al commit `cea3f028cfea054b1bb1038b077f35042452aadc` terminó en **FAIL**. El fallo no correspondía a una aserción de seguridad: la colección de dos módulos de prueba falló porque el runner no tenía `Ceuta/backend` en `PYTHONPATH`, por lo que `app.security.enforcement` no era resoluble.
+
+Se corrigió el workflow en el commit `3878190dc66bf4357c141ebe583ff50f20393f05`, estableciendo explícitamente `PYTHONPATH=Ceuta/backend` para la suite y los análisis estáticos. Ese cambio debe ser validado por una nueva ejecución de CI antes de declarar el control operativo.
 
 ## Próxima condición de avance
 
 Antes de modificar estructuralmente `metrics.py`:
 
-1. ejecutar CI;
+1. verificar la nueva ejecución del control de seguridad;
 2. ejecutar los tests de integridad específicos del núcleo;
 3. generar un inventario reproducible del código actual;
 4. determinar si existen realmente duplicaciones semánticas en la versión vigente;

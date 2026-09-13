@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ceutia.local/contracts/v1/source-provenance.schema.json",
+  "title": "CeutIA Source Provenance Contract v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["source_id", "source_version", "relation", "ingested_at", "schema_version"],
+  "properties": {
+    "source_id": {"type": "string", "minLength": 1},
+    "source_version": {"type": "string", "minLength": 1},
+    "relation": {"enum": ["INDEPENDENT", "DEPENDENT", "COPY", "AMPLIFIER", "UNKNOWN"]},
+    "parent_source_ids": {"type": "array", "items": {"type": "string"}},
+    "ingested_at": {"type": "string", "format": "date-time"},
+    "transformation": {"type": "string", "minLength": 1},
+    "schema_version": {"const": "1.0.0"}
+  }
+}

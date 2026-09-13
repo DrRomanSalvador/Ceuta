@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ceutia.local/contracts/v1/review-decision.schema.json",
+  "title": "CeutIA Review Decision Contract v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["decision_id", "target_id", "decision", "reviewer", "reviewed_at", "schema_version"],
+  "properties": {
+    "decision_id": {"type": "string", "minLength": 1},
+    "target_id": {"type": "string", "minLength": 1},
+    "decision": {"enum": ["ACCEPT", "REJECT", "REVIEW_REQUIRED", "BLOCKED", "CONFLICT", "UNKNOWN"]},
+    "reviewer": {"type": "string", "minLength": 1},
+    "reviewed_at": {"type": "string", "format": "date-time"},
+    "reason": {"type": "string", "minLength": 1},
+    "evidence_ids": {"type": "array", "items": {"type": "string"}},
+    "schema_version": {"const": "1.0.0"}
+  }
+}

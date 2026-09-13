@@ -7,16 +7,19 @@ La alerta solo debería escalarse a revisión humana después de adjuntar este c
 """
 
 from __future__ import annotations
-from typing import List, Optional, Callable
-from datetime import datetime, timezone
+
+from datetime import datetime
+from typing import List
+
+from app.core.p0_contracts import evaluate_temporal_eligibility
 
 from ..contracts.ceutia_serpiente import (
-    PullContextRequest,
     ContextDossier,
     ContextExplanation,
+    PullContextRequest,
 )
-from ..registry import ClaimRegistry
 from ..evidence.models import Evidence
+from ..registry import ClaimRegistry
 
 
 # Catálogo de tipos de explicación de la auditoría
@@ -40,14 +43,16 @@ class ContextService:
         self.registry = registry
 
     def pull_context(self, request: PullContextRequest) -> ContextDossier:
+        evaluation_time = self._parse_evaluation_time(request.interval_end)
         related: List[str] = []
         explanations: List[ContextExplanation] = []
 
-        # Evidencias del registry asociadas a la variable (por claim statement / semantic)
-        for claim_id, claim in self.registry.claims.items():
+        # Contexto analítico solo puede usar evidencia disponible en el momento
+        # solicitado. event_time nunca sustituye available_at.
+        for claim in self.registry.claims.values():
             for eid in claim.get("evidence_ids", []):
                 ev = self.registry.evidences.get(eid)
-                if ev is None:
+                if ev is None or not self._eligible(ev, evaluation_time):
                     continue
                 related.append(eid)
                 explanations.extend(self._hints_from_evidence(ev, request))
@@ -65,7 +70,8 @@ class ContextService:
                     explanation_type="other",
                     description=(
                         f"No se encontró contexto documentado para '{request.variable}' "
-                        f"en [{request.interval_start}, {request.interval_end}]. "
+                        f"en [{request.interval_start}, {request.interval_end}] "
+                        "con evidencia disponible en el momento de evaluación. "
                         "Conservar hipótesis rivales y escalar a revisión humana si procede."
                     ),
                     confidence=0.3,
@@ -81,19 +87,43 @@ class ContextService:
             related_evidence_ids=list(dict.fromkeys(related)),
             notes=(
                 "Alerta solo tras adjuntar este expediente. "
-                "No resolver contradicciones artificialmente."
+                "No resolver contradicciones artificialmente. "
+                "Solo se admite evidencia temporalmente elegible."
             ),
         )
+
+    @staticmethod
+    def _parse_evaluation_time(value: str) -> datetime:
+        try:
+            parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError as exc:
+            raise ValueError("interval_end must be a valid ISO-8601 timestamp") from exc
+        if parsed.tzinfo is None:
+            raise ValueError("interval_end must be timezone-aware")
+        return parsed
+
+    @staticmethod
+    def _eligible(ev: Evidence, evaluation_time: datetime) -> bool:
+        eligibility = evaluate_temporal_eligibility(
+            evidence_id=ev.evidence_id,
+            available_at=ev.available_at,
+            evaluation_time=evaluation_time,
+        )
+        return eligibility.eligible
 
     def _hints_from_evidence(
         self, ev: Evidence, request: PullContextRequest
     ) -> List[ContextExplanation]:
+        del request
         out: List[ContextExplanation] = []
         if ev.unavailable_fields.get("event_time"):
             out.append(
                 ContextExplanation(
                     explanation_type="ingestion_artifact",
-                    description=f"Evidencia {ev.evidence_id} sin event_time: {ev.unavailable_fields['event_time']}",
+                    description=(
+                        f"Evidencia {ev.evidence_id} sin event_time: "
+                        f"{ev.unavailable_fields['event_time']}"
+                    ),
                     supporting_evidence_ids=[ev.evidence_id],
                     confidence=0.6,
                 )

@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ceutia.local/contracts/v1/evidence.schema.json",
+  "title": "CeutIA Evidence Contract v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["evidence_id", "claim", "source_id", "observed_at", "ingestion_time", "uncertainty", "epistemic_status", "source_relation", "schema_version"],
+  "properties": {
+    "evidence_id": {"type": "string", "minLength": 1},
+    "claim": {"type": "string", "minLength": 1},
+    "source_id": {"type": "string", "minLength": 1},
+    "publication_time": {"type": ["string", "null"], "format": "date-time"},
+    "event_time": {"type": ["string", "null"], "format": "date-time"},
+    "observed_at": {"type": "string", "format": "date-time"},
+    "ingestion_time": {"type": "string", "format": "date-time"},
+    "revision_time": {"type": ["string", "null"], "format": "date-time"},
+    "uncertainty": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "description"],
+      "properties": {
+        "kind": {"type": "string", "minLength": 1},
+        "lower": {"type": ["number", "null"]},
+        "upper": {"type": ["number", "null"]},
+        "confidence": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+        "description": {"type": "string", "minLength": 1}
+      }
+    },
+    "epistemic_status": {"$ref": "#/$defs/epistemicStatus"},
+    "source_relation": {"$ref": "#/$defs/sourceRelation"},
+    "provenance": {"type": "array", "items": {"$ref": "#/$defs/provenanceLink"}},
+    "corroborating_evidence_ids": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "independent_source_count": {"type": "integer", "minimum": 0},
+    "limitations": {"type": "array", "items": {"type": "string"}},
+    "schema_version": {"const": "1.0.0"}
+  },
+  "$defs": {
+    "epistemicStatus": {"enum": ["OBSERVED_FACT", "CORROBORATED_FACT", "ATTRIBUTED_CLAIM", "INFERENCE", "HYPOTHESIS", "UNVERIFIED", "CONTRADICTED", "DISPROVEN", "UNKNOWN"]},
+    "sourceRelation": {"enum": ["INDEPENDENT", "DEPENDENT", "COPY", "AMPLIFIER", "UNKNOWN"]},
+    "provenanceLink": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_id", "source_version", "relation", "transformation"],
+      "properties": {
+        "source_id": {"type": "string", "minLength": 1},
+        "source_version": {"type": "string", "minLength": 1},
+        "relation": {"$ref": "#/$defs/sourceRelation"},
+        "parent_evidence_ids": {"type": "array", "items": {"type": "string"}},
+        "transformation": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

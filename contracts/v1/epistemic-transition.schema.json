@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ceutia.local/contracts/v1/epistemic-transition.schema.json",
+  "title": "CeutIA Epistemic Transition Contract v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["transition_id", "from_status", "to_status", "justification", "evidence_ids", "actor", "timestamp", "schema_version"],
+  "properties": {
+    "transition_id": {"type": "string", "minLength": 1},
+    "from_status": {"enum": ["OBSERVED_FACT", "CORROBORATED_FACT", "ATTRIBUTED_CLAIM", "INFERENCE", "HYPOTHESIS", "UNVERIFIED", "CONTRADICTED", "DISPROVEN", "UNKNOWN"]},
+    "to_status": {"enum": ["OBSERVED_FACT", "CORROBORATED_FACT", "ATTRIBUTED_CLAIM", "INFERENCE", "HYPOTHESIS", "UNVERIFIED", "CONTRADICTED", "DISPROVEN", "UNKNOWN"]},
+    "justification": {"type": "string", "minLength": 1},
+    "evidence_ids": {"type": "array", "items": {"type": "string"}},
+    "actor": {"type": "string", "minLength": 1},
+    "timestamp": {"type": "string", "format": "date-time"},
+    "previous_version_id": {"type": ["string", "null"]},
+    "schema_version": {"const": "1.0.0"}
+  }
+}

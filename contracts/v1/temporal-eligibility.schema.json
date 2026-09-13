@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ceutia.local/contracts/v1/temporal-eligibility.schema.json",
+  "title": "CeutIA Temporal Eligibility Contract v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["evaluation_time", "evidence_id", "available_at", "eligible", "reason", "schema_version"],
+  "properties": {
+    "evaluation_time": {"type": "string", "format": "date-time"},
+    "evidence_id": {"type": "string", "minLength": 1},
+    "available_at": {"type": "string", "format": "date-time"},
+    "eligible": {"type": "boolean"},
+    "reason": {"type": "string", "minLength": 1},
+    "schema_version": {"const": "1.0.0"}
+  }
+}

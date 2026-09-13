@@ -1,13 +1,12 @@
 """
 CeutIA - Modelo Temporal Multitemporal (P0)
 
-No se utiliza un único campo timestamp.
-Se distinguen explícitamente todos los tiempos relevantes.
-Crítico para backtesting sin contaminación retrospectiva.
+Se distinguen explícitamente todos los tiempos relevantes. La única frontera
+analítica es ``available_at``: event_time nunca determina disponibilidad.
 """
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Optional, List
 from enum import Enum
 
@@ -34,10 +33,13 @@ class TemporalContext:
     assessment_time: Optional[datetime] = None
     impact_time: Optional[datetime] = None
 
+    @property
+    def available_at(self) -> Optional[datetime]:
+        return self.revision_time or self.publication_time or self.ingestion_time
+
     def is_available_at(self, simulation_time: datetime) -> bool:
-        if self.ingestion_time is None:
-            return False
-        return self.ingestion_time <= simulation_time
+        available = self.available_at
+        return available is not None and available <= simulation_time
 
     def to_dict(self) -> dict:
         def ser(dt: Optional[datetime]):
@@ -47,6 +49,7 @@ class TemporalContext:
             "event_start": ser(self.event_start),
             "event_end": ser(self.event_end),
             "publication_time": ser(self.publication_time),
+            "available_at": ser(self.available_at),
             "ingestion_time": ser(self.ingestion_time),
             "revision_time": ser(self.revision_time),
             "detection_time": ser(self.detection_time),
@@ -57,27 +60,45 @@ class TemporalContext:
 
 class TemporalFilter:
     @staticmethod
-    def filter_by_ingestion_time(evidences: List, simulation_time: datetime, time_attr: str = "ingestion_time") -> List:
-        result = []
-        for ev in evidences:
-            ing = getattr(ev, time_attr, None)
-            if ing is None and hasattr(ev, "to_dict"):
-                d = ev.to_dict()
-                ing_str = d.get("ingestion_time")
-                if ing_str:
-                    ing = datetime.fromisoformat(ing_str)
-            if ing is not None and ing <= simulation_time:
-                result.append(ev)
-        return result
+    def _available_at(evidence) -> Optional[datetime]:
+        available = getattr(evidence, "available_at", None)
+        if callable(available):
+            available = available()
+        if available is not None:
+            return available
+        if hasattr(evidence, "to_dict"):
+            value = evidence.to_dict().get("available_at")
+            if value:
+                return datetime.fromisoformat(value)
+        return None
 
-    @staticmethod
-    def assert_no_future_leak(evidences: List, simulation_time: datetime) -> None:
+    @classmethod
+    def filter_by_available_at(cls, evidences: List, simulation_time: datetime) -> List:
+        """Return only evidence known to be available at simulation_time."""
+        return [
+            ev for ev in evidences
+            if (available := cls._available_at(ev)) is not None
+            and available <= simulation_time
+        ]
+
+    @classmethod
+    def filter_by_ingestion_time(cls, evidences: List, simulation_time: datetime, time_attr: str = "ingestion_time") -> List:
+        """Compatibility alias; the requested attribute is intentionally ignored.
+
+        Historical callers cannot select an alternative temporal gate. All
+        analytical filtering is performed through the canonical available_at
+        boundary.
+        """
+        return cls.filter_by_available_at(evidences, simulation_time)
+
+    @classmethod
+    def assert_no_future_leak(cls, evidences: List, simulation_time: datetime) -> None:
         leaks = []
         for ev in evidences:
-            ing = getattr(ev, "ingestion_time", None)
-            if ing and ing > simulation_time:
+            available = cls._available_at(ev)
+            if available is not None and available > simulation_time:
                 eid = getattr(ev, "evidence_id", "unknown")
-                leaks.append(f"{eid} (ingestion={ing.isoformat()})")
+                leaks.append(f"{eid} (available_at={available.isoformat()})")
         if leaks:
             raise ValueError(
                 f"Contaminación retrospectiva detectada en backtest (T={simulation_time.isoformat()}): "

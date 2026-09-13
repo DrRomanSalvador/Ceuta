@@ -8,12 +8,13 @@ from typing import Mapping, Sequence
 
 from .control_plane import DecisionAuditEvent, DecisionOutcome, HumanDecisionReview
 from .lineage import DecisionLineage
+from ..evidence.conflict_resolution import EvidenceResolution
 
 
 class SQLiteDecisionStore:
     """Append-only SQLite store with explicit schema-version control."""
 
-    SCHEMA_VERSION = 2
+    SCHEMA_VERSION = 3
 
     def __init__(self, path: str) -> None:
         self.connection = sqlite3.connect(path)
@@ -28,49 +29,27 @@ class SQLiteDecisionStore:
         if current > self.SCHEMA_VERSION:
             raise RuntimeError(f"database schema version {current} is newer than supported {self.SCHEMA_VERSION}")
         if current < 1:
-            self.connection.executescript(
-                """
-                CREATE TABLE IF NOT EXISTS decision_audit (
-                    event_id TEXT PRIMARY KEY, decision_id TEXT NOT NULL, event_type TEXT NOT NULL,
-                    payload_json TEXT NOT NULL, previous_hash TEXT NOT NULL, event_hash TEXT NOT NULL UNIQUE,
-                    timestamp TEXT NOT NULL
-                );
-                CREATE INDEX IF NOT EXISTS idx_decision_audit_decision ON decision_audit(decision_id, timestamp);
-                CREATE TABLE IF NOT EXISTS decision_reviews (
-                    review_id TEXT PRIMARY KEY, decision_id TEXT NOT NULL, payload_json TEXT NOT NULL, timestamp TEXT NOT NULL
-                );
-                CREATE TABLE IF NOT EXISTS decision_outcomes (
-                    decision_id TEXT NOT NULL, option_id TEXT NOT NULL, outcome_at TEXT NOT NULL,
-                    payload_json TEXT NOT NULL, PRIMARY KEY(decision_id, option_id, outcome_at)
-                );
-                CREATE INDEX IF NOT EXISTS idx_decision_outcomes_decision ON decision_outcomes(decision_id, outcome_at);
-                CREATE TABLE IF NOT EXISTS decision_cycles (
-                    system_id TEXT NOT NULL, as_of TEXT NOT NULL, decision_id TEXT, option_id TEXT,
-                    disposition TEXT, lineage_json TEXT NOT NULL, stages_json TEXT NOT NULL,
-                    PRIMARY KEY(system_id, as_of)
-                );
-                CREATE INDEX IF NOT EXISTS idx_decision_cycles_decision ON decision_cycles(decision_id, as_of);
-                """
-            )
+            self.connection.executescript("""CREATE TABLE IF NOT EXISTS decision_audit (event_id TEXT PRIMARY KEY, decision_id TEXT NOT NULL, event_type TEXT NOT NULL, payload_json TEXT NOT NULL, previous_hash TEXT NOT NULL, event_hash TEXT NOT NULL UNIQUE, timestamp TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS idx_decision_audit_decision ON decision_audit(decision_id, timestamp);
+CREATE TABLE IF NOT EXISTS decision_reviews (review_id TEXT PRIMARY KEY, decision_id TEXT NOT NULL, payload_json TEXT NOT NULL, timestamp TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS decision_outcomes (decision_id TEXT NOT NULL, option_id TEXT NOT NULL, outcome_at TEXT NOT NULL, payload_json TEXT NOT NULL, PRIMARY KEY(decision_id, option_id, outcome_at));
+CREATE INDEX IF NOT EXISTS idx_decision_outcomes_decision ON decision_outcomes(decision_id, outcome_at);
+CREATE TABLE IF NOT EXISTS decision_cycles (system_id TEXT NOT NULL, as_of TEXT NOT NULL, decision_id TEXT, option_id TEXT, disposition TEXT, lineage_json TEXT NOT NULL, stages_json TEXT NOT NULL, PRIMARY KEY(system_id, as_of));
+CREATE INDEX IF NOT EXISTS idx_decision_cycles_decision ON decision_cycles(decision_id, as_of);""")
             if row is None:
-                self.connection.execute("INSERT INTO ceutia_schema_version(version) VALUES (?)", (1,))
+                self.connection.execute("INSERT INTO ceutia_schema_version(version) VALUES (1)")
             else:
-                self.connection.execute("UPDATE ceutia_schema_version SET version=?", (1,))
+                self.connection.execute("UPDATE ceutia_schema_version SET version=1")
             current = 1
-
         if current < 2:
-            self.connection.executescript(
-                """
-                CREATE TABLE IF NOT EXISTS decision_lineage (
-                    decision_id TEXT PRIMARY KEY,
-                    semantic_fingerprint TEXT NOT NULL,
-                    execution_fingerprint TEXT NOT NULL,
-                    payload_json TEXT NOT NULL
-                );
-                CREATE INDEX IF NOT EXISTS idx_decision_lineage_semantic ON decision_lineage(semantic_fingerprint);
-                """
-            )
-            self.connection.execute("UPDATE ceutia_schema_version SET version=?", (2,))
+            self.connection.executescript("""CREATE TABLE IF NOT EXISTS decision_lineage (decision_id TEXT PRIMARY KEY, semantic_fingerprint TEXT NOT NULL, execution_fingerprint TEXT NOT NULL, payload_json TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS idx_decision_lineage_semantic ON decision_lineage(semantic_fingerprint);""")
+            self.connection.execute("UPDATE ceutia_schema_version SET version=2")
+            current = 2
+        if current < 3:
+            self.connection.executescript("""CREATE TABLE IF NOT EXISTS decision_conflict_resolutions (conflict_id TEXT PRIMARY KEY, decision_id TEXT NOT NULL, disposition TEXT NOT NULL, selected_refs_json TEXT NOT NULL, rationale TEXT NOT NULL, policy_version TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS idx_conflict_resolutions_decision ON decision_conflict_resolutions(decision_id);""")
+            self.connection.execute("UPDATE ceutia_schema_version SET version=3")
         self.connection.commit()
 
     @property
@@ -98,9 +77,7 @@ class SQLiteDecisionStore:
 
     def outcome(self, decision_id: str) -> DecisionOutcome | None:
         row = self.connection.execute("SELECT payload_json FROM decision_outcomes WHERE decision_id=? ORDER BY outcome_at DESC LIMIT 1", (decision_id,)).fetchone()
-        if row is None:
-            return None
-        return DecisionOutcome(**json.loads(row[0]))
+        return None if row is None else DecisionOutcome(**json.loads(row[0]))
 
     def outcomes(self, decision_id: str) -> tuple[DecisionOutcome, ...]:
         rows = self.connection.execute("SELECT payload_json FROM decision_outcomes WHERE decision_id=? ORDER BY outcome_at", (decision_id,)).fetchall()
@@ -108,28 +85,25 @@ class SQLiteDecisionStore:
 
     def record_lineage(self, lineage: DecisionLineage) -> None:
         payload = json.dumps(lineage.execution_payload(), sort_keys=True, ensure_ascii=False, separators=(",", ":"))
-        self.connection.execute(
-            "INSERT OR REPLACE INTO decision_lineage(decision_id,semantic_fingerprint,execution_fingerprint,payload_json) VALUES(?,?,?,?)",
-            (lineage.decision_id, lineage.semantic_fingerprint(), lineage.execution_fingerprint(), payload),
-        )
+        self.connection.execute("INSERT OR REPLACE INTO decision_lineage(decision_id,semantic_fingerprint,execution_fingerprint,payload_json) VALUES(?,?,?,?)", (lineage.decision_id, lineage.semantic_fingerprint(), lineage.execution_fingerprint(), payload))
         self.connection.commit()
 
     def lineage(self, decision_id: str) -> DecisionLineage | None:
-        row = self.connection.execute(
-            "SELECT payload_json FROM decision_lineage WHERE decision_id=?",
-            (decision_id,),
-        ).fetchone()
+        row = self.connection.execute("SELECT payload_json FROM decision_lineage WHERE decision_id=?", (decision_id,)).fetchone()
         if row is None:
             return None
         payload = json.loads(row[0])
         from .lineage import LineageNode
-        nodes = tuple(LineageNode(**node) for node in payload["nodes"])
-        return DecisionLineage(
-            decision_id=payload["decision_id"],
-            nodes=nodes,
-            terminal_disposition=payload["terminal_disposition"],
-            semantic_identity=payload["semantic_identity"],
-        )
+        return DecisionLineage(decision_id=payload["decision_id"], nodes=tuple(LineageNode(**node) for node in payload["nodes"]), terminal_disposition=payload["terminal_disposition"], semantic_identity=payload["semantic_identity"])
+
+    def record_conflict_resolution(self, decision_id: str, resolution: EvidenceResolution) -> None:
+        self.connection.execute("INSERT OR REPLACE INTO decision_conflict_resolutions(conflict_id,decision_id,disposition,selected_refs_json,rationale,policy_version) VALUES(?,?,?,?,?,?)", (resolution.conflict_id, decision_id, resolution.disposition.value, json.dumps(resolution.selected_refs, sort_keys=True), resolution.rationale, resolution.policy_version))
+        self.connection.commit()
+
+    def conflict_resolutions(self, decision_id: str) -> tuple[EvidenceResolution, ...]:
+        rows = self.connection.execute("SELECT conflict_id,disposition,selected_refs_json,rationale,policy_version FROM decision_conflict_resolutions WHERE decision_id=? ORDER BY conflict_id", (decision_id,)).fetchall()
+        from ..evidence.conflict_resolution import ResolutionDisposition
+        return tuple(EvidenceResolution(r[0], ResolutionDisposition(r[1]), tuple(json.loads(r[2])), r[3], r[4]) for r in rows)
 
     def record_cycle(self, *, system_id: str, as_of: str, decision_id: str | None, option_id: str | None, disposition: str | None, lineage: Sequence[str], stages: Sequence[Mapping[str, object]]) -> None:
         self.connection.execute("INSERT OR REPLACE INTO decision_cycles(system_id,as_of,decision_id,option_id,disposition,lineage_json,stages_json) VALUES(?,?,?,?,?,?,?)", (system_id, as_of, decision_id, option_id, disposition, json.dumps(tuple(lineage), sort_keys=True), json.dumps(tuple(stages), sort_keys=True, default=str)))

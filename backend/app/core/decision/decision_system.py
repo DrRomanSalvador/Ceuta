@@ -27,6 +27,14 @@ class DecisionConstraint(str, Enum):
     MIN_WORST_CASE_UTILITY = "min_worst_case_utility"
 
 
+class DecisionObjectiveMetric(str, Enum):
+    EXPECTED_UTILITY = "expected_utility"
+    WORST_CASE_UTILITY = "worst_case_utility"
+    EXPECTED_HARM = "expected_harm"
+    MAXIMUM_REGRET = "maximum_regret"
+    RESOURCE_COST = "resource_cost"
+
+
 @dataclass(frozen=True, slots=True)
 class DecisionObjective:
     name: str
@@ -38,6 +46,12 @@ class DecisionObjective:
             raise ValueError("invalid decision objective")
         if self.direction not in (-1, 1):
             raise ValueError("objective direction must be -1 or 1")
+        try:
+            DecisionObjectiveMetric(self.name)
+        except ValueError as exc:
+            raise ValueError(f"unsupported decision objective metric: {self.name}") from exc
+        if self.weight == 0:
+            raise ValueError("decision objective weight must be greater than zero")
 
 
 @dataclass(frozen=True, slots=True)
@@ -193,21 +207,32 @@ class DecisionSystem:
         constrained = tuple((o, metrics) for o, metrics in scored if self._satisfies_constraints(context.constraints, o, metrics))
         if not constrained:
             return self._abstain(context, mode, "no option satisfies decision constraints", provenance, reevaluation_triggers)
+        objective_scores = {option.option_id: self._objective_score(context.objectives, option, metrics) for option, metrics in constrained}
         if mode is DecisionMode.ROBUST:
-            chosen, metrics = max(constrained, key=lambda item: item[1][0])
+            chosen, metrics = max(constrained, key=lambda item: (item[1][0], objective_scores[item[0].option_id]))
         elif mode is DecisionMode.HARM_MINIMIZATION:
-            chosen, metrics = min(constrained, key=lambda item: (item[1][2], -item[1][0]))
+            chosen, metrics = min(constrained, key=lambda item: (item[1][2], -objective_scores[item[0].option_id]))
         elif mode is DecisionMode.REGRET:
-            chosen, metrics = min(constrained, key=lambda item: (item[1][3], -item[1][1]))
+            chosen, metrics = min(constrained, key=lambda item: (item[1][3], -objective_scores[item[0].option_id]))
         else:
-            chosen, metrics = max(constrained, key=lambda item: item[1][1])
+            chosen, metrics = max(constrained, key=lambda item: (item[1][1], objective_scores[item[0].option_id]))
         worst, expected, harm, regret = metrics
         normalized_uncertainty = chosen.uncertainty
         disposition = DecisionDisposition.HUMAN_REVIEW if normalized_uncertainty >= human_review_threshold else DecisionDisposition.RECOMMEND
         score = worst if mode is DecisionMode.ROBUST else expected if mode is DecisionMode.UTILITY else -regret if mode is DecisionMode.REGRET else -harm
         information_value = max((request.net_value for request in information_requests), default=0.0)
-        reasons = (f"policy={mode.value}", f"uncertainty={normalized_uncertainty:.6f}", f"best_supplied_information_net_value={information_value:.6f}", "decision is conditional on supplied scenarios and assumptions")
+        objective_score = objective_scores[chosen.option_id]
+        reasons = (f"policy={mode.value}", f"uncertainty={normalized_uncertainty:.6f}", f"objective_score={objective_score:.6f}", f"best_supplied_information_net_value={information_value:.6f}", "decision is conditional on supplied scenarios and assumptions")
         return DecisionRecommendation(context.decision_id, chosen.option_id, disposition, mode, score, worst, expected, harm, regret, information_value, reasons, tuple(provenance), tuple(reevaluation_triggers))
+
+    @staticmethod
+    def _objective_score(objectives: Sequence[DecisionObjective], option: DecisionOption, metrics: tuple[float, float, float, float]) -> float:
+        worst, expected, harm, regret = metrics
+        values = {DecisionObjectiveMetric.EXPECTED_UTILITY.value: expected, DecisionObjectiveMetric.WORST_CASE_UTILITY.value: worst, DecisionObjectiveMetric.EXPECTED_HARM.value: harm, DecisionObjectiveMetric.MAXIMUM_REGRET.value: regret, DecisionObjectiveMetric.RESOURCE_COST.value: option.resource_cost}
+        total_weight = sum(item.weight for item in objectives)
+        if total_weight <= 0:
+            raise ValueError("decision objective weights must sum to a positive value")
+        return sum(item.weight * item.direction * values[item.name] for item in objectives) / total_weight
 
     @staticmethod
     def _satisfies_constraints(constraints: Mapping[str, float], option: DecisionOption, metrics: tuple[float, float, float, float]) -> bool:
@@ -227,4 +252,4 @@ class DecisionSystem:
         return DecisionRecommendation(context.decision_id, "ABSTAIN", DecisionDisposition.ABSTAIN, mode, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, (reason,), tuple(provenance), tuple(triggers))
 
 
-__all__ = ["DecisionConstraint", "DecisionContext", "DecisionDisposition", "DecisionFeedback", "DecisionMode", "DecisionObjective", "DecisionOption", "DecisionRecommendation", "DecisionSystem", "InformationRequest", "ScenarioOutcome"]
+__all__ = ["DecisionConstraint", "DecisionContext", "DecisionDisposition", "DecisionFeedback", "DecisionMode", "DecisionObjective", "DecisionObjectiveMetric", "DecisionOption", "DecisionRecommendation", "DecisionSystem", "InformationRequest", "ScenarioOutcome"]

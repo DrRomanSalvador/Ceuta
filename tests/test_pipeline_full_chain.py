@@ -1,3 +1,4 @@
+import asyncio
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -28,17 +29,31 @@ def test_full_chain_ingestion_to_recalibration() -> None:
         async with LocalDeterministicPipeline(source) as pipeline:
             return await pipeline.run_once_with_state()
 
-    import asyncio
-
     normalized, normalized_state = asyncio.run(run_pipeline())
     assert len(normalized) == 5
-    assert normalized_state.observation_ids == tuple(item.observation_id for item in normalized)
+    assert normalized_state.observation_ids == tuple(
+        item.observation_id for item in normalized
+    )
 
     observations = [
-        Observation("migration", 10 + index, T0 + timedelta(days=index), T0 + timedelta(days=index), ("src-m",), (f"m{index}",))
+        Observation(
+            "migration",
+            10 + index,
+            T0 + timedelta(days=index),
+            T0 + timedelta(days=index),
+            ("src-m",),
+            (f"m{index}",),
+        )
         for index in range(4)
     ] + [
-        Observation("health_load", 20 + index, T0 + timedelta(days=index), T0 + timedelta(days=index), ("src-h",), (f"h{index}",))
+        Observation(
+            "health_load",
+            20 + index,
+            T0 + timedelta(days=index),
+            T0 + timedelta(days=index),
+            ("src-h",),
+            (f"h{index}",),
+        )
         for index in range(4)
     ]
 

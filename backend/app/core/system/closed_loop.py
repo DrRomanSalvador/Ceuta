@@ -6,7 +6,7 @@ from datetime import datetime
 from enum import Enum
 from hashlib import sha256
 
-from ..decision.control_plane import DecisionControlPlane, DecisionDisposition as ControlDisposition, DecisionManifest, UncertaintyState
+from ..decision.control_plane import ConflictResolution, DecisionControlPlane, DecisionDisposition as ControlDisposition, DecisionManifest, EvidenceAssessment, UncertaintyState
 from ..decision.decision_system import DecisionContext, DecisionMode, DecisionOption, DecisionRecommendation, DecisionSystem, InformationRequest
 from ..errors import ContractViolation, TemporalViolation
 from ..inference.inference_engine import EvidenceContribution, EpistemicLevel, InferencePlan, InferenceProblem, InferenceResult, ScientificInferenceEngine
@@ -40,8 +40,8 @@ class StageRecord:
     def __post_init__(self) -> None:
         if self.as_of.tzinfo is None or self.as_of.utcoffset() is None:
             raise TemporalViolation("stage timestamp must be timezone-aware")
-        if any(not item for item in self.record_ids):
-            raise ContractViolation("stage record IDs cannot be empty")
+        if any(not item.strip() for item in self.record_ids):
+            raise ContractViolation("stage record IDs must be non-empty strings")
 
 
 @dataclass(frozen=True, slots=True)
@@ -53,6 +53,8 @@ class ClosedLoopInput:
     decision_mode: DecisionMode = DecisionMode.ROBUST
     information_requests: tuple[InformationRequest, ...] = ()
     evidence: tuple[EvidenceContribution, ...] = ()
+    evidence_assessments: tuple[EvidenceAssessment, ...] = ()
+    conflict_resolutions: tuple[ConflictResolution, ...] = ()
     prediction_ids: tuple[str, ...] = ()
     relation_ids: tuple[str, ...] = ()
     hypothesis_ids: tuple[str, ...] = ()
@@ -71,6 +73,9 @@ class ClosedLoopInput:
             raise TemporalViolation("context timestamp must be timezone-aware")
         if self.decision_options and self.decision_context is None:
             raise ContractViolation("decision options require a decision context")
+        declared = {item.evidence_id for item in self.evidence_assessments}
+        if len(declared) != len(self.evidence_assessments):
+            raise ContractViolation("evidence assessments must have unique evidence IDs")
 
 
 @dataclass(frozen=True, slots=True)
@@ -164,7 +169,7 @@ class ClosedLoopEngine:
             else:
                 manifest = self._decision_manifest(event)
                 propagated_uncertainty = inference.uncertainty_state.propagate(UncertaintyState(max(option.uncertainty for option in event.decision_options), source_refs=tuple(f"option:{option.option_id}" for option in event.decision_options), method="declared-option-uncertainty"), method="conservative")
-                control = self.control_plane.authorize(decision_id=event.decision_context.decision_id, purpose=event.purpose, uncertainty=propagated_uncertainty, restricted=event.restricted, manifest=manifest)
+                control = self.control_plane.authorize(decision_id=event.decision_context.decision_id, purpose=event.purpose, uncertainty=propagated_uncertainty, restricted=event.restricted, manifest=manifest, evidence_assessments=event.evidence_assessments, conflict_resolutions=event.conflict_resolutions)
                 audit_id = control.audit_event_id
                 if control.disposition in {ControlDisposition.ABSTAIN, ControlDisposition.HUMAN_REVIEW}:
                     reason = control.reason if control.disposition is ControlDisposition.ABSTAIN else "human review required before execution"

@@ -87,6 +87,9 @@ class OfficialSourceRegistry:
             raise ValueError("source snapshots must be monotonic in retrieval time")
         self._snapshots[snapshot.source_id] = snapshot
 
+    def latest_snapshot(self, source_id: str) -> SourceSnapshot | None:
+        return self._snapshots.get(source_id)
+
     def freshness(self, now: datetime) -> tuple[SourceFreshness, ...]:
         if now.tzinfo is None or now.utcoffset() is None:
             raise ValueError("now must be timezone-aware")

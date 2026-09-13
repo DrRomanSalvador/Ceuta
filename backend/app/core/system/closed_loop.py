@@ -170,7 +170,7 @@ class ClosedLoopEngine:
                     reason = control.reason if control.disposition is ControlDisposition.ABSTAIN else "human review required before execution"
                     decision = self.decision_system._abstain(event.decision_context, event.decision_mode, reason, (*provenance, f"audit:{audit_id}"), triggers)
                 else:
-                    decision = self.decision_system.recommend(event.decision_context, event.decision_options, mode=event.decision_mode, provenance=(*provenance, f"audit:{audit_id}"), reevaluation_triggers=triggers, information_requests=event.information_requests)
+                    decision = self.decision_system.recommend(event.decision_context, event.decision_options, mode=event.decision_mode, provenance=(*provenance, f"audit:{audit_id}"), reevaluation_triggers=triggers, information_requests=event.information_requests, at=context.as_of)
         stages = self._build_stage_records(event, inference.plan)
         return ClosedLoopSnapshot(context.system_id, context.as_of, context, stages, inference, decision, event.prediction_ids, event.relation_ids, event.hypothesis_ids, event.causal_model_ids, event.response_ids, event.learning_ids, self._lineage(event, inference, decision, audit_id=audit_id))
 

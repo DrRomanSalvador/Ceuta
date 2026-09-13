@@ -13,6 +13,8 @@ from datetime import datetime
 from typing import Callable
 from uuid import uuid4
 
+from app.core.epistemology_p0.advanced import Observation
+
 from ..bus import EventBus
 from ..contracts import ObservationRecord, PipelineEvent
 from ..shadow_mode import ForecastFunction, ShadowModeExecutor
@@ -99,9 +101,7 @@ class ShadowModeStage:
                 self._queue.task_done()
 
 
-def record_to_observation(record: ObservationRecord):
-    from app.core.epistemology_p0.advanced import Observation
-
+def record_to_observation(record: ObservationRecord) -> Observation:
     return Observation(
         variable=record.variable,
         value=record.value,

@@ -34,6 +34,12 @@ from .review import (
     review_gate,
 )
 
+from .semantic_contract import (
+    MissingDataPolicy,
+    SemanticClassification,
+    SemanticContract,
+)
+
 __all__ = [
     "AuditChain",
     "AuditEvent",
@@ -42,6 +48,7 @@ __all__ = [
     "EpistemicEvaluation",
     "EpistemicState",
     "EvidenceItem",
+    "MissingDataPolicy",
     "PolicyDecision",
     "PolicyEngine",
     "PolicyFinding",
@@ -53,6 +60,8 @@ __all__ = [
     "ReviewLevel",
     "RiskEvaluation",
     "RiskTier",
+    "SemanticClassification",
+    "SemanticContract",
     "SensitiveAttribute",
     "calculate_risk",
     "can_publish",

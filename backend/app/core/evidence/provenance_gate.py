@@ -43,7 +43,7 @@ class EvidenceProvenanceGate:
             for claim_id in claim_ids:
                 if not self.registry.evidence_traceable(claim_id):
                     reasons.append(f"{claim_id}:claim_not_traceable")
-                if high_impact and self.citations is not None and not self.citations.traces_for_claim(claim_id):
+                if high_impact and self.citations is not None and not self.citations.traceable(claim_id):
                     reasons.append(f"{claim_id}:exact_citation_missing")
         if any(reason.endswith("source_not_registered") for reason in reasons):
             return ProvenanceGateResult(ProvenanceDisposition.ABSTAIN, tuple(reasons))

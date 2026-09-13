@@ -8,13 +8,15 @@ from typing import Mapping, Sequence
 
 from .control_plane import DecisionAuditEvent, DecisionOutcome, HumanDecisionReview
 from .lineage import DecisionLineage
+from ..evidence.citation_trace import CitationTrace
 from ..evidence.conflict_resolution import EvidenceResolution
+from ..evidence.source_registry import ClaimEvidenceLink, SourceRecord, SourceRegistry, SourceRole, SourceVerification
 
 
 class SQLiteDecisionStore:
     """Append-only SQLite store with explicit schema-version control."""
 
-    SCHEMA_VERSION = 3
+    SCHEMA_VERSION = 4
 
     def __init__(self, path: str) -> None:
         self.connection = sqlite3.connect(path)
@@ -50,6 +52,14 @@ CREATE INDEX IF NOT EXISTS idx_decision_lineage_semantic ON decision_lineage(sem
             self.connection.executescript("""CREATE TABLE IF NOT EXISTS decision_conflict_resolutions (conflict_id TEXT PRIMARY KEY, decision_id TEXT NOT NULL, disposition TEXT NOT NULL, selected_refs_json TEXT NOT NULL, rationale TEXT NOT NULL, policy_version TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS idx_conflict_resolutions_decision ON decision_conflict_resolutions(decision_id);""")
             self.connection.execute("UPDATE ceutia_schema_version SET version=3")
+            current = 3
+        if current < 4:
+            self.connection.executescript("""CREATE TABLE IF NOT EXISTS evidence_sources (source_id TEXT PRIMARY KEY, payload_json TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS claim_evidence_links (claim_id TEXT NOT NULL, source_id TEXT NOT NULL, relation TEXT NOT NULL, excerpt_ref TEXT, supports_claim INTEGER NOT NULL, PRIMARY KEY(claim_id, source_id, relation));
+CREATE INDEX IF NOT EXISTS idx_claim_evidence_links_claim ON claim_evidence_links(claim_id);
+CREATE TABLE IF NOT EXISTS citation_traces (claim_id TEXT NOT NULL, source_id TEXT NOT NULL, locator TEXT NOT NULL, captured_text_hash TEXT NOT NULL, captured_at TEXT NOT NULL, PRIMARY KEY(claim_id, source_id, locator, captured_text_hash));
+CREATE INDEX IF NOT EXISTS idx_citation_traces_claim ON citation_traces(claim_id);""")
+            self.connection.execute("UPDATE ceutia_schema_version SET version=4")
         self.connection.commit()
 
     @property
@@ -104,6 +114,39 @@ CREATE INDEX IF NOT EXISTS idx_conflict_resolutions_decision ON decision_conflic
         rows = self.connection.execute("SELECT conflict_id,disposition,selected_refs_json,rationale,policy_version FROM decision_conflict_resolutions WHERE decision_id=? ORDER BY conflict_id", (decision_id,)).fetchall()
         from ..evidence.conflict_resolution import ResolutionDisposition
         return tuple(EvidenceResolution(r[0], ResolutionDisposition(r[1]), tuple(json.loads(r[2])), r[3], r[4]) for r in rows)
+
+    def record_source(self, source: SourceRecord) -> None:
+        self.connection.execute("INSERT OR REPLACE INTO evidence_sources(source_id,payload_json) VALUES(?,?)", (source.source_id, json.dumps(asdict(source), sort_keys=True, default=lambda value: value.value)))
+        self.connection.commit()
+
+    def source(self, source_id: str) -> SourceRecord | None:
+        row = self.connection.execute("SELECT payload_json FROM evidence_sources WHERE source_id=?", (source_id,)).fetchone()
+        if row is None:
+            return None
+        payload = json.loads(row[0])
+        return SourceRecord(**payload, verification=SourceVerification(payload["verification"]), role=SourceRole(payload["role"]))
+
+    def source_registry(self) -> SourceRegistry:
+        registry = SourceRegistry()
+        rows = self.connection.execute("SELECT payload_json FROM evidence_sources ORDER BY source_id").fetchall()
+        for row in rows:
+            payload = json.loads(row[0])
+            payload["verification"] = SourceVerification(payload["verification"])
+            payload["role"] = SourceRole(payload["role"])
+            payload["assumptions"] = tuple(payload.get("assumptions", ()))
+            payload["limitations"] = tuple(payload.get("limitations", ()))
+            registry.register(SourceRecord(**payload))
+        return registry
+
+    def record_claim_evidence_link(self, link: ClaimEvidenceLink) -> None:
+        if self.source(link.source_id) is None:
+            raise KeyError(f"unknown source_id: {link.source_id}")
+        self.connection.execute("INSERT OR REPLACE INTO claim_evidence_links(claim_id,source_id,relation,excerpt_ref,supports_claim) VALUES(?,?,?,?,?)", (link.claim_id, link.source_id, link.relation, link.excerpt_ref, int(link.supports_claim)))
+        self.connection.commit()
+
+    def record_citation_trace(self, trace: CitationTrace) -> None:
+        self.connection.execute("INSERT OR REPLACE INTO citation_traces(claim_id,source_id,locator,captured_text_hash,captured_at) VALUES(?,?,?,?,?)", (trace.claim_id, trace.source_id, trace.locator, trace.captured_text_hash, trace.captured_at))
+        self.connection.commit()
 
     def record_cycle(self, *, system_id: str, as_of: str, decision_id: str | None, option_id: str | None, disposition: str | None, lineage: Sequence[str], stages: Sequence[Mapping[str, object]]) -> None:
         self.connection.execute("INSERT OR REPLACE INTO decision_cycles(system_id,as_of,decision_id,option_id,disposition,lineage_json,stages_json) VALUES(?,?,?,?,?,?,?)", (system_id, as_of, decision_id, option_id, disposition, json.dumps(tuple(lineage), sort_keys=True), json.dumps(tuple(stages), sort_keys=True, default=str)))

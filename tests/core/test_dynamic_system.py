@@ -44,6 +44,28 @@ def test_state_contains_velocity_and_evidence_trace() -> None:
     assert variable.evidence_ids == ("ev-1", "ev-2")
 
 
+def test_cross_domain_interaction_enters_state_and_forecast() -> None:
+    monitor = DynamicSystemMonitor([Interaction("migration_pressure", "health_load", 0.5)])
+    monitor.ingest(
+        [
+            obs("migration_pressure", 10, 0, "ev-m1"),
+            obs("migration_pressure", 14, 1, "ev-m2"),
+            obs("health_load", 20, 0, "ev-h1"),
+            obs("health_load", 21, 1, "ev-h2"),
+        ],
+        evaluation_time=T0 + timedelta(days=1),
+    )
+    state = monitor.snapshot(as_of=T0 + timedelta(days=1))
+    assert len(state.interaction_effects) == 1
+    effect = state.interaction_effects[0]
+    assert effect.upstream == "migration_pressure"
+    assert effect.downstream == "health_load"
+    assert effect.status == "UNVERIFIED"
+    forecast = monitor.forecast(variable="health_load", horizon=timedelta(days=1), state=state)
+    assert forecast.method == "velocity_baseline_plus_association_coupling"
+    assert forecast.point > 21
+
+
 def test_forecast_is_explicitly_unverified_and_traceable() -> None:
     monitor = DynamicSystemMonitor([Interaction("migration_pressure", "health_load", 0.7)])
     monitor.ingest(
@@ -61,10 +83,24 @@ def test_forecast_is_explicitly_unverified_and_traceable() -> None:
         state=state,
     )
     assert forecast.status == "UNVERIFIED"
-    assert forecast.method == "persistence_plus_velocity_baseline"
+    assert forecast.method == "velocity_baseline_plus_association_coupling"
     assert forecast.state_id == state.state_id
     assert forecast.cutoff_time == state.as_of
     assert forecast.evidence_ids == ("ev-1", "ev-2", "ev-3")
+
+
+def test_forecast_can_be_closed_loop_scored() -> None:
+    monitor = DynamicSystemMonitor()
+    monitor.ingest(
+        [obs("pressure", 10, 0, "ev-1"), obs("pressure", 12, 1, "ev-2")],
+        evaluation_time=T0 + timedelta(days=1),
+    )
+    state = monitor.snapshot(as_of=T0 + timedelta(days=1))
+    forecast = monitor.forecast(variable="pressure", horizon=timedelta(days=1), state=state)
+    resolved = monitor.resolve_forecast(forecast.forecast_id, realized_value=15)
+    assert resolved.realized_value == 15
+    assert resolved.score is not None
+    assert resolved.score >= 0
 
 
 def test_early_warning_does_not_claim_tipping_point() -> None:
@@ -83,4 +119,4 @@ def test_early_warning_does_not_claim_tipping_point() -> None:
     state = monitor.snapshot(as_of=T0 + timedelta(days=7))
     assert state.early_warnings
     assert any("increasing_variance" in warning.indicators for warning in state.early_warnings)
-    assert all("tipping" not in warning.interpretation.lower() or "prediction" in warning.interpretation.lower() for warning in state.early_warnings)
+    assert all("tipping-point prediction" in warning.interpretation for warning in state.early_warnings)

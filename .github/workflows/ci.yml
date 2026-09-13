@@ -2,7 +2,6 @@ name: CeutIA CI
 
 on:
   push:
-    branches: [main]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -11,7 +10,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ceutia-ci-${{ github.ref }}
+  group: ceutia-ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:

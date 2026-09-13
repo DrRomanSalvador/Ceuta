@@ -67,7 +67,7 @@ class ScientificLongitudinalPipeline:
             blockers.append("real-time cycle is not decision-ready")
         if source_required and any(not item.current for item in freshness):
             blockers.append("one or more required official sources are stale or unverified")
-        if integrity is not None and not integrity.accepted:
+        if integrity is not None and not integrity.valid:
             blockers.append("source/data integrity gate failed")
 
         results: list[SpecialistResult] = []

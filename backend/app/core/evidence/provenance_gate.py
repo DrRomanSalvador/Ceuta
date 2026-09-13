@@ -30,6 +30,7 @@ class EvidenceProvenanceGate:
 
     def evaluate(self, evidence_ids: Sequence[str], *, claim_ids: Sequence[str] = (), high_impact: bool = False) -> ProvenanceGateResult:
         reasons: list[str] = []
+        evidence_set = set(evidence_ids)
         for evidence_id in evidence_ids:
             source = self.registry.source(evidence_id)
             if source is None:
@@ -41,10 +42,17 @@ class EvidenceProvenanceGate:
                 reasons.append(f"{evidence_id}:source_not_verified")
         if claim_ids:
             for claim_id in claim_ids:
-                if not self.registry.evidence_traceable(claim_id):
+                links = self.registry.links_for_claim(claim_id)
+                if not links:
                     reasons.append(f"{claim_id}:claim_not_traceable")
-                if high_impact and self.citations is not None and not self.citations.traceable(claim_id):
-                    reasons.append(f"{claim_id}:exact_citation_missing")
+                elif not any(link.source_id in evidence_set and link.supports_claim for link in links):
+                    reasons.append(f"{claim_id}:claim_not_supported_by_decision_evidence")
+                if high_impact and self.citations is not None:
+                    traces = self.citations.traces(claim_id)
+                    if not traces:
+                        reasons.append(f"{claim_id}:exact_citation_missing")
+                    elif not any(trace.source_id in evidence_set for trace in traces):
+                        reasons.append(f"{claim_id}:citation_source_not_in_decision_evidence")
         if any(reason.endswith("source_not_registered") for reason in reasons):
             return ProvenanceGateResult(ProvenanceDisposition.ABSTAIN, tuple(reasons))
         if reasons:

@@ -55,12 +55,16 @@ class ScientificLongitudinalPipeline:
 
     def run(self, signals: Sequence[Any], *, now: datetime,
             required_signals: Sequence[str], deadline_seconds: float,
+            calibrated: bool = False, model_valid: bool = False,
             source_required: bool = False,
             integrity: IntegrityAssessment | None = None,
             specialists: Mapping[str, Callable[[LongitudinalCycle], SpecialistResult]] | None = None,
             require_human_review: bool = False) -> ScientificPipelineResult:
-        cycle = self.monitor.ingest_cycle(signals, now=now, required_signals=required_signals,
-                                          deadline_seconds=deadline_seconds)
+        cycle = self.monitor.ingest_cycle(
+            signals, now=now, required_signals=required_signals,
+            deadline_seconds=deadline_seconds, calibrated=calibrated,
+            model_valid=model_valid,
+        )
         freshness = self.sources.freshness(now)
         blockers: list[str] = []
         if not cycle.decision_ready:

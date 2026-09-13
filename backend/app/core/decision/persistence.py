@@ -10,52 +10,59 @@ from .control_plane import DecisionAuditEvent, DecisionOutcome, HumanDecisionRev
 
 
 class SQLiteDecisionStore:
-    """Append-only SQLite store for decision audit, review, outcomes and cycle summaries."""
+    """Append-only SQLite store with explicit schema-version control."""
+
+    SCHEMA_VERSION = 1
 
     def __init__(self, path: str) -> None:
         self.connection = sqlite3.connect(path)
         self.connection.execute("PRAGMA journal_mode=WAL")
         self.connection.execute("PRAGMA foreign_keys=ON")
-        self.connection.executescript(
-            """
-            CREATE TABLE IF NOT EXISTS decision_audit (
-                event_id TEXT PRIMARY KEY,
-                decision_id TEXT NOT NULL,
-                event_type TEXT NOT NULL,
-                payload_json TEXT NOT NULL,
-                previous_hash TEXT NOT NULL,
-                event_hash TEXT NOT NULL UNIQUE,
-                timestamp TEXT NOT NULL
-            );
-            CREATE INDEX IF NOT EXISTS idx_decision_audit_decision ON decision_audit(decision_id, timestamp);
-            CREATE TABLE IF NOT EXISTS decision_reviews (
-                review_id TEXT PRIMARY KEY,
-                decision_id TEXT NOT NULL,
-                payload_json TEXT NOT NULL,
-                timestamp TEXT NOT NULL
-            );
-            CREATE TABLE IF NOT EXISTS decision_outcomes (
-                decision_id TEXT NOT NULL,
-                option_id TEXT NOT NULL,
-                outcome_at TEXT NOT NULL,
-                payload_json TEXT NOT NULL,
-                PRIMARY KEY(decision_id, option_id, outcome_at)
-            );
-            CREATE INDEX IF NOT EXISTS idx_decision_outcomes_decision ON decision_outcomes(decision_id, outcome_at);
-            CREATE TABLE IF NOT EXISTS decision_cycles (
-                system_id TEXT NOT NULL,
-                as_of TEXT NOT NULL,
-                decision_id TEXT,
-                option_id TEXT,
-                disposition TEXT,
-                lineage_json TEXT NOT NULL,
-                stages_json TEXT NOT NULL,
-                PRIMARY KEY(system_id, as_of)
-            );
-            CREATE INDEX IF NOT EXISTS idx_decision_cycles_decision ON decision_cycles(decision_id, as_of);
-            """
-        )
+        self._migrate()
+
+    def _migrate(self) -> None:
+        self.connection.execute("CREATE TABLE IF NOT EXISTS ceutia_schema_version (version INTEGER NOT NULL)")
+        row = self.connection.execute("SELECT version FROM ceutia_schema_version LIMIT 1").fetchone()
+        current = 0 if row is None else int(row[0])
+        if current > self.SCHEMA_VERSION:
+            raise RuntimeError(f"database schema version {current} is newer than supported {self.SCHEMA_VERSION}")
+        if current < 1:
+            self.connection.executescript(
+                """
+                CREATE TABLE IF NOT EXISTS decision_audit (
+                    event_id TEXT PRIMARY KEY, decision_id TEXT NOT NULL, event_type TEXT NOT NULL,
+                    payload_json TEXT NOT NULL, previous_hash TEXT NOT NULL, event_hash TEXT NOT NULL UNIQUE,
+                    timestamp TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_decision_audit_decision ON decision_audit(decision_id, timestamp);
+                CREATE TABLE IF NOT EXISTS decision_reviews (
+                    review_id TEXT PRIMARY KEY, decision_id TEXT NOT NULL, payload_json TEXT NOT NULL, timestamp TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS decision_outcomes (
+                    decision_id TEXT NOT NULL, option_id TEXT NOT NULL, outcome_at TEXT NOT NULL,
+                    payload_json TEXT NOT NULL, PRIMARY KEY(decision_id, option_id, outcome_at)
+                );
+                CREATE INDEX IF NOT EXISTS idx_decision_outcomes_decision ON decision_outcomes(decision_id, outcome_at);
+                CREATE TABLE IF NOT EXISTS decision_cycles (
+                    system_id TEXT NOT NULL, as_of TEXT NOT NULL, decision_id TEXT, option_id TEXT,
+                    disposition TEXT, lineage_json TEXT NOT NULL, stages_json TEXT NOT NULL,
+                    PRIMARY KEY(system_id, as_of)
+                );
+                CREATE INDEX IF NOT EXISTS idx_decision_cycles_decision ON decision_cycles(decision_id, as_of);
+                """
+            )
+            if row is None:
+                self.connection.execute("INSERT INTO ceutia_schema_version(version) VALUES (?)", (1,))
+            else:
+                self.connection.execute("UPDATE ceutia_schema_version SET version=?", (1,))
         self.connection.commit()
+
+    @property
+    def schema_version(self) -> int:
+        row = self.connection.execute("SELECT version FROM ceutia_schema_version LIMIT 1").fetchone()
+        if row is None:
+            raise RuntimeError("schema version is missing")
+        return int(row[0])
 
     def append(self, event: DecisionAuditEvent) -> None:
         self.connection.execute("INSERT INTO decision_audit(event_id,decision_id,event_type,payload_json,previous_hash,event_hash,timestamp) VALUES(?,?,?,?,?,?,?)", (event.event_id, event.decision_id, event.event_type, json.dumps(dict(event.payload), sort_keys=True, default=str), event.previous_hash, event.event_hash, event.timestamp))

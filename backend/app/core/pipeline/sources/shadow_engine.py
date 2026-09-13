@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 from math import isfinite
 from typing import Protocol
@@ -106,9 +106,7 @@ class ShadowEngine:
             raise TemporalLeakageError("forecast target precedes cutoff")
         if forecast.status not in {"SHADOW_EVALUATION", "UNVERIFIED"}:
             raise PermissionError("shadow engine cannot persist production forecast status")
-        shadow_forecast = forecast if forecast.status == "SHADOW_EVALUATION" else forecast.__class__(
-            **{**forecast.__dict__, "status": "SHADOW_EVALUATION"}
-        )
+        shadow_forecast = replace(forecast, status="SHADOW_EVALUATION")
         record = ShadowLedgerRecord(
             record_id=str(uuid4()),
             forecast_id=shadow_forecast.forecast_id,

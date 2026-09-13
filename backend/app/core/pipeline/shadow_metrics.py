@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from math import isfinite, sqrt
 from statistics import mean
-from typing import Iterable
 
 from .shadow_mode import ShadowEvaluation
 

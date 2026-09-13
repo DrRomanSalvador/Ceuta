@@ -20,7 +20,7 @@ from ..pipeline.contracts import ObservationRecord
 
 @dataclass(frozen=True, slots=True)
 class StateEstimate:
-    """Posterior estimate of a latent scalar state at one observation time."""
+    """Posterior or prior estimate of a latent scalar state."""
 
     variable: str
     as_of: datetime
@@ -52,7 +52,7 @@ class StateEstimate:
 
 @dataclass(frozen=True, slots=True)
 class LongitudinalStateSeries:
-    """Ordered immutable sequence of posterior latent-state estimates."""
+    """Ordered immutable sequence of latent-state estimates."""
 
     estimates: tuple[StateEstimate, ...]
 
@@ -102,6 +102,37 @@ class ScalarKalmanFilter:
         self._process_variance_per_second = float(process_variance_per_second)
         self._time: datetime | None = None
 
+    def _predict_to(self, as_of: datetime) -> tuple[float, float]:
+        if as_of.tzinfo is None or as_of.utcoffset() is None:
+            raise TemporalViolation("as_of must be timezone-aware")
+        if self._time is None:
+            return self._mean, self._variance
+        if as_of <= self._time:
+            raise TemporalViolation("prediction time must be strictly forward")
+        elapsed = (as_of - self._time).total_seconds()
+        return (
+            self._mean,
+            self._variance + self._process_variance_per_second * elapsed,
+        )
+
+    def predict_to(self, as_of: datetime) -> StateEstimate:
+        """Advance the latent-state prior without observing a new value."""
+        prior_mean, prior_variance = self._predict_to(as_of)
+        self._mean = prior_mean
+        self._variance = prior_variance
+        self._time = as_of
+        return StateEstimate(
+            variable=self.variable,
+            as_of=as_of,
+            mean=prior_mean,
+            variance=prior_variance,
+            observation_id=None,
+            prior_mean=prior_mean,
+            prior_variance=prior_variance,
+            innovation=None,
+            innovation_variance=None,
+        )
+
     def update(
         self,
         observation: ObservationRecord,
@@ -112,16 +143,7 @@ class ScalarKalmanFilter:
         if not isfinite(float(observation_variance)) or observation_variance <= 0.0:
             raise ContractViolation("observation_variance must be finite and positive")
 
-        if self._time is None:
-            prior_mean = self._mean
-            prior_variance = self._variance
-        else:
-            if observation.event_time <= self._time:
-                raise TemporalViolation("observations must be strictly ordered")
-            elapsed = (observation.event_time - self._time).total_seconds()
-            prior_mean = self._mean
-            prior_variance = self._variance + self._process_variance_per_second * elapsed
-
+        prior_mean, prior_variance = self._predict_to(observation.event_time)
         innovation = float(observation.value) - prior_mean
         innovation_variance = prior_variance + float(observation_variance)
         gain = prior_variance / innovation_variance

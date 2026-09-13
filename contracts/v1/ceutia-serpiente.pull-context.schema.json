@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ceutia.local/contracts/v1/ceutia-serpiente.pull-context.schema.json",
+  "title": "CeutIA-Serpiente pull_context Contract v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["request_id", "contract_version", "requested_at", "query", "response", "status"],
+  "properties": {
+    "request_id": {"type": "string", "minLength": 1},
+    "contract_version": {"const": "1.0.0"},
+    "requested_at": {"type": "string", "format": "date-time"},
+    "query": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope", "as_of"],
+      "properties": {
+        "scope": {"type": "string", "minLength": 1},
+        "as_of": {"type": "string", "format": "date-time"},
+        "entity_ids": {"type": "array", "items": {"type": "string"}},
+        "domains": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "response": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["observations", "claims", "contradictions", "uncertainty", "provenance"],
+      "properties": {
+        "observations": {"type": "array", "items": {"type": "object"}},
+        "claims": {"type": "array", "items": {"type": "object"}},
+        "contradictions": {"type": "array", "items": {"type": "object"}},
+        "uncertainty": {"type": "object"},
+        "provenance": {"type": "array", "items": {"type": "object"}}
+      }
+    },
+    "status": {"enum": ["OK", "PARTIAL", "CONTRADICTORY", "UNKNOWN", "ERROR"]},
+    "errors": {"type": "array", "items": {"type": "object"}},
+    "compatibility": {"type": "object"}
+  }
+}

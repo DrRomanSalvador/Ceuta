@@ -1,0 +1,3 @@
+# CeutIA P0 - dependencias mínimas
+# (stdlib + pytest para tests)
+pytest>=7.0

@@ -28,6 +28,7 @@ class ShadowEvaluation:
     target_time: datetime
     realized_value: float
     error: float
+    baseline_error: float
     squared_error: float
     baseline_squared_error: float
     directional_hit: bool | None
@@ -38,7 +39,13 @@ class ShadowEvaluation:
             raise ValueError("forecast identity is required")
         if self.target_time.tzinfo is None or self.target_time.utcoffset() is None:
             raise ValueError("target_time must be timezone-aware")
-        for name in ("realized_value", "error", "squared_error", "baseline_squared_error"):
+        for name in (
+            "realized_value",
+            "error",
+            "baseline_error",
+            "squared_error",
+            "baseline_squared_error",
+        ):
             if not isfinite(float(getattr(self, name))):
                 raise ValueError(f"{name} must be finite")
         if self.squared_error < 0.0 or self.baseline_squared_error < 0.0:
@@ -48,7 +55,12 @@ class ShadowEvaluation:
 class ShadowModeExecutor:
     """Run prospective forecasts without exposing a production mutation API."""
 
-    def __init__(self, *, ledger: ForecastLedger | None = None, model_version: str = "shadow-v1") -> None:
+    def __init__(
+        self,
+        *,
+        ledger: ForecastLedger | None = None,
+        model_version: str = "shadow-v1",
+    ) -> None:
         if not model_version:
             raise ValueError("model_version must not be empty")
         self.ledger = ledger or ForecastLedger()
@@ -89,7 +101,10 @@ class ShadowModeExecutor:
             raise ValueError("resolved_at must be timezone-aware")
         if not isfinite(float(realized_value)) or not isfinite(float(baseline_prediction)):
             raise ValueError("realized_value and baseline_prediction must be finite")
-        entry = next((item for item in self.ledger.entries if item.forecast.forecast_id == forecast_id), None)
+        entry = next(
+            (item for item in self.ledger.entries if item.forecast.forecast_id == forecast_id),
+            None,
+        )
         if entry is None:
             raise KeyError(forecast_id)
         if resolved_at < entry.forecast.target_time:
@@ -111,6 +126,7 @@ class ShadowModeExecutor:
             target_time=entry.forecast.target_time,
             realized_value=float(realized_value),
             error=error,
+            baseline_error=baseline_error,
             squared_error=error * error,
             baseline_squared_error=baseline_error * baseline_error,
             directional_hit=directional_hit,

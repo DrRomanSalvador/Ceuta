@@ -320,21 +320,29 @@ Weak signals may contribute to an early-warning state but cannot by themselves e
 
 Thresholds, reserve estimates and recovery metrics must expose their assumptions and measurement basis.
 
-## 8. Implementation priority
+## 8. Master inventory dependency
+
+The exhaustive architectural capability inventory is maintained in `docs/architecture/CEUTIA_EXHAUSTIVE_CAPABILITY_INVENTORY_V1.md`. It supersedes informal lists of missing capabilities as the master completeness checklist and incorporates the A–O gap-register families plus integration, semantic, operational, lifecycle and human-factors requirements.
+
+A new capability should be added to that inventory before it becomes an isolated implementation target. Existing capabilities should be mapped to it rather than duplicated under new names.
+
+## 9. Implementation priority
 
 The next implementation phase should therefore be:
 
-1. inspect and reuse the existing state/pipeline architecture;
-2. define the smallest coherent integration context around the canonical `SystemStateContract`;
-3. connect trajectory, estimation and dynamics to that context;
-4. expose provenance, uncertainty, contradictions and epistemic status through the same boundary;
-5. provide stable hand-off points to causal, forecasting and decision layers;
-6. incorporate the robustness primitives above as explicit state/evidence semantics rather than disconnected scores;
-7. only then add further analytical capabilities where a demonstrated architectural gap remains.
+1. use the master capability inventory as the completeness baseline;
+2. inspect and reuse the existing state/pipeline architecture;
+3. define the smallest coherent integration context around the canonical `SystemStateContract`;
+4. connect trajectory, estimation and dynamics to that context;
+5. expose provenance, uncertainty, contradictions and epistemic status through the same boundary;
+6. provide stable hand-off points to causal, forecasting and decision layers;
+7. incorporate robustness primitives as explicit state/evidence semantics rather than disconnected scores;
+8. close cross-cutting semantic, operational, learning and governance gaps identified by the inventory;
+9. only then add further analytical capabilities where a demonstrated inventory gap remains.
 
 The objective is not to make one large class. The objective is to create one coherent state-and-evidence spine through which the existing and future analytical modules operate.
 
-## 9. Explicit non-goals
+## 10. Explicit non-goals
 
 This checkpoint does not authorize:
 
@@ -346,10 +354,10 @@ This checkpoint does not authorize:
 - declaring a digital twin complete merely because a transition function can be iterated;
 - running final CI or scientific validation before the implementation cycle is complete.
 
-## 10. Definition of architectural success
+## 11. Definition of architectural success
 
 The integration is successful when CeutIA can represent a changing complex system as a coherent, time-indexed object of evidence and inference rather than as disconnected outputs from separate modules.
 
 A subsystem should be able to consume the current state and its trajectory, understand the uncertainty and provenance attached to that state, contribute an inference without overwriting competing explanations, and return its result with sufficient lineage for downstream causal, predictive and decision reasoning.
 
-This is the required bridge between the existing modules and the intended CeutIA architecture.
+The master inventory is complete enough for implementation only when every applicable capability has an explicit maturity status and no material architectural family remains outside the inventory.

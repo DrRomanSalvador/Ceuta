@@ -7,7 +7,7 @@ class CeutIAError(Exception):
     """Base class for expected CeutIA domain failures."""
 
 
-class ContractViolation(CeutIAError):
+class ContractViolation(ValueError, CeutIAError):
     """A typed contract contains an invalid or inconsistent value."""
 
 

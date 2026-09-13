@@ -17,9 +17,10 @@ class EpistemicClaim:
 
 class EpistemicIntegrity:
     @staticmethod
-    def can_upgrade(source: EpistemicLevel, target: EpistemicLevel, explicit_justification: bool) -> bool:
+    def can_upgrade(source: EvidenceLevel, target: EvidenceLevel, explicit_justification: bool) -> bool:
         return target.value <= source.value or explicit_justification
 
     @staticmethod
-    def require(source: EpistemicLevel, target: EpistemicLevel, justification: str | None = None) -> None:
-        if target.value > source.value and not justification: raise ContractViolation("epistemic upgrade requires explicit justification")
+    def require(source: EvidenceLevel, target: EvidenceLevel, justification: str | None = None) -> None:
+        if target.value > source.value and not justification:
+            raise ContractViolation("epistemic upgrade requires explicit justification")

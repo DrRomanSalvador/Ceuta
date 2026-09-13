@@ -19,6 +19,10 @@ Phase 2 establishes typed, deterministic failure semantics at the existing pipel
 
 This phase does not implement ingestion orchestration, source dependency graphs, entity resolution, dynamic graphs, forecasting, decision engines, spatial engines, or digital twins. Those remain subsequent phases.
 
+## Invalid contract states
+
+Invalid contract states fail closed through the typed foundational error taxonomy. They are not silently coerced into valid state and are not treated as successful execution.
+
 ## Exit criteria
 
 The phase can only be CLOSED when all are true:

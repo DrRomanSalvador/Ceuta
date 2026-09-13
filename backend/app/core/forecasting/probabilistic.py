@@ -21,11 +21,10 @@ class ProbabilisticForecastEngine:
         if not 0<p<1: raise ValueError("p must be in (0,1)")
         a=(-39.6968302866538,220.946098424521,-275.928510446969,138.357751867269,-30.6647980661472,2.50662827745924); b=(-54.4760987982241,161.585836858041,-155.698979859887,66.8013118877197,-13.2806815528857); c=(-0.00778489400243029,-0.322396458041136,-2.40075827716184,-2.54973253934373,4.37466414146497,2.93816398269878); d=(0.00778469570904146,0.32246712907004,2.445134137143,3.75440866190742)
         if p<.02425:
-            q=sqrt(-2*log(p)); return (((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5])/((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1))
+            q=sqrt(-2*log(p)); num=((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5]; den=(((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1; return num/den
         if p>1-.02425:
-            q=sqrt(-2*log(1-p)); return -(((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5])/((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1))
-        q=p-.5; r=q*q
-        return (((((a[0]*r+a[1])*r+a[2])*r+a[3])*r+a[4])*r+a[5])*q/(((((b[0]*r+b[1])*r+b[2])*r+b[3])*r+b[4])*r+1))
+            q=sqrt(-2*log(1-p)); num=((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5]; den=(((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1; return -num/den
+        q=p-.5; r=q*q; num=((((((a[0]*r+a[1])*r+a[2])*r+a[3])*r+a[4])*r+a[5])*q); den=((((b[0]*r+b[1])*r+b[2])*r+b[3])*r+b[4])*r+1); return num/den
     @staticmethod
     def gaussian_interval(mean_value:float,scale:float,level:float)->tuple[float,float]:
         if scale<=0 or not 0<level<1: raise ValueError("invalid scale/level")

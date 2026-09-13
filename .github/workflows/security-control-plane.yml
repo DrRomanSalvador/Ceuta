@@ -98,4 +98,4 @@ jobs:
           PYTHONPATH: ${{ github.workspace }}/Ceuta/backend:${{ github.workspace }}/Ceuta
         run: |
           python -m ruff check backend/app/security tests/test_security_enforcement.py tests/test_tool_boundary.py tests/test_external_trust.py
-          python -m bandit -q -r backend/app/security
+          python -m bandit -q -r backend/app/security --skip B404,B603

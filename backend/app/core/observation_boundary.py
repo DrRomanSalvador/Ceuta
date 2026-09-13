@@ -42,10 +42,10 @@ def validate_observation_for_analysis(
         evaluation_time=evaluation_time,
     )
     if not eligibility.eligible:
-        raise ObservationBoundaryError(
+        raise ObservationBoundaryError(  # noqa: TRY003
             f"Evidence {evidence.evidence_id} is not eligible at "
             f"{evaluation_time.isoformat()}: {eligibility.reason}"
-        )  # noqa: TRY003
+        )
     return eligibility
 
 

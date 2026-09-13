@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from pydantic import ValidationError
@@ -13,8 +13,7 @@ from app.core.p0_contracts import (
     independent_source_count,
 )
 
-
-T0 = datetime(2026, 9, 13, 8, 0, tzinfo=timezone.utc)
+T0 = datetime(2026, 9, 13, 8, 0, tzinfo=UTC)
 
 
 def uncertainty() -> Uncertainty:
@@ -140,7 +139,7 @@ def test_observation_after_ingestion_is_rejected():
 
 def test_timezone_is_mandatory():
     with pytest.raises(ValidationError, match="timezone-aware"):
-        evidence(observed_at=datetime(2026, 9, 13, 8, 0))
+        evidence(observed_at=datetime(2026, 9, 13, 8, 0))  # noqa: DTZ001
 
 
 def test_provenance_requires_transformation_and_source_version():

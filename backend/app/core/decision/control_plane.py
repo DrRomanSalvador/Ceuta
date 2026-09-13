@@ -168,17 +168,17 @@ class DecisionPolicy(Protocol):
 @dataclass(frozen=True, slots=True)
 class DefaultDecisionPolicy:
     version: str = "1.0"
-    human_review_uncertainty: float = 0.35
-    abstain_uncertainty: float = 0.75
 
     def evaluate(self, *, purpose: str, uncertainty: float, restricted: bool) -> PolicyDecision:
         if not purpose.strip():
             return PolicyDecision(False, False, "decision purpose is required", self.version)
         if restricted:
             return PolicyDecision(False, False, "restricted information requires an authorized policy path", self.version)
-        if uncertainty >= self.abstain_uncertainty:
-            return PolicyDecision(False, False, "uncertainty exceeds abstention threshold", self.version)
-        return PolicyDecision(True, uncertainty >= self.human_review_uncertainty, "authorized", self.version)
+        if not 0.0 <= uncertainty <= 1.0:
+            return PolicyDecision(False, False, "uncertainty is invalid", self.version)
+        if uncertainty >= 1.0:
+            return PolicyDecision(False, False, "decision uncertainty is indeterminate", self.version)
+        return PolicyDecision(True, False, "structural controls passed; risk policy determines review disposition", self.version)
 
 
 @dataclass(frozen=True, slots=True)
@@ -202,7 +202,7 @@ class DecisionManifest:
         return bool(self.decision_id and self.state_refs and self.evidence_refs and self.model_refs and self.scenario_refs and self.utility_definition_ref and self.policy_version and self.configuration_hash and self.code_revision)
 
     def fingerprint(self) -> str:
-        payload = {"decision_id": self.decision_id, "state_refs": self.state_refs, "evidence_refs": self.evidence_refs, "model_refs": self.model_refs, "hypothesis_refs": self.hypothesis_refs, "transformation_refs": self.transformation_refs, "assumption_refs": self.assumption_refs, "scenario_refs": self.scenario_refs, "utility_definition_ref": self.utility_definition_ref, "constraint_refs": self.constraint_refs, "policy_version": self.policy_version, "configuration_hash": self.configuration_hash, "code_revision": self.code_revision, "created_at": self.created_at}
+        payload = {"decision_id": self.decision_id, "state_refs": self.state_refs, "evidence_refs": self.evidence_refs, "model_refs": self.model_refs, "hypothesis_refs": self.hypothesis_refs, "transformation_refs": self.transformation_refs, "assumption_refs": self.assumption_refs, "scenario_refs": self.scenario_refs, "utility_definition_ref": self.utility_definition_ref, "constraint_refs": self.constraint_refs, "policy_version": self.policy_version, "configuration_hash": self.configuration_hash, "code_revision": self.code_revision}
         return sha256(json.dumps(payload, sort_keys=True, default=str, separators=(",", ":")).encode()).hexdigest()
 
 
@@ -316,8 +316,8 @@ class DecisionControlPlane:
     def authorize(self, *, decision_id: str, purpose: str, uncertainty: UncertaintyState, restricted: bool, manifest: DecisionManifest, evidence_assessments: Sequence[EvidenceAssessment] = (), conflict_resolutions: Sequence[ConflictResolution] = ()) -> DecisionControlResult:
         complete = manifest.complete()
         evidence_ids = set(manifest.evidence_refs)
-        assessed_ids = {f"evidence:{item.evidence_id}" for item in evidence_assessments}
-        missing_assessments = tuple(sorted(evidence_ids - assessed_ids)) if evidence_assessments else ()
+        assessed_ids = {item.evidence_id for item in evidence_assessments}
+        missing_assessments = tuple(sorted(evidence_ids - assessed_ids))
         blocked = tuple(item.evidence_id for item in evidence_assessments if item.disposition in {EvidenceDisposition.BLOCK, EvidenceDisposition.QUARANTINE})
         corroboration = tuple(item.evidence_id for item in evidence_assessments if item.disposition is EvidenceDisposition.REQUIRE_CORROBORATION)
         high_adversarial = tuple(item.evidence_id for item in evidence_assessments if item.adversarial_risk >= 0.75)
@@ -327,8 +327,8 @@ class DecisionControlPlane:
             event = self.audit.append(decision_id, "decision_control", {"disposition": DecisionDisposition.ABSTAIN.value, "reason": reason, "uncertainty": uncertainty.value, "manifest_complete": False, "manifest_fingerprint": manifest.fingerprint()})
             return DecisionControlResult(DecisionDisposition.ABSTAIN, reason, uncertainty, manifest, event.event_id)
         if missing_assessments:
-            disposition = DecisionDisposition.HUMAN_REVIEW
-            reason = "evidence assessment is incomplete for declared decision evidence"
+            disposition = DecisionDisposition.ABSTAIN
+            reason = "declared decision evidence is not fully assessed"
         elif blocked:
             disposition = DecisionDisposition.ABSTAIN
             reason = "decision evidence contains blocked or quarantined items"
@@ -348,4 +348,4 @@ class DecisionControlPlane:
         return DecisionControlResult(disposition, reason, uncertainty, manifest, event.event_id)
 
 
-__all__ = ["AuditStore", "ConflictResolution", "DecisionAuditChain", "DecisionAuditEvent", "DecisionControlPlane", "DecisionControlResult", "DecisionDisposition", "DecisionManifest", "DecisionOutcome", "DecisionPolicy", "DecisionQuality", "DecisionQualityEvaluator", "DefaultDecisionPolicy", "EpistemicKind", "EpistemicRecord", "EvidenceAssessment", "EvidenceConflictResolver", "EvidenceDisposition", "HumanDecisionReview", "InMemoryAuditStore", "ScenarioGenerator", "ScenarioSpec", "UncertaintyState"]
+__all__ = ["AuditStore", "ConflictResolution", "DecisionAuditChain", "DecisionAuditEvent", "DecisionControlPlane", "DecisionControlResult", "DecisionDisposition", "DecisionManifest", "DecisionOutcome", "DecisionPolicy", "DecisionQuality", "DecisionQualityEvaluator", "DefaultDecisionPolicy", "EpistemicKind", "EpistemicRecord", "EvidenceAssessment", "EvidenceConflictResolver", "EvidenceDisposition", "HumanDecisionReview", "InMemoryAuditStore", "PolicyDecision", "ScenarioGenerator", "ScenarioSpec", "UncertaintyState"]

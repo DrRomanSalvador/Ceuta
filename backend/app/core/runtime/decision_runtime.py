@@ -20,12 +20,13 @@ class DecisionRuntimeResult:
     escalation: EscalationAssessment
     information_net_values: Mapping[str, float]
     decision_audit: DecisionAudit | None = None
+    control_audit_event_id: str | None = None
 
 
 class DecisionRuntime:
     def __init__(self, decision_system: DecisionSystem | None = None, voi: ValueOfInformationEngine | None = None, decision_engine: DecisionEngine | None = None, control_plane: DecisionControlPlane | None = None, *, code_revision: str = "unknown"):
-        if not code_revision.strip():
-            raise ValueError("code_revision must not be empty")
+        if not code_revision.strip() or code_revision.strip().lower() in {"unknown", "unresolved", "dirty"}:
+            raise ValueError("code_revision must identify an exact reproducible revision")
         self.decisions = decision_system or DecisionSystem()
         self.voi = voi or ValueOfInformationEngine()
         self.engine = decision_engine or DecisionEngine()
@@ -56,7 +57,7 @@ class DecisionRuntime:
             recommendation = self.decisions._abstain(context, mode, "human review required before execution", audit_provenance, triggers)
         else:
             recommendation = self.decisions.recommend(context, options, mode=mode, provenance=audit_provenance, reevaluation_triggers=triggers, information_requests=information_requests, at=at)
-        return DecisionRuntimeResult(recommendation, escalation, {request.question: request.net_value for request in information_requests}, None)
+        return DecisionRuntimeResult(recommendation, escalation, {request.question: request.net_value for request in information_requests}, None, control.audit_event_id)
 
     def decide_scenarios(self, *, decision_id: str, options: Sequence[ActionAlternative], escalation: EscalationAssessment, observable: bool, identifiable: bool, calibrated: bool, model_valid: bool, causal_identified: bool = True, assumptions_satisfied: bool = True, mode: DecisionMode = DecisionMode.ROBUST, max_harm: float | None = None, information_request: DecisionValueOfInformation | None = None, assumptions: Sequence[str] = (), provenance: Sequence[str] = (), reevaluation_triggers: Sequence[str] = (), purpose: str = "decision", restricted: bool = False) -> DecisionCycleResult:
         gate = EpistemicGate(False, False, calibrated, model_valid, causal_identified, assumptions_satisfied) if not options or escalation.state.value in {"abstain", "critical"} else EpistemicGate(observable, identifiable, calibrated, model_valid, causal_identified, assumptions_satisfied)

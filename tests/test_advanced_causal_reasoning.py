@@ -18,11 +18,7 @@ from backend.app.core.causal.advanced import (
 
 
 def test_temporal_precedence_is_explicit_and_not_causality() -> None:
-    observations = [
-        TemporalObservation("x", 0, 1),
-        TemporalObservation("x", 1, 2),
-        TemporalObservation("y", 2, 3),
-    ]
+    observations = [TemporalObservation("x", 0, 1), TemporalObservation("x", 1, 2), TemporalObservation("y", 2, 3)]
     relations = TemporalCausalAnalyzer().relations(observations)
     assert any(r.cause == "x" and r.effect == "y" for r in relations)
     assert not hasattr(relations[0], "identified")
@@ -39,10 +35,7 @@ def test_interactions_are_candidates_not_causal_claims() -> None:
 
 
 def test_model_disagreement_is_preserved() -> None:
-    models = [
-        CausalModel("a", (("x", "y"),), ("consistency",), 0.6),
-        CausalModel("b", (("z", "y"),), ("consistency",), 0.4),
-    ]
+    models = [CausalModel("a", (("x", "y"),), ("consistency",), 0.6), CausalModel("b", (("z", "y"),), ("consistency",), 0.4)]
     assert ("x", "y") in CausalModelEnsemble.disagreement(models)
     assert ("z", "y") in CausalModelEnsemble.disagreement(models)
 
@@ -57,10 +50,7 @@ def test_counterfactual_requires_identification() -> None:
 
 
 def test_cross_domain_links_are_explicit() -> None:
-    links = CrossDomainCausalEngine.connect([
-        ("health", "admissions", "mobility", "flows"),
-        ("health", "admissions", "health", "beds"),
-    ])
+    links = CrossDomainCausalEngine.connect([("health", "admissions", "mobility", "flows"), ("health", "admissions", "health", "beds")])
     assert links == (("health", "admissions", "mobility", "flows"),)
 
 
@@ -94,4 +84,4 @@ def test_active_learning_ranks_information_per_cost() -> None:
 
 def test_prospective_validation_is_closed_loop() -> None:
     result = ProspectiveCausalValidator.validate("h1", 2.0, 2.1, 0.2, "i1")
-    assert result.validated and result.error == 0.1
+    assert result.validated and abs(result.error - 0.1) < 1e-12

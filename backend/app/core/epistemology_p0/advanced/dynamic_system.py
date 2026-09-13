@@ -8,11 +8,11 @@ not unvalidated claims of causal prediction.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta
+from dataclasses import dataclass, field, replace
+from datetime import datetime, timedelta
 from math import isfinite, sqrt
 from statistics import mean
-from typing import Iterable, Mapping
+from typing import Iterable
 import uuid
 
 
@@ -211,9 +211,7 @@ class DynamicSystemMonitor:
         for index, forecast in enumerate(self._forecasts):
             if forecast.forecast_id == forecast_id:
                 error = forecast.point - float(realized_value)
-                resolved = Forecast(
-                    **{**forecast.__dict__, "realized_value": float(realized_value), "score": error * error}
-                )
+                resolved = replace(forecast, realized_value=float(realized_value), score=error * error)
                 self._forecasts[index] = resolved
                 return resolved
         raise KeyError(forecast_id)
@@ -235,8 +233,9 @@ class DynamicSystemMonitor:
         indicators: list[str] = []
         strength = 0.0
         if len(values) >= 4:
-            early_var = self._dispersion(values[: max(2, len(values) // 2)])
-            late_var = self._dispersion(values[-max(2, len(values) // 2) :])
+            half = max(2, len(values) // 2)
+            early_var = self._dispersion(values[:half])
+            late_var = self._dispersion(values[-half:])
             if late_var > early_var * 1.25 and late_var > 0:
                 indicators.append("increasing_variance")
                 strength = max(strength, min(1.0, late_var / (late_var + early_var)))

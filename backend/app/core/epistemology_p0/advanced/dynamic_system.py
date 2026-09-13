@@ -71,6 +71,17 @@ class Interaction:
 
 
 @dataclass(frozen=True, slots=True)
+class InteractionEffect:
+    upstream: str
+    downstream: str
+    coupling: float
+    upstream_velocity: float
+    estimated_effect: float
+    interpretation: str = "association-based dynamic coupling; not causal"
+    status: str = "UNVERIFIED"
+
+
+@dataclass(frozen=True, slots=True)
 class EarlyWarning:
     variable: str
     indicators: tuple[str, ...]
@@ -84,6 +95,7 @@ class SystemState:
     as_of: datetime
     variables: tuple[VariableState, ...]
     interactions: tuple[Interaction, ...]
+    interaction_effects: tuple[InteractionEffect, ...]
     early_warnings: tuple[EarlyWarning, ...]
     state_id: str = field(default_factory=lambda: f"state-{uuid.uuid4().hex[:12]}")
 
@@ -112,7 +124,7 @@ class Forecast:
 
 
 class DynamicSystemMonitor:
-    """Maintain a temporal state and produce bounded, auditable baselines."""
+    """Maintain temporal state, cross-domain coupling and bounded forecasts."""
 
     def __init__(self, interactions: Iterable[Interaction] = ()) -> None:
         self.interactions = tuple(interactions)
@@ -174,23 +186,47 @@ class DynamicSystemMonitor:
                 )
             )
 
+        by_name = {item.variable: item for item in variables}
+        effects: list[InteractionEffect] = []
+        for interaction in self.interactions:
+            upstream = by_name.get(interaction.upstream)
+            downstream = by_name.get(interaction.downstream)
+            if upstream is None or downstream is None or upstream.velocity is None:
+                continue
+            effect = upstream.velocity * interaction.coupling
+            effects.append(
+                InteractionEffect(
+                    upstream=interaction.upstream,
+                    downstream=interaction.downstream,
+                    coupling=interaction.coupling,
+                    upstream_velocity=upstream.velocity,
+                    estimated_effect=effect,
+                )
+            )
+
         warnings = tuple(self._early_warnings(variable) for variable in variables)
         warnings = tuple(item for item in warnings if item is not None)
-        state = SystemState(as_of, tuple(variables), self.interactions, warnings)
+        state = SystemState(as_of, tuple(variables), self.interactions, tuple(effects), warnings)
         self._states.append(state)
         return state
 
     def forecast(self, *, variable: str, horizon: timedelta, state: SystemState) -> Forecast:
-        """Create a persistence+velocity baseline; explicitly uncalibrated."""
+        """Create an auditable velocity baseline adjusted by observed couplings."""
         if horizon.total_seconds() <= 0:
             raise ValueError("horizon must be positive")
         current = state.variable(variable)
         velocity = current.velocity or 0.0
+        interaction_adjustment = sum(
+            effect.estimated_effect
+            for effect in state.interaction_effects
+            if effect.downstream == variable
+        )
+        effective_velocity = velocity + interaction_adjustment
         seconds = horizon.total_seconds()
-        point = current.value + velocity * seconds
+        point = current.value + effective_velocity * seconds
         recent = self._history.get(variable, [])[-5:]
         dispersion = self._dispersion([item.value for item in recent])
-        uncertainty = max(dispersion, abs(velocity) * seconds * 0.5, 1e-12)
+        uncertainty = max(dispersion, abs(effective_velocity) * seconds * 0.5, 1e-12)
         target = state.as_of + horizon
         forecast = Forecast(
             forecast_id=f"forecast-{uuid.uuid4().hex[:12]}",
@@ -200,7 +236,7 @@ class DynamicSystemMonitor:
             point=point,
             lower=point - 1.96 * uncertainty,
             upper=point + 1.96 * uncertainty,
-            method="persistence_plus_velocity_baseline",
+            method="velocity_baseline_plus_association_coupling",
             state_id=state.state_id,
             evidence_ids=current.evidence_ids,
         )

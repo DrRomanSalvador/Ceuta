@@ -65,7 +65,7 @@ class DecisionContext:
     constraints: Mapping[str, float] = field(default_factory=dict)
     assumptions: tuple[str, ...] = ()
     validity_window: str = ""
-    risk_class: DecisionRisk = DecisionRisk.MODERATE
+    risk_class: DecisionRisk = DecisionRisk.LOW
 
     def __post_init__(self) -> None:
         if not self.decision_id or not self.decision_maker or not self.horizon:

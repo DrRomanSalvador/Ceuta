@@ -24,7 +24,7 @@ def test_complex_system_engines_have_deterministic_boundaries() -> None:
         Hypothesis("h2", "two", (), ("e2",), ("e3",), "g2"),
     )
     assert CompetingHypothesisEngine().compare(hypotheses)[0].hypothesis_id == "h1"
-    normalized = ScenarioEngine().normalize((Scenario("a", 2.0, (), ()), Scenario("b", 1.0, (), ()))
+    normalized = ScenarioEngine().normalize((Scenario("a", 0.2, (), ()), Scenario("b", 0.1, (), ())))
     assert abs(sum(s.probability for s in normalized) - 1.0) < 1e-12
     assert DecisionEngine().choose((DecisionOption("x", 1, 0, 0, 0.1),)).option_id == "x"
     assert DecisionEngine().choose((DecisionOption("x", 1, 0, 0, 0.9),), max_uncertainty=0.5).abstained

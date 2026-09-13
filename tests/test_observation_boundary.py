@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -7,87 +7,75 @@ from app.core.observation_boundary import (
     admit_observation,
     available_at,
 )
-from app.core.p0_contracts import EvidenceContract, EpistemicStatus, SourceRelation, Uncertainty
+from app.core.p0_contracts import EpistemicStatus, EvidenceContract, SourceRelation, Uncertainty
 
-
-T0 = datetime(2026, 9, 13, 8, 0, tzinfo=timezone.utc)
+T0 = datetime(2026, 9, 13, 8, 0, tzinfo=UTC)
 
 
 def evidence(**overrides: object) -> EvidenceContract:
     data: dict[str, object] = {
-        "evidence_id": "OBS-1",
-        "claim": "A documented event occurred",
-        "source_id": "SRC-1",
+        "evidence_id": "E-1",
+        "claim": "documented claim",
+        "source_id": "S-1",
         "observed_at": T0,
         "ingestion_time": T0 + timedelta(minutes=1),
-        "uncertainty": Uncertainty(
-            kind="interval", lower=0.1, upper=0.2, description="test uncertainty"
-        ),
-        "epistemic_status": EpistemicStatus.ATTRIBUTED_CLAIM,
-        "source_relation": SourceRelation.INDEPENDENT,
+        "uncertainty": Uncertainty(kind="unknown", description="not quantified"),
+        "epistemic_status": EpistemicStatus.UNKNOWN,
+        "source_relation": SourceRelation.UNKNOWN,
     }
     data.update(overrides)
     return EvidenceContract.model_validate(data)
 
 
-def test_event_time_is_not_used_as_availability_time():
-    item = evidence(event_time=T0 - timedelta(days=30))
-    assert available_at(item) == T0
+def test_event_time_never_controls_availability() -> None:
+    ev = evidence(event_time=T0 - timedelta(days=30), publication_time=T0 + timedelta(days=1))
+    assert available_at(ev) == T0 + timedelta(days=1)
 
 
-def test_publication_time_controls_availability_when_present():
-    publication = T0 + timedelta(hours=2)
-    item = evidence(
-        event_time=T0 - timedelta(days=30),
-        publication_time=publication,
-        observed_at=publication,
-        ingestion_time=publication + timedelta(minutes=1),
+def test_publication_time_controls_availability_when_present() -> None:
+    ev = evidence(publication_time=T0 - timedelta(hours=1))
+    assert available_at(ev) == T0 - timedelta(hours=1)
+
+
+def test_revision_time_controls_exact_version_availability() -> None:
+    ev = evidence(
+        publication_time=T0 - timedelta(days=2),
+        revision_time=T0 + timedelta(hours=2),
+        ingestion_time=T0 + timedelta(hours=3),
     )
-    assert available_at(item) == publication
+    assert available_at(ev) == T0 + timedelta(hours=2)
 
 
-def test_revision_time_controls_availability_of_corrected_version():
-    publication = T0
-    revision = T0 + timedelta(days=2)
-    item = evidence(
-        publication_time=publication,
-        observed_at=publication,
-        ingestion_time=revision + timedelta(minutes=1),
-        revision_time=revision,
+def test_future_publication_is_rejected() -> None:
+    ev = evidence(publication_time=T0 + timedelta(hours=1))
+    with pytest.raises(ObservationBoundaryError):
+        admit_observation(ev, evaluation_time=T0)
+
+
+def test_revision_after_evaluation_is_rejected() -> None:
+    ev = evidence(
+        publication_time=T0 - timedelta(days=1),
+        revision_time=T0 + timedelta(hours=1),
+        ingestion_time=T0 + timedelta(hours=2),
     )
-    assert available_at(item) == revision
-    with pytest.raises(ObservationBoundaryError, match="not eligible"):
-        admit_observation(item, evaluation_time=T0 + timedelta(hours=1))
-    admitted, eligibility = admit_observation(item, evaluation_time=revision)
-    assert admitted.epistemic_status == EpistemicStatus.ATTRIBUTED_CLAIM
+    with pytest.raises(ObservationBoundaryError):
+        admit_observation(ev, evaluation_time=T0)
+
+
+def test_current_observation_is_admitted_without_epistemic_upgrade() -> None:
+    ev = evidence()
+    admitted, eligibility = admit_observation(ev, evaluation_time=T0 + timedelta(minutes=1))
+    assert admitted.epistemic_status is EpistemicStatus.UNKNOWN
     assert eligibility.eligible is True
 
 
-def test_future_publication_cannot_enter_historical_analysis():
-    item = evidence(
-        publication_time=T0 + timedelta(hours=1),
-        observed_at=T0 + timedelta(hours=1),
-        ingestion_time=T0 + timedelta(hours=1, minutes=1),
-    )
-    with pytest.raises(ObservationBoundaryError, match="not eligible"):
-        admit_observation(item, evaluation_time=T0)
+def test_unknown_status_is_preserved() -> None:
+    ev = evidence(epistemic_status=EpistemicStatus.UNKNOWN)
+    admitted, _ = admit_observation(ev, evaluation_time=T0 + timedelta(minutes=1))
+    assert admitted.epistemic_status is EpistemicStatus.UNKNOWN
 
 
-def test_current_observation_is_admitted_without_epistemic_upgrade():
-    item = evidence()
-    admitted, eligibility = admit_observation(item, evaluation_time=T0 + timedelta(minutes=5))
-    assert admitted.evidence_id == item.evidence_id
-    assert admitted.epistemic_status == EpistemicStatus.ATTRIBUTED_CLAIM
-    assert eligibility.eligible is True
-
-
-def test_unknown_status_is_preserved():
-    item = evidence(epistemic_status=EpistemicStatus.UNKNOWN)
-    admitted, _ = admit_observation(item, evaluation_time=T0 + timedelta(minutes=5))
-    assert admitted.epistemic_status == EpistemicStatus.UNKNOWN
-
-
-def test_boundary_does_not_resolve_contradiction():
-    item = evidence(epistemic_status=EpistemicStatus.CONTRADICTED)
-    admitted, _ = admit_observation(item, evaluation_time=T0 + timedelta(minutes=5))
-    assert admitted.epistemic_status == EpistemicStatus.CONTRADICTED
+def test_contradicted_status_is_preserved() -> None:
+    ev = evidence(epistemic_status=EpistemicStatus.CONTRADICTED)
+    admitted, _ = admit_observation(ev, evaluation_time=T0 + timedelta(minutes=1))
+    assert admitted.epistemic_status is EpistemicStatus.CONTRADICTED

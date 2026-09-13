@@ -58,8 +58,12 @@ class ShadowLedger:
 
 @dataclass(frozen=True, slots=True)
 class ShadowExecutionResult:
-    forecast_id: str
+    forecast: Forecast
     record: ShadowLedgerRecord
+
+    @property
+    def forecast_id(self) -> str:
+        return self.forecast.forecast_id
 
 
 class ShadowEngine:
@@ -102,19 +106,22 @@ class ShadowEngine:
             raise TemporalLeakageError("forecast target precedes cutoff")
         if forecast.status not in {"SHADOW_EVALUATION", "UNVERIFIED"}:
             raise PermissionError("shadow engine cannot persist production forecast status")
+        shadow_forecast = forecast if forecast.status == "SHADOW_EVALUATION" else forecast.__class__(
+            **{**forecast.__dict__, "status": "SHADOW_EVALUATION"}
+        )
         record = ShadowLedgerRecord(
             record_id=str(uuid4()),
-            forecast_id=forecast.forecast_id,
+            forecast_id=shadow_forecast.forecast_id,
             model_version=self._model_version,
-            variable=forecast.variable,
-            target_time=forecast.target_time,
+            variable=shadow_forecast.variable,
+            target_time=shadow_forecast.target_time,
             cutoff_time=cutoff_time,
-            point=float(forecast.point),
+            point=float(shadow_forecast.point),
             status="SHADOW_EVALUATION",
             created_at=cutoff_time,
         )
         self._ledger.append(record)
-        return ShadowExecutionResult(forecast_id=forecast.forecast_id, record=record)
+        return ShadowExecutionResult(forecast=shadow_forecast, record=record)
 
     @property
     def production_mutation_supported(self) -> bool:

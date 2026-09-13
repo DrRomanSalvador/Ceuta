@@ -72,6 +72,7 @@ class EvidenceContract(BaseModel):
     event_time: datetime | None = None
     observed_at: datetime = Field(description="When the evidence was observed/available")
     ingestion_time: datetime
+    revision_time: datetime | None = None
     uncertainty: Uncertainty
     epistemic_status: EpistemicStatus
     source_relation: SourceRelation
@@ -86,6 +87,7 @@ class EvidenceContract(BaseModel):
         for name, value in (
             ("observed_at", self.observed_at),
             ("publication_time", self.publication_time),
+            ("revision_time", self.revision_time),
         ):
             if value is not None and value.tzinfo is None:
                 raise ValueError(f"{name} must be timezone-aware")
@@ -93,6 +95,8 @@ class EvidenceContract(BaseModel):
             raise ValueError("ingestion_time must be timezone-aware")
         if self.publication_time is not None and self.ingestion_time < self.publication_time:
             raise ValueError("ingestion_time cannot precede publication_time")
+        if self.revision_time is not None and self.revision_time > self.ingestion_time:
+            raise ValueError("revision_time cannot be later than ingestion_time")
         if self.observed_at > self.ingestion_time:
             raise ValueError("observed_at cannot be later than ingestion_time")
         if self.epistemic_status == EpistemicStatus.CORROBORATED_FACT:
@@ -101,6 +105,11 @@ class EvidenceContract(BaseModel):
             if not self.corroborating_evidence_ids:
                 raise ValueError("CORROBORATED_FACT requires corroborating evidence IDs")
         return self
+
+    @property
+    def available_at(self) -> datetime:
+        """Earliest defensible analytical availability of this version."""
+        return self.revision_time or self.publication_time or self.observed_at
 
 
 class TemporalEligibility(BaseModel):

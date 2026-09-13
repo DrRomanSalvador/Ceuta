@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from backend.app.core.pipeline.contracts import SystemStateContract
+from backend.app.core.pipeline.contracts import DomainState, SystemStateContract, VariableState
 from backend.app.core.pipeline.pipeline import LocalDeterministicPipeline
 from backend.app.core.pipeline.sources.synthetic import SyntheticSource
 
@@ -40,9 +40,7 @@ async def test_phase2_state_propagates_end_to_end() -> None:
     assert variable.acceleration == pytest.approx(0.0)
 
 
-def test_phase2_state_contract_rejects_invalid_temporal_state() -> None:
-    from backend.app.core.pipeline.contracts import DomainState, VariableState
-
+def test_phase2_state_contract_rejects_variable_newer_than_as_of() -> None:
     timestamp = datetime(2026, 1, 1, tzinfo=timezone.utc)
     variable = VariableState(
         variable="synthetic.signal",
@@ -60,9 +58,7 @@ def test_phase2_state_contract_rejects_invalid_temporal_state() -> None:
         observation_ids=("observation-1",),
     )
 
-    with pytest.raises(ValueError):
-        from backend.app.core.pipeline.contracts import SystemStateContract
-
+    with pytest.raises(ValueError, match="newer than system as_of"):
         SystemStateContract(
             state_id="state-invalid",
             as_of=datetime(2025, 12, 31, tzinfo=timezone.utc),

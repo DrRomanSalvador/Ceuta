@@ -8,7 +8,7 @@ from typing import Mapping, Sequence
 
 from .control_plane import DecisionAuditEvent, DecisionOutcome, HumanDecisionReview
 from .lineage import DecisionLineage
-from ..evidence.citation_trace import CitationTrace
+from ..evidence.citation_trace import CitationTrace, CitationTraceRegistry
 from ..evidence.conflict_resolution import EvidenceResolution
 from ..evidence.source_registry import ClaimEvidenceLink, SourceRecord, SourceRegistry, SourceRole, SourceVerification
 
@@ -137,6 +137,9 @@ CREATE INDEX IF NOT EXISTS idx_citation_traces_claim ON citation_traces(claim_id
         rows = self.connection.execute("SELECT payload_json FROM evidence_sources ORDER BY source_id").fetchall()
         for row in rows:
             registry.register(self._source_from_payload(json.loads(row[0])))
+        links = self.connection.execute("SELECT claim_id,source_id,relation,excerpt_ref,supports_claim FROM claim_evidence_links ORDER BY claim_id,source_id,relation").fetchall()
+        for row in links:
+            registry.link_claim(ClaimEvidenceLink(row[0], row[1], row[2], row[3], bool(row[4])))
         return registry
 
     def record_claim_evidence_link(self, link: ClaimEvidenceLink) -> None:
@@ -148,6 +151,13 @@ CREATE INDEX IF NOT EXISTS idx_citation_traces_claim ON citation_traces(claim_id
     def record_citation_trace(self, trace: CitationTrace) -> None:
         self.connection.execute("INSERT OR REPLACE INTO citation_traces(claim_id,source_id,locator,captured_text_hash,captured_at) VALUES(?,?,?,?,?)", (trace.claim_id, trace.source_id, trace.locator, trace.captured_text_hash, trace.captured_at))
         self.connection.commit()
+
+    def citation_registry(self) -> CitationTraceRegistry:
+        registry = CitationTraceRegistry()
+        rows = self.connection.execute("SELECT claim_id,source_id,locator,captured_text_hash,captured_at FROM citation_traces ORDER BY claim_id,source_id,locator,captured_text_hash").fetchall()
+        for row in rows:
+            registry.add(CitationTrace(*row))
+        return registry
 
     def record_cycle(self, *, system_id: str, as_of: str, decision_id: str | None, option_id: str | None, disposition: str | None, lineage: Sequence[str], stages: Sequence[Mapping[str, object]]) -> None:
         self.connection.execute("INSERT OR REPLACE INTO decision_cycles(system_id,as_of,decision_id,option_id,disposition,lineage_json,stages_json) VALUES(?,?,?,?,?,?,?)", (system_id, as_of, decision_id, option_id, disposition, json.dumps(tuple(lineage), sort_keys=True), json.dumps(tuple(stages), sort_keys=True, default=str)))

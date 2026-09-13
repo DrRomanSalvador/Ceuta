@@ -8,7 +8,7 @@ import pytest
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 
-from Ceuta.backend.app.security.external_trust import (
+from app.security.external_trust import (
     ExternalAttestation,
     ExternalTrustError,
     ExternalTrustVerifier,

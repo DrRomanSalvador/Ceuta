@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Final
 from uuid import uuid4
 
@@ -25,10 +25,12 @@ class LocalDeterministicPipeline:
     def __init__(self, source: SyntheticSource | None = None) -> None:
         self.bus = EventBus(queue_maxsize=128)
         self.source = source or SyntheticSource()
-        self.normalization = NormalizationStage(
-            self.bus,
-            evaluation_time=self.source.start_time + self.source.available_delay + (len(self.source.values) - 1) * __import__("datetime").timedelta(minutes=1),
+        evaluation_time = (
+            self.source.start_time
+            + self.source.available_delay
+            + timedelta(minutes=len(self.source.values) - 1)
         )
+        self.normalization = NormalizationStage(self.bus, evaluation_time=evaluation_time)
         self._normalized_queue: asyncio.Queue[PipelineEvent] | None = None
         self._started = False
 

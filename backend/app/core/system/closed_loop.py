@@ -76,6 +76,9 @@ class ClosedLoopInput:
         declared = {item.evidence_id for item in self.evidence_assessments}
         if len(declared) != len(self.evidence_assessments):
             raise ContractViolation("evidence assessments must have unique evidence IDs")
+        conflicts = {item.claim_id for item in self.conflict_resolutions}
+        if len(conflicts) != len(self.conflict_resolutions):
+            raise ContractViolation("conflict resolutions must have unique claim IDs")
 
 
 @dataclass(frozen=True, slots=True)
@@ -212,6 +215,8 @@ class ClosedLoopEngine:
         ids = [f"system:{context.system_id}", f"state:{context.state.state.state_id}"]
         ids.extend(sorted(f"observation:{x.observation_id}" for x in context.observations))
         ids.extend(sorted(f"evidence:{x.evidence_id}" for x in context.evidence))
+        ids.extend(sorted(f"evidence-assessment:{x.evidence_id}" for x in event.evidence_assessments))
+        ids.extend(sorted(f"conflict:{x.claim_id}" for x in event.conflict_resolutions))
         ids.extend(f"model:{x.model_id}" for x in context.models)
         ids.extend(f"hypothesis:{x}" for x in event.hypothesis_ids)
         ids.extend(f"causal:{x}" for x in event.causal_model_ids)

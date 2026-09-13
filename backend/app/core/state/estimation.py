@@ -1,11 +1,10 @@
 """Longitudinal latent-state estimation primitives for CeutIA.
 
-This module implements a deliberately narrow linear-Gaussian state-space model
-for one scalar variable. It estimates a latent state from noisy, irregularly
-timed observations without treating observations as the state itself.
-
-The implementation is an estimation primitive, not causal inference, anomaly
-detection, forecasting, or clinical interpretation.
+This module keeps the original scalar linear-Gaussian estimator as a narrow
+baseline and exposes the higher-rigor multivariate/nonlinear estimation layer.
+The scalar filter remains useful for simple one-variable trajectories; complex
+systems should use the advanced estimator rather than silently reducing a
+coupled state to one dimension.
 """
 
 from __future__ import annotations
@@ -16,6 +15,16 @@ from math import isfinite
 
 from ..errors import ContractViolation, TemporalViolation
 from ..pipeline.contracts import ObservationRecord
+from .advanced_estimation import (
+    BootstrapParticleFilter,
+    ExtendedKalmanFilter,
+    FilterDiagnostics,
+    ObservationPacket,
+    Particle,
+    RobustKalmanFilter,
+    StateEstimateVector,
+    StateSpaceSpecification,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -177,3 +186,20 @@ class ScalarKalmanFilter:
             for observation, variance in zip(observations, observation_variances)
         )
         return LongitudinalStateSeries(estimates)
+
+
+# Public advanced estimators. Keeping these imports here makes the state
+# estimation API discoverable without forcing callers to know the module layout.
+__all__ = [
+    "BootstrapParticleFilter",
+    "ExtendedKalmanFilter",
+    "FilterDiagnostics",
+    "ObservationPacket",
+    "Particle",
+    "RobustKalmanFilter",
+    "ScalarKalmanFilter",
+    "StateEstimate",
+    "StateEstimateVector",
+    "StateSpaceSpecification",
+    "LongitudinalStateSeries",
+]

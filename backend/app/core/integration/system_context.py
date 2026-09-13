@@ -86,7 +86,10 @@ class SystemContext:
     def __post_init__(self) -> None:
         if not self.system_id or self.as_of.tzinfo is None or self.as_of.utcoffset() is None:
             raise ValueError("system context requires system identity and timezone-aware as_of")
-        if self.state.state.state_id != self.trajectory.latest.state.state_id if self.trajectory.latest else True:
+        latest = self.trajectory.latest
+        if latest is None:
+            raise ValueError("trajectory must contain the current state")
+        if latest.state.state_id != self.state.state.state_id:
             raise ValueError("state must equal trajectory latest snapshot")
         if self.state.state.as_of != self.as_of:
             raise ValueError("context as_of must equal current state as_of")
@@ -109,7 +112,7 @@ class SystemContext:
 
 
 class SystemContextBuilder:
-    """Builds an immutable context from the canonical state/trajectory spine."""
+    """Builds an integrated context from the canonical state/trajectory spine."""
 
     def build(
         self,

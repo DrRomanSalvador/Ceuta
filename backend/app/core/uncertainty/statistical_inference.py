@@ -1,22 +1,15 @@
-"""Rigorous, dependency-aware statistical primitives for CeutIA.
+"""Rigorous dependency-aware statistical primitives for CeutIA.
 
-The module is intentionally model-agnostic and uses only the Python standard
-library. It provides mathematically explicit contracts for covariance,
-standardisation, effective sample size, robust estimation, bootstrap/block
-bootstrap, permutation inference, multiple-testing control, delta-method
-propagation, and probabilistic scoring.
-
-No method here silently assumes IID observations, Gaussian errors, known
-variance, independence, or causal identification.
+No method silently assumes IID data, Gaussian errors, independence or causal
+identification. Methods requiring those assumptions state them explicitly.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
-from math import erf, exp, isfinite, log, pi, sqrt
+from math import isfinite, log, sqrt
 from random import Random
 from statistics import NormalDist
 from typing import Callable, Sequence
-
 
 EPS = 1e-15
 
@@ -26,6 +19,41 @@ def _validate(values: Sequence[float], minimum: int = 1) -> tuple[float, ...]:
     if len(result) < minimum or any(not isfinite(x) for x in result):
         raise ValueError(f"at least {minimum} finite observations are required")
     return result
+
+
+def _median(values: Sequence[float]) -> float:
+    x = sorted(values)
+    if not x:
+        raise ValueError("median requires observations")
+    n = len(x)
+    return x[n // 2] if n % 2 else (x[n // 2 - 1] + x[n // 2]) / 2.0
+
+
+def _symmetric_eigenvalues(matrix: tuple[tuple[float, ...], ...]) -> tuple[float, ...]:
+    """Jacobi eigensolver for small symmetric matrices; used only for PSD checks."""
+    a = [list(row) for row in matrix]
+    n = len(a)
+    for _ in range(max(20, 20 * n * n)):
+        p, q = 0, 1 if n > 1 else 0
+        maximum = 0.0
+        for i in range(n):
+            for j in range(i + 1, n):
+                if abs(a[i][j]) > maximum:
+                    maximum, p, q = abs(a[i][j]), i, j
+        if maximum <= 1e-12:
+            break
+        if abs(a[p][p] - a[q][q]) <= EPS:
+            angle = 0.7853981633974483
+        else:
+            angle = 0.5 * __import__("math").atan2(2 * a[p][q], a[p][p] - a[q][q])
+        c, s = __import__("math").cos(angle), __import__("math").sin(angle)
+        for k in range(n):
+            apk, aqk = a[p][k], a[q][k]
+            a[p][k], a[q][k] = c * apk + s * aqk, -s * apk + c * aqk
+        for k in range(n):
+            akp, akq = a[k][p], a[k][q]
+            a[k][p], a[k][q] = c * akp + s * akq, -s * akp + c * akq
+    return tuple(a[i][i] for i in range(n))
 
 
 @dataclass(frozen=True, slots=True)
@@ -39,39 +67,28 @@ class CovarianceMatrix:
         if any(not isfinite(x) for row in self.values for x in row):
             raise ValueError("covariance entries must be finite")
         for i in range(n):
-            if self.values[i][i] < -EPS:
+            if self.values[i][i] < -1e-10:
                 raise ValueError("covariance diagonal cannot be negative")
-            for j in range(n):
+            for j in range(i + 1, n):
                 if abs(self.values[i][j] - self.values[j][i]) > 1e-12:
                     raise ValueError("covariance matrix must be symmetric")
-        # Cholesky establishes positive definiteness. A semidefinite matrix is
-        # permitted only when its numerical rank can be established by pivots.
-        rank = 0
-        pivots: list[float] = []
-        for i in range(n):
-            value = self.values[i][i] - sum(
-                pivots[k] * 0.0 for k in range(min(i, len(pivots)))
-            )
-            if value >= -1e-10:
-                rank += 1
-            pivots.append(value)
-        if rank == 0:
-            raise ValueError("covariance matrix has no positive variance")
+        if min(_symmetric_eigenvalues(self.values)) < -1e-9:
+            raise ValueError("covariance matrix must be positive semidefinite")
 
     @property
     def dimension(self) -> int:
         return len(self.values)
 
     def quadratic_form(self, vector: Sequence[float]) -> float:
-        v = _validate(vector, self.dimension)
-        if len(v) != self.dimension:
-            raise ValueError("vector dimension does not match covariance matrix")
+        v = tuple(float(x) for x in vector)
+        if len(v) != self.dimension or any(not isfinite(x) for x in v):
+            raise ValueError("vector dimension or finiteness is invalid")
         return sum(v[i] * self.values[i][j] * v[j] for i in range(self.dimension) for j in range(self.dimension))
 
     def linear_variance(self, gradient: Sequence[float]) -> float:
         value = self.quadratic_form(gradient)
-        if value < -1e-10:
-            raise ValueError("covariance matrix is not positive semidefinite")
+        if value < -1e-9:
+            raise ValueError("negative propagated variance")
         return max(0.0, value)
 
 
@@ -120,25 +137,24 @@ class MultipleTestingResult:
 
 
 @dataclass(frozen=True, slots=True)
-class ForecastScore:
-    log_score: float
-    brier_score: float | None
-    crps: float | None
+class PermutationResult:
+    observed: float
+    p_value: float
+    permutations: int
+    alternative: str
 
 
 class StatisticalInference:
     @staticmethod
     def covariance(samples: Sequence[Sequence[float]], ddof: int = 1) -> CovarianceMatrix:
         rows = [tuple(float(x) for x in row) for row in samples]
-        if len(rows) <= ddof or not rows or len({len(row) for row in rows}) != 1:
+        if not rows or len(rows) <= ddof or len({len(row) for row in rows}) != 1 or not rows[0]:
             raise ValueError("covariance requires rectangular data and n > ddof")
-        p = len(rows[0])
-        means = tuple(sum(row[j] for row in rows) / len(rows) for j in range(p))
-        matrix = tuple(
-            tuple(sum((row[i] - means[i]) * (row[j] - means[j]) for row in rows) / (len(rows) - ddof) for j in range(p))
-            for i in range(p)
-        )
-        return CovarianceMatrix(matrix)
+        if any(not isfinite(x) for row in rows for x in row):
+            raise ValueError("covariance data must be finite")
+        n, p = len(rows), len(rows[0])
+        means = tuple(sum(row[j] for row in rows) / n for j in range(p))
+        return CovarianceMatrix(tuple(tuple(sum((row[i] - means[i]) * (row[j] - means[j]) for row in rows) / (n - ddof) for j in range(p)) for i in range(p)))
 
     @staticmethod
     def robust_summary(values: Sequence[float], trim_fraction: float = 0.1) -> RobustSummary:
@@ -150,11 +166,10 @@ class StatisticalInference:
             lo, hi = int(pos), min(int(pos) + 1, len(x) - 1)
             return x[lo] + (x[hi] - x[lo]) * (pos - lo)
         median = quantile(0.5)
-        q1, q3 = quantile(0.25), quantile(0.75)
-        mad = quantile(0.5) if len(x) == 1 else sorted(abs(v - median) for v in x)[len(x) // 2]
+        deviations = sorted(abs(v - median) for v in x)
         cut = int(len(x) * trim_fraction)
         core = x[cut:len(x) - cut] or x
-        return RobustSummary(median, mad, q1, q3, q3 - q1, sum(core) / len(core))
+        return RobustSummary(median, _median(deviations), quantile(0.25), quantile(0.75), quantile(0.75) - quantile(0.25), sum(core) / len(core))
 
     @staticmethod
     def effective_sample_size(values: Sequence[float]) -> EffectiveSampleSize:
@@ -165,20 +180,18 @@ class StatisticalInference:
         rho = sum(centered[i] * centered[i - 1] for i in range(1, len(x))) / denominator if denominator else 0.0
         rho = max(-0.999, min(0.999, rho))
         n_eff = len(x) * (1.0 - rho) / (1.0 + rho)
-        return EffectiveSampleSize(len(x), rho, max(1.0, min(float(len(x)), n_eff)), "AR(1)-adjusted ESS")
+        return EffectiveSampleSize(len(x), rho, max(1.0, min(float(len(x)), n_eff)), "AR(1)-adjusted ESS; valid as a first-order dependence diagnostic")
 
     @staticmethod
     def delta_method(estimate: float, gradient: Sequence[float], covariance: CovarianceMatrix) -> tuple[float, float]:
-        variance = covariance.linear_variance(gradient)
-        return estimate, sqrt(variance)
+        return estimate, sqrt(covariance.linear_variance(gradient))
 
     @staticmethod
     def standardize(estimate: float, standard_error: float) -> StandardizedEffect:
         if not isfinite(estimate) or not isfinite(standard_error) or standard_error <= 0:
             raise ValueError("estimate must be finite and standard error positive")
         z = estimate / standard_error
-        p = 2.0 * (1.0 - NormalDist().cdf(abs(z)))
-        return StandardizedEffect(estimate, standard_error, z, p)
+        return StandardizedEffect(estimate, standard_error, z, 2.0 * (1.0 - NormalDist().cdf(abs(z))))
 
     @staticmethod
     def block_bootstrap(values: Sequence[float], statistic: Callable[[Sequence[float]], float], *, block_size: int, replicates: int = 2000, seed: int = 0) -> tuple[float, ...]:
@@ -186,32 +199,27 @@ class StatisticalInference:
         if not 1 <= block_size <= len(x) or replicates < 100:
             raise ValueError("invalid block_size or replicates")
         rng = Random(seed)
-        blocks = [x[i:i + block_size] for i in range(0, len(x) - block_size + 1)]
-        result: list[float] = []
-        while len(result) < replicates:
+        blocks = [x[i:i + block_size] for i in range(len(x) - block_size + 1)]
+        out: list[float] = []
+        while len(out) < replicates:
             sample: list[float] = []
             while len(sample) < len(x):
                 sample.extend(blocks[rng.randrange(len(blocks))])
-            result.append(float(statistic(sample[:len(x)])))
-        return tuple(result)
+            out.append(float(statistic(sample[:len(x)])))
+        return tuple(out)
 
     @staticmethod
     def bootstrap_interval(values: Sequence[float], statistic: Callable[[Sequence[float]], float], *, confidence: float = 0.95, replicates: int = 2000, seed: int = 0, block_size: int | None = None) -> BootstrapInterval:
         x = _validate(values, 2)
-        if not 0 < confidence < 1:
-            raise ValueError("confidence must be in (0,1)")
+        if not 0 < confidence < 1 or replicates < 100:
+            raise ValueError("invalid confidence or replicates")
         rng = Random(seed)
-        if block_size is None:
-            samples = []
-            for _ in range(replicates):
-                samples.append(float(statistic([x[rng.randrange(len(x))] for _ in x])))
-        else:
-            samples = list(StatisticalInference.block_bootstrap(x, statistic, block_size=block_size, replicates=replicates, seed=seed))
+        samples = list(StatisticalInference.block_bootstrap(x, statistic, block_size=block_size, replicates=replicates, seed=seed)) if block_size else [float(statistic([x[rng.randrange(len(x))] for _ in x])) for _ in range(replicates)]
         samples.sort()
         alpha = (1.0 - confidence) / 2.0
-        lower = samples[max(0, min(len(samples) - 1, int(alpha * len(samples))))]
-        upper = samples[max(0, min(len(samples) - 1, int((1 - alpha) * len(samples)) - 1))]
-        return BootstrapInterval(float(statistic(x)), lower, upper, confidence, replicates, "percentile_block_bootstrap" if block_size else "percentile_bootstrap")
+        lo = samples[min(len(samples) - 1, int(alpha * len(samples)))]
+        hi = samples[min(len(samples) - 1, max(0, int((1 - alpha) * len(samples)) - 1))]
+        return BootstrapInterval(float(statistic(x)), lo, hi, confidence, replicates, "percentile_block_bootstrap" if block_size else "percentile_bootstrap")
 
     @staticmethod
     def benjamini_hochberg(p_values: Sequence[float], q: float = 0.05) -> MultipleTestingResult:
@@ -219,15 +227,36 @@ class StatisticalInference:
         if any(x < 0 or x > 1 for x in p) or not 0 < q < 1:
             raise ValueError("p-values must be in [0,1] and q in (0,1)")
         indexed = sorted(enumerate(p), key=lambda pair: pair[1])
-        adjusted = [1.0] * len(p)
+        m = len(p)
+        adjusted = [1.0] * m
         running = 1.0
-        for rank in range(len(indexed), 0, -1):
-            index, value = indexed[rank - 1]
-            running = min(running, value * len(p) / rank)
-            adjusted[index] = running
-        cutoff = max((rank for rank, (_, value) in enumerate(indexed, start=1) if value <= q * rank / len(p)), default=0)
-        rejected = tuple(index < cutoff for index in [next((rank for rank, (original, _) in enumerate(indexed, start=1) if original == i), 0) for i in range(len(p))])
-        return MultipleTestingResult(tuple(p), tuple(adjusted), rejected, "Benjamini-Hochberg FDR")
+        for rank in range(m, 0, -1):
+            original, value = indexed[rank - 1]
+            running = min(running, value * m / rank)
+            adjusted[original] = min(1.0, running)
+        cutoff = max((rank for rank, (_, value) in enumerate(indexed, start=1) if value <= q * rank / m), default=0)
+        rejected_set = {original for rank, (original, _) in enumerate(indexed, start=1) if rank <= cutoff}
+        return MultipleTestingResult(tuple(p), tuple(adjusted), tuple(i in rejected_set for i in range(m)), "Benjamini-Hochberg FDR")
+
+    @staticmethod
+    def permutation_test(left: Sequence[float], right: Sequence[float], statistic: Callable[[Sequence[float], Sequence[float]], float], *, permutations: int = 5000, seed: int = 0, alternative: str = "two-sided") -> PermutationResult:
+        a, b = _validate(left), _validate(right)
+        if permutations < 100 or alternative not in {"two-sided", "greater", "less"}:
+            raise ValueError("invalid permutations or alternative")
+        observed = float(statistic(a, b))
+        pooled = list(a + b)
+        rng = Random(seed)
+        extreme = 0
+        for _ in range(permutations):
+            rng.shuffle(pooled)
+            candidate = float(statistic(pooled[:len(a)], pooled[len(a):]))
+            if alternative == "greater" and candidate >= observed:
+                extreme += 1
+            elif alternative == "less" and candidate <= observed:
+                extreme += 1
+            elif alternative == "two-sided" and abs(candidate) >= abs(observed):
+                extreme += 1
+        return PermutationResult(observed, (extreme + 1) / (permutations + 1), permutations, alternative)
 
     @staticmethod
     def brier(probability: float, outcome: int) -> float:

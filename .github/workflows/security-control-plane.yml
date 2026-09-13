@@ -82,20 +82,20 @@ jobs:
       - name: Verify security application import target
         working-directory: Ceuta
         env:
-          PYTHONPATH: ${{ github.workspace }}/Ceuta/backend
+          PYTHONPATH: ${{ github.workspace }}/Ceuta/backend:${{ github.workspace }}/Ceuta
         run: |
           python -c 'import app.security.enforcement as m; print(m.__file__)'
 
       - name: Run runtime security regression suite
         working-directory: Ceuta
         env:
-          PYTHONPATH: ${{ github.workspace }}/Ceuta/backend
+          PYTHONPATH: ${{ github.workspace }}/Ceuta/backend:${{ github.workspace }}/Ceuta
         run: python -m pytest tests/test_security_enforcement.py tests/test_tool_boundary.py tests/test_external_trust.py -q
 
       - name: Run security static checks
         working-directory: Ceuta
         env:
-          PYTHONPATH: ${{ github.workspace }}/Ceuta/backend
+          PYTHONPATH: ${{ github.workspace }}/Ceuta/backend:${{ github.workspace }}/Ceuta
         run: |
           python -m ruff check backend/app/security tests/test_security_enforcement.py tests/test_tool_boundary.py tests/test_external_trust.py
           python -m bandit -q -r backend/app/security

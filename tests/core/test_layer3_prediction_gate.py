@@ -69,7 +69,7 @@ def test_validated_gate_can_be_explicitly_opened() -> None:
 
 
 def test_brier_score_is_bounded_and_deterministic() -> None:
-    assert brier_score([0.0, 1.0, 0.25, 0.75], [0, 1, 1, 0]) == pytest.approx(0.15625)
+    assert brier_score([0.0, 1.0, 0.25, 0.75], [0, 1, 1, 0]) == pytest.approx(0.28125)
 
 
 def test_binary_classification_metrics() -> None:

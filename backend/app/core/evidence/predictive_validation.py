@@ -56,7 +56,7 @@ def _sigmoid(x: float) -> float:
     return z / (1.0 + z)
 
 def _fit_logistic_calibration(logits: Sequence[float], outcomes: Sequence[int]) -> tuple[float, float, float, float, float]:
-    """Fit logistic calibration; use a finite penalized estimator under separation."""
+    """Fit logistic calibration with explicit finite handling of separation."""
     if len(logits) != len(outcomes) or len(logits) < 3:
         raise ValueError("at least three paired predictions/outcomes are required")
     if len(set(outcomes)) < 2:
@@ -112,11 +112,28 @@ def _fit_logistic_calibration(logits: Sequence[float], outcomes: Sequence[int]) 
 
     result = fit(0.0)
     if result is None:
-        # Finite separation-safe fallback; this is penalized and must not be
-        # interpreted as an unpenalized MLE.
         result = fit(1e-2)
     if result is None:
-        raise ValueError("calibration likelihood optimization failed")
+        # Finite penalized fallback for complete/semi separation. This is
+        # deliberately identified as a penalized estimator, not an MLE.
+        import numpy as np
+        from sklearn.linear_model import LogisticRegression
+
+        matrix = np.asarray(logits, dtype=float).reshape(-1, 1)
+        model = LogisticRegression(C=100.0, solver="lbfgs", fit_intercept=True)
+        model.fit(matrix, np.asarray(outcomes, dtype=int))
+        alpha = float(model.intercept_[0])
+        beta = float(model.coef_[0, 0])
+        probabilities = np.asarray(model.predict_proba(matrix)[:, 1], dtype=float)
+        x = np.asarray(logits, dtype=float)
+        weights = probabilities * (1.0 - probabilities)
+        h00 = -float(np.sum(weights))
+        h01 = -float(np.sum(weights * x))
+        h11 = -float(np.sum(weights * x * x)) - 0.01
+        determinant = h00 * h11 - h01 * h01
+        if determinant >= 0.0 or abs(determinant) < 1e-15:
+            raise ValueError("finite calibration fallback information matrix is singular")
+        result = (alpha, beta, h11 / determinant, -h01 / determinant, h00 / determinant)
     alpha, beta, cov00, cov01, cov11 = result
     if abs(alpha) < 1e-9:
         alpha = 0.0

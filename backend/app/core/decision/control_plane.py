@@ -49,12 +49,12 @@ class EvidenceAssessment:
     def __post_init__(self) -> None:
         if not self.evidence_id or not self.source_id:
             raise ValueError("evidence requires identity and source")
-        if not 0.0 <= self.base_weight <= 1.0:
-            raise ValueError("base_weight must be in [0,1]")
-        if not 0.0 <= self.adversarial_risk <= 1.0:
-            raise ValueError("adversarial_risk must be in [0,1]")
-        if not 0.0 <= self.contradiction_weight <= 1.0:
-            raise ValueError("contradiction_weight must be in [0,1]")
+        if not isfinite(self.base_weight) or not 0.0 <= self.base_weight <= 1.0:
+            raise ValueError("base_weight must be finite and in [0,1]")
+        if not isfinite(self.adversarial_risk) or not 0.0 <= self.adversarial_risk <= 1.0:
+            raise ValueError("adversarial_risk must be finite and in [0,1]")
+        if not isfinite(self.contradiction_weight) or not 0.0 <= self.contradiction_weight <= 1.0:
+            raise ValueError("contradiction_weight must be finite and in [0,1]")
 
     def effective_weight(self) -> float:
         if self.disposition in {EvidenceDisposition.BLOCK, EvidenceDisposition.QUARANTINE}:
@@ -99,12 +99,12 @@ class UncertaintyState:
     method: str = "declared"
 
     def __post_init__(self) -> None:
-        if not 0.0 <= self.value <= 1.0:
-            raise ValueError("uncertainty must be in [0,1]")
-        if self.lower is not None and not 0.0 <= self.lower <= 1.0:
-            raise ValueError("lower uncertainty bound must be in [0,1]")
-        if self.upper is not None and not 0.0 <= self.upper <= 1.0:
-            raise ValueError("upper uncertainty bound must be in [0,1]")
+        if not isfinite(self.value) or not 0.0 <= self.value <= 1.0:
+            raise ValueError("uncertainty must be finite and in [0,1]")
+        if self.lower is not None and (not isfinite(self.lower) or not 0.0 <= self.lower <= 1.0):
+            raise ValueError("lower uncertainty bound must be finite and in [0,1]")
+        if self.upper is not None and (not isfinite(self.upper) or not 0.0 <= self.upper <= 1.0):
+            raise ValueError("upper uncertainty bound must be finite and in [0,1]")
         if self.lower is not None and self.upper is not None and self.lower > self.upper:
             raise ValueError("lower uncertainty bound cannot exceed upper bound")
 
@@ -137,8 +137,8 @@ class ScenarioSpec:
     uncertainty: UncertaintyState
 
     def __post_init__(self) -> None:
-        if not 0.0 <= self.probability <= 1.0:
-            raise ValueError("scenario probability must be in [0,1]")
+        if not isfinite(self.probability) or not 0.0 <= self.probability <= 1.0:
+            raise ValueError("scenario probability must be finite and in [0,1]")
         if any(not isfinite(float(v)) for v in self.consequence.values()):
             raise ValueError("scenario consequences must be finite")
 
@@ -148,7 +148,7 @@ class ScenarioGenerator:
         if not branches:
             raise ValueError("at least one scenario is required")
         total = sum(x.probability for x in branches)
-        if abs(total - 1.0) > 1e-9:
+        if not isfinite(total) or abs(total - 1.0) > 1e-9:
             raise ValueError("scenario probabilities must sum to one")
         return tuple(branches)
 
@@ -174,7 +174,7 @@ class DefaultDecisionPolicy:
             return PolicyDecision(False, False, "decision purpose is required", self.version)
         if restricted:
             return PolicyDecision(False, False, "restricted information requires an authorized policy path", self.version)
-        if not 0.0 <= uncertainty <= 1.0:
+        if not isfinite(uncertainty) or not 0.0 <= uncertainty <= 1.0:
             return PolicyDecision(False, False, "uncertainty is invalid", self.version)
         if uncertainty >= 1.0:
             return PolicyDecision(False, False, "decision uncertainty is indeterminate", self.version)

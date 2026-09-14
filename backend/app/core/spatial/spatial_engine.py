@@ -28,7 +28,7 @@ class SpatialNode:
 class SpatialEngine:
     @staticmethod
     def distance(a: SpatialNode, b: SpatialNode) -> float:
-        """Great-circle distance between two WGS84-like geographic coordinates."""
+        """Great-circle distance in metres between geographic coordinates."""
         lat1, lat2 = radians(a.latitude), radians(b.latitude)
         dlat = lat2 - lat1
         dlon = radians(b.longitude - a.longitude)
@@ -36,12 +36,14 @@ class SpatialEngine:
         return 2.0 * EARTH_RADIUS_METERS * asin(sqrt(min(1.0, haversine)))
 
     def propagate(self, nodes: tuple[SpatialNode, ...], *, radius: float) -> tuple[SpatialNode, ...]:
+        """Propagate the maximum neighbouring risk within a radius in kilometres."""
         if radius < 0.0:
             raise ValueError("radius must be non-negative")
+        radius_meters = radius * 1000.0
         out: list[SpatialNode] = []
         for node in nodes:
             influence = max(
-                (other.risk for other in nodes if other.node_id != node.node_id and self.distance(node, other) <= radius),
+                (other.risk for other in nodes if other.node_id != node.node_id and self.distance(node, other) <= radius_meters),
                 default=0.0,
             )
             out.append(SpatialNode(node.node_id, node.latitude, node.longitude, max(node.risk, influence)))

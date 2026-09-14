@@ -2213,8 +2213,9 @@ def _validate_spatial_matrix(
     if np.any(w < 0.0):
         raise MetricInputError("weights no puede contener valores negativos")
 
-    w = w.copy()
-    np.fill_diagonal(w, 0.0)
+    diagonal = np.diag(w)
+    if np.any(diagonal != 0.0):
+        raise MetricInputError("weights debe tener diagonal cero; los autopesos no están permitidos")
 
     row_sum = np.sum(w, axis=1)
     if np.any(row_sum <= 0.0):

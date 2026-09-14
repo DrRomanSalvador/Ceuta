@@ -33,8 +33,8 @@ jobs:
       - name: Static analysis of changed runtime modules
         run: python -m ruff check backend/app/main.py backend/app/core/runtime/decision_lifecycle.py backend/app/core/runtime/evidence_persistence.py backend/app/core/runtime/integrity.py backend/app/core/runtime/source_configuration.py
       - name: Static analysis of frontier statistical modules
-        run: python -m ruff check backend/app/core/evidence/longitudinal_validation.py backend/app/core/evidence/frontier_longitudinal.py backend/tests/test_frontier_longitudinal.py
+        run: python -m ruff check backend/app/core/evidence/longitudinal_validation.py backend/app/core/evidence/frontier_longitudinal.py backend/app/core/evidence/frontier_selection_transport.py backend/app/core/evidence/frontier_temporal.py backend/tests/test_frontier_longitudinal.py
       - name: Type check frontier statistical modules
-        run: python -m mypy backend/app/core/evidence/longitudinal_validation.py backend/app/core/evidence/frontier_longitudinal.py
+        run: python -m mypy backend/app/core/evidence/longitudinal_validation.py backend/app/core/evidence/frontier_longitudinal.py backend/app/core/evidence/frontier_selection_transport.py backend/app/core/evidence/frontier_temporal.py
       - name: Validate Compose configuration
         run: docker compose config -q

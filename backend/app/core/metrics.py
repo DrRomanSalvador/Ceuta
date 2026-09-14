@@ -1382,7 +1382,10 @@ def geometric_weighted_index(values: Sequence[float] | np.ndarray, weights: Sequ
     _validate_same_length(x, w)
     if np.any(x < 0) or np.any(w < 0) or np.sum(w) <= 0:
         raise MetricInputError("Valores y pesos deben ser no negativos; pesos con suma positiva")
-    return float(np.exp(np.sum(w * np.log(np.clip(x, 1e-15, None))) / np.sum(w)))
+    active = w > 0.0
+    if np.any(x[active] == 0.0):
+        return 0.0
+    return float(np.exp(np.sum(w[active] * np.log(x[active])) / np.sum(w[active])))
 
 
 def monte_carlo_mean(samples: Sequence[float] | np.ndarray) -> float:

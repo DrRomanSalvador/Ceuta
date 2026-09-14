@@ -21,6 +21,7 @@ from app.core.decision.persistence import SQLiteDecisionStore
 from app.core.decision.review_policy import DecisionRisk
 from app.core.final_epistemic_control import (
     EpistemicContract,
+    EpistemicIntegrityStatus,
     EpistemicSelfModel,
     EpistemicTransformation,
     FinalEpistemicController,
@@ -198,6 +199,7 @@ def _final_epistemic_assessment(payload: DecisionRequest, evidence: list[Decisio
         falsifying_observation="material contradiction, provenance failure or temporal invalidity is detected",
         independent_evidence_refs=independent_refs,
         assumptions=("bitemporal evidence validation is enforced before decision execution",),
+        testable=bool(independent_refs),
     )
     anchor = RealityAnchorAssessment(
         target_id=payload.decision_id,
@@ -321,7 +323,7 @@ async def evaluate_decision(payload: DecisionRequest) -> dict[str, object]:
                     "epistemic_reasons": final_epistemic.reasons,
                 },
             )
-        if final_epistemic.composition is not final_epistemic.composition.PRESERVED:
+        if final_epistemic.composition is not EpistemicIntegrityStatus.PRESERVED:
             return JSONResponse(
                 status_code=409,
                 content={
@@ -439,7 +441,7 @@ async def diagnostics_config() -> dict[str, object]:
     state = _readiness()
     return {
         "status": "valid" if state.ready else "incomplete",
-        "host_configured": bool(RUNTIME_CONFIG.host),
+        "host_configured": bool(state.ready),
         "port_valid": MIN_PORT <= RUNTIME_CONFIG.port <= MAX_PORT,
         "code_revision_configured": bool(RUNTIME_CONFIG.code_revision),
         "decision_persistence_configured": bool(RUNTIME_CONFIG.decision_db),

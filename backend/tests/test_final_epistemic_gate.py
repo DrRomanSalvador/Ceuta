@@ -34,7 +34,7 @@ def final_assessment(validity: SystemValidity, composition: EpistemicIntegritySt
         global_model_doubt=validity is not SystemValidity.SUPPORTED, reasons=(),
     )
     self_model = EpistemicSelfModel(
-        version="1", assumptions=(), limitations=(), identification_limits=(),
+        version="1", assumptions=("fixture assumption",), limitations=("fixture limitation",), identification_limits=(),
         ontology_status=OntologyStatus.ONTOLOGY_REVIEW_REQUIRED if validity is SystemValidity.SUPPORTED else OntologyStatus.NORMAL,
         ontology_version="1", unexplained_signals=(), global_validity=validity,
     )

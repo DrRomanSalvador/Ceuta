@@ -21,6 +21,7 @@ from app.core.decision.persistence import SQLiteDecisionStore
 from app.core.decision.review_policy import DecisionRisk
 from app.core.runtime.decision_lifecycle import BitemporalRef, DecisionEvidence, DecisionLifecycleEngine
 from app.core.runtime.evidence_persistence import DecisionEvidenceStore
+from app.core.runtime.integrity import validate_evidence_set, validate_scenario_probabilities
 from app.core.runtime.model_governance import ModelGovernanceRecord
 
 APP_NAME = "CeutIA"
@@ -117,23 +118,23 @@ app = FastAPI(title=APP_NAME, version=APP_VERSION, description=APP_DESCRIPTION, 
 
 
 class DecisionScenarioRequest(BaseModel):
-    scenario_id: str
+    scenario_id: str = Field(min_length=1)
     probability: float = Field(ge=0.0, le=1.0)
     utility: float
     harm: float
 
 
 class DecisionOptionRequest(BaseModel):
-    option_id: str
-    scenarios: list[DecisionScenarioRequest]
+    option_id: str = Field(min_length=1)
+    scenarios: list[DecisionScenarioRequest] = Field(min_length=1)
     resource_cost: float = Field(default=0.0, ge=0.0)
     uncertainty: float = Field(default=0.0, ge=0.0, le=1.0)
 
 
 class DecisionEvidenceRequest(BaseModel):
-    evidence_id: str
-    source_id: str
-    claim_id: str
+    evidence_id: str = Field(min_length=1)
+    source_id: str = Field(min_length=1)
+    claim_id: str = Field(min_length=1)
     content_hash: str = Field(min_length=64, max_length=64)
     valid_from: datetime
     valid_until: datetime | None = None
@@ -144,26 +145,26 @@ class DecisionEvidenceRequest(BaseModel):
     contradiction_weight: float = Field(default=0.0, ge=0.0, le=1.0)
     independent_origin: bool = True
     disposition: EvidenceDisposition = EvidenceDisposition.ACCEPT
-    provenance_refs: list[str]
+    provenance_refs: list[str] = Field(min_length=1)
     visibility: InformationVisibility = InformationVisibility.PUBLIC
 
 
 class DecisionRequest(BaseModel):
-    decision_id: str
-    decision_maker: str
-    horizon: str
-    purpose: str
+    decision_id: str = Field(min_length=1)
+    decision_maker: str = Field(min_length=1)
+    horizon: str = Field(min_length=1)
+    purpose: str = Field(min_length=1)
     risk_class: DecisionRisk = DecisionRisk.LOW
     mode: DecisionMode = DecisionMode.ROBUST
-    state_refs: list[str]
-    evidence: list[DecisionEvidenceRequest]
-    options: list[DecisionOptionRequest]
-    assumptions: list[str] = []
-    hypothesis_refs: list[str] = []
-    model_refs: list[str] = []
-    scenario_refs: list[str] = []
-    transformation_refs: list[str] = []
-    constraint_refs: list[str] = []
+    state_refs: list[str] = Field(min_length=1)
+    evidence: list[DecisionEvidenceRequest] = Field(min_length=1)
+    options: list[DecisionOptionRequest] = Field(min_length=1)
+    assumptions: list[str] = Field(default_factory=list)
+    hypothesis_refs: list[str] = Field(default_factory=list)
+    model_refs: list[str] = Field(default_factory=list)
+    scenario_refs: list[str] = Field(default_factory=list)
+    transformation_refs: list[str] = Field(default_factory=list)
+    constraint_refs: list[str] = Field(default_factory=list)
     restricted: bool = False
     output_visibility: InformationVisibility = InformationVisibility.PUBLIC
 
@@ -191,6 +192,12 @@ async def evaluate_decision(payload: DecisionRequest) -> dict[str, object]:
     state = _readiness()
     if not state.ready:
         return JSONResponse(status_code=503, content={"status": STATUS_NOT_READY, "reason": state.reason})
+
+    # The API is deliberately fail-closed: incomplete epistemic inputs are not
+    # silently converted into a prediction or recommendation.
+    for option in payload.options:
+        validate_scenario_probabilities([scenario.probability for scenario in option.scenarios])
+
     store = SQLiteDecisionStore(RUNTIME_CONFIG.decision_db)
     try:
         configuration = ConfigurationProvenance(
@@ -213,9 +220,12 @@ async def evaluate_decision(payload: DecisionRequest) -> dict[str, object]:
                 disposition=item.disposition,
             )
             evidence.append(DecisionEvidence(item.evidence_id, item.source_id, item.claim_id, item.content_hash, tuple(item.provenance_refs), temporal, assessment, item.visibility))
+        validate_evidence_set(evidence)
+
         evidence_store = DecisionEvidenceStore(store)
         for item in evidence:
             evidence_store.record(item)
+
         options = tuple(
             DecisionOption(
                 item.option_id,
@@ -244,6 +254,7 @@ async def evaluate_decision(payload: DecisionRequest) -> dict[str, object]:
             deterministic = replace(deterministic, release_hash=deterministic.fingerprint())
             model_releases[deterministic.model_id] = deterministic
             model_refs = (deterministic.model_id,)
+
         context = DecisionContext(
             decision_id=payload.decision_id,
             decision_maker=payload.decision_maker,

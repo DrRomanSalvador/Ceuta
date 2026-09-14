@@ -2719,11 +2719,18 @@ def territorial_capacity_debt(
 def territorial_bottleneck_index(
     demand: Sequence[float] | np.ndarray,
     capacity: Sequence[float] | np.ndarray,
-) -> int:
-    """Unidad territorial con mayor utilización."""
-    utilization_values = territorial_demand_per_capacity(demand, capacity)
+) -> int | None:
+    """Unidad territorial con mayor utilización cuando el máximo es único.
 
-    return int(np.argmax(utilization_values))
+    Un empate no identifica un cuello de botella único y por tanto devuelve
+    ``None`` en lugar de introducir un ordenamiento arbitrario.
+    """
+    utilization_values = territorial_demand_per_capacity(demand, capacity)
+    maximum = float(np.max(utilization_values))
+    candidates = np.flatnonzero(np.isclose(utilization_values, maximum, rtol=1e-12, atol=1e-12))
+    if candidates.size != 1:
+        return None
+    return int(candidates[0])
 
 
 def territorial_bottleneck_ratio(
@@ -2791,6 +2798,8 @@ def territorial_bottleneck_migration(
         current_capacity,
     )
 
+    if previous is None or current is None:
+        return None
     return None if previous == current else current
 
 

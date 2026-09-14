@@ -16,6 +16,9 @@ class Evidence:
     def available_at(self):
         return self.context.available_at
 
+    def is_valid_at(self, simulation_time):
+        return self.context.is_valid_at(simulation_time)
+
 
 def test_available_at_prioritizes_revision_then_publication_then_ingestion():
     base = datetime(2026, 1, 1)
@@ -60,6 +63,18 @@ def test_snapshot_selects_latest_version_known_at_cutoff():
 
     assert TemporalFilter.snapshot_by_available_at([first, second], cutoff) == [first]
     assert TemporalFilter.snapshot_by_available_at([first, second], base + timedelta(hours=4)) == [second]
+
+
+def test_snapshot_excludes_effectively_invalid_evidence_at_cutoff():
+    base = datetime(2026, 1, 1)
+    context = TemporalContext(
+        ingestion_time=base,
+        valid_from=base + timedelta(hours=2),
+        valid_to=base + timedelta(hours=4),
+    )
+    evidence = Evidence("e1", 1, context)
+    assert TemporalFilter.snapshot_by_available_at([evidence], base + timedelta(hours=1)) == []
+    assert TemporalFilter.snapshot_by_available_at([evidence], base + timedelta(hours=3)) == [evidence]
 
 
 def test_snapshot_fails_closed_without_stable_version_identity():

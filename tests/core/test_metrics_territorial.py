@@ -6,6 +6,7 @@ from app.core.metrics import (
     MetricNotPermittedError,
     MetricNotValidatedError,
     OutputChannel,
+    TERRITORIAL_SYSTEMIC_METRICS,
     assert_output_permitted,
     assert_metric_executable,
     get_metric_definition,
@@ -24,6 +25,27 @@ from app.core.metrics import (
     validate_registry_integrity,
     validate_probability_output,
 )
+
+
+REQUIRED_TERRITORIAL_METRICS = {
+    "territorial_share",
+    "territorial_morans_i",
+    "territorial_gearys_c",
+    "territorial_demand_per_capacity",
+    "territorial_capacity_reserve",
+    "territorial_bottleneck_migration",
+    "territorial_load_transfer",
+    "territorial_spatial_propagation",
+    "territorial_cascade_depth",
+    "territorial_observation_coverage",
+    "territorial_signal_to_noise",
+}
+
+
+def test_territorial_metric_inventory_contains_required_implementations():
+    assert REQUIRED_TERRITORIAL_METRICS <= set(TERRITORIAL_SYSTEMIC_METRICS)
+    for metric_id in REQUIRED_TERRITORIAL_METRICS:
+        assert callable(TERRITORIAL_SYSTEMIC_METRICS[metric_id])
 
 
 def test_territorial_share_is_normalized():

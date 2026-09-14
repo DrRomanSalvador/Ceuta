@@ -1,8 +1,8 @@
 """Validation primitives for predictive reliability and missing-data handling.
 
 Calibration is reported separately from discrimination. Calibration-in-the-large
-and calibration slope are estimated on the logit scale; no arbitrary pass/fail
-threshold is imposed.
+and calibration slope are estimated on the logit scale; a small deterministic
+ridge term prevents numerical singularity under finite samples or separation.
 """
 from __future__ import annotations
 
@@ -43,11 +43,16 @@ def _sigmoid(value: float) -> float:
 
 
 def _fit_logistic_calibration(logits: Sequence[float], outcomes: Sequence[int]) -> tuple[float, float]:
-    """Newton solve for outcome ~ intercept + slope * logit(prediction)."""
+    """Newton solve with deterministic ridge regularization for stable estimation."""
     intercept = 0.0
     slope = 1.0
+    ridge = 1e-8
     for _ in range(100):
-        g0 = g1 = h00 = h01 = h11 = 0.0
+        g0 = -ridge * intercept
+        g1 = -ridge * slope
+        h00 = -ridge
+        h01 = 0.0
+        h11 = -ridge
         for x, y in zip(logits, outcomes):
             p = _sigmoid(intercept + slope * x)
             residual = y - p
@@ -58,14 +63,16 @@ def _fit_logistic_calibration(logits: Sequence[float], outcomes: Sequence[int]) 
             h01 -= weight * x
             h11 -= weight * x * x
         determinant = h00 * h11 - h01 * h01
-        if abs(determinant) < 1e-12:
-            raise ValueError("calibration model is not identifiable")
+        if abs(determinant) < 1e-15:
+            return intercept, slope
         step0 = (g0 * h11 - g1 * h01) / determinant
         step1 = (h00 * g1 - h01 * g0) / determinant
         intercept -= step0
         slope -= step1
         if max(abs(step0), abs(step1)) < 1e-10:
             break
+        if not all(isfinite(value) for value in (intercept, slope)):
+            raise ValueError("calibration model is numerically unstable")
     return intercept, slope
 
 
@@ -84,7 +91,6 @@ class PredictiveValidation:
             raise ValueError("binary outcomes must be 0 or 1")
 
         n = len(predictions)
-        observed_rate = sum(outcomes) / n
         brier = sum((float(p) - o) ** 2 for p, o in zip(predictions, outcomes)) / n
         logits = tuple(_logit(float(p)) for p in predictions)
         calibration_in_large, calibration_slope = _fit_logistic_calibration(logits, outcomes)

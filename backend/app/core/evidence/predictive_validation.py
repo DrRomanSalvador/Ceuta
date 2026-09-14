@@ -1,9 +1,9 @@
 """Statistically rigorous predictive validation primitives.
 
-The module deliberately separates calibration, discrimination and probabilistic
-accuracy. Point estimates are accompanied by uncertainty where an inferential
-quantity is requested, and validation metadata records the evaluation design.
-No arbitrary threshold is allowed to manufacture a calibrated model.
+Calibration, discrimination and probabilistic accuracy are distinct estimands.
+Inferential quantities carry uncertainty, while validation design records whether
+an evaluation is genuinely external/temporal/prospective. No arbitrary
+threshold is used to manufacture a calibrated model.
 """
 from __future__ import annotations
 
@@ -26,7 +26,7 @@ class Estimate:
     estimand: str
     method: str
 
-a@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True)
 class CalibrationReport:
     brier_score: float
     log_loss: float
@@ -61,11 +61,11 @@ def _sigmoid(value: float) -> float:
     return z / (1.0 + z)
 
 def _fit_logistic_calibration(logits: Sequence[float], outcomes: Sequence[int]) -> tuple[float, float, float, float, float]:
-    """Fit unpenalized logistic calibration and return inverse information.
+    """Fit unpenalized logistic calibration and return inverse observed information.
 
-    Model: logit(P(Y=1|p)) = alpha + beta*logit(p). Separation,
-    non-identifiability and failed optimization are explicit errors rather
-    than problems hidden by regularization.
+    The fitted model is logit(P(Y=1|p)) = alpha + beta*logit(p).  Regularization
+    is prohibited because it changes the calibration estimand. Separation,
+    singular information and failed optimization are explicit errors.
     """
     if len(logits) != len(outcomes) or len(logits) < 3:
         raise ValueError("at least three paired predictions/outcomes are required")
@@ -101,11 +101,10 @@ def _fit_logistic_calibration(logits: Sequence[float], outcomes: Sequence[int]) 
         factor = 1.0
         for _ in range(80):
             a, b = intercept - factor * step0, slope - factor * step1
-            candidate_ll = sum(
-                y * log(max(_sigmoid(a + b * x), _EPS))
-                + (1 - y) * log(max(1.0 - _sigmoid(a + b * x), _EPS))
-                for x, y in zip(logits, outcomes)
-            )
+            candidate_ll = 0.0
+            for x, y in zip(logits, outcomes):
+                q = _sigmoid(a + b * x)
+                candidate_ll += y * log(max(q, _EPS)) + (1 - y) * log(max(1.0 - q, _EPS))
             if candidate_ll >= ll:
                 intercept, slope = a, b
                 accepted = True
@@ -137,7 +136,7 @@ def _auc(predictions: Sequence[float], outcomes: Sequence[int]) -> float | None:
     return concordant / (len(positives) * len(negatives))
 
 class PredictiveValidation:
-    """Computes calibration, discrimination and proper scoring summaries."""
+    """Compute calibration, discrimination and proper-scoring summaries."""
 
     @staticmethod
     def calibration_report(predictions: Sequence[float], outcomes: Sequence[int], *, bins: int = 10) -> CalibrationReport:

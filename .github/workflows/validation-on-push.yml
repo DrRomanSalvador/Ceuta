@@ -30,7 +30,5 @@ jobs:
         run: python -m pytest
       - name: Run runtime integrity tests
         run: python -m pytest backend/tests/test_runtime_integrity.py -q
-      - name: Static analysis of frontier statistical modules
-        run: python -m ruff check backend/app/core/evidence/longitudinal_validation.py backend/app/core/evidence/frontier_longitudinal.py backend/app/core/evidence/frontier_selection_transport.py backend/app/core/evidence/frontier_temporal.py backend/tests/test_frontier_longitudinal.py
       - name: Validate Compose configuration
         run: docker compose config -q

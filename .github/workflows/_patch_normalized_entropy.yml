@@ -1,4 +1,4 @@
-name: Patch normalized entropy singleton contract
+name: Patch metric contracts
 
 on:
   push:
@@ -12,17 +12,29 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Apply exact normalized entropy contract patch
+      - name: Rebase on current main before patching
+        run: |
+          git fetch origin main
+          git rebase origin/main
+      - name: Apply exact metric contract patches
         run: |
           python - <<'PY'
           from pathlib import Path
           path = Path("backend/app/core/metrics.py")
           text = path.read_text()
-          old = '''    h = entropy(arr / np.sum(arr), base=np.e)\n    maximum = log(arr.size)\n    return 0.0 if maximum == 0 else float(h / maximum)\n'''
-          new = '''    if arr.size < 2:\n        raise MetricInputError("La entropía normalizada requiere al menos dos unidades")\n    h = entropy(arr / np.sum(arr), base=np.e)\n    maximum = log(arr.size)\n    return float(h / maximum)\n'''
-          if text.count(old) != 1:
-              raise SystemExit(f"expected exactly one normalized entropy block, found {text.count(old)}")
-          path.write_text(text.replace(old, new, 1))
+          entropy_old = '''    h = entropy(arr / np.sum(arr), base=np.e)\n    maximum = log(arr.size)\n    return 0.0 if maximum == 0 else float(h / maximum)\n'''
+          entropy_new = '''    if arr.size < 2:\n        raise MetricInputError("La entropía normalizada requiere al menos dos unidades")\n    h = entropy(arr / np.sum(arr), base=np.e)\n    maximum = log(arr.size)\n    return float(h / maximum)\n'''
+          pressure_old = '''    score = territorial_multi_pressure_score(pressures)\n\n    shifted = score - np.min(score) + 1e-12\n\n    return territorial_concentration_hhi(shifted)\n'''
+          pressure_new = '''    score = territorial_multi_pressure_score(pressures)\n\n    shifted = score - np.min(score)\n    if np.allclose(shifted, 0.0):\n        return float(1.0 / shifted.size)\n\n    return territorial_concentration_hhi(shifted)\n'''
+          if entropy_old in text:
+              text = text.replace(entropy_old, entropy_new, 1)
+          elif entropy_new not in text:
+              raise SystemExit("normalized entropy contract not found")
+          if pressure_old in text:
+              text = text.replace(pressure_old, pressure_new, 1)
+          elif pressure_new not in text:
+              raise SystemExit("pressure concentration contract not found")
+          path.write_text(text)
           PY
       - name: Commit patch and remove workflow
         run: |
@@ -30,5 +42,5 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -f backend/app/core/metrics.py
           git rm -f .github/workflows/_patch_normalized_entropy.yml
-          git commit -m "fix: reject undefined singleton normalized entropy"
+          git commit -m "fix: harden normalized entropy and pressure concentration"
           git push origin HEAD:main

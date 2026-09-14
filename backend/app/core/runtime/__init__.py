@@ -24,6 +24,8 @@ from .decision_lifecycle import (
 from .source_pipeline import EvidenceParser, OfficialSourceIngestionEngine, SourceIngestionResult
 from .evidence_persistence import DecisionEvidenceStore
 from .action_gateway import ActionExecutor, ActionRequest, ActionStatus, DecisionActionGateway
+from .review_service import DecisionReviewService, ReviewAuthorization
+from .feedback_governance import FeedbackDisposition, FeedbackGovernanceService
 from .intervention_response import InterventionResponseEngine, InterventionExecution, ResponseAssessment
 from .online_learning import OnlineLearningEngine, PredictionOutcome, ModelStatus
 from .observability import ObservabilityEngine, ObservabilityAssessment

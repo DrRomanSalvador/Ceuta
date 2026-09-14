@@ -37,7 +37,9 @@ def test_lineage_duplicate_is_idempotent_but_conflicting_write_fails(tmp_path):
     def lineage(ref: str) -> DecisionLineage:
         return DecisionLineage(
             decision_id="d1",
-            nodes=(LineageNode("n1", "state", evidence_refs=(ref,)),),
+            nodes=(LineageNode(
+                "n1", "state", evidence_refs=(ref,), configuration_hash="cfg", code_revision="rev", as_of="2026-09-15T00:00:00+00:00"
+            ),),
             terminal_disposition="recommend",
             semantic_identity="semantic:d1",
         )

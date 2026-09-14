@@ -1,7 +1,8 @@
 """Integrated decision lifecycle for CeutIA.
 
-This module composes sensing, evidence, decision, governance, temporal integrity
-and the cross-cutting scientific runtime contract in one auditable lifecycle.
+This module composes existing sensing, evidence, decision, governance and
+persistence primitives. It also makes cross-cutting scientific constraints
+and intervention-aware validation part of the canonical runtime contract.
 """
 from __future__ import annotations
 
@@ -28,11 +29,11 @@ from app.core.scientific.governance_signals import (
 )
 from app.core.scientific.nonstationarity import NonStationarityAssessment
 from app.core.scientific.scientific_runtime_contract import ScientificRuntimeAssessment, ScientificRuntimeLedger
+from app.core.scientific.intervention_independent_validation import InterventionIndependentValidationLedger, ValidationObservation
 
 
 @dataclass(frozen=True, slots=True)
 class BitemporalRef:
-    """A versioned fact with valid-time and system/knowledge-time semantics."""
     valid_from: datetime
     valid_until: datetime | None
     recorded_from: datetime
@@ -162,6 +163,7 @@ class DecisionLifecycleEngine:
         self.model_governance = model_governance or ModelGovernance()
         self.scientific_governance = scientific_governance or ScientificGovernance(storage_path=store.path)
         self.scientific_runtime_ledger = ScientificRuntimeLedger(store.path)
+        self.intervention_validation_ledger = InterventionIndependentValidationLedger(store.path)
         self.code_revision = code_revision
         self.configuration = configuration
         self.conflicts = EvidenceConflictResolver()
@@ -183,7 +185,7 @@ class DecisionLifecycleEngine:
         if not persistence_available: reasons.append("durable persistence unavailable")
         return tuple(reasons)
 
-    def _governance_input(self, evidence: Sequence[DecisionEvidence], conflicts: Sequence[ConflictResolution], *, uncertainty: float, model_conflict: bool, mechanism_input: GovernanceInput | None, response_closure_complete: bool, decision_id: str, nonstationarity: NonStationarityAssessment | None = None, scientific_runtime_assessment: ScientificRuntimeAssessment | None = None) -> GovernanceInput:
+    def _governance_input(self, evidence: Sequence[DecisionEvidence], conflicts: Sequence[ConflictResolution], *, uncertainty: float, model_conflict: bool, mechanism_input: GovernanceInput | None, response_closure_complete: bool, decision_id: str, nonstationarity: NonStationarityAssessment | None = None, scientific_runtime_assessment: ScientificRuntimeAssessment | None = None, validation_observation: ValidationObservation | None = None) -> GovernanceInput:
         if mechanism_input is not None:
             base = mechanism_input
         else:
@@ -212,6 +214,11 @@ class DecisionLifecycleEngine:
                 findings.append("deployment_outside_observed_support")
             elif nonstationarity.regime_change:
                 findings.append("regime_change_detected")
+        if validation_observation is not None:
+            self.intervention_validation_ledger.append(validation_observation)
+            provenance_refs.append(f"intervention-validation:{validation_observation.observation_id}")
+            if validation_observation.evaluation_status.value == "counterfactual_required":
+                findings.append("intervention_counterfactual_required")
         if scientific_runtime_assessment is not None:
             if scientific_runtime_assessment.decision_id != decision_id:
                 raise ValueError("scientific runtime assessment decision identity mismatch")
@@ -225,7 +232,7 @@ class DecisionLifecycleEngine:
             mechanism_refs.append(scientific_runtime_assessment.method_version)
         return GovernanceInput(evidence_ids=base.evidence_ids, provenance_refs=tuple(dict.fromkeys(provenance_refs)), evidence_quality=base.evidence_quality, independent_evidence_ratio=base.independent_evidence_ratio, contradiction_ratio=base.contradiction_ratio, credibility=base.credibility, mechanism_satisfied=mechanism_satisfied, manipulation_flags=base.manipulation_flags, collusion_flags=base.collusion_flags, provenance_valid=base.provenance_valid, mechanism_integrity_valid=base.mechanism_integrity_valid, model_conflict=merged_model_conflict, uncertainty=min(1.0, merged_uncertainty), response_closure_complete=base.response_closure_complete, scientific_findings=tuple(dict.fromkeys(findings)), code_revision=base.code_revision, configuration_hash=base.configuration_hash, mechanism_ref="+".join(x for x in mechanism_refs if x))
 
-    def execute(self, context: DecisionContext, options: Sequence[DecisionOption], evidence: Sequence[DecisionEvidence], *, state_refs: Sequence[str], signal_refs: Sequence[str] = (), inference_refs: Sequence[str] = (), hypothesis_refs: Sequence[str] = (), model_refs: Sequence[str] = (), scenario_refs: Sequence[str] = (), assumption_refs: Sequence[str] = (), transformation_refs: Sequence[str] = (), constraint_refs: Sequence[str] = (), conflict_resolutions: Sequence[ConflictResolution] = (), purpose: str, restricted: bool = False, boundaries: Sequence[InformationBoundary] = (), output_visibility: InformationVisibility = InformationVisibility.PUBLIC, mode: DecisionMode = DecisionMode.ROBUST, at: datetime | None = None, state_available: bool = True, model_releases: Mapping[str, ModelGovernanceRecord] | None = None, scientific_governance_input: GovernanceInput | None = None, response_closure_complete: bool = True, nonstationarity_assessment: NonStationarityAssessment | None = None, scientific_runtime_assessment: ScientificRuntimeAssessment | None = None) -> DecisionLifecycleResult:
+    def execute(self, context: DecisionContext, options: Sequence[DecisionOption], evidence: Sequence[DecisionEvidence], *, state_refs: Sequence[str], signal_refs: Sequence[str] = (), inference_refs: Sequence[str] = (), hypothesis_refs: Sequence[str] = (), model_refs: Sequence[str] = (), scenario_refs: Sequence[str] = (), assumption_refs: Sequence[str] = (), transformation_refs: Sequence[str] = (), constraint_refs: Sequence[str] = (), conflict_resolutions: Sequence[ConflictResolution] = (), purpose: str, restricted: bool = False, boundaries: Sequence[InformationBoundary] = (), output_visibility: InformationVisibility = InformationVisibility.PUBLIC, mode: DecisionMode = DecisionMode.ROBUST, at: datetime | None = None, state_available: bool = True, model_releases: Mapping[str, ModelGovernanceRecord] | None = None, scientific_governance_input: GovernanceInput | None = None, response_closure_complete: bool = True, nonstationarity_assessment: NonStationarityAssessment | None = None, scientific_runtime_assessment: ScientificRuntimeAssessment | None = None, validation_observation: ValidationObservation | None = None) -> DecisionLifecycleResult:
         timestamp = at or datetime.now(timezone.utc)
         for boundary in boundaries:
             boundary.assert_emit(output_visibility)
@@ -250,7 +257,7 @@ class DecisionLifecycleEngine:
             degraded = (*degraded, *model_reasons)
         governance_signal: GovernanceSignal | None = None
         if evidence and state_available and not model_reasons:
-            governance_signal = self.scientific_governance.evaluate(context.decision_id, self._governance_input(evidence, conflicts, uncertainty=uncertainty.value, model_conflict=bool(model_reasons), mechanism_input=scientific_governance_input, response_closure_complete=response_closure_complete, decision_id=context.decision_id, nonstationarity=nonstationarity_assessment, scientific_runtime_assessment=scientific_runtime_assessment), created_at=timestamp)
+            governance_signal = self.scientific_governance.evaluate(context.decision_id, self._governance_input(evidence, conflicts, uncertainty=uncertainty.value, model_conflict=bool(model_reasons), mechanism_input=scientific_governance_input, response_closure_complete=response_closure_complete, decision_id=context.decision_id, nonstationarity=nonstationarity_assessment, scientific_runtime_assessment=scientific_runtime_assessment, validation_observation=validation_observation), created_at=timestamp)
             degraded = (*degraded, *(f"governance:{reason.value}" for reason in governance_signal.reasons if reason.value != "integrity_verified"))
         else:
             degraded = (*degraded, "scientific governance cannot release degraded execution")
@@ -262,7 +269,7 @@ class DecisionLifecycleEngine:
             recommendation = self.decisions._abstain(context, mode, reason, (f"audit:{control.audit_event_id}",), ("reevaluate after recovery",))
         else:
             control = self.control.authorize(decision_id=context.decision_id, purpose=purpose, uncertainty=uncertainty, restricted=restricted, manifest=manifest, evidence_assessments=assessments, conflict_resolutions=conflicts)
-            provenance = tuple([f"evidence:{item.evidence_id}" for item in evidence] + [f"signal:{ref}" for ref in signal_refs] + [f"inference:{ref}" for ref in inference_refs] + [f"hypothesis:{ref}" for ref in hypothesis_refs] + [f"model:{ref}" for ref in model_refs] + ([f"governance:{governance_signal.signal_id}"] if governance_signal else []) + ([f"nonstationarity:{nonstationarity_assessment.evidence_fingerprint}"] if nonstationarity_assessment else []) + ([f"scientific-runtime:{scientific_runtime_assessment.assessment_id}"] if scientific_runtime_assessment else []) + [f"audit:{control.audit_event_id}"])
+            provenance = tuple([f"evidence:{item.evidence_id}" for item in evidence] + [f"signal:{ref}" for ref in signal_refs] + [f"inference:{ref}" for ref in inference_refs] + [f"hypothesis:{ref}" for ref in hypothesis_refs] + [f"model:{ref}" for ref in model_refs] + ([f"governance:{governance_signal.signal_id}"] if governance_signal else []) + ([f"nonstationarity:{nonstationarity_assessment.evidence_fingerprint}"] if nonstationarity_assessment else []) + ([f"scientific-runtime:{scientific_runtime_assessment.assessment_id}"] if scientific_runtime_assessment else []) + ([f"intervention-validation:{validation_observation.observation_id}"] if validation_observation else []) + [f"audit:{control.audit_event_id}"])
             if control.disposition in {DecisionDisposition.ABSTAIN, DecisionDisposition.BLOCK}:
                 recommendation = self.decisions._abstain(context, mode, control.reason, provenance, ("reevaluate after new evidence",))
             elif control.disposition is DecisionDisposition.HUMAN_REVIEW or force_review:
@@ -272,12 +279,13 @@ class DecisionLifecycleEngine:
         terminal = recommendation.disposition.value
         governance_refs = (governance_signal.signal_id,) if governance_signal else ()
         scientific_refs = (scientific_runtime_assessment.assessment_id,) if scientific_runtime_assessment else ()
+        validation_refs = (validation_observation.observation_id,) if validation_observation else ()
         nodes = (
             LineageNode(f"{context.decision_id}:evidence", "evidence", evidence_refs=tuple(item.evidence_id for item in evidence), policy_refs=(manifest.policy_version,), configuration_hash=manifest.configuration_hash, code_revision=self.code_revision, as_of=manifest.created_at),
             LineageNode(f"{context.decision_id}:state", "state", input_refs=tuple(item.evidence_id for item in evidence), output_refs=tuple(state_refs), evidence_refs=tuple(item.evidence_id for item in evidence), policy_refs=(manifest.policy_version,), configuration_hash=manifest.configuration_hash, code_revision=self.code_revision, as_of=manifest.created_at),
             LineageNode(f"{context.decision_id}:analysis", "analysis", input_refs=tuple(state_refs), output_refs=tuple(signal_refs) + tuple(inference_refs) + tuple(hypothesis_refs), evidence_refs=tuple(item.evidence_id for item in evidence), model_refs=tuple(model_refs), policy_refs=(manifest.policy_version,), configuration_hash=manifest.configuration_hash, code_revision=self.code_revision, as_of=manifest.created_at),
-            LineageNode(f"{context.decision_id}:scientific", "scientific_governance", input_refs=tuple(scientific_refs) + tuple(governance_refs), output_refs=tuple(scientific_refs) + tuple(governance_refs), evidence_refs=tuple(item.evidence_id for item in evidence), model_refs=tuple(model_refs), policy_refs=(manifest.policy_version,), configuration_hash=manifest.configuration_hash, code_revision=self.code_revision, as_of=manifest.created_at),
-            LineageNode(f"{context.decision_id}:decision", "decision", input_refs=tuple(scenario_refs) + tuple(hypothesis_refs) + governance_refs + scientific_refs, output_refs=(context.decision_id, recommendation.option_id), evidence_refs=tuple(item.evidence_id for item in evidence), model_refs=tuple(model_refs), policy_refs=(manifest.policy_version,), configuration_hash=manifest.configuration_hash, code_revision=self.code_revision, as_of=manifest.created_at),
+            LineageNode(f"{context.decision_id}:scientific", "scientific_governance", input_refs=tuple(scientific_refs) + tuple(validation_refs) + tuple(governance_refs), output_refs=tuple(scientific_refs) + tuple(validation_refs) + tuple(governance_refs), evidence_refs=tuple(item.evidence_id for item in evidence), model_refs=tuple(model_refs), policy_refs=(manifest.policy_version,), configuration_hash=manifest.configuration_hash, code_revision=self.code_revision, as_of=manifest.created_at),
+            LineageNode(f"{context.decision_id}:decision", "decision", input_refs=tuple(scenario_refs) + tuple(hypothesis_refs) + governance_refs + scientific_refs + validation_refs, output_refs=(context.decision_id, recommendation.option_id), evidence_refs=tuple(item.evidence_id for item in evidence), model_refs=tuple(model_refs), policy_refs=(manifest.policy_version,), configuration_hash=manifest.configuration_hash, code_revision=self.code_revision, as_of=manifest.created_at),
         )
         lineage = DecisionLineage(context.decision_id, nodes, terminal, manifest.fingerprint())
         self.store.record_lineage(lineage)

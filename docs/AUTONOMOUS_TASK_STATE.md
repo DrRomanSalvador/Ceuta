@@ -1,17 +1,17 @@
 # CeutIA — Autonomous Task State
 
 **Updated:** 2026-09-14
-**HEAD:** `d55042a5790e46e87defd32e581ffdf9dd6a9fee`
+**HEAD:** `9eb3c618c9a16a6dec478502e447dbeb6fc0a597`
 
 This file is an execution-state ledger, not a completion claim. The queue must expand when discovery identifies additional scientifically justified work.
 
 ## CURRENT_TASK
 
-Point-in-time integration task: trace the new revision-aware temporal evidence contract into an actual ingestion/state-construction path without allowing later revisions into historical replay.
+Temporal integration verification: validate the canonical P0 multitemporal contract and identify the first remaining ingestion/state-construction boundary where revision-aware point-in-time snapshots are not enforced.
 
 ## NEXT_TASK
 
-Inspect the first concrete source-ingestion adapter and define the narrowest safe integration boundary for `point_in_time_snapshot()`.
+Inspect the canonical P0 evidence/source contract and its consumers for stable `evidence_id`, revision semantics and availability filtering before downstream state construction.
 
 ## BACKLOG
 
@@ -41,7 +41,8 @@ None currently identified as blocking all independent work.
 - Additional class-level fixes: bottleneck ties, pressure breadth double-standardization, negative capacity reserve, dependency/sensitivity matrix validation, entropy/temporal minimum-size guards.
 - Geometric weighted index zero semantics: positive-weight zero values now produce the mathematically correct zero rather than an epsilon-biased positive value.
 - Spatial matrix contract: nonzero diagonal weights are rejected rather than silently rewritten; asymmetric valid row-normalized weights are covered by regression tests.
-- Revision-aware point-in-time evidence contract: explicit observation, availability, publication, acquisition and effective-validity clocks; revision-aware historical snapshots; fail-closed temporal metadata validation.
+- Canonical P0 multitemporal hardening: effective validity intervals and revision-aware point-in-time snapshots added without replacing the existing `revision_time → publication_time → ingestion_time` availability semantics.
+- Temporary parallel point-in-time module/test surface removed after integration review; temporal work was consolidated into the canonical P0 multitemporal layer.
 
 ## STOP CONDITION
 

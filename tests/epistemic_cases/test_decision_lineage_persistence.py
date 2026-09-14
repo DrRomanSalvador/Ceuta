@@ -29,10 +29,8 @@ def test_lineage_round_trips_through_sqlite(tmp_path) -> None:
     store = SQLiteDecisionStore(str(tmp_path / "decision.db"))
     lineage = _lineage()
     store.record_lineage(lineage)
-
     restored = store.lineage("decision-1")
-
-    assert store.schema_version == 2
+    assert store.schema_version == 4
     assert restored is not None
     assert restored.semantic_fingerprint() == lineage.semantic_fingerprint()
     assert restored.execution_fingerprint() == lineage.execution_fingerprint()

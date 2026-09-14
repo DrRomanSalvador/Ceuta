@@ -1,18 +1,10 @@
-"""Identification-first causal estimators for observational longitudinal data.
-
-These estimators are deliberately narrow. They estimate explicit causal estimands
-only after positivity, consistency and exchangeability assumptions are declared.
-Failure of an identification check returns an abstention object rather than an
-association mislabeled as a causal effect.
-"""
+"""Identification-first causal estimators for observational longitudinal data."""
 from __future__ import annotations
 
 from dataclasses import dataclass
-from math import isfinite
 from typing import Sequence
 
 import numpy as np
-from scipy.special import expit
 from scipy.stats import norm
 
 
@@ -45,13 +37,13 @@ class IdentificationGate:
     def check(treatment: Sequence[float], propensity: Sequence[float], *,
               consistency: bool, exchangeability: bool,
               min_propensity: float = 0.01) -> IdentificationCheck:
-        if len(treatment) != len(propensity) or not treatment:
+        if len(treatment) != len(propensity) or len(treatment) == 0:
             raise ValueError("treatment and propensity must have equal non-zero length")
         p = np.asarray(propensity, dtype=float)
         a = np.asarray(treatment, dtype=float)
         if np.any(~np.isfinite(p)) or np.any(~np.isfinite(a)):
             raise ValueError("treatment and propensity must be finite")
-        binary = np.isin(a, [0.0, 1.0]).all()
+        binary = bool(np.isin(a, [0.0, 1.0]).all())
         positivity = bool(binary and np.all((p >= min_propensity) & (p <= 1.0 - min_propensity)))
         diagnostics: list[str] = []
         if not binary:
@@ -67,12 +59,7 @@ class IdentificationGate:
 
 
 class AIPWBinaryATE:
-    """Augmented inverse-probability weighted ATE with influence-function SE.
-
-    Inputs are nuisance predictions evaluated out-of-sample (cross-fitting is
-    therefore the caller's responsibility). This prevents the estimator from
-    silently using the same observations to fit and evaluate nuisance models.
-    """
+    """Augmented inverse-probability weighted ATE with influence-function SE."""
 
     @staticmethod
     def estimate(treatment: Sequence[float], outcome: Sequence[float],
@@ -100,14 +87,7 @@ class AIPWBinaryATE:
 
 
 class LongitudinalMarginalStructuralEffect:
-    """Two-time-point IPW estimator for a binary treatment sequence.
-
-    The caller supplies stabilized joint treatment weights. The implementation
-    estimates the marginal contrast under the declared longitudinal exchangeability
-    and positivity assumptions. It intentionally does not fit a treatment model,
-    because doing so without the full time-varying covariate history would create a
-    false impression of identification.
-    """
+    """Two-time-point IPW estimator for a binary treatment sequence."""
 
     @staticmethod
     def estimate(outcome: Sequence[float], potential_regime: Sequence[int],
@@ -135,8 +115,6 @@ class LongitudinalMarginalStructuralEffect:
                                   tuple(diagnostics))
         if np.any((prob <= 0) | (prob > 1)) or not np.isin(regime, [0, 1]).all():
             raise ValueError("regime must be binary and probabilities in (0,1]")
-        # Horvitz-Thompson mean within each regime; caller's probabilities are
-        # stabilized joint probabilities for the complete treatment history.
         estimates = []
         variances = []
         for r in (0, 1):

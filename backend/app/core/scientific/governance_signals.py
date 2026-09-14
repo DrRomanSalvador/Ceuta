@@ -47,6 +47,7 @@ class GovernanceReason(StrEnum):
     OUT_OF_DISTRIBUTION = "out_of_distribution"
     CAUSAL_IDENTIFICATION_UNSATISFIED = "causal_identification_unsatisfied"
     ROBUSTNESS_GATE_FAILED = "robustness_gate_failed"
+    INTERVENTION_COUNTERFACTUAL_REQUIRED = "intervention_counterfactual_required"
     INTEGRITY_VERIFIED = "integrity_verified"
 
 
@@ -182,6 +183,8 @@ class ScientificGovernance:
             reasons.append(GovernanceReason.CAUSAL_IDENTIFICATION_UNSATISFIED)
         if "robustness_gate_not_met" in value.scientific_findings:
             reasons.append(GovernanceReason.ROBUSTNESS_GATE_FAILED)
+        if "intervention_counterfactual_required" in value.scientific_findings:
+            reasons.append(GovernanceReason.INTERVENTION_COUNTERFACTUAL_REQUIRED)
         if value.uncertainty >= self.review_uncertainty:
             reasons.append(GovernanceReason.UNCERTAINTY_HIGH)
         if not value.response_closure_complete:
@@ -190,7 +193,7 @@ class ScientificGovernance:
             GovernanceReason.PROVENANCE_COMPROMISED, GovernanceReason.MECHANISM_UNSATISFIED,
             GovernanceReason.STRATEGIC_MANIPULATION, GovernanceReason.COLLUSION_FLAG,
             GovernanceReason.REFERENCE_CLASS_UNSUPPORTED, GovernanceReason.OUT_OF_DISTRIBUTION,
-            GovernanceReason.CAUSAL_IDENTIFICATION_UNSATISFIED,
+            GovernanceReason.CAUSAL_IDENTIFICATION_UNSATISFIED, GovernanceReason.INTERVENTION_COUNTERFACTUAL_REQUIRED,
         }
         if value.uncertainty >= self.abstain_uncertainty:
             reasons.append(GovernanceReason.UNCERTAINTY_HIGH)

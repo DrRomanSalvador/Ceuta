@@ -1,14 +1,4 @@
-"""Governance primitives for anti-Goodhart indicator publication.
-
-These primitives deliberately separate three concerns:
-- immutable pre-registration of the indicator configuration;
-- controlled rotation/retirement of indicators and adversarial findings;
-- bounded privacy release with explicit per-actor query accounting.
-
-They do not claim that secrecy or differential privacy guarantees truthful
-behaviour. They constrain observable interfaces so gaming and reconstruction
-become harder while preserving an auditable configuration and release policy.
-"""
+"""Governance primitives for anti-Goodhart indicator publication."""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -63,38 +53,24 @@ class IndicatorGovernance:
     @staticmethod
     def configuration_hash(definitions: Iterable[IndicatorDefinition]) -> str:
         canonical = [
-            {
-                "indicator_id": item.indicator_id,
-                "epoch": item.epoch,
-                "weight": item.weight,
-                "threshold": item.threshold,
-                "active": item.active,
-            }
+            {"indicator_id": item.indicator_id, "epoch": item.epoch,
+             "weight": item.weight, "threshold": item.threshold, "active": item.active}
             for item in sorted(definitions, key=lambda item: item.indicator_id)
         ]
-        payload = json.dumps(canonical, sort_keys=True, separators=(",", ":"))
+        payload = json.dumps(canonical, sort_keys=True, separators=(",", ":"), allow_nan=False)
         return sha256(payload.encode("utf-8")).hexdigest()
 
-    def preregister(
-        self,
-        registration_id: str,
-        epoch: str,
-        definitions: Iterable[IndicatorDefinition],
-        registered_at: str,
-    ) -> PreRegistration:
+    def preregister(self, registration_id: str, epoch: str, definitions: Iterable[IndicatorDefinition], registered_at: str) -> PreRegistration:
         if not registration_id:
             raise ValueError("registration_id is required")
-        if registration_id in {item.registration_id for item in self._registrations.values()}:
+        if any(item.registration_id == registration_id for item in self._registrations.values()):
             raise ValueError(f"duplicate registration_id: {registration_id}")
         items = tuple(definitions)
         if not items or any(item.epoch != epoch for item in items):
             raise ValueError("a registration requires non-empty, single-epoch definitions")
-        if epoch in self._registrations:
-            raise ValueError(f"epoch already preregistered: {epoch}")
-        if epoch in self._definitions:
+        if epoch in self._registrations or epoch in self._definitions:
             raise ValueError(f"epoch already registered: {epoch}")
-        digest = self.configuration_hash(items)
-        registration = PreRegistration(registration_id, epoch, digest, registered_at)
+        registration = PreRegistration(registration_id, epoch, self.configuration_hash(items), registered_at)
         self._definitions[epoch] = items
         self._registrations[epoch] = registration
         return registration
@@ -111,12 +87,8 @@ class IndicatorGovernance:
     def rotate(self, epoch: str, next_epoch: str, definitions: Iterable[IndicatorDefinition], registered_at: str) -> PreRegistration:
         if next_epoch == epoch:
             raise ValueError("rotation requires a new epoch")
-        if any(item.active for item in self._definitions[epoch]):
-            retired = tuple(
-                IndicatorDefinition(item.indicator_id, item.epoch, item.weight, item.threshold, active=False)
-                for item in self._definitions[epoch]
-            )
-            self._definitions[epoch] = retired
+        retired = tuple(IndicatorDefinition(i.indicator_id, i.epoch, i.weight, i.threshold, active=False) for i in self._definitions[epoch])
+        self._definitions[epoch] = retired
         return self.preregister(f"rotation:{next_epoch}", next_epoch, definitions, registered_at)
 
     def record_red_team_findings(self, epoch: str, findings: Iterable[RedTeamFinding]) -> None:
@@ -146,7 +118,7 @@ class PrivacyBudget:
 
 
 class PrivacyBudgetLedger:
-    """Basic pure-DP accounting using additive epsilon composition."""
+    """Composition ledger; does not itself implement a DP noise mechanism."""
 
     def __init__(self, budget: PrivacyBudget, max_queries_per_actor: int) -> None:
         if max_queries_per_actor <= 0:
@@ -172,23 +144,9 @@ class PrivacyBudgetLedger:
         self._queries[actor_id] = self._queries.get(actor_id, 0) + 1
         self._spent += epsilon
 
-    def noisy_sum(self, actor_id: str, values: Iterable[float], sensitivity: float, epsilon: float, noise: float) -> float:
-        if not math.isfinite(sensitivity) or sensitivity <= 0:
-            raise ValueError("sensitivity must be finite and positive")
-        if not math.isfinite(noise):
-            raise ValueError("noise must be finite")
+    def record_release(self, actor_id: str, epsilon: float) -> None:
+        """Record a release whose DP mechanism is implemented and audited elsewhere."""
         self.consume(actor_id, epsilon)
-        expected_scale = sensitivity / epsilon
-        if abs(noise) > 50 * expected_scale:
-            raise ValueError("noise is outside the bounded release envelope")
-        return sum(values) + noise
 
 
-__all__ = [
-    "IndicatorDefinition",
-    "IndicatorGovernance",
-    "PreRegistration",
-    "PrivacyBudget",
-    "PrivacyBudgetLedger",
-    "RedTeamFinding",
-]
+__all__ = ["IndicatorDefinition", "IndicatorGovernance", "PreRegistration", "PrivacyBudget", "PrivacyBudgetLedger", "RedTeamFinding"]

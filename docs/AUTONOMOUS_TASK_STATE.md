@@ -1,17 +1,17 @@
 # CeutIA — Autonomous Task State
 
 **Updated:** 2026-09-15
-**HEAD:** `a05f3a9b3fe01d09ebc3b706ea0aa5ddb264b817`
+**HEAD:** `6430c5de2a87e6689b4f9d659239e932de32f26a`
 
 This file is an execution-state ledger, not a completion claim. The queue must expand when discovery identifies additional scientifically justified work.
 
 ## CURRENT_TASK
 
-Privacy-contract class correction: repository-wide audit of privacy aggregation boundaries for pseudo-differential-privacy semantics. The identified `PrivacyAggregationLayer` previously exposed a caller-independent `noise_scale` derived from epsilon while returning the unnoised mean; that was removed. The boundary now provides explicit minimum-group suppression and deterministic aggregation only, with no DP claim.
+Governance persistence hardening: the active decision store now binds the default scientific-governance database path, and governance input fingerprints now use strict canonical JSON rather than `default=str`. This removes representation-dependent fingerprints and preserves deterministic audit identity.
 
 ## NEXT_TASK
 
-Continue class-level numerical contract discovery: audit equivalent divisions, zero-denominator handling, finite-value propagation, and sample-size requirements across runtime/scientific/privacy aggregation boundaries. Preserve concurrent work and treat failures as new root-cause tasks.
+Continue class-level numerical and persistence-contract discovery: audit equivalent divisions, zero-denominator handling, finite-value propagation, sample-size requirements, idempotency, and provenance across runtime/scientific/decision persistence boundaries. Preserve concurrent work and treat failures as new root-cause tasks.
 
 ## BACKLOG
 
@@ -24,6 +24,7 @@ Continue class-level numerical contract discovery: audit equivalent divisions, z
 - Audit NaN/Inf propagation across numerical outputs and aggregation boundaries.
 - Audit cascade/propagation semantics and distinguish observation from causal inference.
 - Audit persistent scoring/settlement provenance and idempotency boundaries.
+- Audit decision-store schema migration and concurrent-writer semantics.
 - Re-run global security, integration and regression searches after each material mathematical change.
 - Synchronize `docs/ENGINEERING_EXECUTION_STATUS.md` with verified repository evidence.
 
@@ -60,10 +61,12 @@ None currently identified as blocking all independent work.
 - Privacy governance no longer exposes a `noisy_sum` function that accepted arbitrary caller-supplied noise and implied a DP release; the ledger now explicitly provides composition accounting only.
 - Privacy aggregation boundary no longer returns an epsilon-derived pseudo-noise scale while returning the raw mean; it now exposes minimum-group suppression plus deterministic aggregation, explicitly without a differential-privacy guarantee.
 - Regression tests lock the non-DP aggregation contract and finite-input/sample-size guards.
+- Scientific governance persistence is bound to the active decision-store path and covered by regression tests.
+- Scientific governance fingerprints use strict canonical JSON serialization with non-finite values rejected by the input contract.
 
 ## VALIDATION_STATE
 
-HEAD `a05f3a9b3fe01d09ebc3b706ea0aa5ddb264b817` has active GitHub Actions validation runs. At the time of state update, the integration run `34904801964` was pending; security validation was also in progress. Do not mark the HEAD green until those runs conclude successfully.
+HEAD `6430c5de2a87e6689b4f9d659239e932de32f26a` has newly triggered GitHub Actions validation. Integration and security are not yet green; do not mark the HEAD validated until the relevant runs conclude successfully.
 
 ## STOP CONDITION
 

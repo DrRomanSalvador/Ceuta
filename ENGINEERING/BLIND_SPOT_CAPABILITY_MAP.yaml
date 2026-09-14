@@ -1,0 +1,87 @@
+version: 1
+scope: meta-system-audit-resolution
+principle: capability-completeness
+clusters:
+  - id: partially_observable_state
+    status: implemented
+    capabilities: [latent_state, state_uncertainty, observability, identifiability, state_space_dynamics]
+    components:
+      - backend/app/core/system_intelligence.py
+      - backend/app/core/complex_systems/state_space.py
+  - id: observation_process
+    status: implemented
+    capabilities: [measurement_process, selection, reporting, missingness, change_attribution]
+    components:
+      - backend/app/core/system_intelligence.py
+      - backend/app/core/evidence/change_attribution.py
+  - id: multiscale_territory
+    status: implemented
+    capabilities: [scale_semantics, spatial_units, spatial_relations, mobility, existing_multiscale_runtime]
+    components:
+      - backend/app/core/system_intelligence.py
+      - backend/app/core/runtime/multiscale.py
+      - backend/app/core/runtime/spatiotemporal.py
+  - id: network_dynamics
+    status: implemented
+    capabilities: [dynamic_network, cascade, topology, interaction_order, feedback]
+    components:
+      - backend/app/core/runtime/dynamic_network.py
+      - backend/app/core/complex_systems/interaction_algebra.py
+      - backend/app/core/system_intelligence.py
+  - id: cross_domain_dynamics
+    status: implemented
+    capabilities: [domain_coupling, delays, mechanisms, regimes, resilience]
+    components:
+      - backend/app/core/system_intelligence.py
+      - backend/app/core/complex_systems/interaction_algebra.py
+      - backend/app/core/complex_systems/resilience_math.py
+  - id: predictability_and_model_multiplicity
+    status: implemented
+    capabilities: [immutable_forecast_object, predictability_limits, model_disagreement, abstention]
+    components:
+      - backend/app/core/system_intelligence.py
+      - backend/app/core/runtime/model_governance.py
+  - id: decision_feedback
+    status: implemented
+    capabilities: [intervention_state, outcome_record, action_lifecycle, feedback]
+    components:
+      - backend/app/core/system_intelligence.py
+      - backend/app/core/runtime/action_gateway.py
+      - backend/app/core/runtime/feedback_governance.py
+  - id: information_contribution
+    status: implemented
+    capabilities: [entropy, mutual_information, information_gain_primitives]
+    components:
+      - backend/app/core/system_intelligence.py
+  - id: uncertainty_decomposition
+    status: implemented
+    capabilities: [aleatoric, measurement, sampling, parameter, model, structural, state, dgp, transport, adversarial, source_dependence]
+    components:
+      - backend/app/core/evidence/uncertainty_model.py
+  - id: system_level_safety
+    status: implemented
+    capabilities: [allow, degraded, abstain, structural_epistemic_gate]
+    components:
+      - backend/app/core/system_intelligence.py
+      - backend/app/core/runtime/system_gate.py
+  - id: scientific_traceability
+    status: implemented
+    capabilities: [literature, proposition, assumptions, formulation, implementation, validation_status, limitations]
+    components:
+      - backend/app/core/governance/scientific_method_registry.py
+
+scientific_nonclaims:
+  - No latent-state implementation is empirically identified for real Ceuta data by these contracts alone.
+  - Network topology does not imply causation.
+  - Information-theoretic association does not imply causation or forecasting value.
+  - Intervention outcomes do not imply causal attribution without an appropriate estimand and identification strategy.
+  - Regime detection is not validated until temporal out-of-sample performance is demonstrated.
+  - Predictability confidence is not a universal probability of correctness.
+
+remaining_empirical_validation:
+  - real official-source acquisition and snapshot validation
+  - point-in-time replay against real revisions
+  - temporal calibration and forecast scoring by target/horizon
+  - domain-specific state observability and parameter identifiability analysis
+  - causal identification and falsification for intervention questions
+  - adversarial red-team evaluation

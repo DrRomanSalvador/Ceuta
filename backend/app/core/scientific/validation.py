@@ -8,12 +8,7 @@ import json
 
 
 def _parse_window_time(value: str) -> datetime:
-    """Parse an ISO-8601 window boundary without relying on string ordering.
-
-    Date-only boundaries are interpreted as UTC midnight for backwards
-    compatibility. Datetime boundaries must be timezone-aware so offsets cannot
-    silently produce an incorrect chronological ordering.
-    """
+    """Parse an ISO-8601 window boundary without relying on string ordering."""
     if not isinstance(value, str) or not value:
         raise ValueError("validation window boundaries must be non-empty strings")
     try:
@@ -31,7 +26,7 @@ def _parse_window_time(value: str) -> datetime:
     return parsed.astimezone(UTC)
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class ValidationWindow:
     name: str
     start: str
@@ -46,7 +41,7 @@ class ValidationWindow:
             raise ValueError("validation window start must precede end")
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class ValidationPlan:
     plan_id: str
     training: ValidationWindow
@@ -65,21 +60,30 @@ class ValidationPlan:
             raise ValueError("training, validation and deployment windows must be chronological")
 
     @staticmethod
-    def specification_hash(specification: object) -> str:
-        """Hash only strict JSON data with deterministic canonical serialization."""
+    def _compute_specification_hash(specification: object) -> str:
         try:
-            payload = json.dumps(
-                specification,
-                sort_keys=True,
-                separators=(",", ":"),
-                allow_nan=False,
-            )
+            payload = json.dumps(specification, sort_keys=True, separators=(",", ":"), allow_nan=False)
         except (TypeError, ValueError) as exc:
             raise ValueError("model specification must be strict JSON-serializable") from exc
         return sha256(payload.encode("utf-8")).hexdigest()
 
 
-@dataclass(frozen=True, slots=True)
+class _SpecificationHashDescriptor:
+    """Expose the historical class-call API while retaining the stored field."""
+
+    def __get__(self, instance, owner):
+        if instance is None:
+            return owner._compute_specification_hash
+        return instance.__dict__["_specification_hash_value"]
+
+    def __set__(self, instance, value) -> None:
+        object.__setattr__(instance, "_specification_hash_value", value)
+
+
+ValidationPlan.specification_hash = _SpecificationHashDescriptor()
+
+
+@dataclass(frozen=True)
 class PreregisteredModel:
     model_id: str
     specification_hash: str
@@ -93,13 +97,7 @@ class PreregistrationRegistry:
     def __init__(self) -> None:
         self._models: dict[str, PreregisteredModel] = {}
 
-    def register(
-        self,
-        model_id: str,
-        specification: object,
-        plan: ValidationPlan,
-        registered_at: str,
-    ) -> PreregisteredModel:
+    def register(self, model_id: str, specification: object, plan: ValidationPlan, registered_at: str) -> PreregisteredModel:
         if model_id in self._models:
             raise ValueError(f"model already registered: {model_id}")
         digest = ValidationPlan.specification_hash(specification)
@@ -119,9 +117,4 @@ class PreregistrationRegistry:
         return tuple(self._models.values())
 
 
-__all__ = [
-    "PreregisteredModel",
-    "PreregistrationRegistry",
-    "ValidationPlan",
-    "ValidationWindow",
-]
+__all__ = ["PreregisteredModel", "PreregistrationRegistry", "ValidationPlan", "ValidationWindow"]

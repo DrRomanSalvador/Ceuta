@@ -60,13 +60,25 @@ CREATE INDEX IF NOT EXISTS idx_citation_traces_claim ON citation_traces(claim_id
     def record_review(self,review:HumanDecisionReview)->None:
         self.connection.execute("INSERT INTO decision_reviews(review_id,decision_id,payload_json,timestamp) VALUES(?,?,?,?)",(review.review_id,review.decision_id,json.dumps(asdict(review),sort_keys=True),review.timestamp)); self.connection.commit()
     def record_outcome(self,outcome:DecisionOutcome)->None:
-        self.connection.execute("INSERT OR REPLACE INTO decision_outcomes(decision_id,option_id,outcome_at,payload_json) VALUES(?,?,?,?)",(outcome.decision_id,outcome.option_id,outcome.outcome_at,json.dumps(asdict(outcome),sort_keys=True))); self.connection.commit()
+        payload=json.dumps(asdict(outcome),sort_keys=True)
+        existing=self.connection.execute("SELECT payload_json FROM decision_outcomes WHERE decision_id=? AND option_id=? AND outcome_at=?",(outcome.decision_id,outcome.option_id,outcome.outcome_at)).fetchone()
+        if existing is not None:
+            if existing[0] != payload:
+                raise RuntimeError("decision outcome identity collision: existing outcome differs")
+            return
+        self.connection.execute("INSERT INTO decision_outcomes(decision_id,option_id,outcome_at,payload_json) VALUES(?,?,?,?)",(outcome.decision_id,outcome.option_id,outcome.outcome_at,payload)); self.connection.commit()
     def outcome(self,decision_id:str)->DecisionOutcome|None:
         row=self.connection.execute("SELECT payload_json FROM decision_outcomes WHERE decision_id=? ORDER BY outcome_at DESC LIMIT 1",(decision_id,)).fetchone(); return None if row is None else DecisionOutcome(**json.loads(row[0]))
     def outcomes(self,decision_id:str)->tuple[DecisionOutcome,...]:
         rows=self.connection.execute("SELECT payload_json FROM decision_outcomes WHERE decision_id=? ORDER BY outcome_at",(decision_id,)).fetchall(); return tuple(DecisionOutcome(**json.loads(row[0])) for row in rows)
     def record_lineage(self,lineage:DecisionLineage)->None:
-        payload=json.dumps(lineage.execution_payload(),sort_keys=True,ensure_ascii=False,separators=(",",":")); self.connection.execute("INSERT OR REPLACE INTO decision_lineage(decision_id,semantic_fingerprint,execution_fingerprint,payload_json) VALUES(?,?,?,?)",(lineage.decision_id,lineage.semantic_fingerprint(),lineage.execution_fingerprint(),payload)); self.connection.commit()
+        payload=json.dumps(lineage.execution_payload(),sort_keys=True,ensure_ascii=False,separators=(",",":")); semantic=lineage.semantic_fingerprint(); execution=lineage.execution_fingerprint()
+        existing=self.connection.execute("SELECT semantic_fingerprint,execution_fingerprint,payload_json FROM decision_lineage WHERE decision_id=?",(lineage.decision_id,)).fetchone()
+        if existing is not None:
+            if existing != (semantic, execution, payload):
+                raise RuntimeError("decision lineage identity collision: existing lineage differs")
+            return
+        self.connection.execute("INSERT INTO decision_lineage(decision_id,semantic_fingerprint,execution_fingerprint,payload_json) VALUES(?,?,?,?)",(lineage.decision_id,semantic,execution,payload)); self.connection.commit()
     def lineage(self,decision_id:str)->DecisionLineage|None:
         row=self.connection.execute("SELECT payload_json FROM decision_lineage WHERE decision_id=?",(decision_id,)).fetchone()
         if row is None: return None

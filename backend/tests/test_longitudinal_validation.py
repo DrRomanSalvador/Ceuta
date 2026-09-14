@@ -88,7 +88,7 @@ def test_nested_cv_selects_parameter_inside_outer_loop():
 
 def test_transport_validation_does_not_refit_on_target():
     source = _records()
-    target = [LongitudinalRecord("x", i + 1, r.outcome, r.prediction) for i, r in enumerate(source)]
+    target = [LongitudinalRecord(f"x{i}", i + 1, r.outcome, r.prediction) for i, r in enumerate(source)]
     result = transport_validation(source, target)
     assert result.target_entity_count == len(target)
     assert result.method == "external_transport_without_target_refitting"

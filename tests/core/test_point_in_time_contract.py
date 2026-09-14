@@ -37,3 +37,15 @@ def test_point_in_time_snapshot_requires_explicit_availability_metadata():
 def test_point_in_time_snapshot_excludes_revisions_not_yet_available_at_cutoff():
     future = _record(available_at=30.0, revision=1)
     assert point_in_time_snapshot([future], as_of=20.0) == ()
+
+
+def test_temporal_evidence_record_rejects_invalid_effective_interval():
+    with pytest.raises(ValueError, match="valid_from|valid_to"):
+        _record(valid_from=11.0)
+    with pytest.raises(ValueError, match="valid_from|valid_to"):
+        _record(valid_to=10.0)
+
+
+def test_temporal_evidence_record_rejects_negative_revision():
+    with pytest.raises(ValueError, match="revision"):
+        _record(revision=-1)

@@ -17,6 +17,7 @@ from app.core.metrics import (
     territorial_bottleneck_ratio,
     territorial_capacity_reserve,
     territorial_demand_per_capacity,
+    territorial_dependency_matrix,
     territorial_gearys_c,
     territorial_morans_i,
     territorial_normalized_entropy,
@@ -137,6 +138,13 @@ def test_spatial_propagation_is_descriptive_and_finite():
     result = territorial_spatial_propagation(previous, current, weights)
     assert np.isfinite(result)
     assert result >= 0.0
+
+
+def test_territorial_dependency_rejects_constant_or_single_observation():
+    with pytest.raises(MetricInputError):
+        territorial_dependency_matrix([[1.0, 2.0]])
+    with pytest.raises(MetricInputError):
+        territorial_dependency_matrix([[1.0, 2.0], [1.0, 3.0]])
 
 
 def test_cascade_depth_accepts_explicit_observed_layers():

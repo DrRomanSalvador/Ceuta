@@ -100,10 +100,13 @@ class EpistemicContract:
     dependency_refs: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
-        if not self.contract_id or not self.semantic_meaning or not self.temporal_reference:
+        required = (self.contract_id, self.semantic_meaning, self.temporal_reference, self.validity_domain, self.uncertainty_semantics)
+        if any(not value.strip() for value in required):
             raise ValueError("epistemic contract identity and semantics are required")
-        if not self.provenance_refs or not self.validity_domain or not self.uncertainty_semantics:
-            raise ValueError("epistemic contract requires provenance, validity and uncertainty semantics")
+        if not self.provenance_refs:
+            raise ValueError("epistemic contract requires provenance")
+        if not self.uncertainty_semantics.strip():
+            raise ValueError("epistemic contract requires explicit uncertainty semantics")
 
 
 @dataclass(frozen=True, slots=True)
@@ -170,6 +173,8 @@ class ClosedLoopEvaluation:
             raise ValueError("closed-loop outcomes must be finite")
         if self.intervention_id is None and self.counterfactual_status is not CounterfactualStatus.NOT_APPLICABLE:
             raise ValueError("non-intervention outcome requires NOT_APPLICABLE counterfactual status")
+        if self.intervention_id is not None and self.counterfactual_status is CounterfactualStatus.NOT_APPLICABLE:
+            raise ValueError("intervention-conditioned outcome requires an explicit counterfactual status")
 
 
 @dataclass(frozen=True, slots=True)
@@ -201,6 +206,14 @@ class EpistemicSelfModel:
     ontology_version: str
     unexplained_signals: tuple[OntologySignal, ...]
     global_validity: SystemValidity
+
+    def __post_init__(self) -> None:
+        if not self.version.strip() or not self.ontology_version.strip():
+            raise ValueError("self-model requires versioned identity")
+        if not self.assumptions or not self.limitations:
+            raise ValueError("self-model requires explicit assumptions and limitations")
+        if self.ontology_status is OntologyStatus.NORMAL and self.unexplained_signals:
+            raise ValueError("normal ontology status cannot contain unexplained ontology signals")
 
 
 class EpistemicSelfCritique:
@@ -247,6 +260,8 @@ class ProspectiveEvaluationProtocol:
         fields = (self.protocol_id, self.target, self.population, self.context, self.horizon, self.decision_rule, self.comparator, self.outcome, self.protocol_version, self.system_version, self.model_version, self.ontology_version, self.policy_version)
         if any(not value.strip() for value in fields):
             raise ValueError("prospective protocol requires complete non-empty identifiers and definitions")
+        if self.precommitted and self.decision_rule.strip().lower() in {"", "post hoc", "posthoc", "adaptive without precommitment"}:
+            raise ValueError("precommitted protocol cannot use a post-hoc or explicitly non-precommitted decision rule")
 
 
 @dataclass(frozen=True, slots=True)
@@ -261,6 +276,8 @@ class ProspectiveEvaluationResult:
             raise ValueError("prospective result requires protocol and empirical status")
         if self.observed_benefit is not None and not isfinite(self.observed_benefit):
             raise ValueError("observed prospective benefit must be finite")
+        if self.empirical_status == "prospectively_validated" and not self.deployment_validity:
+            raise ValueError("prospectively validated result requires valid deployment")
 
 
 @dataclass(frozen=True, slots=True)

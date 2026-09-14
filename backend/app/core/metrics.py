@@ -644,6 +644,9 @@ def calibration_slope(
     truth = _validate_binary(y_true, name="y_true").astype(float)
     p = _validate_probabilities(probabilities)
     _validate_same_length(truth, p)
+    prevalence = float(np.mean(truth))
+    if not 0.0 < prevalence < 1.0:
+        raise MetricInputError("calibration slope no está definida cuando la prevalencia observada es 0 o 1")
     x = np.log(np.clip(p, 1e-12, 1 - 1e-12) / np.clip(1 - p, 1e-12, 1 - 1e-12))
     if np.std(x) == 0.0:
         raise MetricInputError("Pendiente de calibración indefinida con predicciones constantes")
@@ -2280,11 +2283,13 @@ def territorial_normalized_entropy(
     Entropía territorial normalizada:
 
         H_norm = H / log(n)
+
+    No está definida para una única unidad porque log(1)=0.
     """
     arr = _validate_territorial_vector(values, name="values", nonnegative=True)
 
     if arr.size < 2:
-        return 1.0
+        raise MetricInputError("La entropía territorial normalizada requiere al menos dos unidades")
 
     h = territorial_entropy(arr)
 
@@ -3649,7 +3654,9 @@ def territorial_spatiotemporal_variability(
     concentration = territorial_time_concentration(values_by_time)
 
     if concentration.size < 2:
-        return 0.0
+        raise MetricInputError("Se requieren al menos dos periodos para una desviación estándar muestral")
+    if not np.all(np.isfinite(concentration)):
+        raise MetricInputError("La concentración espacio-temporal contiene valores no finitos")
 
     return float(np.std(concentration, ddof=1))
 
@@ -3816,11 +3823,9 @@ def territorial_cascade_depth(
         raise MetricInputError("propagation_layers contiene valores inválidos")
 
     active = layers > threshold
-    if not np.all(~active | np.roll(active, 1, axis=0)):
-        # This condition is intentionally not used as a causal inference rule;
-        # it only rejects malformed layer encodings below.
-        pass
-    return int(np.max(np.flatnonzero(np.any(active, axis=1)) + 1)) if np.any(active) else 0
+    if np.any(active[:-1] & ~active[1:]):
+        raise MetricInputError("propagation_layers debe representar capas acumulativas sin desaparición de activaciones")
+    return int(np.count_nonzero(np.any(active, axis=1)))
 
 
 def territorial_cascade_amplification(

@@ -19,6 +19,17 @@ from app.core.decision.decision_system import DecisionContext, DecisionMode, Dec
 from app.core.decision.information_boundary import InformationVisibility
 from app.core.decision.persistence import SQLiteDecisionStore
 from app.core.decision.review_policy import DecisionRisk
+from app.core.final_epistemic_control import (
+    EpistemicContract,
+    EpistemicSelfModel,
+    EpistemicTransformation,
+    FinalEpistemicController,
+    FalsifiabilityStatus,
+    FalsificationCondition,
+    OntologyStatus,
+    RealityAnchorAssessment,
+    SystemValidity,
+)
 from app.core.runtime.decision_lifecycle import BitemporalRef, DecisionEvidence, DecisionLifecycleEngine
 from app.core.runtime.evidence_persistence import DecisionEvidenceStore
 from app.core.runtime.integrity import validate_evidence_set, validate_scenario_probabilities
@@ -169,6 +180,81 @@ class DecisionRequest(BaseModel):
     output_visibility: InformationVisibility = InformationVisibility.PUBLIC
 
 
+def _final_epistemic_assessment(payload: DecisionRequest, evidence: list[DecisionEvidence]):
+    """Build the final epistemic assessment from the exact decision inputs."""
+    provenance_refs = tuple(ref for item in evidence for ref in item.provenance_refs)
+    external_evidence_refs = tuple(item.evidence_id for item in evidence)
+    independent_refs = tuple(item.evidence_id for item in evidence if item.assessment.independent_origin)
+    global_doubt = (
+        not evidence
+        or not independent_refs
+        or any(item.assessment.disposition is not EvidenceDisposition.ACCEPT for item in evidence)
+        or any(item.assessment.contradiction_weight > 0.5 for item in evidence)
+    )
+    anchor_condition = FalsificationCondition(
+        condition_id=f"{payload.decision_id}:evidence-integrity",
+        target_id=payload.decision_id,
+        expected_observation="cited evidence remains temporally valid, provenance-complete and decision-eligible",
+        falsifying_observation="material contradiction, provenance failure or temporal invalidity is detected",
+        independent_evidence_refs=independent_refs,
+        assumptions=("bitemporal evidence validation is enforced before decision execution",),
+    )
+    anchor = RealityAnchorAssessment(
+        target_id=payload.decision_id,
+        status=FalsifiabilityStatus.ESTABLISHED if independent_refs else FalsifiabilityStatus.UNAVAILABLE,
+        conditions=(anchor_condition,),
+        external_evidence_refs=external_evidence_refs,
+        common_mode_dependencies=(),
+        divergence_score=0.0,
+        global_model_doubt=global_doubt,
+        reasons=("final epistemic controller suspended decision eligibility" if global_doubt else "",),
+    )
+    anchor = replace(anchor, reasons=tuple(reason for reason in anchor.reasons if reason))
+    semantic = f"decision support for: {payload.purpose}"
+    contract = EpistemicContract(
+        contract_id=f"{payload.decision_id}:epistemic-contract",
+        semantic_meaning=semantic,
+        assumptions=tuple(payload.assumptions) or ("decision evidence is explicitly represented",),
+        provenance_refs=provenance_refs,
+        temporal_reference=payload.horizon,
+        spatial_reference="ceuta",
+        denominator=None,
+        population=None,
+        identification_conditions=("bitemporal validity checked", "provenance references present"),
+        causal_interpretation="non-causal decision support; no causal effect asserted",
+        evidence_status="runtime decision evidence",
+        calibration_conditions=("prospective effectiveness is not inferred from execution",),
+        validity_domain=payload.horizon,
+        uncertainty_semantics="conservative maximum adversarial evidence risk",
+        dependency_refs=tuple(payload.model_refs),
+    )
+    transformations = tuple(
+        EpistemicTransformation(
+            transformation_id=ref,
+            source_contract=contract,
+            output_contract=contract,
+            preserves=("provenance", "temporal_reference", "uncertainty_semantics", "non_causal_interpretation"),
+            justification=f"declared runtime transformation reference: {ref}",
+        )
+        for ref in payload.transformation_refs
+    )
+    self_model = EpistemicSelfModel(
+        version="runtime-1",
+        assumptions=("decision inputs are schema-validated", "evidence provenance is explicit"),
+        limitations=("no prospective effectiveness is established", "external evidence quality is not equivalent to causal identification"),
+        identification_limits=("causal effect is not identified by this decision endpoint",),
+        ontology_status=OntologyStatus.NORMAL,
+        ontology_version="runtime-1",
+        unexplained_signals=(),
+        global_validity=SystemValidity.DOUBT if global_doubt else SystemValidity.SUPPORTED,
+    )
+    return FinalEpistemicController().assess(
+        reality_anchor=anchor,
+        transformations=transformations,
+        self_model=self_model,
+    )
+
+
 @app.get("/", tags=["system"], summary="CeutIA service information")
 async def root() -> dict[str, str]:
     return {"service": APP_NAME, "version": APP_VERSION, "status": STATUS_RUNNING}
@@ -221,6 +307,30 @@ async def evaluate_decision(payload: DecisionRequest) -> dict[str, object]:
             )
             evidence.append(DecisionEvidence(item.evidence_id, item.source_id, item.claim_id, item.content_hash, tuple(item.provenance_refs), temporal, assessment, item.visibility))
         validate_evidence_set(evidence)
+
+        final_epistemic = _final_epistemic_assessment(payload, evidence)
+        if final_epistemic.validity is not SystemValidity.SUPPORTED:
+            return JSONResponse(
+                status_code=409,
+                content={
+                    "decision_id": payload.decision_id,
+                    "disposition": "abstain",
+                    "control_reason": "final epistemic controller suspended decision eligibility",
+                    "epistemic_validity": final_epistemic.validity.value,
+                    "epistemic_composition": final_epistemic.composition.value,
+                    "epistemic_reasons": final_epistemic.reasons,
+                },
+            )
+        if final_epistemic.composition is not final_epistemic.composition.PRESERVED:
+            return JSONResponse(
+                status_code=409,
+                content={
+                    "decision_id": payload.decision_id,
+                    "disposition": "abstain",
+                    "control_reason": "final epistemic composition is not preserved",
+                    "epistemic_composition": final_epistemic.composition.value,
+                },
+            )
 
         evidence_store = DecisionEvidenceStore(store)
         for item in evidence:

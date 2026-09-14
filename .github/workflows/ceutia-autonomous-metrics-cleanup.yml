@@ -1,6 +1,8 @@
 name: CeutIA Autonomous Metrics Cleanup
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -45,13 +47,11 @@ jobs:
           end = scientific_fn.lineno - 1
           rewritten = "".join(lines[:start] + lines[end:])
 
-          # The second duplicated block also contained a second __all__ assignment.
+          # Remove the second __all__ assignment left after the duplicated block.
           tree2 = ast.parse(rewritten)
           lines2 = rewritten.splitlines(keepends=True)
           intervals = []
           for node in tree2.body:
-              if node.lineno <= second_doc.lineno:
-                  continue
               if isinstance(node, ast.Assign):
                   if any(isinstance(t, ast.Name) and t.id == "__all__" for t in node.targets):
                       intervals.append((node.lineno - 1, node.end_lineno))
@@ -59,7 +59,8 @@ jobs:
                   if isinstance(node.target, ast.Name) and node.target.id == "__all__":
                       intervals.append((node.lineno - 1, node.end_lineno))
 
-          for a, b in sorted(intervals, reverse=True):
+          # Keep the first authoritative __all__; remove only subsequent assignments.
+          for a, b in sorted(intervals[1:], reverse=True):
               del lines2[a:b]
           path.write_text("".join(lines2), encoding="utf-8")
           PY

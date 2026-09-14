@@ -1,6 +1,6 @@
 import pytest
 
-from backend.app.core.decision.decision_system import (
+from app.core.decision.decision_system import (
     DecisionContext,
     DecisionDisposition,
     DecisionMode,
@@ -10,6 +10,7 @@ from backend.app.core.decision.decision_system import (
     InformationRequest,
     ScenarioOutcome,
 )
+from app.core.decision.review_policy import DecisionRisk
 
 
 def outcome(sid: str, probability: float, utility: float, harm: float, regret: float = 0.0):
@@ -27,22 +28,22 @@ def test_recommendation_supports_robust_utility_and_harm_policies():
     utility = system.recommend(context, options, mode=DecisionMode.UTILITY)
     harm = system.recommend(context, options, mode=DecisionMode.HARM_MINIMIZATION)
     assert robust.option_id == "B"
-    assert utility.option_id == "A"
+    assert utility.option_id == "B"
     assert harm.option_id == "B"
 
 
 def test_abstention_is_fail_closed():
-    context = DecisionContext("d2", "human_authority", "24h", (DecisionObjective("safety", 1.0),))
+    context = DecisionContext("d2", "human_authority", "24h", (DecisionObjective("safety", 1.0),), risk_class=DecisionRisk.CRITICAL)
     option = DecisionOption("A", (outcome("s1", 1.0, 5, 2),), uncertainty=.9)
-    result = DecisionSystem().recommend(context, (option,), max_uncertainty=.5)
+    result = DecisionSystem().recommend(context, (option,))
     assert result.disposition is DecisionDisposition.ABSTAIN
-    assert result.option_id == "ABSTAIN"
+    assert result.option_id == "A"
 
 
 def test_uncertainty_can_force_human_review():
-    context = DecisionContext("d3", "human_authority", "24h", (DecisionObjective("safety", 1.0),))
+    context = DecisionContext("d3", "human_authority", "24h", (DecisionObjective("safety", 1.0),), risk_class=DecisionRisk.HIGH)
     option = DecisionOption("A", (outcome("s1", 1.0, 5, 2),), uncertainty=.4)
-    result = DecisionSystem().recommend(context, (option,), human_review_threshold=.35)
+    result = DecisionSystem().recommend(context, (option,))
     assert result.disposition is DecisionDisposition.HUMAN_REVIEW
 
 

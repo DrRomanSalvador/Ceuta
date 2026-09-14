@@ -1,4 +1,5 @@
 from app.core.final_epistemic_control import (
+    EpistemicIntegrityStatus,
     EpistemicSelfModel,
     FalsifiabilityStatus,
     FinalEpistemicAssessment,
@@ -37,7 +38,10 @@ def final_assessment(validity: SystemValidity) -> FinalEpistemicAssessment:
         ontology_status=OntologyStatus.ONTOLOGY_REVIEW_REQUIRED if validity is not SystemValidity.SUPPORTED else OntologyStatus.NORMAL,
         ontology_version="1", unexplained_signals=(), global_validity=validity,
     )
-    return FinalEpistemicAssessment(anchor, __import__("app.core.final_epistemic_control", fromlist=["EpistemicIntegrityStatus"]).EpistemicIntegrityStatus.PRESERVED, None, self_model, None, False, validity, ())
+    return FinalEpistemicAssessment(
+        anchor, EpistemicIntegrityStatus.PRESERVED, None, self_model,
+        None, False, validity, ()
+    )
 
 
 def test_final_global_doubt_forces_abstention():

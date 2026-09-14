@@ -1,93 +1,77 @@
 # CeutIA — Iterative Engineering Execution Status
 
-**Last updated:** 2026-09-14  
+**Last updated:** 2026-09-15  
 **Repository:** `DrRomanSalvador/Ceuta`  
 **Branch:** `main`
 
 ## Execution rule
 
-This document records the state actually observed during implementation. It does not promote documented, designed, or skeleton capabilities to implemented or validated capabilities.
+This document records state actually observed during implementation. It does not promote designed, documented or skeleton capabilities to implemented or scientifically validated capabilities.
 
-## Cycle 1 — Spatial proxy screening
+## Current verified engineering state
 
-### Implemented
+### Mathematical and epistemic hardening
 
-- Extended `backend/app/core/system_integrator.py` with an auditable spatial proxy screening gate.
-- Added `ProxyGateAssessment` with explicit sample size, association measures, method and epistemic explanation.
-- Added Pearson association screening for signal ↔ composition and signal ↔ outcome.
-- Added partial correlation for signal ↔ outcome controlling for composition.
-- Added fail-closed handling for insufficient observations, constant vectors and incompatible inputs.
-- Preserved the existing non-operational `proxy_gate_tension_signal` compatibility entry point.
-- Extended `tests/core/test_system_integrator.py` with regression and adversarial tests for the new gate.
+- Spatial matrix validation rejects isolated territories, invalid dimensions, non-finite values, negative weights and nonzero diagonal weights; valid asymmetric row-normalized weights remain supported.
+- Theil, calibration, entropy, geometric weighting, pressure concentration, network density and multiple territorial/systemic metrics have explicit mathematical edge-case contracts and regression coverage.
+- Targeted `ddof=1` and minimum-sample guards were added where sample variance is mathematically undefined.
+- Territorial metrics have explicit epistemic registry definitions, including domain, kind, formula, evidence, limitations, permitted channels and executability.
+- Experimental systemic propagation/cascade metrics remain non-operational until the required temporal validation, calibration, out-of-sample and red-team infrastructure exists.
 
-### Epistemic constraints implemented
+### Temporal and provenance hardening
 
-- A proxy-gate pass does not establish causal validity, absence of bias or operational safety.
-- Insufficient data returns `BLOCKED` / `NO_VERIFICADO` rather than a positive operational conclusion.
-- A detected proxy-risk condition returns `PROXY_RISK` and blocks operational promotion.
-- The screening method is explicitly identified as association screening rather than causal inference.
+- Evidence availability retains the canonical `revision_time -> publication_time -> ingestion_time` semantics.
+- Effective validity intervals are first-class for temporal contexts and evidence.
+- Point-in-time filters require timezone-aware simulation times and respect both availability and effective validity.
+- Historical backtest selection consumes stored evidence versions at the historical cutoff instead of blindly using latest state.
+- Preregistration validation windows compare timezone-normalized instants; specification hashes use strict JSON and reject non-finite/non-JSON structures.
+- Forecast scoring preserves exact log-score semantics by rejecting endpoint probabilities rather than clipping them.
 
-### Verification
+### Privacy and scientific governance
 
-- `CeutIA Integration Validation` run `34847942689` on commit `e46b1826f4465e2ad71fc992ea69d51513b99eff` completed successfully.
-- That run compiled Python sources, installed the project and test dependencies, executed the full pytest suite, executed runtime integrity tests and validated Docker Compose configuration.
-- The current repository therefore has direct automated execution evidence for the revision tested by that run.
-- This does not constitute scientific calibration, prospective validation or operational authorization of uncalibrated metrics/signals.
+- The former pseudo-differential-privacy `noisy_sum` interface was removed; the ledger now explicitly provides accounting/composition controls only.
+- The aggregation boundary now enforces minimum-group suppression and deterministic aggregation without implying a DP guarantee.
+- Scientific governance fingerprints use strict canonical JSON.
+- Persisted scientific-governance signals are immutable by identity: identical writes are idempotent, conflicting payloads fail closed, and in-memory state is not mutated before persistence succeeds.
 
-## Cycle 2 — Security control-plane continuous enforcement
+### Decision persistence and lifecycle
 
-### Implemented
+- Decision outcomes and lineages are immutable by identity with idempotent identical writes and fail-closed conflicting writes.
+- Conflict resolutions, sources, claim-evidence links, citation traces and cycle snapshots have identity/conflict checks.
+- SQLite migrations are transactional and use explicit busy-timeout/concurrency controls.
+- Decision lifecycle engines bind scientific-governance persistence explicitly to their own store path, preventing later stores from redirecting an existing lifecycle through a process-global default.
 
-- Changed `.github/workflows/security-control-plane.yml` from manual-only execution to automatic execution on `push` to `main` and `pull_request`, while retaining `workflow_dispatch`.
-- This removes the previous integration gap in which the protected control-plane regression and static-security suite did not automatically execute on ordinary repository changes.
-- The current automatic security run `34894445919` on commit `86ace73d059ac36ccf1238967605126b17d4ac72` completed successfully: 73 security/adversarial tests passed, 10 v1 JSON schemas were validated, 23 P0 observation/temporal tests passed, Ruff passed and Bandit passed; the protected-control integrity job also passed.
+### CI/security control plane
 
-## Cycle 3 — Current metrics AST inventory
+- Integration Validation automatically compiles, inventories metrics, runs the complete pytest suite, runs runtime integrity tests and validates Compose configuration.
+- Security Control Plane automatically runs security regression, v1 schema validation, P0 observation/temporal contracts, Ruff, Bandit and protected-control integrity checks.
+- GitHub Actions were upgraded to current Node 24-compatible major releases (`checkout@v6`, `setup-python@v6`, `upload-artifact@v6`) to remove obsolete Node 20-era action warnings.
 
-### Verified
+## Verified CI evidence
 
-A reproducible inventory artifact was generated from the current `backend/app/core/metrics.py` by `CeutIA Integration Validation` run `34894445806` on commit `86ace73d059ac36ccf1238967605126b17d4ac72`.
+For HEAD `6ce95c68e6dc70bc2a0922bce5bbef984690cd95` immediately before the current documentation synchronization:
 
-The current file contains:
+- Integration Validation run `34908222863` completed successfully: every defined validation step passed, including full pytest, runtime integrity and Compose validation.
+- Security Control Plane run `34908222864` completed successfully: every defined executable security step passed, as did the protected control-plane gate.
 
-- 5,693 lines;
-- 296 top-level definitions;
-- 252 unique top-level symbols;
-- 44 duplicated symbols;
-- 88 duplicated definitions.
+These results validate that specific repository revision. They do not establish scientific calibration, prospective validity, causal validity or production authorization of unvalidated predictive mechanisms.
 
-The duplicate inventory is therefore no longer merely historical. It has been re-demonstrated against the current repository revision.
+## Active autonomous queue
 
-The duplicated definitions include the foundational metric classes and functions such as `MetricDomain`, `ValidationStatus`, `MetricDefinition`, `MetricError`, `accuracy`, `mse`, `rmse`, `brier_score`, `get_metric_definition`, `assert_metric_executable`, `require_validated_metric` and `validate_registry_integrity`, with the second copies beginning in the later appended module block.
+1. Repository-wide persistence audit: remaining mutable writers, canonical serialization ambiguity, concurrent writers, transactions and hash-chain semantics.
+2. Temporal audit: all retrospective, rolling-origin and horizon consumers for point-in-time correctness and future leakage.
+3. Numerical audit: equivalent denominators, zero/empty domains, non-finite propagation and sample-size requirements.
+4. Epistemic connectivity audit: registry definitions, executable authorization, experimental metric consumers and output-channel gates.
+5. Provenance audit: source identity, acquisition/publication/revision timing, corroboration independence and citation integrity.
+6. Cascade/propagation audit: observed propagation versus causal interpretation.
+7. Re-run full security/integration/regression validation after every material change and synchronize this status from verified evidence.
 
-The same inventory also shows that the later block contains unique territorial/system functions. Therefore the correct repair is a controlled consolidation, not blind deletion of the entire later section.
+## Status
 
-### Current engineering interpretation
+**IMPLEMENTED — AUTONOMOUS HARDENING CONTINUES.**
 
-The repository has now proved a real duplicate-definition condition in `metrics.py`. Historical duplicate claims are not being assumed; the current AST inventory demonstrates the condition directly.
+CI success is treated as a validation stage, not as the mission stop condition.
 
-The current runtime remains importable and CI-tested because later definitions override earlier definitions. Importability therefore does not establish architectural integrity: duplicate definitions create definition-order dependence and can silently replace registry/control semantics.
+## Stop condition
 
-## Current status
-
-**IMPLEMENTED — CONTINUOUS VALIDATION IN PROGRESS; METRICS CONSOLIDATION UNRESOLVED**
-
-The latest security and integration validation suites have direct successful execution evidence. The current metrics inventory has also produced direct evidence of a remaining structural engineering defect.
-
-No claim of scientific calibration, prospective method-level validity or production operationality is made by these CI results.
-
-## Execution constraint encountered
-
-A one-off attempt was made to use GitHub Actions as an execution-capable refactoring path for the demonstrated duplicate block. The temporary workflow did not produce an executable job and the temporary workflow was removed. The validation workflow modification used for the attempt was also reverted. No unverified source rewrite was retained.
-
-The remaining metrics consolidation therefore requires an execution-capable repository mutation path that can apply the AST-derived transformation, run the complete validation suite, and persist the resulting commit. The existing GitHub connector can read and write complete files and can inspect Actions results, but it does not expose a direct workflow-dispatch or patch-level repository mutation primitive sufficient to safely perform this transformation without reconstructing the 5,693-line file.
-
-This is an execution/tooling blocker, not a scientific or architectural conclusion.
-
-## Next executable work
-
-1. Apply a controlled AST-derived consolidation of the duplicated `metrics.py` module block while preserving the unique territorial/system functions.
-2. Re-run the reproducible AST inventory and require zero duplicate top-level definitions.
-3. Run the complete pytest, runtime integrity, security control-plane and Compose validation suites against the resulting commit.
-4. Reinspect the registry/control semantics after consolidation and persist the verified state.
-5. Continue with the highest-priority executable task revealed by that verification chain.
+Do not declare mission exhaustion until global discovery finds no remaining locally resolvable high-value work, no scientific/integration/validation/regression gap remains, and execution-state documentation is synchronized with verified evidence.

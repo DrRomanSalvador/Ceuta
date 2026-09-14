@@ -54,6 +54,16 @@ def test_territorial_metric_inventory_contains_required_implementations():
         assert callable(TERRITORIAL_SYSTEMIC_METRICS[metric_id])
 
 
+def test_territorial_metric_inventory_is_epistemically_registered():
+    for metric_id in REQUIRED_TERRITORIAL_METRICS:
+        definition = get_metric_definition(metric_id)
+        assert definition.id == metric_id
+        assert definition.permitted_channels == frozenset({OutputChannel.INTERNAL, OutputChannel.PRIVATE})
+    assert get_metric_definition("territorial_bottleneck_migration").executable is False
+    assert get_metric_definition("territorial_spatial_propagation").executable is False
+    assert get_metric_definition("territorial_cascade_depth").executable is False
+
+
 def test_territorial_share_is_normalized():
     shares = territorial_share([1.0, 1.0, 2.0])
     assert np.allclose(shares, [0.25, 0.25, 0.5])
@@ -124,6 +134,16 @@ def test_spatial_propagation_is_descriptive_and_finite():
     result = territorial_spatial_propagation(previous, current, weights)
     assert np.isfinite(result)
     assert result >= 0.0
+
+
+def test_cascade_depth_accepts_explicit_observed_layers():
+    layers = [
+        [0.0, 0.0, 0.0],
+        [1.0, 0.0, 0.0],
+        [1.0, 1.0, 0.0],
+        [1.0, 1.0, 1.0],
+    ]
+    assert territorial_cascade_depth([0, 0, 0], [1, 1, 1], propagation_layers=layers) == 4
 
 
 def test_cascade_depth_does_not_claim_causality():

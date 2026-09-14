@@ -46,6 +46,7 @@ def test_persisted_signal_identity_is_idempotent_and_immutable(tmp_path):
     assert duplicate == signal
     with pytest.raises(RuntimeError, match="signal identity collision"):
         gov.evaluate("d-immutable", good(), created_at=NOW + timedelta(seconds=1))
+    assert gov.get(signal.signal_id) == signal
     restored = ScientificGovernance(storage_path=str(db))
     assert restored.get(signal.signal_id) == signal
 

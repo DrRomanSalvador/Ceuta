@@ -66,3 +66,13 @@ def test_validation_window_rejects_naive_datetime() -> None:
         ValidationWindow(
             "train", "2026-01-01T00:00:00", "2026-01-02T00:00:00"
         )
+
+
+def test_specification_hash_rejects_non_json_values() -> None:
+    with pytest.raises(ValueError, match="strict JSON"):
+        ValidationPlan.specification_hash({"feature_set": {"a", "b"}})
+
+
+def test_specification_hash_rejects_non_finite_numbers() -> None:
+    with pytest.raises(ValueError, match="strict JSON"):
+        ValidationPlan.specification_hash({"threshold": float("nan")})

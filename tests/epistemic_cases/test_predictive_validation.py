@@ -1,3 +1,5 @@
+from pytest import approx
+
 from app.core.evidence.predictive_validation import MissingDataAssessment, PredictiveValidation
 from app.core.evidence.scientific_evidence import Missingness
 
@@ -9,9 +11,9 @@ def test_calibration_report_keeps_calibration_separate_from_discrimination() -> 
         bins=2,
     )
     assert report.n == 4
-    assert report.brier_score == 0.025
-    assert report.calibration_in_the_large == 0.0
-    assert report.observed_expected_ratio == 1.0
+    assert report.brier_score == approx(0.025)
+    assert report.calibration_in_the_large == approx(0.0)
+    assert report.observed_expected_ratio == approx(1.0)
 
 
 def test_mnar_requires_sensitivity_analysis() -> None:

@@ -1,20 +1,35 @@
 """Operational governance signals derived from scientific mechanism state.
 
-This module is deliberately independent from point-in-time temporal code. It
-turns already-computed mechanism/evidence/integrity facts into an auditable
-release decision. It does not claim empirical validation: prospective
-behaviour, production calibration and real-world outcomes remain external.
+The governance layer converts evidence quality, independence, provenance,
+mechanism integrity, strategic-risk findings, credibility, uncertainty and
+response closure into an auditable RELEASE/REVIEW_REQUIRED/ABSTAIN decision.
+Prospective behavioural and outcome validation remain empirical questions.
 """
 from __future__ import annotations
-
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import StrEnum
 from hashlib import sha256
 import json
+import os
 import sqlite3
 from math import isfinite
-from typing import Iterable
+
+_DEFAULT_STORAGE_PATH: str | None = None
+
+
+def set_default_storage_path(path: str) -> None:
+    """Bind default governance persistence to the active decision store.
+
+    The lifecycle constructs ``ScientificGovernance`` after constructing its
+    ``SQLiteDecisionStore``. Binding here makes persistence automatic without
+    introducing a second database or requiring callers to remember an optional
+    governance dependency.
+    """
+    if not path:
+        raise ValueError("storage path is required")
+    global _DEFAULT_STORAGE_PATH
+    _DEFAULT_STORAGE_PATH = path
 
 
 class GovernanceDisposition(StrEnum):
@@ -59,8 +74,7 @@ class GovernanceInput:
     mechanism_ref: str = ""
 
     def __post_init__(self) -> None:
-        bounded = (self.evidence_quality, self.independent_evidence_ratio,
-                   self.contradiction_ratio, self.uncertainty)
+        bounded = (self.evidence_quality, self.independent_evidence_ratio, self.contradiction_ratio, self.uncertainty)
         if any(not isfinite(x) or not 0.0 <= x <= 1.0 for x in bounded):
             raise ValueError("governance ratios and uncertainty must be in [0,1]")
         if self.credibility is not None and (not isfinite(self.credibility) or not 0.0 <= self.credibility <= 1.0):
@@ -92,34 +106,24 @@ class GovernanceSignal:
 
 
 class ScientificGovernance:
-    """Fail-closed governance bridge for scientific mechanism signals.
-
-    Rules are explicit and ordered: integrity/provenance failures and
-    unsatisfied mechanisms abstain; severe strategic-risk conditions abstain;
-    material quality/credibility/conflict/uncertainty conditions require human
-    review; only clean, sufficiently independent evidence with satisfied
-    mechanisms and complete response closure can release.
-    """
-
+    """Fail-closed, persistent governance bridge."""
     RULE_VERSION = "scientific-governance-v1"
 
     def __init__(self, *, storage_path: str | None = None, minimum_evidence_quality: float = 0.5,
                  minimum_independence: float = 0.5, minimum_credibility: float = 0.35,
                  review_uncertainty: float = 0.5, abstain_uncertainty: float = 0.9) -> None:
-        values = (minimum_evidence_quality, minimum_independence, minimum_credibility,
-                  review_uncertainty, abstain_uncertainty)
+        values = (minimum_evidence_quality, minimum_independence, minimum_credibility, review_uncertainty, abstain_uncertainty)
         if any(not isfinite(v) or not 0.0 <= v <= 1.0 for v in values) or review_uncertainty > abstain_uncertainty:
             raise ValueError("invalid governance thresholds")
-        self.storage_path = storage_path
+        self.storage_path = storage_path or _DEFAULT_STORAGE_PATH or os.getenv("CEUTIA_GOVERNANCE_DB")
         self.minimum_evidence_quality = minimum_evidence_quality
         self.minimum_independence = minimum_independence
         self.minimum_credibility = minimum_credibility
         self.review_uncertainty = review_uncertainty
         self.abstain_uncertainty = abstain_uncertainty
         self._signals: dict[str, GovernanceSignal] = {}
-        if storage_path:
-            self._init_db()
-            self._load_db()
+        if self.storage_path:
+            self._init_db(); self._load_db()
 
     def _db(self) -> sqlite3.Connection:
         if not self.storage_path:
@@ -132,18 +136,19 @@ class ScientificGovernance:
                 signal_id TEXT PRIMARY KEY, decision_id TEXT NOT NULL, disposition TEXT NOT NULL,
                 reasons TEXT NOT NULL, evidence_refs TEXT NOT NULL, provenance_refs TEXT NOT NULL,
                 mechanism_ref TEXT NOT NULL, created_at TEXT NOT NULL, code_revision TEXT NOT NULL,
-                configuration_hash TEXT NOT NULL, rule_version TEXT NOT NULL,
-                input_fingerprint TEXT NOT NULL, effect TEXT NOT NULL, audit_hash TEXT NOT NULL)""")
+                configuration_hash TEXT NOT NULL, rule_version TEXT NOT NULL, input_fingerprint TEXT NOT NULL,
+                effect TEXT NOT NULL, audit_hash TEXT NOT NULL)""")
 
     def _load_db(self) -> None:
         with self._db() as db:
-            for r in db.execute("SELECT signal_id,decision_id,disposition,reasons,evidence_refs,provenance_refs,mechanism_ref,created_at,code_revision,configuration_hash,rule_version,input_fingerprint,effect,audit_hash FROM scientific_governance_signals"):
+            rows = db.execute("SELECT signal_id,decision_id,disposition,reasons,evidence_refs,provenance_refs,mechanism_ref,created_at,code_revision,configuration_hash,rule_version,input_fingerprint,effect,audit_hash FROM scientific_governance_signals")
+            for r in rows:
                 self._signals[r[0]] = GovernanceSignal(r[0], r[1], GovernanceDisposition(r[2]), tuple(GovernanceReason(x) for x in json.loads(r[3])), tuple(json.loads(r[4])), tuple(json.loads(r[5])), r[6], datetime.fromisoformat(r[7]), r[8], r[9], r[10], r[11], r[12], r[13])
 
     @staticmethod
     def _fingerprint(decision_id: str, value: GovernanceInput) -> str:
         payload = {k: getattr(value, k) for k in value.__dataclass_fields__}
-        return sha256(json.dumps(payload, sort_keys=True, separators=(",", "), default=str).encode()).hexdigest()
+        return sha256(json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str).encode()).hexdigest()
 
     def evaluate(self, decision_id: str, value: GovernanceInput, *, created_at: datetime | None = None) -> GovernanceSignal:
         if not decision_id:
@@ -174,7 +179,6 @@ class ScientificGovernance:
             reasons.append(GovernanceReason.UNCERTAINTY_HIGH)
         if not value.response_closure_complete:
             reasons.append(GovernanceReason.RESPONSE_CLOSURE_INCOMPLETE)
-
         hard = {GovernanceReason.PROVENANCE_COMPROMISED, GovernanceReason.MECHANISM_UNSATISFIED,
                 GovernanceReason.STRATEGIC_MANIPULATION, GovernanceReason.COLLUSION_FLAG}
         if value.uncertainty >= self.abstain_uncertainty:
@@ -186,14 +190,10 @@ class ScientificGovernance:
         else:
             reasons.append(GovernanceReason.INTEGRITY_VERIFIED)
             disposition = GovernanceDisposition.RELEASE
-        effect = {
-            GovernanceDisposition.RELEASE: "release",
-            GovernanceDisposition.REVIEW_REQUIRED: "human_review",
-            GovernanceDisposition.ABSTAIN: "do_not_release",
-        }[disposition]
+        effect = {GovernanceDisposition.RELEASE: "release", GovernanceDisposition.REVIEW_REQUIRED: "human_review", GovernanceDisposition.ABSTAIN: "do_not_release"}[disposition]
         fingerprint = self._fingerprint(decision_id, value)
         signal_id = sha256(f"{decision_id}:{fingerprint}:{self.RULE_VERSION}".encode()).hexdigest()
-        audit_hash = sha256(json.dumps({"signal_id":signal_id,"disposition":disposition,"reasons":reasons,"effect":effect}, sort_keys=True, default=str).encode()).hexdigest()
+        audit_hash = sha256(json.dumps({"signal_id": signal_id, "disposition": disposition.value, "reasons": [r.value for r in reasons], "effect": effect}, sort_keys=True).encode()).hexdigest()
         signal = GovernanceSignal(signal_id, decision_id, disposition, tuple(dict.fromkeys(reasons)), value.evidence_ids, value.provenance_refs, value.mechanism_ref, created_at, value.code_revision, value.configuration_hash, self.RULE_VERSION, fingerprint, effect, audit_hash)
         self._signals[signal_id] = signal
         if self.storage_path:
@@ -208,4 +208,4 @@ class ScientificGovernance:
         return tuple(self._signals.values())
 
 
-__all__ = ["GovernanceDisposition", "GovernanceInput", "GovernanceReason", "GovernanceSignal", "ScientificGovernance"]
+__all__ = ["GovernanceDisposition", "GovernanceInput", "GovernanceReason", "GovernanceSignal", "ScientificGovernance", "set_default_storage_path"]

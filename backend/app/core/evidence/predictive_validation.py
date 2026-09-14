@@ -1,28 +1,50 @@
-"""Validation primitives for predictive reliability and missing-data handling.
+"""Statistically rigorous predictive validation primitives.
 
-Calibration-in-the-large and calibration slope use the standard unpenalized
-logistic calibration model. Penalization is deliberately not applied: a ridge
-term changes the estimand and can therefore turn a validation statistic into a
-model-dependent quantity. Numerical non-identifiability is reported instead
-of silently regularized away.
+The module deliberately separates calibration, discrimination and probabilistic
+accuracy. Point estimates are accompanied by uncertainty where an inferential
+quantity is requested, and validation metadata records the evaluation design.
+No arbitrary threshold is allowed to manufacture a calibrated model.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
-from math import exp, isfinite, log
+from math import exp, isfinite, log, sqrt
+from statistics import NormalDist
 from typing import Sequence
 
 from .scientific_evidence import Missingness, ValidationLevel
 
 
+_EPS = 1e-15
+_Z95 = NormalDist().inv_cdf(0.975)
+
+
+@dataclass(frozen=True, slots=True)
+class Estimate:
+    value: float
+    standard_error: float | None
+    ci_low: float | None
+    ci_high: float | None
+    estimand: str
+    method: str
+
+
 @dataclass(frozen=True, slots=True)
 class CalibrationReport:
     brier_score: float
+    log_loss: float
     calibration_in_the_large: float
     calibration_slope: float | None
+    calibration_intercept_se: float | None
+    calibration_slope_se: float | None
+    calibration_intercept_ci: tuple[float, float] | None
+    calibration_slope_ci: tuple[float, float] | None
     observed_expected_ratio: float | None
+    observed_expected_ratio_ci: tuple[float, float] | None
+    brier_skill_score: float | None
     bin_errors: tuple[float, ...]
     n: int
+    positive_rate: float
     method: str = "binary_outcome_logistic_calibration"
 
     @property
@@ -32,92 +54,121 @@ class CalibrationReport:
 
 def _logit(probability: float) -> float:
     if not 0.0 < probability < 1.0:
-        raise ValueError("calibration intercept/slope require predictions strictly between 0 and 1")
+        raise ValueError("calibration logistic regression requires predictions strictly between 0 and 1")
     return log(probability / (1.0 - probability))
 
 
 def _sigmoid(value: float) -> float:
-    if value >= 0:
+    if value >= 0.0:
         z = exp(-value)
         return 1.0 / (1.0 + z)
     z = exp(value)
     return z / (1.0 + z)
 
 
-def _fit_logistic_calibration(logits: Sequence[float], outcomes: Sequence[int]) -> tuple[float, float]:
-    """Fit the unpenalized logistic calibration model by damped Newton steps.
+def _fit_logistic_calibration(logits: Sequence[float], outcomes: Sequence[int]) -> tuple[float, float, float, float, float]:
+    """Fit unpenalized logistic calibration and return covariance information.
 
-    The calibration intercept is the maximum-likelihood intercept conditional
-    on the fitted slope; no regularization is introduced because doing so
-    changes the scientific estimand. Convergence is based on the score vector,
-    not an arbitrary parameter-step tolerance. Near-singular information is
-    treated as non-identifiability rather than hidden by a ridge penalty.
+    The model is logit(P(Y=1|p)) = alpha + beta logit(p).  The covariance
+    matrix is the inverse observed Fisher information. Separation or
+    non-identifiability is reported, never regularized away.
     """
-    intercept = 0.0
-    slope = 1.0
-    tolerance = 1e-13
+    if len(logits) != len(outcomes) or len(logits) < 3:
+        raise ValueError("at least three paired predictions/outcomes are required")
+    if len(set(outcomes)) < 2:
+        raise ValueError("calibration intercept and slope are not identifiable with one outcome class")
+
+    intercept, slope = 0.0, 1.0
     for _ in range(100):
-        g0 = 0.0
-        g1 = 0.0
-        h00 = 0.0
-        h01 = 0.0
-        h11 = 0.0
-        log_likelihood = 0.0
+        g0 = g1 = h00 = h01 = h11 = 0.0
+        ll = 0.0
         for x, y in zip(logits, outcomes):
             eta = intercept + slope * x
             p = _sigmoid(eta)
-            residual = y - p
-            weight = p * (1.0 - p)
-            g0 += residual
-            g1 += residual * x
-            h00 -= weight
-            h01 -= weight * x
-            h11 -= weight * x * x
-            log_likelihood += y * log(p) + (1 - y) * log(1.0 - p)
+            r = y - p
+            w = p * (1.0 - p)
+            g0 += r
+            g1 += r * x
+            h00 -= w
+            h01 -= w * x
+            h11 -= w * x * x
+            ll += y * log(max(p, _EPS)) + (1 - y) * log(max(1.0 - p, _EPS))
+        if max(abs(g0), abs(g1)) <= 1e-12:
+            det = h00 * h11 - h01 * h01
+            scale = max(abs(h00 * h11), abs(h01 * h01), 1.0)
+            if det >= -1e-14 * scale or abs(det) <= 1e-14 * scale:
+                raise ValueError("calibration information matrix is singular or non-identifiable")
+            inv00, inv01, inv11 = h11 / det, -h01 / det, h00 / det
+            return intercept, slope, inv00, inv01, inv11
 
-        if max(abs(g0), abs(g1)) <= tolerance:
-            return intercept, slope
-
-        determinant = h00 * h11 - h01 * h01
-        information_scale = max(abs(h00 * h11), abs(h01 * h01), 1.0)
-        if abs(determinant) <= 1e-14 * information_scale:
-            raise ValueError("calibration model is not identifiable from the supplied predictions/outcomes")
-
-        # Newton direction for maximizing the concave log-likelihood.
-        step0 = (g0 * h11 - g1 * h01) / determinant
-        step1 = (h00 * g1 - h01 * g0) / determinant
-        if not all(isfinite(value) for value in (step0, step1)):
-            raise ValueError("calibration model is numerically unstable")
-
-        # Backtracking keeps the Newton iteration inside a numerically valid
-        # likelihood region without altering the unpenalized objective.
+        det = h00 * h11 - h01 * h01
+        scale = max(abs(h00 * h11), abs(h01 * h01), 1.0)
+        if det >= -1e-14 * scale or abs(det) <= 1e-14 * scale:
+            raise ValueError("calibration information matrix is singular or non-identifiable")
+        step0 = (g0 * h11 - g1 * h01) / det
+        step1 = (h00 * g1 - h01 * g0) / det
         accepted = False
-        scale = 1.0
-        for _ in range(60):
-            candidate_intercept = intercept - scale * step0
-            candidate_slope = slope - scale * step1
+        factor = 1.0
+        for _ in range(80):
+            a, b = intercept - factor * step0, slope - factor * step1
             candidate_ll = 0.0
-            valid = True
             for x, y in zip(logits, outcomes):
-                p = _sigmoid(candidate_intercept + candidate_slope * x)
-                if not (0.0 < p < 1.0):
-                    valid = False
-                    break
-                candidate_ll += y * log(p) + (1 - y) * log(1.0 - p)
-            if valid and candidate_ll >= log_likelihood:
-                intercept = candidate_intercept
-                slope = candidate_slope
+                p = _sigmoid(a + b * x)
+                candidate_ll += y * log(max(p, _EPS)) + (1 - y) * log(max(1.0 - p, _EPS))
+            if candidate_ll >= ll:
+                intercept, slope = a, b
                 accepted = True
                 break
-            scale *= 0.5
+            factor *= 0.5
         if not accepted:
-            raise ValueError("calibration model failed to make a numerically stable likelihood step")
-
+            raise ValueError("calibration likelihood optimization failed to produce a stable ascent step")
     raise ValueError("calibration model did not converge")
 
 
+def _wilson_interval(successes: int, n: int, z: float = _Z95) -> tuple[float, float]:
+    if n <= 0 or not 0 <= successes <= n:
+        raise ValueError("invalid binomial count")
+    p = successes / n
+    z2 = z * z
+    denominator = 1.0 + z2 / n
+    centre = (p + z2 / (2.0 * n)) / denominator
+    half = z * sqrt(p * (1.0 - p) / n + z2 / (4.0 * n * n)) / denominator
+    return max(0.0, centre - half), min(1.0, centre + half)
+
+
+def _auc(predictions: Sequence[float], outcomes: Sequence[int]) -> float | None:
+    positives = sorted(float(p) for p, y in zip(predictions, outcomes) if y == 1)
+    negatives = sorted(float(p) for p, y in zip(predictions, outcomes) if y == 0)
+    if not positives or not negatives:
+        return None
+    # Mann-Whitney formulation; ties receive half credit.
+    rank_sum = 0.0
+    i = 0
+    j = 0
+    while i < len(positives):
+        value = positives[i]
+        while i < len(positives) and positives[i] == value:
+            i += 1
+        while j < len(negatives) and negatives[j] <= value:
+            if negatives[j] == value:
+                rank_sum += 0.5
+            else:
+                rank_sum += 1.0
+            j += 1
+        # Negatives already counted only once; this formulation needs all
+        # negatives <= value for every positive, so count remaining explicitly.
+        rank_sum += len(negatives) - j
+    # The incremental construction above is awkward for repeated positives;
+    # use the direct O(n*m) definition for correctness at validation scale.
+    score = 0.0
+    for p in positives:
+        for n in negatives:
+            score += 1.0 if p > n else 0.5 if p == n else 0.0
+    return score / (len(positives) * len(negatives))
+
+
 class PredictiveValidation:
-    """Computes calibration summaries without declaring arbitrary pass/fail thresholds."""
+    """Computes calibration, discrimination and proper scoring summaries."""
 
     @staticmethod
     def calibration_report(predictions: Sequence[float], outcomes: Sequence[int], *, bins: int = 10) -> CalibrationReport:
@@ -131,22 +182,67 @@ class PredictiveValidation:
             raise ValueError("binary outcomes must be 0 or 1")
 
         n = len(predictions)
-        brier = sum((float(p) - o) ** 2 for p, o in zip(predictions, outcomes)) / n
-        logits = tuple(_logit(float(p)) for p in predictions)
-        calibration_in_large, calibration_slope = _fit_logistic_calibration(logits, outcomes)
-        expected = sum(predictions)
-        observed_expected = None if expected == 0.0 else sum(outcomes) / expected
+        p = tuple(float(x) for x in predictions)
+        y = tuple(int(x) for x in outcomes)
+        brier = sum((pi - yi) ** 2 for pi, yi in zip(p, y)) / n
+        log_loss = -sum(yi * log(max(pi, _EPS)) + (1 - yi) * log(max(1.0 - pi, _EPS)) for pi, yi in zip(p, y)) / n
+        prevalence = sum(y) / n
+        baseline_brier = prevalence * (1.0 - prevalence)
+        brier_skill = None if baseline_brier == 0.0 else 1.0 - brier / baseline_brier
+
+        logits = tuple(_logit(pi) for pi in p)
+        intercept, slope, cov00, _, cov11 = _fit_logistic_calibration(logits, y)
+        intercept_se, slope_se = sqrt(max(cov00, 0.0)), sqrt(max(cov11, 0.0))
+        intercept_ci = (intercept - _Z95 * intercept_se, intercept + _Z95 * intercept_se)
+        slope_ci = (slope - _Z95 * slope_se, slope + _Z95 * slope_se)
+
+        expected = sum(p)
+        observed = sum(y)
+        observed_expected = None if expected <= 0.0 else observed / expected
+        oe_ci = None
+        if observed > 0 and expected > 0:
+            # Large-sample log-rate approximation; report a flaggable interval
+            # rather than pretending exact binomial independence.
+            se_log = 1.0 / sqrt(observed)
+            oe_ci = (observed_expected * exp(-_Z95 * se_log), observed_expected * exp(_Z95 * se_log))
 
         errors: list[float] = []
         for index in range(bins):
-            lower = index / bins
-            upper = (index + 1) / bins
-            members = [i for i, p in enumerate(predictions) if lower <= p < upper or (index == bins - 1 and p == 1.0)]
+            lower, upper = index / bins, (index + 1) / bins
+            members = [i for i, pi in enumerate(p) if lower <= pi < upper or (index == bins - 1 and pi == 1.0)]
             if members:
-                predicted = sum(predictions[i] for i in members) / len(members)
-                observed = sum(outcomes[i] for i in members) / len(members)
-                errors.append(observed - predicted)
-        return CalibrationReport(brier, calibration_in_large, calibration_slope, observed_expected, tuple(errors), n)
+                errors.append(sum(y[i] - p[i] for i in members) / len(members))
+
+        return CalibrationReport(
+            brier_score=brier,
+            log_loss=log_loss,
+            calibration_in_the_large=intercept,
+            calibration_slope=slope,
+            calibration_intercept_se=intercept_se,
+            calibration_slope_se=slope_se,
+            calibration_intercept_ci=intercept_ci,
+            calibration_slope_ci=slope_ci,
+            observed_expected_ratio=observed_expected,
+            observed_expected_ratio_ci=oe_ci,
+            brier_skill_score=brier_skill,
+            bin_errors=tuple(errors),
+            n=n,
+            positive_rate=prevalence,
+        )
+
+    @staticmethod
+    def discrimination(predictions: Sequence[float], outcomes: Sequence[int]) -> float | None:
+        if len(predictions) != len(outcomes) or not predictions:
+            raise ValueError("predictions and outcomes must be non-empty and have equal length")
+        if any(o not in (0, 1) for o in outcomes):
+            raise ValueError("binary outcomes must be 0 or 1")
+        return _auc(predictions, outcomes)
+
+    @staticmethod
+    def prevalence_interval(outcomes: Sequence[int]) -> tuple[float, float]:
+        if not outcomes or any(o not in (0, 1) for o in outcomes):
+            raise ValueError("outcomes must be a non-empty binary sequence")
+        return _wilson_interval(sum(outcomes), len(outcomes))
 
 
 @dataclass(frozen=True, slots=True)
@@ -174,10 +270,24 @@ class ValidationAssessment:
     temporal_holdout: bool = False
     geographic_holdout: bool = False
     prospective: bool = False
+    development_data_disjoint: bool = False
+    bootstrap_or_cross_validation: bool = False
+    horizon: str | None = None
 
     @property
     def externally_validated(self) -> bool:
         return self.validation_level in {ValidationLevel.EXTERNAL, ValidationLevel.PROSPECTIVE}
 
+    @property
+    def scientifically_strong(self) -> bool:
+        return (
+            self.externally_validated
+            and self.temporal_holdout
+            and self.development_data_disjoint
+            and self.calibration is not None
+            and self.calibration.calibration_intercept_ci is not None
+            and self.calibration.calibration_slope_ci is not None
+        )
 
-__all__ = ["CalibrationReport", "MissingDataAssessment", "PredictiveValidation", "ValidationAssessment"]
+
+__all__ = ["CalibrationReport", "Estimate", "MissingDataAssessment", "PredictiveValidation", "ValidationAssessment"]

@@ -39,6 +39,7 @@ class CalibrationReport:
     n: int
     positive_rate: float
     method: str = "binary_outcome_logistic_calibration"
+    observed_expected_ci_method: str = "log_scale_poisson_approximation"
 
     @property
     def mean_absolute_bin_error(self) -> float:
@@ -60,13 +61,7 @@ def _sigmoid(x: float) -> float:
 
 
 def _fit_logistic_calibration(logits: Sequence[float], outcomes: Sequence[int]) -> tuple[float, float, float, float, float]:
-    """Fit the standard unpenalized logistic calibration model.
-
-    Model: logit(P(Y=1 | p)) = alpha + beta * logit(p).
-    Regularization is deliberately absent because it changes the estimand.
-    Separation, singular information and non-convergence are explicit errors.
-    The returned covariance matrix is the inverse observed Fisher information.
-    """
+    """Fit standard unpenalized logistic calibration by damped Newton iteration."""
     if len(logits) != len(outcomes) or len(logits) < 3:
         raise ValueError("at least three paired predictions/outcomes are required")
     if len(set(outcomes)) < 2:
@@ -111,7 +106,6 @@ def _fit_logistic_calibration(logits: Sequence[float], outcomes: Sequence[int]) 
             factor *= 0.5
         if not accepted:
             raise ValueError("calibration likelihood optimization failed to make an ascent step")
-
     raise ValueError("calibration model did not converge")
 
 
@@ -174,6 +168,10 @@ class PredictiveValidation:
         observed_expected = None if expected <= 0 else observed / expected
         observed_expected_ci = None
         if observed > 0 and expected > 0:
+            # This is deliberately labelled as an approximation: expected risk
+            # is fixed while event counts are treated as Poisson-like on the
+            # log scale. It must not be interpreted as an exact CI under
+            # arbitrary dependent/clustered longitudinal sampling.
             se_log = 1 / sqrt(observed)
             observed_expected_ci = (
                 observed_expected * exp(-_Z95 * se_log),

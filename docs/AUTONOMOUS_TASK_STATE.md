@@ -1,17 +1,17 @@
 # CeutIA — Autonomous Task State
 
 **Updated:** 2026-09-14
-**HEAD:** `24eb4b20ad2100566a80e61c137f204c550cdfa4`
+**HEAD:** `fe92a82494585b31d281b955428d113a5a8da8f6`
 
 This file is an execution-state ledger, not a completion claim. The queue must expand when discovery identifies additional scientifically justified work.
 
 ## CURRENT_TASK
 
-Mathematical class-level scan: continue equivalent-domain review after network-density hardening, prioritising silent invalid outputs and denominator/domain contracts.
+Verify the temporal leakage correction end-to-end: versioned evidence, effective validity, point-in-time snapshot selection, and registry backtest consumption must all agree on the same historical information set.
 
 ## NEXT_TASK
 
-Audit the next high-propagation mathematical primitive for invalid-domain acceptance and add a focused regression family before changing implementation.
+Audit other registry consumers for direct use of `self.evidences.values()` or equivalent latest-state containers in retrospective/temporal evaluation paths.
 
 ## BACKLOG
 
@@ -42,13 +42,16 @@ None currently identified as blocking all independent work.
 - Geometric weighted index zero semantics: positive-weight zero values now produce the mathematically correct zero rather than an epsilon-biased positive value.
 - Spatial matrix contract: nonzero diagonal weights are rejected rather than silently rewritten; asymmetric valid row-normalized weights are covered by regression tests.
 - Canonical P0 multitemporal hardening: effective validity intervals and revision-aware point-in-time snapshots added without replacing existing `revision_time → publication_time → ingestion_time` availability semantics.
+- Versioned Evidence now carries effective validity intervals and serializes them into its canonical representation.
+- Point-in-time filtering now respects both availability and effective validity.
+- Registry backtest selection now consumes all stored evidence versions and selects the version available at the historical cutoff instead of blindly using the latest-state dictionary.
 - General normalized entropy now rejects the mathematically undefined singleton case.
 - Territorial pressure concentration no longer uses an arbitrary epsilon to fabricate a nonzero distribution; a uniform profile returns the exact uniform HHI.
 - Network density now requires integer graph counts and rejects edge counts above the maximum simple-graph bound.
 
 ## VALIDATION_STATE
 
-Recent security control-plane validation completed successfully before the latest network-density commit. Integration validation for the latest commit is running/queued and must be rechecked before treating the latest change as CI-verified.
+Security and integration workflows must be rechecked against `fe92a82494585b31d281b955428d113a5a8da8f6` and later commits. Do not treat earlier green runs as validation of later changes.
 
 ## STOP CONDITION
 

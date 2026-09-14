@@ -1,17 +1,17 @@
 # CeutIA — Autonomous Task State
 
 **Updated:** 2026-09-14
-**HEAD:** `fe92a82494585b31d281b955428d113a5a8da8f6`
+**HEAD:** `cabf340c5c154d8ca108adc7f011d22bd02e5925`
 
 This file is an execution-state ledger, not a completion claim. The queue must expand when discovery identifies additional scientifically justified work.
 
 ## CURRENT_TASK
 
-Verify the temporal leakage correction end-to-end: versioned evidence, effective validity, point-in-time snapshot selection, and registry backtest consumption must all agree on the same historical information set.
+Class-level temporal validation audit: identify and harden all validation-window contracts against timezone/ordering ambiguity and temporal leakage.
 
 ## NEXT_TASK
 
-Audit other registry consumers for direct use of `self.evidences.values()` or equivalent latest-state containers in retrospective/temporal evaluation paths.
+Audit prospective forecast scoring and settlement boundaries for the same point-in-time information-set contract; verify that forecast generation, outcome availability, and scoring cannot use post-cutoff revisions.
 
 ## BACKLOG
 
@@ -23,6 +23,7 @@ Audit other registry consumers for direct use of `self.evidences.values()` or eq
 - Audit provenance: source identity, acquisition time, publication time, revision/version and corroboration.
 - Audit NaN/Inf propagation across numerical outputs and aggregation boundaries.
 - Audit cascade/propagation semantics and distinguish observation from causal inference.
+- Audit scientific preregistration hashes for deterministic serialization of non-JSON-native specifications.
 - Re-run global security, integration and regression searches after each material mathematical change.
 - Synchronize `docs/ENGINEERING_EXECUTION_STATUS.md` with verified repository evidence.
 
@@ -48,10 +49,12 @@ None currently identified as blocking all independent work.
 - General normalized entropy now rejects the mathematically undefined singleton case.
 - Territorial pressure concentration no longer uses an arbitrary epsilon to fabricate a nonzero distribution; a uniform profile returns the exact uniform HHI.
 - Network density now requires integer graph counts and rejects edge counts above the maximum simple-graph bound.
+- Preregistration validation windows now parse ISO-8601 boundaries and compare instants in UTC instead of relying on lexicographic timestamp ordering; naive datetime boundaries are rejected.
+- Regression tests cover timezone-offset inversion and naive datetime rejection in preregistration windows.
 
 ## VALIDATION_STATE
 
-Security and integration workflows must be rechecked against `fe92a82494585b31d281b955428d113a5a8da8f6` and later commits. Do not treat earlier green runs as validation of later changes.
+The current HEAD `cabf340c5c154d8ca108adc7f011d22bd02e5925` has no associated workflow run reported yet. Do not treat earlier green runs as validation of this or later changes.
 
 ## STOP CONDITION
 

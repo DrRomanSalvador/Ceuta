@@ -1,17 +1,17 @@
 # CeutIA — Autonomous Task State
 
-**Updated:** 2026-09-14
-**HEAD:** `018b8f65932ff4ea98c86c08456d85997dc7b5e1`
+**Updated:** 2026-09-15
+**HEAD:** `a05f3a9b3fe01d09ebc3b706ea0aa5ddb264b817`
 
 This file is an execution-state ledger, not a completion claim. The queue must expand when discovery identifies additional scientifically justified work.
 
 ## CURRENT_TASK
 
-Privacy-contract class correction: remove pseudo-differential-privacy release semantics from the indicator governance ledger and leave only explicit composition accounting.
+Privacy-contract class correction: repository-wide audit of privacy aggregation boundaries for pseudo-differential-privacy semantics. The identified `PrivacyAggregationLayer` previously exposed a caller-independent `noise_scale` derived from epsilon while returning the unnoised mean; that was removed. The boundary now provides explicit minimum-group suppression and deterministic aggregation only, with no DP claim.
 
 ## NEXT_TASK
 
-Search the repository for other functions that label caller-supplied noise or budget accounting as differential privacy, and audit each contract for the same class of overclaim.
+Continue class-level numerical contract discovery: audit equivalent divisions, zero-denominator handling, finite-value propagation, and sample-size requirements across runtime/scientific/privacy aggregation boundaries. Preserve concurrent work and treat failures as new root-cause tasks.
 
 ## BACKLOG
 
@@ -58,10 +58,12 @@ None currently identified as blocking all independent work.
 - Indicator registration IDs are now unique across epochs rather than incorrectly checking the epoch-keyed registry mapping.
 - Regression coverage added for duplicate registration identity across epochs.
 - Privacy governance no longer exposes a `noisy_sum` function that accepted arbitrary caller-supplied noise and implied a DP release; the ledger now explicitly provides composition accounting only.
+- Privacy aggregation boundary no longer returns an epsilon-derived pseudo-noise scale while returning the raw mean; it now exposes minimum-group suppression plus deterministic aggregation, explicitly without a differential-privacy guarantee.
+- Regression tests lock the non-DP aggregation contract and finite-input/sample-size guards.
 
 ## VALIDATION_STATE
 
-The current HEAD `018b8f65932ff4ea98c86c08456d85997dc7b5e1` has no associated workflow run reported yet. Do not treat earlier green runs as validation of this or later changes.
+HEAD `a05f3a9b3fe01d09ebc3b706ea0aa5ddb264b817` has active GitHub Actions validation runs. At the time of state update, the integration run `34904801964` was pending; security validation was also in progress. Do not mark the HEAD green until those runs conclude successfully.
 
 ## STOP CONDITION
 

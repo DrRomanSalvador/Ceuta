@@ -201,7 +201,6 @@ class ScientificGovernance:
         signal_id = sha256(f"{decision_id}:{fingerprint}:{self.RULE_VERSION}".encode()).hexdigest()
         audit_hash = sha256(json.dumps({"signal_id": signal_id, "disposition": disposition.value, "reasons": [r.value for r in reasons], "effect": effect}, sort_keys=True).encode()).hexdigest()
         signal = GovernanceSignal(signal_id, decision_id, disposition, tuple(dict.fromkeys(reasons)), value.evidence_ids, value.provenance_refs, value.mechanism_ref, created_at, value.code_revision, value.configuration_hash, self.RULE_VERSION, fingerprint, effect, audit_hash)
-        self._signals[signal_id] = signal
         if self.storage_path:
             values = self._persisted_values(signal)
             with self._db() as db:
@@ -211,6 +210,7 @@ class ScientificGovernance:
                         raise RuntimeError("scientific governance signal identity collision: existing signal differs")
                 else:
                     db.execute("INSERT INTO scientific_governance_signals VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)", values)
+        self._signals[signal_id] = signal
         return signal
 
     def get(self, signal_id: str) -> GovernanceSignal:

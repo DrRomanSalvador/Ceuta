@@ -186,7 +186,10 @@ class DecisionLifecycleEngine:
         )
         self.decisions = decision_system or DecisionSystem(review_policy=review_policy or self._default_policy())
         self.model_governance = model_governance or ModelGovernance()
-        self.scientific_governance = scientific_governance or ScientificGovernance()
+        # Bind lifecycle-created governance explicitly to this store. The
+        # previous process-global default allowed a later store to redirect
+        # an existing lifecycle's scientific governance persistence.
+        self.scientific_governance = scientific_governance or ScientificGovernance(storage_path=store.path)
         self.code_revision = code_revision
         self.configuration = configuration
         self.conflicts = EvidenceConflictResolver()

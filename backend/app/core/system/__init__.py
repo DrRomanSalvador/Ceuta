@@ -15,6 +15,7 @@ from .learning_engine import LearningLedger, LearningRecord, ModelLifecycle
 from .self_observation import SelfObservation, SelfObservationReport
 from .epistemic_integrity import EpistemicClaim, EvidenceLevel, EpistemicIntegrity
 from .realtime_engine import RealtimeEvent, RealtimeSystem
+from .observer_effect import FeedbackAssessment, ObservationIntervention
 
 __all__ = [
     "ClosedLoopEngine","ClosedLoopInput","ClosedLoopSnapshot","Stage","StageRecord","SystemKernel",
@@ -22,4 +23,5 @@ __all__ = [
     "StateInferenceEngine","StateInferenceOutcome","StateInferenceRequest","DynamicSignature","DynamicsSnapshot","TransitionEvent","UncertaintyState",
     "Relation","RelationSet","Hypothesis","HypothesisLedger","CausalAssessment","CausalEstimand","Prediction","PredictionSet","Scenario","ScenarioResult",
     "Intervention","InterventionResponse","LearningLedger","LearningRecord","ModelLifecycle","SelfObservation","SelfObservationReport","EpistemicClaim","EvidenceLevel","EpistemicIntegrity","RealtimeEvent","RealtimeSystem",
+    "FeedbackAssessment","ObservationIntervention",
 ]

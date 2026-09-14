@@ -66,7 +66,16 @@ class ValidationPlan:
 
     @staticmethod
     def specification_hash(specification: object) -> str:
-        payload = json.dumps(specification, sort_keys=True, separators=(",", ":"), default=str)
+        """Hash only strict JSON data with deterministic canonical serialization."""
+        try:
+            payload = json.dumps(
+                specification,
+                sort_keys=True,
+                separators=(",", ":"),
+                allow_nan=False,
+            )
+        except (TypeError, ValueError) as exc:
+            raise ValueError("model specification must be strict JSON-serializable") from exc
         return sha256(payload.encode("utf-8")).hexdigest()
 
 

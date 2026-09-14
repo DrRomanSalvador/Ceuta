@@ -1,4 +1,6 @@
+import ast
 import importlib
+from pathlib import Path
 
 
 def test_models_importable():
@@ -9,6 +11,18 @@ def test_models_importable():
 def test_metrics_importable():
     module = importlib.import_module("app.core.metrics")
     assert module is not None
+
+
+def test_metrics_has_no_duplicate_top_level_definitions():
+    path = Path(__file__).parents[2] / "app" / "core" / "metrics.py"
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    names = [
+        node.name
+        for node in tree.body
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
+    ]
+    duplicates = sorted({name for name in names if names.count(name) > 1})
+    assert duplicates == [], f"Duplicate top-level metrics definitions: {duplicates}"
 
 
 def test_epistemic_validation_importable():

@@ -10,6 +10,7 @@ from app.core.metrics import (
     assert_output_permitted,
     assert_metric_executable,
     get_metric_definition,
+    calibration_in_the_large,
     territorial_bottleneck_migration,
     territorial_bottleneck_ratio,
     territorial_capacity_reserve,
@@ -22,6 +23,7 @@ from app.core.metrics import (
     territorial_spatial_lag,
     territorial_spatial_propagation,
     territorial_cascade_depth,
+    territorial_theil,
     validate_registry_integrity,
     validate_probability_output,
 )
@@ -84,6 +86,21 @@ def test_spatial_lag_uses_row_normalization():
     assert np.allclose(territorial_spatial_lag(values, weights), [3.0, 3.0, 3.0])
 
 
+def test_spatial_lag_rejects_isolated_territory():
+    weights = [
+        [0.0, 1.0, 0.0],
+        [1.0, 0.0, 0.0],
+        [0.0, 0.0, 0.0],
+    ]
+    with pytest.raises(MetricInputError, match="vecinos|conexión|fila"):
+        territorial_spatial_lag([1.0, 2.0, 3.0], weights)
+
+
+def test_spatial_matrix_rejects_single_territory():
+    with pytest.raises(MetricInputError):
+        territorial_spatial_lag([1.0], [[0.0]])
+
+
 def test_spatial_metrics_reject_constant_values():
     weights = [[0.0, 1.0], [1.0, 0.0]]
     with pytest.raises(MetricInputError):
@@ -120,6 +137,21 @@ def test_observation_coverage_is_bounded():
 def test_signal_to_noise_rejects_zero_noise():
     with pytest.raises(MetricInputError):
         territorial_signal_to_noise([1.0, 2.0], [0.0, 1.0])
+
+
+def test_theil_zero_observation_keeps_population_weighting():
+    values = np.array([0.0, 1.0, 3.0])
+    mean_value = np.mean(values)
+    ratios = values / mean_value
+    expected = np.mean(np.where(values > 0.0, ratios * np.log(ratios), 0.0))
+    assert territorial_theil(values) == pytest.approx(expected)
+
+
+def test_calibration_in_the_large_rejects_boundary_prevalence():
+    with pytest.raises(MetricInputError, match="prevalencia|prevalence|0 y 1|interior"):
+        calibration_in_the_large([0, 0, 0], [0.1, 0.2, 0.3])
+    with pytest.raises(MetricInputError, match="prevalencia|prevalence|0 y 1|interior"):
+        calibration_in_the_large([1, 1, 1], [0.1, 0.2, 0.3])
 
 
 def test_registry_controls_unvalidated_strategic_probability():

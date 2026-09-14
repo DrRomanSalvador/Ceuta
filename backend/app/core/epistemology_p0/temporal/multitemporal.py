@@ -91,6 +91,19 @@ class TemporalFilter:
                 return datetime.fromisoformat(value)
         return None
 
+    @staticmethod
+    def _version(evidence) -> Optional[int]:
+        """Return the canonical evidence revision number.
+
+        P0's immutable evidence model calls this field ``version``. ``revision``
+        remains accepted for lightweight adapters so the temporal layer does not
+        invent a second versioning scheme.
+        """
+        version = getattr(evidence, "version", None)
+        if version is None:
+            version = getattr(evidence, "revision", None)
+        return version
+
     @classmethod
     def filter_by_available_at(cls, evidences: List, simulation_time: datetime) -> List:
         """Return only evidence known to be available at simulation_time."""
@@ -102,28 +115,28 @@ class TemporalFilter:
 
     @classmethod
     def snapshot_by_available_at(cls, evidences: List, simulation_time: datetime) -> List:
-        """Return the latest available revision of each evidence identity.
+        """Return the latest available immutable version of each evidence item.
 
-        Historical replay must not expose multiple revisions of the same
+        Historical replay must not expose multiple versions of the same
         evidence item. A stable ``evidence_id`` and non-negative integer
-        ``revision`` are required; otherwise the function fails closed rather
-        than guessing how revisions should be ordered.
+        ``version`` (or explicit adapter ``revision``) are required; otherwise
+        the function fails closed rather than guessing version order.
         """
         available = cls.filter_by_available_at(evidences, simulation_time)
         selected: dict[object, object] = {}
         for evidence in available:
             evidence_id = getattr(evidence, "evidence_id", None)
-            revision = getattr(evidence, "revision", None)
-            if evidence_id is None or revision is None or not isinstance(revision, int) or revision < 0:
-                raise ValueError("point-in-time snapshot requires evidence_id and non-negative integer revision")
+            version = cls._version(evidence)
+            if evidence_id is None or version is None or not isinstance(version, int) or version < 0:
+                raise ValueError("point-in-time snapshot requires evidence_id and non-negative integer version")
             current = selected.get(evidence_id)
             if current is None:
                 selected[evidence_id] = evidence
                 continue
-            current_revision = getattr(current, "revision")
+            current_version = cls._version(current)
             current_available = cls._available_at(current)
             available_now = cls._available_at(evidence)
-            if (revision, available_now) > (current_revision, current_available):
+            if (version, available_now) > (current_version, current_available):
                 selected[evidence_id] = evidence
         return [evidence for evidence in evidences if selected.get(getattr(evidence, "evidence_id", object())) is evidence]
 

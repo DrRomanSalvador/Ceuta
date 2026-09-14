@@ -1,4 +1,4 @@
-from app.core.scientific.indicator_governance import (
+from backend.app.core.scientific.indicator_governance import (
     IndicatorDefinition,
     IndicatorGovernance,
     PrivacyBudget,
@@ -24,6 +24,13 @@ def test_preregistration_hash_is_deterministic_and_verifiable() -> None:
         IndicatorDefinition("mobility", "2026-Q4", 0.1, 0.5),
     )
     assert not governance.verify_configuration("2026-Q4", altered)
+
+
+def test_preregistration_rejects_duplicate_registration_identity_across_epochs() -> None:
+    governance = IndicatorGovernance()
+    governance.preregister("reg-1", "2026-Q3", defs("2026-Q3"), "2026-07-01T00:00:00Z")
+    with pytest.raises(ValueError, match="duplicate registration_id"):
+        governance.preregister("reg-1", "2026-Q4", defs("2026-Q4"), "2026-10-01T00:00:00Z")
 
 
 def test_rotation_retires_previous_epoch_and_requires_new_registration() -> None:

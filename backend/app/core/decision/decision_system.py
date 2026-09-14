@@ -116,8 +116,8 @@ class ScenarioOutcome:
     regret: float = 0.0
 
     def __post_init__(self) -> None:
-        if not 0.0 <= self.probability <= 1.0:
-            raise ValueError("scenario probability must be in [0, 1]")
+        if not isfinite(self.probability) or not 0.0 <= self.probability <= 1.0:
+            raise ValueError("scenario probability must be finite and in [0, 1]")
         if not all(isfinite(float(x)) for x in (self.utility, self.harm, self.regret)):
             raise ValueError("scenario outcomes must be finite")
 
@@ -135,10 +135,10 @@ class DecisionOption:
             raise ValueError("decision option requires id and outcomes")
         if self.resource_cost < 0 or not isfinite(self.resource_cost):
             raise ValueError("resource cost must be finite and non-negative")
-        if not 0.0 <= self.uncertainty <= 1.0:
-            raise ValueError("uncertainty must be in [0, 1]")
+        if not isfinite(self.uncertainty) or not 0.0 <= self.uncertainty <= 1.0:
+            raise ValueError("uncertainty must be finite and in [0, 1]")
         total = sum(x.probability for x in self.outcomes)
-        if not 0.999999 <= total <= 1.000001:
+        if not isfinite(total) or not 0.999999 <= total <= 1.000001:
             raise ValueError("scenario probabilities must sum to 1")
 
 

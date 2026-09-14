@@ -56,7 +56,7 @@ def _sigmoid(x: float) -> float:
     return z / (1.0 + z)
 
 def _fit_logistic_calibration(logits: Sequence[float], outcomes: Sequence[int]) -> tuple[float, float, float, float, float]:
-    """Fit logistic calibration with a finite fallback under separation."""
+    """Fit logistic calibration with a finite separation-safe fallback."""
     if len(logits) != len(outcomes) or len(logits) < 3:
         raise ValueError("at least three paired predictions/outcomes are required")
     if len(set(outcomes)) < 2:
@@ -92,7 +92,7 @@ def _fit_logistic_calibration(logits: Sequence[float], outcomes: Sequence[int]) 
             current = objective - 0.5 * penalty * beta * beta
             for _ in range(80):
                 candidate_alpha = alpha - factor * step_alpha
-                candidate_beta = beta - factor * step_beta
+                candidate_beta = max(-20.0, min(20.0, beta - factor * step_beta))
                 candidate = 0.0
                 for x, y in zip(logits, outcomes):
                     q = _sigmoid(candidate_alpha + candidate_beta * x)
@@ -109,9 +109,9 @@ def _fit_logistic_calibration(logits: Sequence[float], outcomes: Sequence[int]) 
 
     result = fit(0.0)
     if result is None:
-        # separation-safe bounded fallback; the ridge is used only to make
-        # the calibration functional finite, not to claim an unpenalized MLE.
-        result = fit(1e-6)
+        # separation-safe bounded fallback v2; this is a finite penalized
+        # functional and must not be reported as an unpenalized MLE.
+        result = fit(1e-2)
     if result is None:
         raise ValueError("calibration likelihood optimization failed")
     alpha, beta, cov00, cov01, cov11 = result

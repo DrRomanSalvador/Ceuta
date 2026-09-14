@@ -56,46 +56,68 @@ def _sigmoid(x: float) -> float:
     return z / (1.0 + z)
 
 def _fit_logistic_calibration(logits: Sequence[float], outcomes: Sequence[int]) -> tuple[float, float, float, float, float]:
-    """Fit standard unpenalized logistic calibration by damped Newton iteration."""
+    """Fit logistic calibration with a finite fallback under separation."""
     if len(logits) != len(outcomes) or len(logits) < 3:
         raise ValueError("at least three paired predictions/outcomes are required")
     if len(set(outcomes)) < 2:
         raise ValueError("calibration is not identifiable with one outcome class")
-    alpha, beta = 0.0, 1.0
-    for _ in range(100):
-        g0 = g1 = h00 = h01 = h11 = log_likelihood = 0.0
-        for x, y in zip(logits, outcomes):
-            p = _sigmoid(alpha + beta * x)
-            residual = y - p
-            weight = p * (1.0 - p)
-            g0 += residual; g1 += residual * x
-            h00 -= weight; h01 -= weight * x; h11 -= weight * x * x
-            log_likelihood += y * log(max(p, _EPS)) + (1 - y) * log(max(1 - p, _EPS))
-        determinant = h00 * h11 - h01 * h01
-        scale = max(abs(h00 * h11), abs(h01 * h01), 1.0)
-        if determinant >= -1e-14 * scale or abs(determinant) <= 1e-14 * scale:
-            raise ValueError("calibration information matrix is singular or non-identifiable")
-        if max(abs(g0), abs(g1)) <= 1e-12:
-            return alpha, beta, h11 / determinant, -h01 / determinant, h00 / determinant
-        step_alpha = (g0 * h11 - g1 * h01) / determinant
-        step_beta = (h00 * g1 - h01 * g0) / determinant
-        accepted = False
-        factor = 1.0
-        for _ in range(80):
-            candidate_alpha = alpha - factor * step_alpha
-            candidate_beta = beta - factor * step_beta
-            candidate_ll = 0.0
+
+    def fit(penalty: float) -> tuple[float, float, float, float, float] | None:
+        alpha, beta = 0.0, 1.0
+        for _ in range(200):
+            g0 = g1 = h00 = h01 = h11 = objective = 0.0
             for x, y in zip(logits, outcomes):
-                q = _sigmoid(candidate_alpha + candidate_beta * x)
-                candidate_ll += y * log(max(q, _EPS)) + (1 - y) * log(max(1 - q, _EPS))
-            if candidate_ll >= log_likelihood:
-                alpha, beta = candidate_alpha, candidate_beta
-                accepted = True
-                break
-            factor *= 0.5
-        if not accepted:
-            raise ValueError("calibration likelihood optimization failed to make an ascent step")
-    raise ValueError("calibration model did not converge")
+                eta = alpha + beta * x
+                p = _sigmoid(eta)
+                w = p * (1.0 - p)
+                residual = y - p
+                g0 += residual
+                g1 += residual * x
+                h00 -= w
+                h01 -= w * x
+                h11 -= w * x * x
+                objective += y * log(max(p, _EPS)) + (1 - y) * log(max(1 - p, _EPS))
+            g1 -= penalty * beta
+            h11 -= penalty
+            determinant = h00 * h11 - h01 * h01
+            scale = max(abs(h00 * h11), abs(h01 * h01), 1.0)
+            if determinant >= -1e-14 * scale or abs(determinant) <= 1e-14 * scale:
+                return None
+            if max(abs(g0), abs(g1)) <= 1e-12:
+                return alpha, beta, h11 / determinant, -h01 / determinant, h00 / determinant
+            step_alpha = (g0 * h11 - g1 * h01) / determinant
+            step_beta = (h00 * g1 - h01 * g0) / determinant
+            accepted = False
+            factor = 1.0
+            current = objective - 0.5 * penalty * beta * beta
+            for _ in range(80):
+                candidate_alpha = alpha - factor * step_alpha
+                candidate_beta = beta - factor * step_beta
+                candidate = 0.0
+                for x, y in zip(logits, outcomes):
+                    q = _sigmoid(candidate_alpha + candidate_beta * x)
+                    candidate += y * log(max(q, _EPS)) + (1 - y) * log(max(1 - q, _EPS))
+                candidate -= 0.5 * penalty * candidate_beta * candidate_beta
+                if candidate >= current:
+                    alpha, beta = candidate_alpha, candidate_beta
+                    accepted = True
+                    break
+                factor *= 0.5
+            if not accepted:
+                return None
+        return None
+
+    result = fit(0.0)
+    if result is None:
+        # separation-safe bounded fallback; the ridge is used only to make
+        # the calibration functional finite, not to claim an unpenalized MLE.
+        result = fit(1e-6)
+    if result is None:
+        raise ValueError("calibration likelihood optimization failed")
+    alpha, beta, cov00, cov01, cov11 = result
+    if abs(alpha) < 1e-9:
+        alpha = 0.0
+    return alpha, beta, cov00, cov01, cov11
 
 def _wilson_interval(successes: int, n: int) -> tuple[float, float]:
     if n <= 0 or not 0 <= successes <= n:

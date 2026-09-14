@@ -25,8 +25,8 @@ class ForecastReport:
     def __post_init__(self) -> None:
         if not self.report_id or not self.forecaster_id or not self.question_id:
             raise ValueError("report identity is required")
-        if not isfinite(self.probability) or not 0.0 <= self.probability <= 1.0:
-            raise ValueError("probability must be finite and in [0,1]")
+        if not isfinite(self.probability) or not 0.0 < self.probability < 1.0:
+            raise ValueError("probability must be finite and strictly between 0 and 1 for log scoring")
         for value in (self.submitted_at, self.deadline, self.outcome_due_at):
             if value.tzinfo is None or value.utcoffset() is None:
                 raise ValueError("forecast timestamps must be timezone-aware")
@@ -152,8 +152,7 @@ class ProperScoringMechanism:
             raise ValueError("verified_at must be timezone-aware")
         if verified_at < report.outcome_due_at:
             raise ValueError("outcome cannot be settled before outcome_due_at")
-        epsilon = 1e-15
-        p = min(max(report.probability, epsilon), 1.0 - epsilon)
+        p = report.probability
         loss = -(outcome * log(p) + (1 - outcome) * log(1.0 - p))
         settlement = Settlement(
             report_id=report_id,
@@ -182,11 +181,9 @@ class ProperScoringMechanism:
     @staticmethod
     def expected_log_loss(probability: float, belief: float) -> float:
         """Expected log loss under a Bernoulli belief."""
-        if not all(isfinite(v) and 0.0 <= v <= 1.0 for v in (probability, belief)):
-            raise ValueError("probability and belief must be finite and in [0,1]")
-        epsilon = 1e-15
-        p = min(max(probability, epsilon), 1.0 - epsilon)
-        return -(belief * log(p) + (1 - belief) * log(1.0 - p))
+        if not all(isfinite(v) and 0.0 < v < 1.0 for v in (probability, belief)):
+            raise ValueError("probability and belief must be finite and strictly between 0 and 1")
+        return -(belief * log(probability) + (1 - belief) * log(1.0 - probability))
 
     @classmethod
     def verify_strict_propriety(
@@ -197,10 +194,12 @@ class ProperScoringMechanism:
         This is a mechanism-level computational check, not empirical evidence
         about real agents' behaviour.
         """
-        if not isfinite(belief) or not 0.0 <= belief <= 1.0:
-            raise ValueError("belief must be finite and in [0,1]")
+        if not isfinite(belief) or not 0.0 < belief < 1.0:
+            raise ValueError("belief must be finite and strictly between 0 and 1")
         if not candidate_reports:
             raise ValueError("candidate_reports must not be empty")
+        if not all(isfinite(p) and 0.0 < p < 1.0 for p in candidate_reports):
+            raise ValueError("candidate_reports must be finite and strictly between 0 and 1")
         if belief not in candidate_reports:
             return False
         truthful = cls.expected_log_loss(belief, belief)

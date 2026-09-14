@@ -46,5 +46,6 @@ from .spatiotemporal import SpatialTemporalEngine, SpatialObservation
 from .official_sources import OfficialSource, OfficialSourceRegistry, SourceFreshness, SourceSnapshot
 from .source_client import OfficialSourceClient, RetrievedSource
 from .scientific_pipeline import PipelineDisposition, ScientificLongitudinalPipeline, ScientificPipelineResult, SpecialistResult
+from .system_gate import SystemGateDisposition, SystemGateResult, SystemIntelligenceGate
 
 __all__ = [name for name in globals() if not name.startswith("_")]

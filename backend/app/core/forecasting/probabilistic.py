@@ -1,63 +1,208 @@
 """Calibrated probabilistic forecasting primitives."""
 from __future__ import annotations
+
 from dataclasses import dataclass
 from math import erf, exp, isfinite, log, pi, sqrt
 from statistics import mean
 from typing import Callable, Sequence
 
+
 @dataclass(frozen=True, slots=True)
 class Forecast:
-    origin: float; target: float; mean: float; lower: float; upper: float; scale: float; coverage_level: float; model_id: str
+    origin: float
+    target: float
+    mean: float
+    lower: float
+    upper: float
+    scale: float
+    coverage_level: float
+    model_id: str
+
     def __post_init__(self) -> None:
-        if not all(isfinite(x) for x in (self.origin,self.target,self.mean,self.lower,self.upper,self.scale)) or self.scale<=0 or not 0<self.coverage_level<1 or self.lower>self.upper: raise ValueError("invalid forecast")
+        if (
+            not all(
+                isfinite(x)
+                for x in (
+                    self.origin,
+                    self.target,
+                    self.mean,
+                    self.lower,
+                    self.upper,
+                    self.scale,
+                )
+            )
+            or self.scale <= 0
+            or not 0 < self.coverage_level < 1
+            or self.lower > self.upper
+        ):
+            raise ValueError("invalid forecast")
+
 
 @dataclass(frozen=True, slots=True)
 class CalibrationReport:
-    nominal_coverage: float; empirical_coverage: float; mean_interval_width: float; mean_absolute_error: float; interval_score: float; n: int
+    nominal_coverage: float
+    empirical_coverage: float
+    mean_interval_width: float
+    mean_absolute_error: float
+    interval_score: float
+    n: int
+
 
 class ProbabilisticForecastEngine:
     @staticmethod
     def _normal_ppf(p: float) -> float:
-        if not 0<p<1: raise ValueError("p must be in (0,1)")
-        a=(-39.6968302866538,220.946098424521,-275.928510446969,138.357751867269,-30.6647980661472,2.50662827745924); b=(-54.4760987982241,161.585836858041,-155.698979859887,66.8013118877197,-13.2806815528857); c=(-0.00778489400243029,-0.322396458041136,-2.40075827716184,-2.54973253934373,4.37466414146497,2.93816398269878); d=(0.00778469570904146,0.32246712907004,2.445134137143,3.75440866190742)
-        if p<.02425:
-            q=sqrt(-2*log(p)); num=((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5]; den=(((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1; return num/den
-        if p>1-.02425:
-            q=sqrt(-2*log(1-p)); num=((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5]; den=(((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1; return -num/den
-        q=p-.5; r=q*q; num=((((((a[0]*r+a[1])*r+a[2])*r+a[3])*r+a[4])*r+a[5])*q); den=((((b[0]*r+b[1])*r+b[2])*r+b[3])*r+b[4])*r+1); return num/den
+        if not 0 < p < 1:
+            raise ValueError("p must be in (0,1)")
+        a = (
+            -39.6968302866538,
+            220.946098424521,
+            -275.928510446969,
+            138.357751867269,
+            -30.6647980661472,
+            2.50662827745924,
+        )
+        b = (
+            -54.4760987982241,
+            161.585836858041,
+            -155.698979859887,
+            66.8013118877197,
+            -13.2806815528857,
+        )
+        c = (
+            -0.00778489400243029,
+            -0.322396458041136,
+            -2.40075827716184,
+            -2.54973253934373,
+            4.37466414146497,
+            2.93816398269878,
+        )
+        d = (
+            0.00778469570904146,
+            0.32246712907004,
+            2.445134137143,
+            3.75440866190742,
+        )
+        if p < 0.02425:
+            q = sqrt(-2 * log(p))
+            num = (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5])
+            den = ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1)
+            return num / den
+        if p > 1 - 0.02425:
+            q = sqrt(-2 * log(1 - p))
+            num = (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5])
+            den = ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1)
+            return -num / den
+        q = p - 0.5
+        r = q * q
+        num = ((((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q)
+        den = (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1)
+        return num / den
+
     @staticmethod
-    def gaussian_interval(mean_value:float,scale:float,level:float)->tuple[float,float]:
-        if scale<=0 or not 0<level<1: raise ValueError("invalid scale/level")
-        z=ProbabilisticForecastEngine._normal_ppf((1+level)/2); return mean_value-z*scale,mean_value+z*scale
+    def gaussian_interval(mean_value: float, scale: float, level: float) -> tuple[float, float]:
+        if scale <= 0 or not 0 < level < 1:
+            raise ValueError("invalid scale/level")
+        z = ProbabilisticForecastEngine._normal_ppf((1 + level) / 2)
+        return mean_value - z * scale, mean_value + z * scale
+
     @staticmethod
-    def conformal_radius(residuals:Sequence[float],level:float)->float:
-        if not residuals or not 0<level<1: raise ValueError("invalid residuals/level")
-        values=sorted(abs(float(r)) for r in residuals); rank=min(len(values),max(1,int((len(values)+1)*level+.999999))); return values[rank-1]
+    def conformal_radius(residuals: Sequence[float], level: float) -> float:
+        if not residuals or not 0 < level < 1:
+            raise ValueError("invalid residuals/level")
+        values = sorted(abs(float(r)) for r in residuals)
+        rank = min(len(values), max(1, int((len(values) + 1) * level + 0.999999)))
+        return values[rank - 1]
+
     @classmethod
-    def calibrated_forecast(cls,origin:float,target:float,mean_value:float,residuals:Sequence[float],level:float,model_id:str)->Forecast:
-        radius=cls.conformal_radius(residuals,level); return Forecast(origin,target,mean_value,mean_value-radius,mean_value+radius,max(radius,1e-12),level,model_id)
+    def calibrated_forecast(
+        cls,
+        origin: float,
+        target: float,
+        mean_value: float,
+        residuals: Sequence[float],
+        level: float,
+        model_id: str,
+    ) -> Forecast:
+        radius = cls.conformal_radius(residuals, level)
+        return Forecast(
+            origin,
+            target,
+            mean_value,
+            mean_value - radius,
+            mean_value + radius,
+            max(radius, 1e-12),
+            level,
+            model_id,
+        )
+
     @staticmethod
-    def interval_score(forecast:Forecast)->float:
-        alpha=1-forecast.coverage_level; y,lo,hi=forecast.target,forecast.lower,forecast.upper; return (hi-lo)+(2/alpha)*max(lo-y,0)+(2/alpha)*max(y-hi,0)
+    def interval_score(forecast: Forecast) -> float:
+        alpha = 1 - forecast.coverage_level
+        y, lo, hi = forecast.target, forecast.lower, forecast.upper
+        return (hi - lo) + (2 / alpha) * max(lo - y, 0) + (2 / alpha) * max(y - hi, 0)
+
     @staticmethod
-    def crps_gaussian(observation:float,mean_value:float,scale:float)->float:
-        if scale<=0: raise ValueError("scale must be positive")
-        z=(observation-mean_value)/scale; phi=exp(-.5*z*z)/sqrt(2*pi); Phi=.5*(1+erf(z/sqrt(2))); return scale*(z*(2*Phi-1)+2*phi-1/sqrt(pi))
+    def crps_gaussian(observation: float, mean_value: float, scale: float) -> float:
+        if scale <= 0:
+            raise ValueError("scale must be positive")
+        z = (observation - mean_value) / scale
+        phi = exp(-0.5 * z * z) / sqrt(2 * pi)
+        Phi = 0.5 * (1 + erf(z / sqrt(2)))
+        return scale * (z * (2 * Phi - 1) + 2 * phi - 1 / sqrt(pi))
+
     @staticmethod
-    def evaluate(forecasts:Sequence[Forecast])->CalibrationReport:
-        if not forecasts: raise ValueError("at least one forecast is required")
-        return CalibrationReport(mean(f.coverage_level for f in forecasts),mean(f.lower<=f.target<=f.upper for f in forecasts),mean(f.upper-f.lower for f in forecasts),mean(abs(f.target-f.mean) for f in forecasts),mean(ProbabilisticForecastEngine.interval_score(f) for f in forecasts),len(forecasts))
+    def evaluate(forecasts: Sequence[Forecast]) -> CalibrationReport:
+        if not forecasts:
+            raise ValueError("at least one forecast is required")
+        return CalibrationReport(
+            mean(f.coverage_level for f in forecasts),
+            mean(f.lower <= f.target <= f.upper for f in forecasts),
+            mean(f.upper - f.lower for f in forecasts),
+            mean(abs(f.target - f.mean) for f in forecasts),
+            mean(ProbabilisticForecastEngine.interval_score(f) for f in forecasts),
+            len(forecasts),
+        )
+
 
 @dataclass(frozen=True, slots=True)
 class RollingOriginResult:
-    forecasts: tuple[Forecast,...]; calibration: CalibrationReport
+    forecasts: tuple[Forecast, ...]
+    calibration: CalibrationReport
+
 
 class RollingOriginEvaluator:
     @staticmethod
-    def evaluate(values:Sequence[float],predictor:Callable[[Sequence[float]],float],min_train:int,level:float,model_id:str)->RollingOriginResult:
-        if min_train<2 or len(values)<=min_train: raise ValueError("insufficient temporal observations")
-        forecasts=[]; residuals=[]
-        for index in range(min_train,len(values)):
-            history=tuple(float(v) for v in values[:index]); prediction=float(predictor(history)); radius=ProbabilisticForecastEngine.conformal_radius(residuals,level) if residuals else max(1e-12,abs(values[index-1]-prediction)); target=float(values[index])
-            forecasts.append(Forecast(float(index-1),target,prediction,prediction-radius,prediction+radius,max(radius,1e-12),level,model_id)); residuals.append(target-prediction)
-        return RollingOriginResult(tuple(forecasts),ProbabilisticForecastEngine.evaluate(forecasts))
+    def evaluate(
+        values: Sequence[float],
+        predictor: Callable[[Sequence[float]], float],
+        min_train: int,
+        level: float,
+        model_id: str,
+    ) -> RollingOriginResult:
+        if min_train < 2 or len(values) <= min_train:
+            raise ValueError("insufficient temporal observations")
+        forecasts: list[Forecast] = []
+        residuals: list[float] = []
+        for index in range(min_train, len(values)):
+            history = tuple(float(v) for v in values[:index])
+            prediction = float(predictor(history))
+            radius = (
+                ProbabilisticForecastEngine.conformal_radius(residuals, level)
+                if residuals
+                else max(1e-12, abs(values[index - 1] - prediction))
+            )
+            target = float(values[index])
+            forecasts.append(
+                Forecast(
+                    float(index - 1),
+                    target,
+                    prediction,
+                    prediction - radius,
+                    prediction + radius,
+                    max(radius, 1e-12),
+                    level,
+                    model_id,
+                )
+            )
+            residuals.append(target - prediction)
+        return RollingOriginResult(tuple(forecasts), ProbabilisticForecastEngine.evaluate(forecasts))

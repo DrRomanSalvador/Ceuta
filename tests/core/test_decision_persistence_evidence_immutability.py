@@ -1,3 +1,5 @@
+from dataclasses import replace
+
 from app.core.decision.persistence import SQLiteDecisionStore
 from app.core.evidence.citation_trace import CitationTrace
 from app.core.evidence.conflict_resolution import EvidenceResolution, ResolutionDisposition
@@ -45,9 +47,9 @@ def test_source_link_trace_and_cycle_are_immutable_by_identity(tmp_path):
     store.record_source(s)
     store.record_source(s)
     try:
-        store.record_source(SourceRecord(**{**s.__dict__, "title": "Changed"}))
-    except (RuntimeError, AttributeError):
-        pass
+        store.record_source(replace(s, title="Changed"))
+    except RuntimeError as exc:
+        assert "identity collision" in str(exc)
     else:
         raise AssertionError("conflicting source metadata overwrote persisted history")
 

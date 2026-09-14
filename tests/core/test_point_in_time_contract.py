@@ -49,3 +49,14 @@ def test_temporal_evidence_record_rejects_invalid_effective_interval():
 def test_temporal_evidence_record_rejects_negative_revision():
     with pytest.raises(ValueError, match="revision"):
         _record(revision=-1)
+
+
+def test_temporal_evidence_record_keeps_publication_and_acquisition_clocks_distinct():
+    record = _record(published_at=12.0, acquired_at=15.0, available_at=15.0)
+    assert record.published_at == 12.0
+    assert record.acquired_at == 15.0
+
+
+def test_temporal_evidence_record_rejects_availability_before_source_acquisition():
+    with pytest.raises(ValueError, match="available_at|acquired_at"):
+        _record(acquired_at=21.0, available_at=20.0)

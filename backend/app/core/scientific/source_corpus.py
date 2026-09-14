@@ -13,7 +13,6 @@ from enum import StrEnum
 from hashlib import sha256
 import json
 import sqlite3
-from typing import Iterable
 
 
 class CorpusSourceType(StrEnum):
@@ -118,7 +117,7 @@ class ScientificSourceRecord:
 
     @property
     def record_hash(self) -> str:
-        return _digest(_jsonable(self))
+        return _digest(self)
 
 
 @dataclass(frozen=True, slots=True)
@@ -154,7 +153,7 @@ class ScientificImpactMap:
 
     @property
     def impact_hash(self) -> str:
-        return _digest(_jsonable(self))
+        return _digest(self)
 
 
 @dataclass(frozen=True, slots=True)
@@ -217,9 +216,7 @@ class ScientificSourceCorpus:
             db.execute("""CREATE TABLE IF NOT EXISTS scientific_relations (
                 source_id TEXT NOT NULL, related_source_id TEXT NOT NULL,
                 relation TEXT NOT NULL, rationale TEXT NOT NULL, confidence REAL NOT NULL,
-                PRIMARY KEY(source_id, related_source_id, relation),
-                FOREIGN KEY(source_id) REFERENCES scientific_sources(source_id),
-                FOREIGN KEY(related_source_id) REFERENCES scientific_sources(source_id)
+                PRIMARY KEY(source_id, related_source_id, relation)
             )""")
             db.execute("""CREATE TABLE IF NOT EXISTS scientific_impacts (
                 impact_id TEXT PRIMARY KEY, source_ids TEXT NOT NULL, payload TEXT NOT NULL,
@@ -292,15 +289,15 @@ class ScientificSourceCorpus:
         return tuple(rows)
 
     def verify_integrity(self) -> bool:
-        for source in self.all_latest():
-            with self._db() as db:
-                row = db.execute("SELECT record_hash,payload FROM scientific_sources WHERE source_id=? AND version=?", (source.source_id, source.version)).fetchone()
-            if not row or row[0] != source.record_hash or row[0] != _digest(source):
+        with self._db() as db:
+            rows = db.execute("SELECT source_id,version,record_hash,payload FROM scientific_sources ORDER BY source_id,version").fetchall()
+            impacts = db.execute("SELECT impact_id,impact_hash,payload FROM scientific_impacts ORDER BY impact_id").fetchall()
+        for source_id, version, record_hash, payload in rows:
+            if record_hash != _digest(_decode_source(json.loads(payload))):
                 return False
-        for impact in self.impacts():
-            with self._db() as db:
-                row = db.execute("SELECT impact_hash FROM scientific_impacts WHERE impact_id=?", (impact.impact_id,)).fetchone()
-            if not row or row[0] != impact.impact_hash or row[0] != _digest(impact):
+        for impact_id, impact_hash, payload in impacts:
+            impact = _decode_impact(json.loads(payload))
+            if impact_id != impact.impact_id or impact_hash != _digest(impact):
                 return False
         return True
 

@@ -35,6 +35,8 @@ class DecisionObjectiveMetric(str, Enum):
     EXPECTED_HARM = "expected_harm"
     MAXIMUM_REGRET = "maximum_regret"
     RESOURCE_COST = "resource_cost"
+    PUBLIC_VALUE = "public_value"
+    SAFETY = "safety"
 
 
 @dataclass(frozen=True, slots=True)
@@ -253,7 +255,7 @@ class DecisionSystem:
     @staticmethod
     def _objective_score(objectives: Sequence[DecisionObjective], option: DecisionOption, metrics: tuple[float, float, float, float]) -> float:
         worst, expected, harm, regret = metrics
-        values = {DecisionObjectiveMetric.EXPECTED_UTILITY.value: expected, DecisionObjectiveMetric.WORST_CASE_UTILITY.value: worst, DecisionObjectiveMetric.EXPECTED_HARM.value: harm, DecisionObjectiveMetric.MAXIMUM_REGRET.value: regret, DecisionObjectiveMetric.RESOURCE_COST.value: option.resource_cost}
+        values = {DecisionObjectiveMetric.EXPECTED_UTILITY.value: expected, DecisionObjectiveMetric.WORST_CASE_UTILITY.value: worst, DecisionObjectiveMetric.EXPECTED_HARM.value: harm, DecisionObjectiveMetric.MAXIMUM_REGRET.value: regret, DecisionObjectiveMetric.RESOURCE_COST.value: option.resource_cost, DecisionObjectiveMetric.PUBLIC_VALUE.value: expected, DecisionObjectiveMetric.SAFETY.value: worst}
         total_weight = sum(item.weight for item in objectives)
         if total_weight <= 0:
             raise ValueError("decision objective weights must sum to a positive value")

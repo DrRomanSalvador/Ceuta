@@ -6,6 +6,7 @@ from app.core.evidence.frontier_longitudinal import (
     dependence_diagnostic,
     dependent_proper_score_interval,
     horizon_scores,
+    temporal_calibration_robust,
     validate_frontier_contract,
 )
 from app.core.evidence.frontier_selection_transport import (
@@ -125,13 +126,25 @@ def test_nested_temporal_cv_keeps_selection_inside_outer_training():
 
 
 def test_strict_temporal_design_has_no_overlap():
+    records = _records()
     folds = strict_rolling_origin(
-        _records(), initial_train_duration=1, test_duration=1, step=1, purge_gap=0
+        records, initial_train_duration=1, test_duration=1, step=1, purge_gap=0
     )
     for fold in folds:
-        assert max(_records()[i].time for i in fold.train_indices) < min(
-            _records()[i].time for i in fold.test_indices
+        assert max(records[i].time for i in fold.train_indices) < min(
+            records[i].time for i in fold.test_indices
         )
+
+
+def test_temporal_calibration_reports_robust_intervals():
+    records = _records()
+    folds = strict_rolling_origin(
+        records, initial_train_duration=1, test_duration=1, step=1, purge_gap=0
+    )
+    result = temporal_calibration_robust(records, folds, replicates=500, seed=13)
+    assert len(result) == len(folds)
+    assert all(item.replicates >= 250 for item in result)
+    assert all(item.intercept_ci[0] <= item.intercept_ci[1] for item in result)
 
 
 def test_transport_validation_does_not_refit_target():
@@ -141,6 +154,8 @@ def test_transport_validation_does_not_refit_target():
         LongitudinalRecord("t2", 1, 1, 0.8),
         LongitudinalRecord("t3", 1, 0, 0.3),
     ]
-    result = transport_validate(source, target, lambda rows: [r.prediction for r in rows], replicates=500)
+    result = transport_validate(
+        source, target, lambda rows: [r.prediction for r in rows], replicates=500
+    )
     assert not result.target_refit
     assert result.target_independent_units == 3

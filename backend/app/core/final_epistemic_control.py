@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
+from math import isfinite
 from typing import Sequence
 
 
@@ -72,8 +73,12 @@ class RealityAnchorAssessment:
     reasons: tuple[str, ...]
 
     def __post_init__(self) -> None:
-        if not self.target_id or not 0 <= self.divergence_score <= 1:
+        if not self.target_id or not isfinite(self.divergence_score) or not 0 <= self.divergence_score <= 1:
             raise ValueError("invalid reality-anchor assessment")
+        if self.status is FalsifiabilityStatus.ESTABLISHED and (not self.conditions or not self.external_evidence_refs):
+            raise ValueError("established reality anchoring requires falsification conditions and external evidence")
+        if self.status is FalsifiabilityStatus.ESTABLISHED and self.global_model_doubt:
+            raise ValueError("established reality anchoring cannot simultaneously declare global model doubt")
 
 
 @dataclass(frozen=True, slots=True)
@@ -161,6 +166,8 @@ class ClosedLoopEvaluation:
     def __post_init__(self) -> None:
         if not self.decision_id:
             raise ValueError("decision identity is required")
+        if not isfinite(self.observed_outcome) or (self.expected_outcome is not None and not isfinite(self.expected_outcome)):
+            raise ValueError("closed-loop outcomes must be finite")
         if self.intervention_id is None and self.counterfactual_status is not CounterfactualStatus.NOT_APPLICABLE:
             raise ValueError("non-intervention outcome requires NOT_APPLICABLE counterfactual status")
 
@@ -175,6 +182,13 @@ class OntologySignal:
     model_disagreement: float
     boundary_pressure: float
     new_entity_pressure: float
+
+    def __post_init__(self) -> None:
+        if not self.signal_id or not self.description:
+            raise ValueError("ontology signal identity and description are required")
+        values = (self.persistence, self.unexplained_structure, self.cross_domain_inconsistency, self.model_disagreement, self.boundary_pressure, self.new_entity_pressure)
+        if any(not isfinite(value) or not 0 <= value <= 1 for value in values):
+            raise ValueError("ontology signal scores must be finite and in [0,1]")
 
 
 @dataclass(frozen=True, slots=True)
@@ -192,6 +206,8 @@ class EpistemicSelfModel:
 class EpistemicSelfCritique:
     @staticmethod
     def assess(signals: Sequence[OntologySignal], threshold: float = 0.7) -> OntologyStatus:
+        if not isfinite(threshold) or not 0 <= threshold <= 1:
+            raise ValueError("ontology threshold must be finite and in [0,1]")
         if not signals:
             return OntologyStatus.NORMAL
         persistent = [s for s in signals if s.persistence >= threshold]
@@ -227,6 +243,11 @@ class ProspectiveEvaluationProtocol:
     policy_version: str
     precommitted: bool
 
+    def __post_init__(self) -> None:
+        fields = (self.protocol_id, self.target, self.population, self.context, self.horizon, self.decision_rule, self.comparator, self.outcome, self.protocol_version, self.system_version, self.model_version, self.ontology_version, self.policy_version)
+        if any(not value.strip() for value in fields):
+            raise ValueError("prospective protocol requires complete non-empty identifiers and definitions")
+
 
 @dataclass(frozen=True, slots=True)
 class ProspectiveEvaluationResult:
@@ -234,6 +255,12 @@ class ProspectiveEvaluationResult:
     observed_benefit: float | None
     deployment_validity: bool
     empirical_status: str
+
+    def __post_init__(self) -> None:
+        if not self.protocol_id.strip() or not self.empirical_status.strip():
+            raise ValueError("prospective result requires protocol and empirical status")
+        if self.observed_benefit is not None and not isfinite(self.observed_benefit):
+            raise ValueError("observed prospective benefit must be finite")
 
 
 @dataclass(frozen=True, slots=True)

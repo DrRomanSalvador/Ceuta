@@ -1,4 +1,6 @@
-from backend.app.core.scientific.indicator_governance import (
+import pytest
+
+from app.core.scientific.indicator_governance import (
     IndicatorDefinition,
     IndicatorGovernance,
     PrivacyBudget,

@@ -15,7 +15,7 @@ class LongitudinalObservation:
     def __post_init__(self) -> None:
         if not self.entity_id.strip() or not self.decision_id.strip():
             raise ValueError("longitudinal observation requires entity and decision identity")
-        self._timestamp()
+        self.timestamp()
 
     def timestamp(self) -> datetime:
         try:

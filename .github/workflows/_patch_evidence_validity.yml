@@ -1,0 +1,39 @@
+name: Patch evidence effective validity
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply exact evidence validity patch
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path("backend/app/core/epistemology_p0/evidence/models.py")
+          text = path.read_text()
+          old_fields = '''    parent_version_id: Optional[str] = None\n    unavailable_fields: Dict[str, str] = field(default_factory=dict)\n'''
+          new_fields = '''    parent_version_id: Optional[str] = None\n    unavailable_fields: Dict[str, str] = field(default_factory=dict)\n    valid_from: Optional[datetime] = None\n    valid_to: Optional[datetime] = None\n'''
+          if text.count(old_fields) != 1:
+              raise SystemExit(f"expected one evidence field block, found {text.count(old_fields)}")
+          text = text.replace(old_fields, new_fields, 1)
+          old_post = '''            if value is not None and value.tzinfo is None:\n                raise ValueError(f"{name} debe ser timezone-aware")\n\n    @property\n    def available_at(self) -> datetime:\n'''
+          new_post = '''            if value is not None and value.tzinfo is None:\n                raise ValueError(f"{name} debe ser timezone-aware")\n        for name in ("valid_from", "valid_to"):\n            value = getattr(self, name)\n            if value is not None and value.tzinfo is None:\n                raise ValueError(f"{name} debe ser timezone-aware")\n        if self.valid_from is not None and self.valid_to is not None and self.valid_from >= self.valid_to:\n            raise ValueError("valid_from debe ser anterior a valid_to")\n\n    def is_valid_at(self, simulation_time: datetime) -> bool:\n        if self.valid_from is not None and simulation_time < self.valid_from:\n            return False\n        if self.valid_to is not None and simulation_time >= self.valid_to:\n            return False\n        return True\n\n    @property\n    def available_at(self) -> datetime:\n'''
+          if text.count(old_post) != 1:
+              raise SystemExit(f"expected one evidence post-init block, found {text.count(old_post)}")
+          path.write_text(text.replace(old_post, new_post, 1))
+          PY
+      - name: Commit patch and remove workflow
+        run: |
+          git config user.name "CeutIA engineering bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f backend/app/core/epistemology_p0/evidence/models.py
+          git rm -f .github/workflows/_patch_evidence_validity.yml
+          git commit -m "fix: enforce evidence effective validity intervals"
+          git push origin HEAD:main

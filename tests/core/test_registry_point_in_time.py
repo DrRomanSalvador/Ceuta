@@ -28,3 +28,12 @@ def test_registry_backtest_uses_version_available_at_historical_cutoff():
     current = registry.get_evidences_for_backtest(base + timedelta(hours=4))
     assert historical == [first]
     assert current == [second]
+
+
+def test_legacy_normalization_preserves_ingestion_timestamp():
+    base = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    evidence = _evidence(1, base + timedelta(hours=3))
+    registry = ClaimRegistry()
+    contract = registry._validate_p0_contract(evidence)
+    assert contract.ingestion_time == evidence.ingestion_time
+    assert contract.revision_time == evidence.revision_time

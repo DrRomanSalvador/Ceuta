@@ -116,5 +116,13 @@ def test_registry_controls_unvalidated_strategic_probability():
         )
 
 
+def test_migration_event_cannot_be_reinterpreted_as_danger():
+    definition = get_metric_definition("border_entry_event")
+    assert definition.executable is False
+    assert any("criminalidad" in limitation.lower() for limitation in definition.limitations)
+    with pytest.raises(MetricNotPermittedError):
+        assert_output_permitted("border_entry_event", OutputChannel.PUBLIC_USER)
+
+
 def test_registry_integrity_remains_executable():
     validate_registry_integrity()

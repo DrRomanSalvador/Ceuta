@@ -266,8 +266,15 @@ class FinalEpistemicController:
             reasons.append("intervention-conditioned outcome lacks an identifiable counterfactual")
         if prospective_protocol and not prospective_protocol.precommitted:
             reasons.append("prospective protocol is not precommitted")
+        if prospective_result and (
+            prospective_protocol is None or prospective_result.protocol_id != prospective_protocol.protocol_id
+        ):
+            reasons.append("prospective result is not linked to the active protocol")
         effective = bool(
-            prospective_result
+            prospective_protocol
+            and prospective_protocol.precommitted
+            and prospective_result
+            and prospective_result.protocol_id == prospective_protocol.protocol_id
             and prospective_result.deployment_validity
             and prospective_result.empirical_status == "prospectively_validated"
             and prospective_result.observed_benefit is not None

@@ -6,6 +6,8 @@ clusters:
     status: implemented
     capabilities: [latent_state, state_uncertainty, observability, identifiability, state_space_dynamics]
     components:
+      - backend/app/core/system/representation.py
+      - backend/app/core/system/state_engine.py
       - backend/app/core/system_intelligence.py
       - backend/app/core/complex_systems/state_space.py
   - id: observation_process
@@ -18,7 +20,7 @@ clusters:
     status: implemented
     capabilities: [scale_semantics, spatial_units, spatial_relations, mobility, existing_multiscale_runtime]
     components:
-      - backend/app/core/system_intelligence.py
+      - backend/app/core/system/representation.py
       - backend/app/core/runtime/multiscale.py
       - backend/app/core/runtime/spatiotemporal.py
   - id: network_dynamics
@@ -40,12 +42,14 @@ clusters:
     capabilities: [immutable_forecast_object, predictability_limits, model_disagreement, abstention]
     components:
       - backend/app/core/system_intelligence.py
+      - backend/app/core/system/prediction_engine.py
       - backend/app/core/runtime/model_governance.py
   - id: decision_feedback
     status: implemented
     capabilities: [intervention_state, outcome_record, action_lifecycle, feedback]
     components:
-      - backend/app/core/system_intelligence.py
+      - backend/app/core/system/intervention_engine.py
+      - backend/app/core/system/learning_engine.py
       - backend/app/core/runtime/action_gateway.py
       - backend/app/core/runtime/feedback_governance.py
   - id: information_contribution
@@ -55,15 +59,16 @@ clusters:
       - backend/app/core/system_intelligence.py
   - id: uncertainty_decomposition
     status: implemented
-    capabilities: [aleatoric, measurement, sampling, parameter, model, structural, state, dgp, transport, adversarial, source_dependence]
+    capabilities: [aleatoric, measurement, process, selection, parameter, model, structural, state, dgp, transport, adversarial, source_dependence]
     components:
-      - backend/app/core/evidence/uncertainty_model.py
+      - backend/app/core/system/uncertainty_state.py
   - id: system_level_safety
     status: implemented
     capabilities: [allow, degraded, abstain, structural_epistemic_gate]
     components:
       - backend/app/core/system_intelligence.py
       - backend/app/core/runtime/system_gate.py
+      - backend/app/core/system/self_observation.py
   - id: scientific_traceability
     status: implemented
     capabilities: [literature, proposition, assumptions, formulation, implementation, validation_status, limitations]

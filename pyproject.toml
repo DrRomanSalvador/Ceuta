@@ -105,7 +105,7 @@ exclude = ["tests", "tests.*"]
 
 [tool.pytest.ini_options]
 pythonpath = ["backend"]
-testpaths = ["tests"]
+testpaths = ["tests", "backend/tests"]
 addopts = [
     "-ra",
     "--strict-markers",
@@ -176,7 +176,3 @@ exclude_lines = [
     "if TYPE_CHECKING:",
     "raise NotImplementedError"
 ]
-
-
-[tool.setuptools.dynamic]
-# Reserved for future metadata generated from a trusted release process.

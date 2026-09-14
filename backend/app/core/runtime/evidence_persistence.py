@@ -30,8 +30,16 @@ class DecisionEvidenceStore:
         self.store.connection.commit()
 
     def record(self, evidence: DecisionEvidence) -> None:
+        existing = self.store.connection.execute(
+            "SELECT content_hash, source_id, claim_id, provenance_json, temporal_json, assessment_json, visibility "
+            "FROM decision_evidence WHERE evidence_id=?", (evidence.evidence_id,)
+        ).fetchone()
+        if existing is not None:
+            if existing[0] != evidence.content_hash:
+                raise ValueError(f"evidence identity collision with different content hash: {evidence.evidence_id}")
+            return
         self.store.connection.execute(
-            """INSERT OR REPLACE INTO decision_evidence(
+            """INSERT INTO decision_evidence(
                 evidence_id,source_id,claim_id,content_hash,provenance_json,
                 temporal_json,assessment_json,visibility
             ) VALUES(?,?,?,?,?,?,?,?)""",
@@ -51,6 +59,13 @@ class DecisionEvidenceStore:
     def exists(self, evidence_id: str) -> bool:
         row = self.store.connection.execute("SELECT 1 FROM decision_evidence WHERE evidence_id=?", (evidence_id,)).fetchone()
         return row is not None
+
+    def get(self, evidence_id: str) -> tuple[object, ...] | None:
+        row = self.store.connection.execute(
+            "SELECT evidence_id,source_id,claim_id,content_hash,provenance_json,temporal_json,assessment_json,visibility "
+            "FROM decision_evidence WHERE evidence_id=?", (evidence_id,)
+        ).fetchone()
+        return tuple(row) if row is not None else None
 
 
 __all__ = ["DecisionEvidenceStore"]

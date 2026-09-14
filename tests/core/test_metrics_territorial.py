@@ -227,13 +227,17 @@ def test_theil_zero_observation_keeps_population_weighting():
     assert territorial_theil(values) == pytest.approx(expected)
 
 
-def test_calibration_in_the_large_rejects_boundary_prevalence():
+def test_calibration_in_the_large_rejects_boundary_prevalence_and_endpoint_logits():
     with pytest.raises(MetricInputError, match="prevalencia|prevalence|0 y 1|interior"):
         calibration_in_the_large([0, 0, 0], [0.1, 0.2, 0.3])
     with pytest.raises(MetricInputError, match="prevalencia|prevalence|0 y 1|interior"):
         calibration_in_the_large([1, 1, 1], [0.1, 0.2, 0.3])
+    with pytest.raises(MetricInputError, match="probabilidades|probabilities|entre 0 y 1"):
+        calibration_in_the_large([0, 1, 1], [0.0, 0.5, 1.0])
     with pytest.raises(MetricInputError, match="prevalencia|prevalence|0 y 1|interior"):
         calibration_slope([0, 0, 0], [0.1, 0.2, 0.3])
+    with pytest.raises(MetricInputError, match="probabilidades|probabilities|entre 0 y 1"):
+        calibration_slope([0, 1, 1], [0.0, 0.5, 1.0])
 
 
 def test_ddof_one_requires_two_observations_across_metric_families():

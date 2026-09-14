@@ -12,6 +12,7 @@ from ..evidence.source_registry import ClaimEvidenceLink, SourceRecord, SourceRe
 class SQLiteDecisionStore:
     SCHEMA_VERSION=4
     def __init__(self,path:str)->None:
+        self.path = path
         self.connection=sqlite3.connect(path); self.connection.execute("PRAGMA journal_mode=WAL"); self.connection.execute("PRAGMA foreign_keys=ON"); self._migrate()
     def _migrate(self)->None:
         self.connection.execute("CREATE TABLE IF NOT EXISTS ceutia_schema_version (version INTEGER NOT NULL)"); row=self.connection.execute("SELECT version FROM ceutia_schema_version LIMIT 1").fetchone(); current=0 if row is None else int(row[0])
@@ -22,8 +23,7 @@ CREATE INDEX IF NOT EXISTS idx_decision_audit_decision ON decision_audit(decisio
 CREATE TABLE IF NOT EXISTS decision_reviews (review_id TEXT PRIMARY KEY, decision_id TEXT NOT NULL, payload_json TEXT NOT NULL, timestamp TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS decision_outcomes (decision_id TEXT NOT NULL, option_id TEXT NOT NULL, outcome_at TEXT NOT NULL, payload_json TEXT NOT NULL, PRIMARY KEY(decision_id, option_id, outcome_at));
 CREATE INDEX IF NOT EXISTS idx_decision_outcomes_decision ON decision_outcomes(decision_id, outcome_at);
-CREATE TABLE IF NOT EXISTS decision_cycles (system_id TEXT NOT NULL, as_of TEXT NOT NULL, decision_id TEXT, option_id TEXT, disposition TEXT, lineage_json TEXT NOT NULL, stages_json TEXT NOT NULL, PRIMARY KEY(system_id, as_of));
-CREATE INDEX IF NOT EXISTS idx_decision_cycles_decision ON decision_cycles(decision_id, as_of);""")
+CREATE TABLE IF NOT EXISTS decision_cycles (system_id TEXT NOT NULL, as_of TEXT NOT NULL, decision_id TEXT, option_id TEXT, disposition TEXT, lineage_json TEXT NOT NULL, stages_json TEXT NOT NULL, PRIMARY KEY(system_id, as_of));""")
             if row is None: self.connection.execute("INSERT INTO ceutia_schema_version(version) VALUES (1)")
             else: self.connection.execute("UPDATE ceutia_schema_version SET version=1")
             current=1
@@ -46,21 +46,15 @@ CREATE INDEX IF NOT EXISTS idx_citation_traces_claim ON citation_traces(claim_id
         if row is None: raise RuntimeError("schema version is missing")
         return int(row[0])
     def append(self,event:DecisionAuditEvent)->None:
-        """Append only if the caller's predecessor is still the durable tail."""
-        self.connection.commit()
-        self.connection.execute("BEGIN IMMEDIATE")
+        self.connection.commit(); self.connection.execute("BEGIN IMMEDIATE")
         try:
-            row=self.connection.execute("SELECT event_hash FROM decision_audit WHERE decision_id=? ORDER BY rowid DESC LIMIT 1",(event.decision_id,)).fetchone()
-            actual_previous="GENESIS" if row is None else str(row[0])
-            if event.previous_hash != actual_previous:
-                raise RuntimeError("decision audit chain changed concurrently; stale predecessor hash")
-            self.connection.execute("INSERT INTO decision_audit(event_id,decision_id,event_type,payload_json,previous_hash,event_hash,timestamp) VALUES(?,?,?,?,?,?,?)",(event.event_id,event.decision_id,event.event_type,json.dumps(dict(event.payload),sort_keys=True,default=str),event.previous_hash,event.event_hash,event.timestamp))
-            self.connection.commit()
+            row=self.connection.execute("SELECT event_hash FROM decision_audit WHERE decision_id=? ORDER BY rowid DESC LIMIT 1",(event.decision_id,)).fetchone(); actual_previous="GENESIS" if row is None else str(row[0])
+            if event.previous_hash != actual_previous: raise RuntimeError("decision audit chain changed concurrently; stale predecessor hash")
+            self.connection.execute("INSERT INTO decision_audit(event_id,decision_id,event_type,payload_json,previous_hash,event_hash,timestamp) VALUES(?,?,?,?,?,?,?)",(event.event_id,event.decision_id,event.event_type,json.dumps(dict(event.payload),sort_keys=True,default=str),event.previous_hash,event.event_hash,event.timestamp)); self.connection.commit()
         except Exception:
             self.connection.rollback(); raise
     def events(self,decision_id:str)->tuple[DecisionAuditEvent,...]:
-        rows=self.connection.execute("SELECT event_id,decision_id,event_type,payload_json,previous_hash,event_hash,timestamp FROM decision_audit WHERE decision_id=? ORDER BY rowid",(decision_id,)).fetchall()
-        return tuple(DecisionAuditEvent(r[0],r[1],r[2],json.loads(r[3]),r[4],r[5],r[6]) for r in rows)
+        rows=self.connection.execute("SELECT event_id,decision_id,event_type,payload_json,previous_hash,event_hash,timestamp FROM decision_audit WHERE decision_id=? ORDER BY rowid",(decision_id,)).fetchall(); return tuple(DecisionAuditEvent(r[0],r[1],r[2],json.loads(r[3]),r[4],r[5],r[6]) for r in rows)
     def record_review(self,review:HumanDecisionReview)->None:
         self.connection.execute("INSERT INTO decision_reviews(review_id,decision_id,payload_json,timestamp) VALUES(?,?,?,?)",(review.review_id,review.decision_id,json.dumps(asdict(review),sort_keys=True),review.timestamp)); self.connection.commit()
     def record_outcome(self,outcome:DecisionOutcome)->None:

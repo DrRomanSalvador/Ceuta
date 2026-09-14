@@ -40,28 +40,54 @@ This document records the state actually observed during implementation. It does
 
 - Changed `.github/workflows/security-control-plane.yml` from manual-only execution to automatic execution on `push` to `main` and `pull_request`, while retaining `workflow_dispatch`.
 - This removes the previous integration gap in which the protected control-plane regression and static-security suite did not automatically execute on ordinary repository changes.
-- The first automatic run for commit `3ac1de31d4f34794299ec2efb798aedd0c9fce0b` was triggered successfully.
-- Its protected-control-plane job completed successfully; the executable security job was still running when this state was last inspected.
+- The current automatic security run `34894445919` on commit `86ace73d059ac36ccf1238967605126b17d4ac72` completed successfully: 73 security/adversarial tests passed, 10 v1 JSON schemas were validated, 23 P0 observation/temporal tests passed, Ruff passed and Bandit passed; the protected-control integrity job also passed.
 
-## Repository observations
+## Cycle 3 — Current metrics AST inventory
 
-- `backend/app/core/metrics.py` currently exists as a coherent Python module according to the current repository contents and is import-tested by `tests/core/test_metrics_integrity.py`.
-- `docs/metrics_duplicate_inventory_skeleton.json` contains historical pending inventory entries and stale line references. It is not evidence of the current duplicate structure and must not be used to reconstruct `metrics.py` without re-demonstrating those findings against the current file.
-- `docs/CEUTIA_MASTER_IMPLEMENTATION_SPECIFICATION.md` contains historical reconstruction-state assertions. Those assertions are retained as historical governance material and must not override the current code/runtime state.
-- The README has been reconciled so that current validation evidence and workflow responsibilities no longer depend on the obsolete 2026-09-13 status wording.
-- The repository contains separate CeutIA/SERPIENTE boundary tests. Recent commits explicitly test temporal/epistemic admission of SERPIENTE predictions into CeutIA and their propagation to the final external-reality anchor.
+### Verified
+
+A reproducible inventory artifact was generated from the current `backend/app/core/metrics.py` by `CeutIA Integration Validation` run `34894445806` on commit `86ace73d059ac36ccf1238967605126b17d4ac72`.
+
+The current file contains:
+
+- 5,693 lines;
+- 296 top-level definitions;
+- 252 unique top-level symbols;
+- 44 duplicated symbols;
+- 88 duplicated definitions.
+
+The duplicate inventory is therefore no longer merely historical. It has been re-demonstrated against the current repository revision.
+
+The duplicated definitions include the foundational metric classes and functions such as `MetricDomain`, `ValidationStatus`, `MetricDefinition`, `MetricError`, `accuracy`, `mse`, `rmse`, `brier_score`, `get_metric_definition`, `assert_metric_executable`, `require_validated_metric` and `validate_registry_integrity`, with the second copies beginning in the later appended module block.
+
+The same inventory also shows that the later block contains unique territorial/system functions. Therefore the correct repair is a controlled consolidation, not blind deletion of the entire later section.
+
+### Current engineering interpretation
+
+The repository has now proved a real duplicate-definition condition in `metrics.py`. Historical duplicate claims are not being assumed; the current AST inventory demonstrates the condition directly.
+
+The current runtime remains importable and CI-tested because later definitions override earlier definitions. Importability therefore does not establish architectural integrity: duplicate definitions create definition-order dependence and can silently replace registry/control semantics.
 
 ## Current status
 
-**IMPLEMENTED — CONTINUOUS VALIDATION IN PROGRESS**
+**IMPLEMENTED — CONTINUOUS VALIDATION IN PROGRESS; METRICS CONSOLIDATION UNRESOLVED**
 
-The codebase has verified automated execution evidence for the latest fully tested integration revision. The security control-plane workflow is now continuously triggered and is being validated on the current revision.
+The latest security and integration validation suites have direct successful execution evidence. The current metrics inventory has also produced direct evidence of a remaining structural engineering defect.
 
 No claim of scientific calibration, prospective method-level validity or production operationality is made by these CI results.
 
+## Execution constraint encountered
+
+A one-off attempt was made to use GitHub Actions as an execution-capable refactoring path for the demonstrated duplicate block. The temporary workflow did not produce an executable job and the temporary workflow was removed. The validation workflow modification used for the attempt was also reverted. No unverified source rewrite was retained.
+
+The remaining metrics consolidation therefore requires an execution-capable repository mutation path that can apply the AST-derived transformation, run the complete validation suite, and persist the resulting commit. The existing GitHub connector can read and write complete files and can inspect Actions results, but it does not expose a direct workflow-dispatch or patch-level repository mutation primitive sufficient to safely perform this transformation without reconstructing the 5,693-line file.
+
+This is an execution/tooling blocker, not a scientific or architectural conclusion.
+
 ## Next executable work
 
-1. Complete and verify the current security control-plane run on the latest commit.
-2. Establish a reproducible current AST inventory of `metrics.py` and compare it against the historical duplicate inventory without assuming that historical line references remain valid.
-3. Reconcile remaining current-state documentation only where repository evidence shows contradiction.
-4. Continue through the highest-priority unresolved executable task revealed by the verification chain.
+1. Apply a controlled AST-derived consolidation of the duplicated `metrics.py` module block while preserving the unique territorial/system functions.
+2. Re-run the reproducible AST inventory and require zero duplicate top-level definitions.
+3. Run the complete pytest, runtime integrity, security control-plane and Compose validation suites against the resulting commit.
+4. Reinspect the registry/control semantics after consolidation and persist the verified state.
+5. Continue with the highest-priority executable task revealed by that verification chain.

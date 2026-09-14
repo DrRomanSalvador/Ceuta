@@ -1,17 +1,17 @@
 # CeutIA — Autonomous Task State
 
 **Updated:** 2026-09-14
-**HEAD:** `a8ce4d1db6837a313fd11d922b570fdb0850c100`
+**HEAD:** `018b8f65932ff4ea98c86c08456d85997dc7b5e1`
 
 This file is an execution-state ledger, not a completion claim. The queue must expand when discovery identifies additional scientifically justified work.
 
 ## CURRENT_TASK
 
-Class-level indicator-governance identity audit: registration identifiers must be unique independently of epoch keys so provenance cannot become ambiguous.
+Privacy-contract class correction: remove pseudo-differential-privacy release semantics from the indicator governance ledger and leave only explicit composition accounting.
 
 ## NEXT_TASK
 
-Audit `PrivacyBudgetLedger.noisy_sum`: determine whether the current caller-supplied noise interface actually provides a differential-privacy mechanism or only budget accounting, then correct the contract without overstating guarantees.
+Search the repository for other functions that label caller-supplied noise or budget accounting as differential privacy, and audit each contract for the same class of overclaim.
 
 ## BACKLOG
 
@@ -57,10 +57,11 @@ None currently identified as blocking all independent work.
 - Regression tests cover deterministic hashing domain rejection.
 - Indicator registration IDs are now unique across epochs rather than incorrectly checking the epoch-keyed registry mapping.
 - Regression coverage added for duplicate registration identity across epochs.
+- Privacy governance no longer exposes a `noisy_sum` function that accepted arbitrary caller-supplied noise and implied a DP release; the ledger now explicitly provides composition accounting only.
 
 ## VALIDATION_STATE
 
-The current HEAD `a8ce4d1db6837a313fd11d922b570fdb0850c100` has no associated workflow run reported yet. Do not treat earlier green runs as validation of this or later changes.
+The current HEAD `018b8f65932ff4ea98c86c08456d85997dc7b5e1` has no associated workflow run reported yet. Do not treat earlier green runs as validation of this or later changes.
 
 ## STOP CONDITION
 

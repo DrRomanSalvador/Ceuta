@@ -9,8 +9,9 @@ from app.core.metrics import (
     TERRITORIAL_SYSTEMIC_METRICS,
     assert_output_permitted,
     assert_metric_executable,
-    get_metric_definition,
+    autocorrelation,
     calibration_in_the_large,
+    get_metric_definition,
     territorial_bottleneck_migration,
     territorial_bottleneck_ratio,
     territorial_capacity_reserve,
@@ -24,8 +25,11 @@ from app.core.metrics import (
     territorial_spatial_propagation,
     territorial_cascade_depth,
     territorial_theil,
+    territorial_variance,
     validate_registry_integrity,
     validate_probability_output,
+    variance,
+    z_score,
 )
 
 
@@ -152,6 +156,17 @@ def test_calibration_in_the_large_rejects_boundary_prevalence():
         calibration_in_the_large([0, 0, 0], [0.1, 0.2, 0.3])
     with pytest.raises(MetricInputError, match="prevalencia|prevalence|0 y 1|interior"):
         calibration_in_the_large([1, 1, 1], [0.1, 0.2, 0.3])
+
+
+def test_ddof_one_requires_two_observations_across_metric_families():
+    with pytest.raises(MetricInputError):
+        variance([1.0])
+    with pytest.raises(MetricInputError):
+        z_score(1.0, [1.0])
+    with pytest.raises(MetricInputError):
+        autocorrelation([1.0, 2.0, 3.0], lag=2)
+    with pytest.raises(MetricInputError):
+        territorial_variance([1.0])
 
 
 def test_registry_controls_unvalidated_strategic_probability():

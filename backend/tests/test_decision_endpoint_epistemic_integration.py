@@ -4,6 +4,8 @@ import app.main as main_module
 from app.main import DecisionRequest, RuntimeConfig, _final_epistemic_assessment, app
 from app.core.decision.control_plane import EvidenceAssessment, EvidenceDisposition
 from app.core.decision.information_boundary import InformationVisibility
+from app.core.decision.persistence import SQLiteDecisionStore
+from app.core.evidence.source_registry import SourceRecord, SourceRole, SourceVerification
 from app.core.final_epistemic_control import EpistemicIntegrityStatus, SystemValidity
 from app.core.runtime.decision_lifecycle import BitemporalRef, DecisionEvidence
 
@@ -15,7 +17,7 @@ def evidence_from_request(request: DecisionRequest) -> list[DecisionEvidence]:
     return [DecisionEvidence(item.evidence_id,item.source_id,item.claim_id,item.content_hash,tuple(item.provenance_refs),temporal,assessment,item.visibility)]
 
 def test_final_controller_is_on_the_decision_input_path():
-    assessment=_final_epistemic_assessment(payload(),evidence_from_request(payload())); assert assessment.validity is SystemValidity.SUPPORTED; assert assessment.composition is EpistemicIntegrityStatus.PRESERVED
+    request=payload(); assessment=_final_epistemic_assessment(request,evidence_from_request(request)); assert assessment.validity is SystemValidity.SUPPORTED; assert assessment.composition is EpistemicIntegrityStatus.PRESERVED
 
 def test_missing_independent_evidence_suspends_decision_eligibility():
     request=payload(independent=False); assessment=_final_epistemic_assessment(request,evidence_from_request(request)); assert assessment.validity is SystemValidity.DOUBT
@@ -24,7 +26,8 @@ def test_missing_transformation_contract_cannot_pass_final_composition():
     request=payload(transformations=[]).model_copy(update={"transformation_refs":[]}); assessment=_final_epistemic_assessment(request,evidence_from_request(request)); assert assessment.composition is EpistemicIntegrityStatus.UNKNOWN
 
 def _configure_runtime(monkeypatch,tmp_path):
-    monkeypatch.setattr(main_module,"RUNTIME_CONFIG",RuntimeConfig(host="127.0.0.1",port=8000,code_revision="test-revision",decision_db=str(tmp_path/"decision.sqlite3"))); monkeypatch.setenv("CEUTIA_DECISION_API_KEY","test-key")
+    db_path=tmp_path/"decision.sqlite3"; monkeypatch.setattr(main_module,"RUNTIME_CONFIG",RuntimeConfig(host="127.0.0.1",port=8000,code_revision="test-revision",decision_db=str(db_path))); monkeypatch.setenv("CEUTIA_DECISION_API_KEY","test-key")
+    store=SQLiteDecisionStore(str(db_path)); store.record_source(SourceRecord(source_id="s1",title="Verified test source",source_class="test",url="https://example.org/source",publisher="Test Publisher",published_at=None,accessed_at="2026-09-14T00:00:00+00:00",verification=SourceVerification.INSTITUTIONALLY_VERIFIED,role=SourceRole.EVIDENCE)); store.close()
 
 def test_real_decision_endpoint_abstains_before_recommendation_on_epistemic_doubt(tmp_path,monkeypatch):
     _configure_runtime(monkeypatch,tmp_path); response=TestClient(app).post("/decision/evaluate",headers={"X-CeutIA-Decision-Key":"test-key"},json=payload(independent=False).model_dump(mode="json")); assert response.status_code==409; body=response.json(); assert body["disposition"]=="abstain"; assert body["epistemic_validity"]==SystemValidity.DOUBT.value; assert "recommendation" not in body
@@ -34,3 +37,6 @@ def test_decision_endpoint_rejects_missing_credentials(tmp_path,monkeypatch):
 
 def test_decision_endpoint_rejects_invalid_credentials(tmp_path,monkeypatch):
     _configure_runtime(monkeypatch,tmp_path); response=TestClient(app).post("/decision/evaluate",headers={"X-CeutIA-Decision-Key":"wrong"},json=payload().model_dump(mode="json")); assert response.status_code==401
+
+def test_decision_endpoint_rejects_unregistered_source(tmp_path,monkeypatch):
+    monkeypatch.setattr(main_module,"RUNTIME_CONFIG",RuntimeConfig(host="127.0.0.1",port=8000,code_revision="test-revision",decision_db=str(tmp_path/"decision.sqlite3"))); monkeypatch.setenv("CEUTIA_DECISION_API_KEY","test-key"); response=TestClient(app).post("/decision/evaluate",headers={"X-CeutIA-Decision-Key":"test-key"},json=payload().model_dump(mode="json")); assert response.status_code==500 or response.status_code==409

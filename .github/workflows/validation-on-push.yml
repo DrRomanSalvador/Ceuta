@@ -1,0 +1,36 @@
+name: CeutIA Integration Validation
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ceutia-validation-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install project and test dependencies
+        run: python -m pip install --upgrade pip && python -m pip install '.[dev]'
+      - name: Compile Python sources
+        run: python -m compileall -q backend api ceuta-final
+      - name: Run full test suite
+        run: python -m pytest
+      - name: Run new runtime integrity tests
+        run: python -m pytest backend/tests/test_runtime_integrity.py -q
+      - name: Static analysis of changed runtime modules
+        run: python -m ruff check backend/app/main.py backend/app/core/runtime/decision_lifecycle.py backend/app/core/runtime/evidence_persistence.py backend/app/core/runtime/integrity.py backend/app/core/runtime/source_configuration.py
+      - name: Validate Compose configuration
+        run: docker compose config -q

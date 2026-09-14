@@ -1,11 +1,13 @@
 from datetime import datetime, timezone
 
-from app.main import DecisionRequest, _final_epistemic_assessment
-from app.core.decision.control_plane import EvidenceDisposition
+from fastapi.testclient import TestClient
+
+import app.main as main_module
+from app.main import DecisionRequest, RuntimeConfig, _final_epistemic_assessment, app
+from app.core.decision.control_plane import EvidenceAssessment, EvidenceDisposition
+from app.core.decision.information_boundary import InformationVisibility
 from app.core.final_epistemic_control import EpistemicIntegrityStatus, SystemValidity
 from app.core.runtime.decision_lifecycle import BitemporalRef, DecisionEvidence
-from app.core.decision.control_plane import EvidenceAssessment
-from app.core.decision.information_boundary import InformationVisibility
 
 
 def payload(*, independent: bool = True, transformations: list[str] | None = None) -> DecisionRequest:
@@ -75,3 +77,18 @@ def test_missing_transformation_contract_cannot_pass_final_composition():
     request = request.model_copy(update={"transformation_refs": []})
     assessment = _final_epistemic_assessment(request, evidence_from_request(request))
     assert assessment.composition is EpistemicIntegrityStatus.UNKNOWN
+
+
+def test_real_decision_endpoint_abstains_before_recommendation_on_epistemic_doubt(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        main_module,
+        "RUNTIME_CONFIG",
+        RuntimeConfig(host="127.0.0.1", port=8000, code_revision="test-revision", decision_db=str(tmp_path / "decision.sqlite3")),
+    )
+    request = payload(independent=False)
+    response = TestClient(app).post("/decision/evaluate", json=request.model_dump(mode="json"))
+    assert response.status_code == 409
+    body = response.json()
+    assert body["disposition"] == "abstain"
+    assert body["epistemic_validity"] == SystemValidity.DOUBT.value
+    assert "recommendation" not in body

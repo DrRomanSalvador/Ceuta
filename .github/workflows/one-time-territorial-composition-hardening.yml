@@ -1,0 +1,41 @@
+name: One-time territorial composition hardening
+
+on:
+  push:
+    paths:
+      - '.github/workflows/one-time-territorial-composition-hardening.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply territorial composition corrections
+        shell: python
+        run: |
+          from pathlib import Path
+          path = Path("backend/app/core/metrics.py")
+          text = path.read_text(encoding="utf-8")
+          replacements = {
+              '''def territorial_pressure_breadth_fraction(\n    pressures: Sequence[Sequence[float]] | np.ndarray,\n    *,\n    threshold: float = 1.0,\n) -> np.ndarray:\n    """B_i / K."""\n    z = territorial_multi_pressure_zscores(pressures)\n\n    return territorial_pressure_breadth(\n        z,\n        threshold=threshold,\n    ) / z.shape[1]''': '''def territorial_pressure_breadth_fraction(\n    pressures: Sequence[Sequence[float]] | np.ndarray,\n    *,\n    threshold: float = 1.0,\n) -> np.ndarray:\n    """Fracción de dimensiones cuyo z-score territorial supera el umbral."""\n    if threshold < 0.0:\n        raise MetricInputError("threshold debe ser no negativo")\n    z = territorial_multi_pressure_zscores(pressures)\n    return np.mean(z >= threshold, axis=1)''',
+              '''def territorial_pressure_dependence(\n    pressures: Sequence[Sequence[float]] | np.ndarray,\n) -> float:\n    """\n    Dependencia media absoluta entre dimensiones:\n\n        D = mean(|r_jk|)\n    """\n    matrix = territorial_multi_pressure_matrix(pressures)\n\n    if matrix.shape[1] < 2:\n        return 0.0\n\n    correlation = np.corrcoef(matrix, rowvar=False)\n    upper = correlation[np.triu_indices(correlation.shape[0], k=1)]\n\n    return float(np.mean(np.abs(upper)))''': '''def territorial_pressure_dependence(\n    pressures: Sequence[Sequence[float]] | np.ndarray,\n) -> float:\n    """Dependencia media absoluta entre dimensiones no constantes."""\n    matrix = territorial_multi_pressure_matrix(pressures)\n\n    if matrix.shape[0] < 2:\n        raise MetricInputError("Se requieren al menos dos observaciones territoriales")\n    if matrix.shape[1] < 2:\n        return 0.0\n    if np.any(np.std(matrix, axis=0, ddof=1) == 0.0):\n        raise MetricInputError("La dependencia por correlación no está definida para una dimensión constante")\n\n    correlation = np.corrcoef(matrix, rowvar=False)\n    upper = correlation[np.triu_indices(correlation.shape[0], k=1)]\n    if not np.all(np.isfinite(upper)):\n        raise MetricInputError("La dependencia territorial contiene valores no finitos")\n\n    return float(np.mean(np.abs(upper)))''',
+              '''def territorial_reserve_depletion(\n    reserve_before: Sequence[float] | np.ndarray,\n    reserve_after: Sequence[float] | np.ndarray,\n) -> np.ndarray:\n    """\n    Depleción:\n\n        ΔR_i = R_i(before) - R_i(after)\n    """\n    before = _validate_territorial_vector(\n        reserve_before,\n        name="reserve_before",\n        nonnegative=True,\n    )\n    after = _validate_territorial_vector(\n        reserve_after,\n        name="reserve_after",\n        nonnegative=True,\n    )''': '''def territorial_reserve_depletion(\n    reserve_before: Sequence[float] | np.ndarray,\n    reserve_after: Sequence[float] | np.ndarray,\n) -> np.ndarray:\n    """\n    Depleción:\n\n        ΔR_i = R_i(before) - R_i(after)\n\n    La reserva puede ser negativa cuando existe deuda de capacidad.\n    """\n    before = _validate_territorial_vector(\n        reserve_before,\n        name="reserve_before",\n    )\n    after = _validate_territorial_vector(\n        reserve_after,\n        name="reserve_after",\n    )''',
+          }
+          for old, new in replacements.items():
+              if old not in text:
+                  raise SystemExit(f"Expected source fragment not found: {old[:120]!r}")
+              text = text.replace(old, new, 1)
+          path.write_text(text, encoding="utf-8")
+      - name: Commit correction and remove workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f backend/app/core/metrics.py
+          git rm .github/workflows/one-time-territorial-composition-hardening.yml
+          git commit -m "fix: preserve territorial metric composition semantics"
+          git push

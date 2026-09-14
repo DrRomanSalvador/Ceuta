@@ -158,3 +158,31 @@ def test_controller_enters_global_doubt():
         reality_anchor=doubtful, transformations=(), self_model=self_model()
     )
     assert assessment.validity is SystemValidity.DOUBT
+
+
+def test_intervention_cannot_be_marked_counterfactual_not_applicable():
+    import pytest
+    with pytest.raises(ValueError, match="explicit counterfactual status"):
+        ClosedLoopEvaluation(
+            decision_id="d1", intervention_id="i1", observed_outcome=1.0,
+            expected_outcome=None, counterfactual_status=CounterfactualStatus.NOT_APPLICABLE,
+            policy_induced_change=False, observation_process_changed=False,
+            target_distribution_changed=False, prediction_quality_status="unknown",
+            causal_effect_status="unknown", decision_quality_status="unknown",
+        )
+
+
+def test_self_model_requires_explicit_assumptions_and_limitations():
+    import pytest
+    with pytest.raises(ValueError, match="assumptions and limitations"):
+        EpistemicSelfModel(
+            version="sm-1", assumptions=(), limitations=(), identification_limits=(),
+            ontology_status=OntologyStatus.NORMAL, ontology_version="o1",
+            unexplained_signals=(), global_validity=SystemValidity.SUPPORTED,
+        )
+
+
+def test_prospectively_validated_result_requires_valid_deployment():
+    import pytest
+    with pytest.raises(ValueError, match="valid deployment"):
+        ProspectiveEvaluationResult("p1", 0.2, False, "prospectively_validated")

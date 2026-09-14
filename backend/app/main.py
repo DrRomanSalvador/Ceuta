@@ -20,7 +20,7 @@ from app.core.decision.information_boundary import InformationVisibility
 from app.core.decision.persistence import SQLiteDecisionStore
 from app.core.decision.review_policy import DecisionRisk
 from app.core.runtime.decision_lifecycle import BitemporalRef, DecisionEvidence, DecisionLifecycleEngine
-from app.core.runtime.model_governance import ModelGovernanceRecord
+from app.core.runtime.evidence_persistence import DecisionEvidenceStore
 
 APP_NAME = "CeutIA"
 APP_VERSION = "0.1.0"
@@ -212,6 +212,9 @@ async def evaluate_decision(payload: DecisionRequest) -> dict[str, object]:
                 disposition=item.disposition,
             )
             evidence.append(DecisionEvidence(item.evidence_id, item.source_id, item.claim_id, item.content_hash, tuple(item.provenance_refs), temporal, assessment, item.visibility))
+        evidence_store = DecisionEvidenceStore(store)
+        for item in evidence:
+            evidence_store.record(item)
         options = tuple(
             DecisionOption(
                 item.option_id,

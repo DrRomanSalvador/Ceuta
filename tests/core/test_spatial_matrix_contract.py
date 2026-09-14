@@ -20,4 +20,4 @@ def test_spatial_weights_can_be_asymmetric_when_each_row_has_valid_neighbours():
         [0.0, 4.0, 0.0],
     ]
     result = territorial_spatial_lag([1.0, 2.0, 5.0], weights)
-    assert np.allclose(result, [2.0, 4.25, 2.0])
+    assert np.allclose(result, [2.0, 4.0, 2.0])

@@ -56,6 +56,20 @@ def test_settlement_cannot_precede_outcome_due_time() -> None:
         mechanism.settle("r1", outcome=1, verified_at=BASE, verifier_id="verifier-1")
 
 
+def test_log_score_rejects_probability_endpoints() -> None:
+    with pytest.raises(ValueError, match="strictly between"):
+        make_report(probability=0.0)
+    with pytest.raises(ValueError, match="strictly between"):
+        ProperScoringMechanism.expected_log_loss(1.0, 0.7)
+
+
+def test_log_score_rejects_endpoint_candidates() -> None:
+    with pytest.raises(ValueError, match="strictly between"):
+        ProperScoringMechanism.verify_strict_propriety(
+            belief=0.7, candidate_reports=(0.0, 0.7, 0.8)
+        )
+
+
 def test_log_score_is_strictly_proper_on_grid() -> None:
     candidates = tuple(i / 10 for i in range(1, 10))
     assert ProperScoringMechanism.verify_strict_propriety(belief=0.7, candidate_reports=candidates)

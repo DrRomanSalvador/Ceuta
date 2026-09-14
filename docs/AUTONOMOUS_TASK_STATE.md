@@ -1,17 +1,17 @@
 # CeutIA — Autonomous Task State
 
 **Updated:** 2026-09-14
-**HEAD:** `9eb3c618c9a16a6dec478502e447dbeb6fc0a597`
+**HEAD:** `24eb4b20ad2100566a80e61c137f204c550cdfa4`
 
 This file is an execution-state ledger, not a completion claim. The queue must expand when discovery identifies additional scientifically justified work.
 
 ## CURRENT_TASK
 
-Temporal integration verification: validate the canonical P0 multitemporal contract and identify the first remaining ingestion/state-construction boundary where revision-aware point-in-time snapshots are not enforced.
+Mathematical class-level scan: continue equivalent-domain review after network-density hardening, prioritising silent invalid outputs and denominator/domain contracts.
 
 ## NEXT_TASK
 
-Inspect the canonical P0 evidence/source contract and its consumers for stable `evidence_id`, revision semantics and availability filtering before downstream state construction.
+Audit the next high-propagation mathematical primitive for invalid-domain acceptance and add a focused regression family before changing implementation.
 
 ## BACKLOG
 
@@ -24,7 +24,7 @@ Inspect the canonical P0 evidence/source contract and its consumers for stable `
 - Audit NaN/Inf propagation across numerical outputs and aggregation boundaries.
 - Audit cascade/propagation semantics and distinguish observation from causal inference.
 - Re-run global security, integration and regression searches after each material mathematical change.
-- Synchronize `docs/ENGINEERING_EXECUTION_STATUS.md` with the verified repository state.
+- Synchronize `docs/ENGINEERING_EXECUTION_STATUS.md` with verified repository evidence.
 
 ## BLOCKED_TASKS
 
@@ -41,8 +41,14 @@ None currently identified as blocking all independent work.
 - Additional class-level fixes: bottleneck ties, pressure breadth double-standardization, negative capacity reserve, dependency/sensitivity matrix validation, entropy/temporal minimum-size guards.
 - Geometric weighted index zero semantics: positive-weight zero values now produce the mathematically correct zero rather than an epsilon-biased positive value.
 - Spatial matrix contract: nonzero diagonal weights are rejected rather than silently rewritten; asymmetric valid row-normalized weights are covered by regression tests.
-- Canonical P0 multitemporal hardening: effective validity intervals and revision-aware point-in-time snapshots added without replacing the existing `revision_time → publication_time → ingestion_time` availability semantics.
-- Temporary parallel point-in-time module/test surface removed after integration review; temporal work was consolidated into the canonical P0 multitemporal layer.
+- Canonical P0 multitemporal hardening: effective validity intervals and revision-aware point-in-time snapshots added without replacing existing `revision_time → publication_time → ingestion_time` availability semantics.
+- General normalized entropy now rejects the mathematically undefined singleton case.
+- Territorial pressure concentration no longer uses an arbitrary epsilon to fabricate a nonzero distribution; a uniform profile returns the exact uniform HHI.
+- Network density now requires integer graph counts and rejects edge counts above the maximum simple-graph bound.
+
+## VALIDATION_STATE
+
+Recent security control-plane validation completed successfully before the latest network-density commit. Integration validation for the latest commit is running/queued and must be rechecked before treating the latest change as CI-verified.
 
 ## STOP CONDITION
 

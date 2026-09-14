@@ -906,11 +906,17 @@ def recovery_ratio(pre_event_capacity: float, post_event_capacity: float) -> flo
 
 
 def network_density(node_count: int, edge_count: int, *, directed: bool = False) -> float:
+    if isinstance(node_count, bool) or not isinstance(node_count, int):
+        raise MetricInputError("node_count debe ser un entero")
+    if isinstance(edge_count, bool) or not isinstance(edge_count, int):
+        raise MetricInputError("edge_count debe ser un entero")
     if node_count < 0 or edge_count < 0:
         raise MetricInputError("Los tamaños de red no pueden ser negativos")
     if node_count < 2:
         raise MetricInputError("Se requieren al menos dos nodos")
-    max_edges = node_count * (node_count - 1) if directed else node_count * (node_count - 1) / 2
+    max_edges = node_count * (node_count - 1) if directed else node_count * (node_count - 1) // 2
+    if edge_count > max_edges:
+        raise MetricInputError("edge_count no puede superar el máximo de un grafo simple")
     return float(edge_count / max_edges)
 
 

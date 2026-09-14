@@ -30,7 +30,7 @@ def _configure_runtime(monkeypatch,tmp_path):
     store=SQLiteDecisionStore(str(db_path)); store.record_source(SourceRecord(source_id="s1",title="Verified test source",source_class="test",url="https://example.org/source",publisher="Test Publisher",published_at=None,accessed_at="2026-09-14T00:00:00+00:00",verification=SourceVerification.INSTITUTIONALLY_VERIFIED,role=SourceRole.EVIDENCE)); store.close()
 
 def test_real_decision_endpoint_abstains_before_recommendation_on_epistemic_doubt(tmp_path,monkeypatch):
-    _configure_runtime(monkeypatch,tmp_path); response=TestClient(app).post("/decision/evaluate",headers={"X-CeutIA-Decision-Key":"test-key"},json=payload(independent=False).model_dump(mode="json")); assert response.status_code==409; body=response.json(); assert body["disposition"]=="abstain"; assert body["epistemic_validity"]==SystemValidity.DOUBT.value; assert "recommendation" not in body
+    _configure_runtime(monkeypatch,tmp_path); response=TestClient(app).post("/decision/evaluate",headers={"X-CeutIA-Decision-Key":"test-key"},json=payload(independent=False).model_dump(mode="json")); assert response.status_code==409; body=response.json(); assert body["disposition"]=="abstain"; assert body["epistemic_validity"]==SystemValidity.DOUBT.value; assert "recommendation" not in body; assert body["audit_event_id"]
 
 def test_decision_endpoint_rejects_missing_credentials(tmp_path,monkeypatch):
     monkeypatch.setattr(main_module,"RUNTIME_CONFIG",RuntimeConfig(host="127.0.0.1",port=8000,code_revision="test-revision",decision_db=str(tmp_path/"decision.sqlite3"))); monkeypatch.delenv("CEUTIA_DECISION_API_KEY",raising=False); response=TestClient(app).post("/decision/evaluate",json=payload().model_dump(mode="json")); assert response.status_code==503

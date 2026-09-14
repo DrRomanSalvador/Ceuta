@@ -1,0 +1,53 @@
+name: One-time metrics edge hardening
+
+on:
+  push:
+    paths:
+      - '.github/workflows/one-time-metrics-edge-hardening.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply remaining mathematical boundary corrections
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path("backend/app/core/metrics.py")
+          text = path.read_text(encoding="utf-8")
+          original = text
+
+          replacements = {
+              '''def territorial_normalized_entropy(\n    values: Sequence[float] | np.ndarray,\n) -> float:\n    """\n    Entropía territorial normalizada:\n\n        H_norm = H / log(n)\n    """\n    arr = _validate_territorial_vector(values, name="values", nonnegative=True)\n\n    if arr.size < 2:\n        return 1.0''': '''def territorial_normalized_entropy(\n    values: Sequence[float] | np.ndarray,\n) -> float:\n    """\n    Entropía territorial normalizada:\n\n        H_norm = H / log(n)\n\n    No está definida para una única unidad porque log(1)=0.\n    """\n    arr = _validate_territorial_vector(values, name="values", nonnegative=True)\n\n    if arr.size < 2:\n        raise MetricInputError("La entropía territorial normalizada requiere al menos dos unidades")''',
+              '''def territorial_pressure_dependence(\n    values: Sequence[Sequence[float]] | np.ndarray,\n) -> np.ndarray:\n    """Dependencia entre presiones territoriales basada en correlación."""\n    matrix = territorial_multi_pressure_matrix(values)\n    return np.corrcoef(matrix, rowvar=False)''': '''def territorial_pressure_dependence(\n    values: Sequence[Sequence[float]] | np.ndarray,\n) -> np.ndarray:\n    """Dependencia entre presiones territoriales basada en correlación."""\n    matrix = territorial_multi_pressure_matrix(values)\n    if matrix.shape[0] < 2:\n        raise MetricInputError("Se requieren al menos dos observaciones territoriales")\n    if matrix.shape[1] < 2:\n        raise MetricInputError("Se requieren al menos dos presiones para una matriz de dependencia")\n    if np.any(np.std(matrix, axis=0, ddof=1) == 0.0):\n        raise MetricInputError("La dependencia por correlación no está definida para una presión constante")\n    result = np.corrcoef(matrix, rowvar=False)\n    if not np.all(np.isfinite(result)):\n        raise MetricInputError("La matriz de dependencia contiene valores no finitos")\n    return result''',
+              '''def territorial_dependency_matrix(\n    values: Sequence[Sequence[float]] | np.ndarray,\n) -> np.ndarray:\n    """Matriz de dependencia/correlación entre dimensiones territoriales."""\n    matrix = territorial_multi_pressure_matrix(values)\n    return np.corrcoef(matrix, rowvar=False)''': '''def territorial_dependency_matrix(\n    values: Sequence[Sequence[float]] | np.ndarray,\n) -> np.ndarray:\n    """Matriz de dependencia/correlación entre dimensiones territoriales."""\n    matrix = territorial_multi_pressure_matrix(values)\n    if matrix.shape[0] < 2:\n        raise MetricInputError("Se requieren al menos dos observaciones territoriales")\n    if matrix.shape[1] < 2:\n        raise MetricInputError("Se requieren al menos dos dimensiones")\n    if np.any(np.std(matrix, axis=0, ddof=1) == 0.0):\n        raise MetricInputError("La dependencia por correlación no está definida para una dimensión constante")\n    result = np.corrcoef(matrix, rowvar=False)\n    if not np.all(np.isfinite(result)):\n        raise MetricInputError("La matriz de dependencia contiene valores no finitos")\n    return result''',
+              '''    active = layers > threshold\n    if not np.all(~active | np.roll(active, 1, axis=0)):\n        # This condition is intentionally not used as a causal inference rule;\n        # it only rejects malformed layer encodings below.\n        pass\n    return int(np.max(np.flatnonzero(np.any(active, axis=1)) + 1)) if np.any(active) else 0''': '''    active = layers > threshold\n    if np.any(active[:-1] & ~active[1:]):\n        raise MetricInputError("propagation_layers debe representar capas acumulativas sin desaparición de activaciones")\n    return int(np.count_nonzero(np.any(active, axis=1)))''',
+              '''def calibration_slope(\n    y_true: Sequence[int] | np.ndarray,\n    probabilities: Sequence[float] | np.ndarray,\n) -> float:\n    truth = _validate_binary(y_true, name="y_true")\n    p = _validate_probabilities(probabilities)\n    _validate_same_length(truth, p)''': '''def calibration_slope(\n    y_true: Sequence[int] | np.ndarray,\n    probabilities: Sequence[float] | np.ndarray,\n) -> float:\n    truth = _validate_binary(y_true, name="y_true")\n    p = _validate_probabilities(probabilities)\n    _validate_same_length(truth, p)\n    prevalence = float(np.mean(truth))\n    if not 0.0 < prevalence < 1.0:\n        raise MetricInputError("calibration slope no está definida cuando la prevalencia observada es 0 o 1")''',
+              '''def territorial_spatiotemporal_variability(\n    values_by_time: Sequence[Sequence[float]] | np.ndarray,\n) -> np.ndarray:\n    """Variabilidad temporal por unidad territorial."""\n    matrix = np.asarray(values_by_time, dtype=float)\n\n    if matrix.ndim != 2:\n        raise MetricInputError("values_by_time debe ser una matriz 2D")\n\n    return np.std(matrix, axis=0, ddof=1)''': '''def territorial_spatiotemporal_variability(\n    values_by_time: Sequence[Sequence[float]] | np.ndarray,\n) -> np.ndarray:\n    """Variabilidad temporal por unidad territorial."""\n    matrix = np.asarray(values_by_time, dtype=float)\n\n    if matrix.ndim != 2:\n        raise MetricInputError("values_by_time debe ser una matriz 2D")\n    if matrix.shape[0] < 2:\n        raise MetricInputError("Se requieren al menos dos periodos para una desviación estándar muestral")\n    if not np.all(np.isfinite(matrix)):\n        raise MetricInputError("values_by_time contiene valores no finitos")\n\n    return np.std(matrix, axis=0, ddof=1)''',
+          }
+
+          for old, new in replacements.items():
+              if old not in text:
+                  raise SystemExit(f"Expected source fragment not found: {old[:120]!r}")
+              text = text.replace(old, new, 1)
+
+          path.write_text(text, encoding="utf-8")
+          if text == original:
+              raise SystemExit("No edge correction was applied")
+
+      - name: Commit corrections and remove one-time workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f backend/app/core/metrics.py
+          git rm .github/workflows/one-time-metrics-edge-hardening.yml
+          git commit -m "fix: close remaining metric boundary conditions"
+          git push

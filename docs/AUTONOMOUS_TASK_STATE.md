@@ -1,17 +1,17 @@
 # CeutIA — Autonomous Task State
 
 **Updated:** 2026-09-14
-**HEAD:** `492c59c309f6730c53f8ee47262ed4d8373ba873`
+**HEAD:** `a8ce4d1db6837a313fd11d922b570fdb0850c100`
 
 This file is an execution-state ledger, not a completion claim. The queue must expand when discovery identifies additional scientifically justified work.
 
 ## CURRENT_TASK
 
-Class-level reproducibility audit: ensure preregistered model specifications have a strict, deterministic serialization domain before hashing.
+Class-level indicator-governance identity audit: registration identifiers must be unique independently of epoch keys so provenance cannot become ambiguous.
 
 ## NEXT_TASK
 
-Audit persisted forecast settlement state for temporal/provenance integrity: report identity, submission/deadline/outcome clocks, verification identity, and replay consistency after restart.
+Audit `PrivacyBudgetLedger.noisy_sum`: determine whether the current caller-supplied noise interface actually provides a differential-privacy mechanism or only budget accounting, then correct the contract without overstating guarantees.
 
 ## BACKLOG
 
@@ -55,10 +55,12 @@ None currently identified as blocking all independent work.
 - Regression tests cover endpoint rejection for reports, expected log loss, and strict-propriety candidate grids.
 - Preregistration specification hashes now accept only strict JSON and reject non-finite values/non-JSON structures instead of hashing unstable `str()` representations.
 - Regression tests cover deterministic hashing domain rejection.
+- Indicator registration IDs are now unique across epochs rather than incorrectly checking the epoch-keyed registry mapping.
+- Regression coverage added for duplicate registration identity across epochs.
 
 ## VALIDATION_STATE
 
-The current HEAD `492c59c309f6730c53f8ee47262ed4d8373ba873` has no associated workflow run reported yet. Do not treat earlier green runs as validation of this or later changes.
+The current HEAD `a8ce4d1db6837a313fd11d922b570fdb0850c100` has no associated workflow run reported yet. Do not treat earlier green runs as validation of this or later changes.
 
 ## STOP CONDITION
 

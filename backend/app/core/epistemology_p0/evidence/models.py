@@ -151,6 +151,8 @@ class Evidence:
     is_immutable: bool = True
     parent_version_id: Optional[str] = None
     unavailable_fields: Dict[str, str] = field(default_factory=dict)
+    valid_from: Optional[datetime] = None
+    valid_to: Optional[datetime] = None
 
     def __post_init__(self) -> None:
         if not self.semantic_definition or not self.semantic_definition.strip():
@@ -168,6 +170,19 @@ class Evidence:
             value = getattr(self, name)
             if value is not None and value.tzinfo is None:
                 raise ValueError(f"{name} debe ser timezone-aware")
+        for name in ("valid_from", "valid_to"):
+            value = getattr(self, name)
+            if value is not None and value.tzinfo is None:
+                raise ValueError(f"{name} debe ser timezone-aware")
+        if self.valid_from is not None and self.valid_to is not None and self.valid_from >= self.valid_to:
+            raise ValueError("valid_from debe ser anterior a valid_to")
+
+    def is_valid_at(self, simulation_time: datetime) -> bool:
+        if self.valid_from is not None and simulation_time < self.valid_from:
+            return False
+        if self.valid_to is not None and simulation_time >= self.valid_to:
+            return False
+        return True
 
     @property
     def available_at(self) -> datetime:

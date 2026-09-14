@@ -1,8 +1,9 @@
 """Validation primitives for predictive reliability and missing-data handling.
 
 Calibration is reported separately from discrimination. Calibration-in-the-large
-and calibration slope are estimated on the logit scale; a small deterministic
-ridge term prevents numerical singularity under finite samples or separation.
+and calibration slope are estimated on the logit scale. A small deterministic
+ridge term regularizes only the slope, preserving an unbiased calibration
+intercept while preventing numerical singularity under finite samples.
 """
 from __future__ import annotations
 
@@ -43,14 +44,14 @@ def _sigmoid(value: float) -> float:
 
 
 def _fit_logistic_calibration(logits: Sequence[float], outcomes: Sequence[int]) -> tuple[float, float]:
-    """Newton solve with deterministic ridge regularization for stable estimation."""
+    """Newton solve with slope-only ridge regularization for numerical stability."""
     intercept = 0.0
     slope = 1.0
     ridge = 1e-8
     for _ in range(100):
-        g0 = -ridge * intercept
+        g0 = 0.0
         g1 = -ridge * slope
-        h00 = -ridge
+        h00 = 0.0
         h01 = 0.0
         h11 = -ridge
         for x, y in zip(logits, outcomes):

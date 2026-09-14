@@ -11,6 +11,7 @@ from app.core.metrics import (
     assert_metric_executable,
     autocorrelation,
     calibration_in_the_large,
+    calibration_slope,
     get_metric_definition,
     territorial_bottleneck_migration,
     territorial_bottleneck_ratio,
@@ -18,12 +19,14 @@ from app.core.metrics import (
     territorial_demand_per_capacity,
     territorial_gearys_c,
     territorial_morans_i,
+    territorial_normalized_entropy,
     territorial_observation_coverage,
     territorial_signal_to_noise,
     territorial_share,
     territorial_spatial_lag,
     territorial_spatial_propagation,
     territorial_cascade_depth,
+    territorial_spatiotemporal_variability,
     territorial_theil,
     territorial_variance,
     validate_registry_integrity,
@@ -143,12 +146,27 @@ def test_cascade_depth_accepts_explicit_observed_layers():
         [1.0, 1.0, 0.0],
         [1.0, 1.0, 1.0],
     ]
-    assert territorial_cascade_depth([0, 0, 0], [1, 1, 1], propagation_layers=layers) == 4
+    assert territorial_cascade_depth([0, 0, 0], [1, 1, 1], propagation_layers=layers) == 3
+    with pytest.raises(MetricInputError):
+        territorial_cascade_depth(
+            [0, 0, 0], [1, 1, 1],
+            propagation_layers=[[1, 0, 0], [0, 1, 0]],
+        )
 
 
 def test_cascade_depth_does_not_claim_causality():
     assert territorial_cascade_depth([0.0, 1.0], [1.0, 1.0]) == 1
     assert territorial_cascade_depth([1.0, 1.0], [1.0, 1.0]) == 0
+
+
+def test_normalized_entropy_rejects_single_unit():
+    with pytest.raises(MetricInputError):
+        territorial_normalized_entropy([1.0])
+
+
+def test_spatiotemporal_variability_rejects_single_period():
+    with pytest.raises(MetricInputError):
+        territorial_spatiotemporal_variability([[1.0, 2.0]])
 
 
 def test_observation_coverage_is_bounded():
@@ -176,6 +194,8 @@ def test_calibration_in_the_large_rejects_boundary_prevalence():
         calibration_in_the_large([0, 0, 0], [0.1, 0.2, 0.3])
     with pytest.raises(MetricInputError, match="prevalencia|prevalence|0 y 1|interior"):
         calibration_in_the_large([1, 1, 1], [0.1, 0.2, 0.3])
+    with pytest.raises(MetricInputError, match="prevalencia|prevalence|0 y 1|interior"):
+        calibration_slope([0, 0, 0], [0.1, 0.2, 0.3])
 
 
 def test_ddof_one_requires_two_observations_across_metric_families():

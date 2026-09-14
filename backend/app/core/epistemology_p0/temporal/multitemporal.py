@@ -2,9 +2,9 @@
 CeutIA - Modelo Temporal Multitemporal (P0)
 
 Se distinguen explícitamente todos los tiempos relevantes. La frontera
-analítica de disponibilidad es conservadora: una evidencia no puede entrar en
-un replay antes de que su publicación, ingestión y/o revisión relevante estén
-simultáneamente disponibles.
+analítica canónica de disponibilidad sigue siendo ``revision_time`` cuando
+existe, después ``publication_time`` y finalmente ``ingestion_time``; event_time
+nunca determina disponibilidad.
 """
 
 from dataclasses import dataclass
@@ -45,12 +45,7 @@ class TemporalContext:
 
     @property
     def available_at(self) -> Optional[datetime]:
-        clocks = [
-            value
-            for value in (self.publication_time, self.ingestion_time, self.revision_time)
-            if value is not None
-        ]
-        return max(clocks) if clocks else None
+        return self.revision_time or self.publication_time or self.ingestion_time
 
     def is_available_at(self, simulation_time: datetime) -> bool:
         available = self.available_at

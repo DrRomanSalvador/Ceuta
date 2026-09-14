@@ -1,8 +1,10 @@
 """
 CeutIA - Modelo Temporal Multitemporal (P0)
 
-Se distinguen explícitamente todos los tiempos relevantes. La única frontera
-analítica es ``available_at``: event_time nunca determina disponibilidad.
+Se distinguen explícitamente todos los tiempos relevantes. La frontera
+analítica de disponibilidad es conservadora: una evidencia no puede entrar en
+un replay antes de que su publicación, ingestión y/o revisión relevante estén
+simultáneamente disponibles.
 """
 
 from dataclasses import dataclass
@@ -32,14 +34,34 @@ class TemporalContext:
     detection_time: Optional[datetime] = None
     assessment_time: Optional[datetime] = None
     impact_time: Optional[datetime] = None
+    valid_from: Optional[datetime] = None
+    valid_to: Optional[datetime] = None
+
+    def __post_init__(self) -> None:
+        if self.event_start is not None and self.event_end is not None and self.event_start > self.event_end:
+            raise ValueError("event_start must not be after event_end")
+        if self.valid_from is not None and self.valid_to is not None and self.valid_from >= self.valid_to:
+            raise ValueError("valid_from must be earlier than valid_to")
 
     @property
     def available_at(self) -> Optional[datetime]:
-        return self.revision_time or self.publication_time or self.ingestion_time
+        clocks = [
+            value
+            for value in (self.publication_time, self.ingestion_time, self.revision_time)
+            if value is not None
+        ]
+        return max(clocks) if clocks else None
 
     def is_available_at(self, simulation_time: datetime) -> bool:
         available = self.available_at
         return available is not None and available <= simulation_time
+
+    def is_valid_at(self, simulation_time: datetime) -> bool:
+        if self.valid_from is not None and simulation_time < self.valid_from:
+            return False
+        if self.valid_to is not None and simulation_time >= self.valid_to:
+            return False
+        return True
 
     def to_dict(self) -> dict:
         def ser(dt: Optional[datetime]):
@@ -55,6 +77,8 @@ class TemporalContext:
             "detection_time": ser(self.detection_time),
             "assessment_time": ser(self.assessment_time),
             "impact_time": ser(self.impact_time),
+            "valid_from": ser(self.valid_from),
+            "valid_to": ser(self.valid_to),
         }
 
 
@@ -82,13 +106,35 @@ class TemporalFilter:
         ]
 
     @classmethod
-    def filter_by_ingestion_time(cls, evidences: List, simulation_time: datetime, time_attr: str = "ingestion_time") -> List:
-        """Compatibility alias; the requested attribute is intentionally ignored.
+    def snapshot_by_available_at(cls, evidences: List, simulation_time: datetime) -> List:
+        """Return the latest available revision of each evidence identity.
 
-        Historical callers cannot select an alternative temporal gate. All
-        analytical filtering is performed through the canonical available_at
-        boundary.
+        Historical replay must not expose multiple revisions of the same
+        evidence item. A stable ``evidence_id`` and non-negative integer
+        ``revision`` are required; otherwise the function fails closed rather
+        than guessing how revisions should be ordered.
         """
+        available = cls.filter_by_available_at(evidences, simulation_time)
+        selected: dict[object, object] = {}
+        for evidence in available:
+            evidence_id = getattr(evidence, "evidence_id", None)
+            revision = getattr(evidence, "revision", None)
+            if evidence_id is None or revision is None or not isinstance(revision, int) or revision < 0:
+                raise ValueError("point-in-time snapshot requires evidence_id and non-negative integer revision")
+            current = selected.get(evidence_id)
+            if current is None:
+                selected[evidence_id] = evidence
+                continue
+            current_revision = getattr(current, "revision")
+            current_available = cls._available_at(current)
+            available_now = cls._available_at(evidence)
+            if (revision, available_now) > (current_revision, current_available):
+                selected[evidence_id] = evidence
+        return [evidence for evidence in evidences if selected.get(getattr(evidence, "evidence_id", object())) is evidence]
+
+    @classmethod
+    def filter_by_ingestion_time(cls, evidences: List, simulation_time: datetime, time_attr: str = "ingestion_time") -> List:
+        """Compatibility alias; canonical analytical filtering uses available_at."""
         return cls.filter_by_available_at(evidences, simulation_time)
 
     @classmethod

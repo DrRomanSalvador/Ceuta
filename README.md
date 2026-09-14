@@ -1,8 +1,8 @@
 # CeutIA
 
-## Estado real del repositorio — 2026-09-13
+## Estado real del repositorio — 2026-09-14
 
-**Estado de ingeniería:** IMPLEMENTADO PARCIALMENTE — VALIDACIÓN EN CURSO
+**Estado de ingeniería:** IMPLEMENTADO PARCIALMENTE — VALIDACIÓN CONTINUA
 
 Este README describe el estado actual observado del repositorio. Las referencias históricas a una versión concatenada de `backend/app/core/metrics.py` de aproximadamente 18,3k líneas y 127 símbolos duplicados quedan **obsoletas** para el estado actual de `main` y no deben utilizarse como descripción del código vigente.
 
@@ -24,7 +24,7 @@ Existe una capa de integración en `backend/app/core/system_integrator.py`. El p
 - bloquea cuando la muestra es insuficiente o los datos no permiten una evaluación válida;
 - clasifica condiciones de proxy como `PROXY_RISK` sin convertirlas en causalidad ni en prueba de ausencia de sesgo.
 
-Esta capacidad está **IMPLEMENTED — NOT YET VALIDATED** hasta que exista una ejecución verificable de pruebas y CI.
+La implementación está cubierta por pruebas automatizadas. La ejecución de la suite completa en el commit `e46b1826f4465e2ad71fc992ea69d51513b99eff` terminó correctamente; esto verifica ejecución e integración de código, pero no constituye validación científica, calibración ni autorización operacional de la señal.
 
 ### Evidencia y epistemología
 
@@ -32,18 +32,21 @@ CeutIA debe mantener separadas observación, evidencia, afirmación, inferencia,
 
 El motor epistemológico existente utiliza estados explícitos y no emite una probabilidad calibrada salvo que sea suministrada por un modelo calibrado independiente.
 
-### CI
+### CI y controles automáticos
 
-`.github/workflows/ci.yml` ejecuta actualmente:
+`.github/workflows/validation-on-push.yml` ejecuta en cada `push` a `main`:
 
 1. compilación de las fuentes Python;
 2. instalación del proyecto y dependencias de desarrollo;
 3. suite completa de `pytest`;
-4. validación de `docker compose config`.
+4. pruebas de integridad de runtime;
+5. validación de `docker compose config`.
 
-El workflow admite además ejecución manual mediante `workflow_dispatch`. Cada modificación en `main` continúa activando CI mediante `push`.
+`.github/workflows/security-control-plane.yml` ejecuta ahora también en `push` a `main` y `pull_request`, además de `workflow_dispatch`, los controles del control plane protegido, las regresiones de seguridad, los contratos P0/temporales, los esquemas JSON v1 y los análisis estáticos.
 
-El resultado de una ejecución CI debe considerarse evidencia independiente del estado del repositorio. No debe declararse `PASS`, `fully tested` o `production-ready` sin una ejecución verificable.
+El workflow `.github/workflows/ci.yml` conserva la ejecución manual de la batería ampliada de invariantes de fases y contratos avanzados.
+
+Una ejecución automatizada es evidencia del estado del commit concreto que ejecuta; no debe extrapolarse a commits posteriores sin una nueva ejecución.
 
 ### Documentación histórica
 

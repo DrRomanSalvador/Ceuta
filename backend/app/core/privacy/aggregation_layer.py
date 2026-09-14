@@ -1,21 +1,29 @@
+"""Privacy aggregation boundary with explicit non-DP semantics."""
 from __future__ import annotations
 
 from dataclasses import dataclass
-from math import sqrt
+import math
 
 
 @dataclass(frozen=True, slots=True)
 class Aggregate:
     count: int
     mean: float
-    noise_scale: float
 
 
 class PrivacyAggregationLayer:
-    def aggregate(self, values: tuple[float, ...], *, epsilon: float, minimum_group_size: int = 10) -> Aggregate:
-        if epsilon <= 0.0:
-            raise ValueError("epsilon must be positive")
+    """Minimum-group aggregation; this class does not implement differential privacy."""
+
+    def aggregate(
+        self,
+        values: tuple[float, ...],
+        *,
+        minimum_group_size: int = 10,
+    ) -> Aggregate:
+        if minimum_group_size <= 0:
+            raise ValueError("minimum_group_size must be positive")
         if len(values) < minimum_group_size:
             raise PermissionError("group is below privacy minimum size")
-        mean = sum(values) / len(values)
-        return Aggregate(len(values), mean, 1.0 / (epsilon * sqrt(len(values))))
+        if not values or any(not math.isfinite(value) for value in values):
+            raise ValueError("values must be finite and non-empty")
+        return Aggregate(len(values), sum(values) / len(values))

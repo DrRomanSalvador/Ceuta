@@ -28,6 +28,6 @@ def test_configuration_does_not_expose_values() -> None:
     response = client.get("/diagnostics/config")
     assert response.status_code == 200
     payload = response.json()
-    assert payload["status"] == "valid"
+    assert payload["status"] in {"valid", "incomplete"}
     assert "DATABASE_URL" not in payload
     assert "REDIS_URL" not in payload

@@ -9,6 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from math import isfinite, log
+import sqlite3
 
 
 @dataclass(frozen=True, slots=True)
@@ -50,16 +51,68 @@ class ProperScoringMechanism:
 
     Transfer is ``-stake * log_score``. Negative transfer is a penalty and is
     intentionally not clipped, because arbitrary truncation can destroy the
-    strict-propriety guarantee. A positive affine transformation preserves the
-    incentive ordering; external budgets/escrow can bound economic exposure.
+    strict-propriety guarantee. ``storage_path`` enables durable settlement
+    state without coupling this mechanism to the primary decision database.
     """
 
-    def __init__(self, *, stake: float = 1.0) -> None:
+    def __init__(self, *, stake: float = 1.0, storage_path: str | None = None) -> None:
         if not isfinite(stake) or stake <= 0:
             raise ValueError("stake must be finite and positive")
         self.stake = stake
         self._reports: dict[str, ForecastReport] = {}
         self._settlements: dict[str, Settlement] = {}
+        self._storage_path = storage_path
+        if storage_path is not None:
+            self._init_storage()
+            self._load_storage()
+
+    def _connect(self) -> sqlite3.Connection:
+        if self._storage_path is None:
+            raise RuntimeError("persistent storage is not configured")
+        return sqlite3.connect(self._storage_path)
+
+    def _init_storage(self) -> None:
+        with self._connect() as connection:
+            connection.execute(
+                """CREATE TABLE IF NOT EXISTS forecast_reports (
+                    report_id TEXT PRIMARY KEY,
+                    forecaster_id TEXT NOT NULL,
+                    question_id TEXT NOT NULL,
+                    probability REAL NOT NULL,
+                    submitted_at TEXT NOT NULL,
+                    deadline TEXT NOT NULL,
+                    outcome_due_at TEXT NOT NULL,
+                    UNIQUE(forecaster_id, question_id)
+                )"""
+            )
+            connection.execute(
+                """CREATE TABLE IF NOT EXISTS forecast_settlements (
+                    report_id TEXT PRIMARY KEY REFERENCES forecast_reports(report_id),
+                    outcome INTEGER NOT NULL,
+                    log_loss REAL NOT NULL,
+                    transfer REAL NOT NULL,
+                    verified_at TEXT NOT NULL,
+                    verifier_id TEXT NOT NULL
+                )"""
+            )
+
+    def _load_storage(self) -> None:
+        with self._connect() as connection:
+            rows = connection.execute(
+                "SELECT report_id, forecaster_id, question_id, probability, submitted_at, deadline, outcome_due_at FROM forecast_reports"
+            ).fetchall()
+            for row in rows:
+                self._reports[row[0]] = ForecastReport(
+                    row[0], row[1], row[2], row[3],
+                    datetime.fromisoformat(row[4]), datetime.fromisoformat(row[5]), datetime.fromisoformat(row[6])
+                )
+            rows = connection.execute(
+                "SELECT report_id, outcome, log_loss, transfer, verified_at, verifier_id FROM forecast_settlements"
+            ).fetchall()
+            for row in rows:
+                self._settlements[row[0]] = Settlement(
+                    row[0], row[1], row[2], row[3], datetime.fromisoformat(row[4]), row[5]
+                )
 
     def submit(self, report: ForecastReport) -> None:
         if report.report_id in self._reports:
@@ -70,6 +123,13 @@ class ProperScoringMechanism:
             for existing in self._reports.values()
         ):
             raise ValueError("one report per forecaster and question is required")
+        if self._storage_path is not None:
+            with self._connect() as connection:
+                connection.execute(
+                    "INSERT INTO forecast_reports VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    (report.report_id, report.forecaster_id, report.question_id, report.probability,
+                     report.submitted_at.isoformat(), report.deadline.isoformat(), report.outcome_due_at.isoformat()),
+                )
         self._reports[report.report_id] = report
 
     def settle(
@@ -103,6 +163,13 @@ class ProperScoringMechanism:
             verified_at=verified_at,
             verifier_id=verifier_id,
         )
+        if self._storage_path is not None:
+            with self._connect() as connection:
+                connection.execute(
+                    "INSERT INTO forecast_settlements VALUES (?, ?, ?, ?, ?, ?)",
+                    (settlement.report_id, settlement.outcome, settlement.log_loss,
+                     settlement.transfer, settlement.verified_at.isoformat(), settlement.verifier_id),
+                )
         self._settlements[report_id] = settlement
         return settlement
 
@@ -134,10 +201,13 @@ class ProperScoringMechanism:
             raise ValueError("belief must be finite and in [0,1]")
         if not candidate_reports:
             raise ValueError("candidate_reports must not be empty")
-        values = tuple(cls.expected_log_loss(p, belief) for p in candidate_reports)
-        minimum = min(values)
+        if belief not in candidate_reports:
+            return False
         truthful = cls.expected_log_loss(belief, belief)
-        return truthful <= minimum + tolerance
+        alternatives = tuple(
+            cls.expected_log_loss(p, belief) for p in candidate_reports if p != belief
+        )
+        return not alternatives or truthful < min(alternatives) - tolerance
 
 
 __all__ = ["ForecastReport", "ProperScoringMechanism", "Settlement"]

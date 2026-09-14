@@ -937,9 +937,11 @@ def normalized_entropy(counts: Sequence[float] | np.ndarray) -> float:
     arr = _as_float_array(counts, name="counts")
     if np.any(arr < 0) or np.sum(arr) <= 0:
         raise MetricInputError("counts debe ser no negativo y tener suma positiva")
+    if arr.size < 2:
+        raise MetricInputError("La entropía normalizada requiere al menos dos unidades")
     h = entropy(arr / np.sum(arr), base=np.e)
     maximum = log(arr.size)
-    return 0.0 if maximum == 0 else float(h / maximum)
+    return float(h / maximum)
 
 
 def concentration_hhi(shares: Sequence[float] | np.ndarray) -> float:

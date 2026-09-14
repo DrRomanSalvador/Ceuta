@@ -627,7 +627,11 @@ def calibration_in_the_large(
         raise MetricInputError(
             "calibration-in-the-large no está definida cuando la prevalencia observada es 0 o 1"
         )
-    mean_logit = float(np.mean(np.log(np.clip(p, 1e-15, 1 - 1e-15) / np.clip(1 - p, 1e-15, 1 - 1e-15))))
+    if np.any((p <= 0.0) | (p >= 1.0)):
+        raise MetricInputError(
+            "calibration-in-the-large requiere probabilidades estrictamente entre 0 y 1"
+        )
+    mean_logit = float(np.mean(np.log(p / (1.0 - p))))
     target_logit = log(observed / (1.0 - observed))
     return float(target_logit - mean_logit)
 
@@ -647,7 +651,9 @@ def calibration_slope(
     prevalence = float(np.mean(truth))
     if not 0.0 < prevalence < 1.0:
         raise MetricInputError("calibration slope no está definida cuando la prevalencia observada es 0 o 1")
-    x = np.log(np.clip(p, 1e-12, 1 - 1e-12) / np.clip(1 - p, 1e-12, 1 - 1e-12))
+    if np.any((p <= 0.0) | (p >= 1.0)):
+        raise MetricInputError("calibration slope requiere probabilidades estrictamente entre 0 y 1")
+    x = np.log(p / (1.0 - p))
     if np.std(x) == 0.0:
         raise MetricInputError("Pendiente de calibración indefinida con predicciones constantes")
     beta = np.array([0.0, 1.0])

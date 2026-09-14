@@ -14,7 +14,7 @@ def test_metrics_importable():
 
 
 def test_metrics_has_no_duplicate_top_level_definitions():
-    path = Path(__file__).parents[2] / "app" / "core" / "metrics.py"
+    path = Path(__file__).parents[2] / "backend" / "app" / "core" / "metrics.py"
     tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
     names = [
         node.name

@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import os
 from contextlib import asynccontextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from typing import AsyncIterator
 
@@ -241,9 +241,8 @@ async def evaluate_decision(payload: DecisionRequest) -> dict[str, object]:
                 calibration_ref="governance:deterministic-rules",
                 approval_ref="governance:decision-policy",
             )
-            model_releases[deterministic.model_id] = ModelGovernanceRecord(
-                **{**deterministic.__dict__, "release_hash": deterministic.fingerprint()}
-            )
+            deterministic = replace(deterministic, release_hash=deterministic.fingerprint())
+            model_releases[deterministic.model_id] = deterministic
             model_refs = (deterministic.model_id,)
         context = DecisionContext(
             decision_id=payload.decision_id,

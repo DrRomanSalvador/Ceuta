@@ -55,7 +55,7 @@ def model_release():
 
 def execute(engine, evidence_item, governance_input):
     context = DecisionContext("d1", "operator", "short", (DecisionObjective("safety", 1.0),))
-    option = DecisionOption("o1", (ScenarioOutcome("s1", 1.0, 1.0, 0.0),))
+    option = DecisionOption("o1", (ScenarioOutcome("s1", 1.0, 1.0, 0.0),), uncertainty=0.1)
     return engine.execute(
         context,
         (option,),

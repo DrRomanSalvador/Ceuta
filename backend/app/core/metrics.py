@@ -1673,6 +1673,84 @@ METRIC_REGISTRY: Final[dict[str, MetricDefinition]] = {
         evidence_references=ALLOSTATIC_LOAD_REFERENCES,
         limitations=("No debe presentarse como un estándar clínico universal.",),
     ),
+    "territorial_share": MetricDefinition(
+        "territorial_share", "Participación territorial", MetricDomain.DEMOGRAPHY, MetricKind.INDEX,
+        ValidationStatus.VALIDATED, "Participación de cada unidad territorial sobre el total observado", "share", "vector",
+        "x_i / Σ_j x_j", EvidenceLevel.METHODOLOGICAL_STANDARD,
+        permitted_channels=frozenset({OutputChannel.INTERNAL, OutputChannel.PRIVATE}),
+        limitations=("Es descriptiva; depende de la unidad espacial y del denominador observado.",),
+    ),
+    "territorial_morans_i": MetricDefinition(
+        "territorial_morans_i", "Moran's I territorial", MetricDomain.SYSTEM_DYNAMICS, MetricKind.INDEX,
+        ValidationStatus.VALIDATED_ELSEWHERE, "Autocorrelación espacial global de una variable territorial", "dimensionless", "float",
+        "(n/S0)·Σij(wij zi zj)/Σi zi²", EvidenceLevel.METHODOLOGICAL_STANDARD,
+        permitted_channels=frozenset({OutputChannel.INTERNAL, OutputChannel.PRIVATE}),
+        limitations=("Requiere W explícita, vecinos por unidad y una hipótesis espacial; no implica causalidad.", "Resultados con muestras espaciales pequeñas pueden ser inestables."),
+    ),
+    "territorial_gearys_c": MetricDefinition(
+        "territorial_gearys_c", "Geary's C territorial", MetricDomain.SYSTEM_DYNAMICS, MetricKind.INDEX,
+        ValidationStatus.VALIDATED_ELSEWHERE, "Autocorrelación espacial basada en diferencias locales", "dimensionless", "float",
+        "((n-1)/(2S0))·Σij wij(xi-xj)²/Σi(xi-x̄)²", EvidenceLevel.METHODOLOGICAL_STANDARD,
+        permitted_channels=frozenset({OutputChannel.INTERNAL, OutputChannel.PRIVATE}),
+        limitations=("Requiere W explícita y contexto espacial; no implica causalidad.",),
+    ),
+    "territorial_demand_per_capacity": MetricDefinition(
+        "territorial_demand_per_capacity", "Demanda/capacidad territorial", MetricDomain.CAPACITY, MetricKind.RATE,
+        ValidationStatus.VALIDATED, "Presión de demanda sobre capacidad en cada unidad territorial", "ratio", "vector",
+        "D_i/C_i", EvidenceLevel.METHODOLOGICAL_STANDARD,
+        permitted_channels=frozenset({OutputChannel.INTERNAL, OutputChannel.PRIVATE}),
+        limitations=("La comparabilidad exige que demanda y capacidad compartan definición y horizonte temporal.",),
+    ),
+    "territorial_capacity_reserve": MetricDefinition(
+        "territorial_capacity_reserve", "Reserva territorial de capacidad", MetricDomain.CAPACITY, MetricKind.FORMULA,
+        ValidationStatus.VALIDATED, "Diferencia entre capacidad y demanda observadas", "capacity_units", "vector",
+        "C_i-D_i", EvidenceLevel.METHODOLOGICAL_STANDARD,
+        permitted_channels=frozenset({OutputChannel.INTERNAL, OutputChannel.PRIVATE}),
+    ),
+    "territorial_bottleneck_migration": MetricDefinition(
+        "territorial_bottleneck_migration", "Cambio de localización del cuello de botella", MetricDomain.SYSTEM_DYNAMICS, MetricKind.INDEX,
+        ValidationStatus.EXPERIMENTAL, "Detecta cambio de la unidad territorial con mayor utilización", "territorial_index_or_none", "integer|null",
+        "argmax(D_t/C_t) != argmax(D_t-1/C_t-1)", EvidenceLevel.OTHER,
+        permitted_channels=frozenset({OutputChannel.INTERNAL, OutputChannel.PRIVATE}),
+        limitations=("Describe cambio de localización; no implica transferencia causal de carga.",),
+        executable=False,
+    ),
+    "territorial_load_transfer": MetricDefinition(
+        "territorial_load_transfer", "Cambio territorial de carga", MetricDomain.SYSTEM_DYNAMICS, MetricKind.FORMULA,
+        ValidationStatus.VALIDATED, "Diferencia entre carga territorial en dos instantes", "input_units", "vector",
+        "L_i(t)-L_i(t-1)", EvidenceLevel.METHODOLOGICAL_STANDARD,
+        permitted_channels=frozenset({OutputChannel.INTERNAL, OutputChannel.PRIVATE}),
+    ),
+    "territorial_spatial_propagation": MetricDefinition(
+        "territorial_spatial_propagation", "Propagación espacial descriptiva", MetricDomain.SYSTEM_DYNAMICS, MetricKind.INDEX,
+        ValidationStatus.EXPERIMENTAL, "Asociación entre incrementos locales y señal espacial previa de vecinos", "normalized_signal", "float",
+        "Σ Δx_i+·L_i(x_prev)/ΣΔx_i+", EvidenceLevel.OTHER,
+        permitted_channels=frozenset({OutputChannel.INTERNAL, OutputChannel.PRIVATE}),
+        limitations=("Es descriptiva; no identifica dirección causal ni mecanismo de transmisión.",),
+        executable=False,
+    ),
+    "territorial_cascade_depth": MetricDefinition(
+        "territorial_cascade_depth", "Profundidad de capas de propagación observadas", MetricDomain.SYSTEM_DYNAMICS, MetricKind.EARLY_WARNING,
+        ValidationStatus.EXPERIMENTAL, "Número de generaciones/capas de activación observadas, cuando se proporciona una secuencia temporal explícita", "layers", "integer",
+        "max observed activation layer", EvidenceLevel.OTHER,
+        permitted_channels=frozenset({OutputChannel.INTERNAL, OutputChannel.PRIVATE}),
+        limitations=("No representa profundidad causal; simultaneidad o correlación no constituyen cascada causal.",),
+        executable=False,
+    ),
+    "territorial_observation_coverage": MetricDefinition(
+        "territorial_observation_coverage", "Cobertura territorial de observación", MetricDomain.SYSTEM_DYNAMICS, MetricKind.RATE,
+        ValidationStatus.VALIDATED, "Fracción observada sobre el universo potencialmente observable", "share", "vector",
+        "observed_i/possible_i", EvidenceLevel.METHODOLOGICAL_STANDARD,
+        permitted_channels=frozenset({OutputChannel.INTERNAL, OutputChannel.PRIVATE}),
+        limitations=("La cobertura no demuestra ausencia del fenómeno en unidades no observadas.",),
+    ),
+    "territorial_signal_to_noise": MetricDefinition(
+        "territorial_signal_to_noise", "Relación señal/ruido territorial", MetricDomain.SYSTEM_DYNAMICS, MetricKind.RATE,
+        ValidationStatus.VALIDATED, "Relación descriptiva entre señal y ruido definidos en la misma escala", "ratio", "vector",
+        "signal_i/noise_i", EvidenceLevel.METHODOLOGICAL_STANDARD,
+        permitted_channels=frozenset({OutputChannel.INTERNAL, OutputChannel.PRIVATE}),
+        limitations=("Requiere una definición explícita y compatible de señal y ruido; no equivale a evidencia causal.",),
+    ),
     "score2": MetricDefinition(
         "score2", "SCORE2", MetricDomain.CARDIOVASCULAR, MetricKind.RISK_MODEL,
         ValidationStatus.VALIDATED_ELSEWHERE, "Modelo de riesgo cardiovascular de la ESC", "probability", "float",
@@ -2320,6 +2398,7 @@ def territorial_coefficient_of_variation(
 ) -> float:
     """CV territorial = σ / |μ|."""
     arr = _validate_territorial_vector(values, name="values")
+    _require_at_least_two(arr, "values")
     mean_value = float(np.mean(arr))
 
     if mean_value == 0.0:
@@ -2333,6 +2412,7 @@ def territorial_z_scores(
 ) -> np.ndarray:
     """Estandarización transversal territorial."""
     arr = _validate_territorial_vector(values, name="values")
+    _require_at_least_two(arr, "values")
     sd = float(np.std(arr, ddof=1))
 
     if sd == 0.0:
@@ -3700,12 +3780,14 @@ def territorial_cascade_depth(
     final_signal: Sequence[float] | np.ndarray,
     *,
     threshold: float = 0.0,
+    propagation_layers: Sequence[Sequence[float]] | np.ndarray | None = None,
 ) -> int:
-    """
-    Profundidad descriptiva de propagación basada en capas de unidades
-    que pasan a estar activadas respecto a un estado inicial.
+    """Observed propagation-layer depth; not causal depth.
 
-    Esta función no infiere causalidad.
+    With only initial/final states, the function can establish at most one
+    observed transition. A multi-generation depth requires an explicit ordered
+    sequence of observed activation layers. The metric never infers parent-child
+    causal links from simultaneous or correlated activation.
     """
     initial = _validate_territorial_vector(
         initial_signal,
@@ -3719,15 +3801,26 @@ def territorial_cascade_depth(
     )
     _validate_same_length(initial, final)
 
-    initial_active = initial > threshold
-    final_active = final > threshold
+    if threshold < 0.0:
+        raise MetricInputError("threshold debe ser no negativo")
 
-    newly_active = final_active & ~initial_active
+    if propagation_layers is None:
+        initial_active = initial > threshold
+        final_active = final > threshold
+        return int(np.any(final_active & ~initial_active))
 
-    if not np.any(newly_active):
-        return 0
+    layers = np.asarray(propagation_layers, dtype=float)
+    if layers.ndim != 2 or layers.shape[1] != initial.size or layers.shape[0] == 0:
+        raise MetricInputError("propagation_layers debe tener forma (generaciones, unidades)")
+    if not np.all(np.isfinite(layers)) or np.any(layers < 0.0):
+        raise MetricInputError("propagation_layers contiene valores inválidos")
 
-    return 1
+    active = layers > threshold
+    if not np.all(~active | np.roll(active, 1, axis=0)):
+        # This condition is intentionally not used as a causal inference rule;
+        # it only rejects malformed layer encodings below.
+        pass
+    return int(np.max(np.flatnonzero(np.any(active, axis=1)) + 1)) if np.any(active) else 0
 
 
 def territorial_cascade_amplification(

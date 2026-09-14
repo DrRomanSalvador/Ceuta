@@ -114,8 +114,11 @@ class StateHypothesis:
     def __post_init__(self) -> None:
         if not self.hypothesis_id or not self.state_vector:
             raise ValueError("state hypothesis requires identity and state vector")
-        if not 0.0 <= self.probability <= 1.0:
-            raise ValueError("state hypothesis probability must be in [0,1]")
+        if not isfinite(float(self.probability)) or not 0.0 <= self.probability <= 1.0:
+            raise ValueError("state hypothesis probability must be finite and in [0,1]")
+        state = np.asarray(self.state_vector, dtype=float)
+        if state.shape != (len(self.state_vector),) or not np.all(np.isfinite(state)):
+            raise ValueError("state vector must be finite")
         matrix = np.asarray(self.covariance, dtype=float)
         if matrix.shape != (len(self.state_vector), len(self.state_vector)):
             raise ValueError("covariance shape must match state vector")
@@ -295,10 +298,11 @@ class ForecastObject:
                 raise ValueError("forecast timestamps must be timezone-aware")
         if self.horizon_end <= self.issued_at:
             raise ValueError("forecast horizon must follow issue time")
-        if self.probability is not None and not 0 <= self.probability <= 1:
-            raise ValueError("forecast probability must be in [0,1]")
-        if self.interval is not None and self.interval[0] > self.interval[1]:
-            raise ValueError("forecast interval is reversed")
+        if self.probability is not None and (not isfinite(float(self.probability)) or not 0 <= self.probability <= 1):
+            raise ValueError("forecast probability must be finite and in [0,1]")
+        if self.interval is not None:
+            if len(self.interval) != 2 or not all(isfinite(float(x)) for x in self.interval) or self.interval[0] > self.interval[1]:
+                raise ValueError("forecast interval must be finite and ordered")
 
 
 @dataclass(frozen=True, slots=True)
@@ -307,6 +311,10 @@ class PredictabilityAssessment:
     confidence: float
     reasons: tuple[str, ...]
     abstain_recommended: bool
+
+    def __post_init__(self) -> None:
+        if not isfinite(float(self.confidence)) or not 0 <= self.confidence <= 1:
+            raise ValueError("predictability confidence must be finite and in [0,1]")
 
 
 @dataclass(frozen=True, slots=True)
@@ -319,7 +327,7 @@ class ModelAlternative:
     assumptions: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
-        if not self.model_id or not self.version or not isfinite(self.prediction) or not 0 <= self.uncertainty <= 1:
+        if not self.model_id or not self.version or not isfinite(self.prediction) or not isfinite(self.uncertainty) or not 0 <= self.uncertainty <= 1:
             raise ValueError("model identity, prediction and uncertainty are invalid")
 
 
@@ -329,6 +337,10 @@ class ModelDisagreement:
     spread: float
     material: bool
     reason: str
+
+    def __post_init__(self) -> None:
+        if not isfinite(float(self.spread)) or self.spread < 0:
+            raise ValueError("model disagreement spread must be finite and non-negative")
 
 
 @dataclass(frozen=True, slots=True)
@@ -396,6 +408,11 @@ class SystemAssessment:
     abstain: bool
     reasons: tuple[str, ...]
 
+    def __post_init__(self) -> None:
+        for name, value in (("missing_data_risk", self.missing_data_risk), ("measurement_process_risk", self.measurement_process_risk)):
+            if not isfinite(float(value)) or not 0 <= value <= 1:
+                raise ValueError(f"{name} must be finite and in [0,1]")
+
 
 class StateEstimator:
     @staticmethod
@@ -404,6 +421,8 @@ class StateEstimator:
         if not valid:
             raise ValueError("at least one positive-probability state hypothesis is required")
         total = sum(item.probability for item in valid)
+        if not isfinite(total) or total <= 0:
+            raise ValueError("state hypothesis probabilities must have a finite positive sum")
         weights = np.asarray([item.probability / total for item in valid], dtype=float)
         vectors = np.asarray([item.state_vector for item in valid], dtype=float)
         mean = weights @ vectors
@@ -412,6 +431,8 @@ class StateEstimator:
             within = np.asarray(item.covariance, dtype=float)
             delta = (vector - mean).reshape(-1, 1)
             covariance += weight * (within + delta @ delta.T)
+        if not np.all(np.isfinite(mean)) or not np.all(np.isfinite(covariance)):
+            raise ValueError("combined state estimate must remain finite")
         competing = len(valid) > 1 or any(item.kind is StateKind.COMPETING for item in valid)
         return StateEstimate(tuple(mean.tolist()), tuple(map(tuple, covariance.tolist())), valid, not competing, True, "competing state hypotheses" if competing else "single state hypothesis")
 
@@ -423,6 +444,8 @@ class ObservabilityAnalyzer:
         c = np.asarray(C, dtype=float)
         if a.ndim != 2 or a.shape[0] != a.shape[1] or c.ndim != 2 or c.shape[1] != a.shape[0]:
             raise ValueError("A must be square and C must have compatible state dimension")
+        if not np.all(np.isfinite(a)) or not np.all(np.isfinite(c)) or not isfinite(float(tolerance)) or tolerance <= 0:
+            raise ValueError("observability inputs must be finite with positive tolerance")
         n = a.shape[0]
         blocks = [c]
         power = np.eye(n)
@@ -437,8 +460,8 @@ class IdentifiabilityAnalyzer:
     @staticmethod
     def from_sensitivity(sensitivity: Sequence[Sequence[float]], *, tolerance: float = 1e-10) -> IdentifiabilityAssessment:
         matrix = np.asarray(sensitivity, dtype=float)
-        if matrix.ndim != 2 or matrix.size == 0 or not np.all(np.isfinite(matrix)):
-            raise ValueError("sensitivity matrix must be finite and non-empty")
+        if matrix.ndim != 2 or matrix.size == 0 or not np.all(np.isfinite(matrix)) or not isfinite(float(tolerance)) or tolerance <= 0:
+            raise ValueError("sensitivity matrix must be finite and non-empty with positive tolerance")
         rank = int(np.linalg.matrix_rank(matrix, tol=tolerance))
         parameters = matrix.shape[1]
         condition = None
@@ -473,14 +496,15 @@ class SpatialAnalyzer:
                 numerator += relation.weight * (x[relation.source_id] - mean) * (x[relation.target_id] - mean)
                 denominator += relation.weight
         variance = float(np.mean([(value - mean) ** 2 for value in x.values()]))
-        return numerator / denominator / variance if denominator and variance > 0 else 0.0
+        result = numerator / denominator / variance if denominator and variance > 0 else 0.0
+        return result if isfinite(result) else None
 
 
 class NetworkAnalyzer:
     @staticmethod
     def cascade(nodes: Sequence[str], edges: Sequence[tuple[str, str, float]], initial_active: Sequence[str], *, threshold: float = 0.5) -> tuple[str, ...]:
-        if not 0 <= threshold <= 1:
-            raise ValueError("threshold must be in [0,1]")
+        if not isfinite(float(threshold)) or not 0 <= threshold <= 1:
+            raise ValueError("threshold must be finite and in [0,1]")
         graph = nx.DiGraph()
         graph.add_nodes_from(nodes)
         for source, target, weight in edges:
@@ -506,12 +530,18 @@ class NetworkAnalyzer:
     def topology(nodes: Sequence[str], edges: Sequence[tuple[str, str, float]]) -> Mapping[str, float]:
         graph = nx.DiGraph()
         graph.add_nodes_from(nodes)
-        graph.add_weighted_edges_from(edges)
+        for source, target, weight in edges:
+            if not isfinite(float(weight)) or weight < 0:
+                raise ValueError("network topology weights must be finite and non-negative")
+            graph.add_edge(source, target, weight=weight)
         if len(graph) == 0:
             return {"density": 0.0, "largest_component": 0.0, "betweenness_max": 0.0}
         largest = max((len(component) for component in nx.connected_components(graph.to_undirected())), default=0)
         centrality = nx.betweenness_centrality(graph, weight="weight", normalized=True)
-        return {"density": float(nx.density(graph)), "largest_component": largest / len(graph), "betweenness_max": max(centrality.values(), default=0.0)}
+        result = {"density": float(nx.density(graph)), "largest_component": largest / len(graph), "betweenness_max": max(centrality.values(), default=0.0)}
+        if not all(isfinite(float(value)) for value in result.values()):
+            raise ValueError("network topology metrics must remain finite")
+        return result
 
 
 class InformationAnalyzer:
@@ -521,7 +551,10 @@ class InformationAnalyzer:
             return 0.0
         counts = np.unique(np.asarray(values), return_counts=True)[1].astype(float)
         probabilities = counts / counts.sum()
-        return float(-sum(p * log(p) for p in probabilities if p > 0))
+        result = float(-sum(p * log(p) for p in probabilities if p > 0))
+        if not isfinite(result):
+            raise ValueError("entropy must remain finite")
+        return result
 
     @staticmethod
     def mutual_information(x: Sequence[int], y: Sequence[int]) -> float:
@@ -539,7 +572,10 @@ class InformationAnalyzer:
         for (left, right), count in joint.items():
             pxy = count / n
             result += pxy * log(pxy / ((x_counts[left] / n) * (y_counts[right] / n)))
-        return max(0.0, float(result))
+        result = max(0.0, float(result))
+        if not isfinite(result):
+            raise ValueError("mutual information must remain finite")
+        return result
 
 
 class RegimeDetector:
@@ -558,6 +594,8 @@ class RegimeDetector:
 class PredictabilityAnalyzer:
     @staticmethod
     def assess(errors: Sequence[float], *, model_spread: float = 0.0, mechanism_changed: bool = False, calibration_degraded: bool = False) -> PredictabilityAssessment:
+        if not isfinite(float(model_spread)) or model_spread < 0:
+            raise ValueError("model spread must be finite and non-negative")
         finite = [abs(float(error)) for error in errors if isfinite(float(error))]
         if not finite:
             return PredictabilityAssessment(False, 0.0, ("no evaluable forecast errors",), True)
@@ -568,7 +606,9 @@ class PredictabilityAnalyzer:
             reasons.append("calibration degradation reduces forecastability")
         if model_spread > 0:
             reasons.append("competing models disagree")
-        confidence = 1.0 / (1.0 + float(np.mean(finite)) + max(0.0, model_spread))
+        confidence = 1.0 / (1.0 + float(np.mean(finite)) + model_spread)
+        if not isfinite(confidence):
+            raise ValueError("forecast confidence must remain finite")
         abstain = mechanism_changed or calibration_degraded or confidence < 0.35
         reasons.append("forecast confidence is below the operational abstention standard" if abstain else "no declared predictability limit was breached")
         return PredictabilityAssessment(not abstain, confidence, tuple(reasons), abstain)
@@ -579,8 +619,12 @@ class ModelDisagreementAnalyzer:
     def compare(models: Sequence[ModelAlternative], *, material_threshold: float = 0.2) -> ModelDisagreement | None:
         if not models:
             return None
+        if not isfinite(float(material_threshold)) or material_threshold < 0:
+            raise ValueError("material threshold must be finite and non-negative")
         predictions = [item.prediction for item in models]
         spread = float(max(predictions) - min(predictions))
+        if not isfinite(spread):
+            raise ValueError("model disagreement spread must remain finite")
         material = spread >= material_threshold
         return ModelDisagreement(tuple(models), spread, material, "material model disagreement" if material else "model disagreement below declared tolerance")
 
@@ -588,8 +632,9 @@ class ModelDisagreementAnalyzer:
 class SystemIntelligence:
     @staticmethod
     def assess(*, observability: ObservabilityAssessment, identifiability: IdentifiabilityAssessment, predictability: PredictabilityAssessment, missing_data_risk: float, measurement_process_risk: float, spatial_relations: Sequence[SpatialRelation] = (), network_edges: Sequence[tuple[str, str, float]] = (), regime_changed: bool = False, model_disagreement: ModelDisagreement | None = None) -> SystemAssessment:
-        if not 0 <= missing_data_risk <= 1 or not 0 <= measurement_process_risk <= 1:
-            raise ValueError("risk values must be in [0,1]")
+        for name, value in (("missing_data_risk", missing_data_risk), ("measurement_process_risk", measurement_process_risk)):
+            if not isfinite(float(value)) or not 0 <= value <= 1:
+                raise ValueError(f"{name} must be finite and in [0,1]")
         reasons: list[str] = []
         if not observability.observable:
             reasons.append("insufficient observability")

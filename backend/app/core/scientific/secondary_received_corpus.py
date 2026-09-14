@@ -1,0 +1,40 @@
+"""Additional received bibliographic constraints not represented by the first seed blocks."""
+from __future__ import annotations
+
+from .source_corpus import CorpusEvidenceLevel, CorpusSourceType, ScientificImpactMap, ScientificSourceCorpus, ScientificSourceRecord, ValidationStatus
+
+
+def register_secondary_received_block(corpus: ScientificSourceCorpus) -> None:
+    records = (
+        ScientificSourceRecord("performance-incentives-2022-rapid-review", "Rapid review of incentivizing performance in healthcare", (), 2022, "user-supplied:performance-incentives-2022", "", CorpusSourceType.SYSTEMATIC_REVIEW, CorpusEvidenceLevel.SYSTEMATIC_REVIEW, "rapid review of performance incentives and unintended responses", "healthcare performance systems", "performance_measurement", ("incentives", "gaming", "unintended_consequences", "target_response"), ("incentives can alter measured behavior and generate effects not aligned with underlying outcomes",), ("healthcare evidence does not quantify universal effects across all institutional settings",), ("performance metrics linked to incentives or sanctions",), ("metric_reactivity", "outcome_grounding", "adversarial_monitoring"), ("metric_reactivity", "scientific_governance"), ("monitor incentive exposure and outcome decoupling",), ("prospective cross-domain validation",), "received user-supplied bibliography; metadata intentionally conservative"),
+        ScientificSourceRecord("ahrq-bmj-unintended-consequences-performance", "Unintended consequences of performance measurement: qualitative evidence synthesis", (), 2020, "user-supplied:ahrq-bmj-performance-measurement", "", CorpusSourceType.OBSERVATIONAL, CorpusEvidenceLevel.OBSERVATIONAL, "qualitative evidence on performance measurement responses", "healthcare measurement", "performance_measurement", ("gaming", "tunnel_vision", "selection", "data_manipulation", "outcome_decoupling"), ("measurement systems can redirect organizational attention toward measured dimensions",), ("qualitative evidence does not establish universal prevalence or effect sizes",), ("institutional metrics with operational consequences",), ("metric_reactivity", "indicator_rotation", "independent_outcome_measurement"), ("metric_reactivity", "scientific_governance"), ("retain underlying-outcome measures alongside target metrics",), ("prospective indicator validity",), "received user-supplied source reference; metadata intentionally conservative"),
+        ScientificSourceRecord("causal-longitudinal-ipw-msm-constraint", "Longitudinal inverse-probability weighting / marginal structural model identification constraint", (), 2020, "user-supplied:causal-ipw-msm", "", CorpusSourceType.CAUSAL_INFERENCE, CorpusEvidenceLevel.METHODOLOGICAL, "longitudinal causal inference with time-varying treatment/confounding", "longitudinal causal effects", "causal_inference", ("IPW", "MSM", "time-varying-confounding", "positivity", "stabilized-weights"), ("longitudinal IPW/MSM requires explicit estimand, treatment/censoring models, positivity and identification assumptions",), ("weights can become unstable and assumptions are not automatically verified by fitting the model",), ("observational longitudinal data with time-varying confounding",), ("causal_identification_contract", "positivity_diagnostics", "weight_diagnostics", "out_of_sample_validation"), ("causal_inference", "scientific_governance", "decision_governance"), ("persist estimand, treatment/censoring models, positivity diagnostics, stabilized-weight bounds and uncertainty",), ("prospective/external causal validation and sensitivity analysis",), "received causal-method audit requirement; metadata intentionally conservative", validation_requirements=("formal estimand audit", "positivity audit", "weight stability", "sensitivity analysis")),
+        ScientificSourceRecord("spatial-csd-2024-constraint", "Spatial critical slowing down and early warning theory", (), 2024, "user-supplied:spatial-csd-2024", "", CorpusSourceType.METHODOLOGICAL, CorpusEvidenceLevel.METHODOLOGICAL, "spatial extension of resilience and critical-transition diagnostics", "spatially structured dynamical systems", "complex_systems", ("spatial_csd", "critical_transition", "correlation", "scale_dependence"), ("spatial structure can change early-warning signal interpretation and must be modeled explicitly",), ("domain and sampling assumptions limit transfer",), ("spatially observed systems where spatial dependence is material",), ("spatial_method_registry", "scale_sensitivity", "false_positive_controls"), ("early_warning_governance", "scientific_method_registry", "nonstationarity"), ("record spatial scale and dependence assumptions",), ("prospective spatial transition validation",), "received user-supplied methodological source; metadata intentionally conservative"),
+        ScientificSourceRecord("reichenbach-reference-class-constraint", "Reference-class and common-cause constraint in probabilistic reasoning", (), 1956, "user-supplied:reichenbach-reference-class", "", CorpusSourceType.DECISION_THEORY, CorpusEvidenceLevel.CONTEXTUAL, "received philosophical constraint concerning conditioning and reference classes", "probabilistic reasoning under uncertainty", "forecasting", ("reference_class", "conditioning", "conditional_probability"), ("probabilistic claims require explicit conditioning information; reference classes are part of the model",), ("this record preserves the user's supplied conceptual connection rather than claiming a direct theorem about forecasting unique crises",), ("risk and forecasting claims with weak recurrence",), ("reference_class_governance", "conditional_probability_reporting"), ("forecasting", "scientific_governance"), ("persist conditioning/reference-class metadata with probability claims",), ("prospective calibration by reference class",), "received user-supplied philosophical reference; metadata intentionally conservative"),
+    )
+    for record in records:
+        try:
+            corpus.register(record)
+        except ValueError as exc:
+            if "already exists" not in str(exc):
+                raise
+    corpus.add_impact(ScientificImpactMap(
+        "impact-secondary-received-constraints-v1", tuple(record.source_id for record in records),
+        "measurement incentives, longitudinal causal assumptions and spatial/reference-class boundaries",
+        "Measurement incentives, time-varying causal structure, spatial dependence and conditioning choices must remain explicit runtime assumptions rather than hidden implementation details.",
+        "mixed_methodological_contextual", "adaptive high-stakes systems with longitudinal or spatial data and incentive-bearing metrics",
+        ("metadata is partly user-supplied", "prospective validation remains necessary"),
+        ("incentive exposure", "causal weight diagnostics", "spatial method provenance", "reference-class conditioning"),
+        ("metric_reactivity", "causal_inference", "scientific_method_registry", "forecasting", "scientific_governance"),
+        ("these constraints were previously represented only in separate methodological modules",),
+        ("persist method configuration and causal diagnostics", "keep reference class and incentive exposure in decision lineage"),
+        ("connect failures to governance and validation lanes"),
+        ("adversarial metric tests", "causal contract tests", "spatial preprocessing tests", "reference-class tests"),
+        ("deterministic contract tests are possible now",), ("prospective domain validation remains required",),
+        ("declared assumptions", "point-in-time data", "independent outcome measurement"),
+        ("mission-secondary-scientific-constraints-v1",), assumptions=("method metadata is available at execution",),
+        uncertainty=("unobserved confounding and unmodeled spatial structure may remain",),
+        identifiability="causal effects require explicit identification assumptions",
+        applicability_boundary="longitudinal/spatial/high-stakes measurement systems",
+        validation_status=ValidationStatus.PROSPECTIVE_REQUIRED,
+    ))

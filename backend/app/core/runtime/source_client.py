@@ -34,6 +34,7 @@ class OfficialSourceClient:
         self.registry = registry
         self.timeout_seconds = timeout_seconds
         self.max_bytes = max_bytes
+        # Validation-sweep invariant: never follow an unregistered redirect.
         self._client = httpx.Client(timeout=timeout_seconds, follow_redirects=False)
 
     def close(self) -> None:

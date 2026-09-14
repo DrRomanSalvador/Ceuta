@@ -1,0 +1,63 @@
+name: One-time metrics hardening
+
+on:
+  push:
+    paths:
+      - '.github/workflows/one-time-metrics-hardening.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply deterministic metric corrections
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path("backend/app/core/metrics.py")
+          text = path.read_text(encoding="utf-8")
+          original = text
+
+          replacements = {
+              '''def coefficient_of_variation(values: Sequence[float] | np.ndarray) -> float:\n    arr = _as_float_array(values, name="values")\n    m = float(np.mean(arr))''': '''def coefficient_of_variation(values: Sequence[float] | np.ndarray) -> float:\n    arr = _as_float_array(values, name="values")\n    _require_at_least_two(arr, "values")\n    m = float(np.mean(arr))''',
+              '''def z_score(value: float, baseline: Sequence[float] | np.ndarray) -> float:\n    arr = _as_float_array(baseline, name="baseline")\n    sd = float(np.std(arr, ddof=1))''': '''def z_score(value: float, baseline: Sequence[float] | np.ndarray) -> float:\n    arr = _as_float_array(baseline, name="baseline")\n    _require_at_least_two(arr, "baseline")\n    sd = float(np.std(arr, ddof=1))''',
+              '''def autocorrelation(values: Sequence[float] | np.ndarray, lag: int = 1) -> float:\n    arr = _as_float_array(values, name="values")\n    _require_at_least_two(arr, "values")\n    if lag < 1 or lag >= arr.size:''': '''def autocorrelation(values: Sequence[float] | np.ndarray, lag: int = 1) -> float:\n    arr = _as_float_array(values, name="values")\n    if lag < 1 or lag >= arr.size:\n        raise MetricInputError("lag debe estar entre 1 y n-1")\n    if arr.size < lag + 2:\n        raise MetricInputError("autocorrelation requiere al menos lag+2 observaciones")\n    if lag < 1 or lag >= arr.size:''',
+              '''def standard_error_mean(values: Sequence[float] | np.ndarray) -> float:\n    arr = _as_float_array(values, name="values")\n    _require_at_least_two(arr, "values")''': '''def standard_error_mean(values: Sequence[float] | np.ndarray) -> float:\n    arr = _as_float_array(values, name="values")\n    _require_at_least_two(arr, "values")''',
+              '''def coefficient_of_variation_of_residuals(\n    observed: Sequence[float] | np.ndarray,\n    fitted: Sequence[float] | np.ndarray,\n) -> float:\n    obs = _as_float_array(observed, name="observed")\n    fit = _as_float_array(fitted, name="fitted")\n    _validate_same_length(obs, fit)''': '''def coefficient_of_variation_of_residuals(\n    observed: Sequence[float] | np.ndarray,\n    fitted: Sequence[float] | np.ndarray,\n) -> float:\n    obs = _as_float_array(observed, name="observed")\n    fit = _as_float_array(fitted, name="fitted")\n    _validate_same_length(obs, fit)\n    _require_at_least_two(obs, "observed")''',
+              '''def standardized_water_balance(values: Sequence[float] | np.ndarray) -> np.ndarray:\n    """Estandarización simple de P-PET; no se etiqueta como SPEI oficial."""\n    arr = _as_float_array(values, name="water_balance")\n    sd = float(np.std(arr, ddof=1))''': '''def standardized_water_balance(values: Sequence[float] | np.ndarray) -> np.ndarray:\n    """Estandarización simple de P-PET; no se etiqueta como SPEI oficial."""\n    arr = _as_float_array(values, name="water_balance")\n    _require_at_least_two(arr, "water_balance")\n    sd = float(np.std(arr, ddof=1))''',
+              '''def standardized_anomaly_series(values: Sequence[float] | np.ndarray) -> np.ndarray:\n    arr = _as_float_array(values, name="values")\n    sd = float(np.std(arr, ddof=1))''': '''def standardized_anomaly_series(values: Sequence[float] | np.ndarray) -> np.ndarray:\n    arr = _as_float_array(values, name="values")\n    _require_at_least_two(arr, "values")\n    sd = float(np.std(arr, ddof=1))''',
+              '''def _validate_spatial_matrix(\n    weights: Sequence[Sequence[float]] | np.ndarray,\n    n: int,\n) -> np.ndarray:\n    w = np.asarray(weights, dtype=float)\n\n    if w.ndim != 2 or w.shape != (n, n):\n        raise MetricInputError("weights debe tener dimensión (n, n)")''': '''def _validate_spatial_matrix(\n    weights: Sequence[Sequence[float]] | np.ndarray,\n    n: int,\n) -> np.ndarray:\n    if n < 2:\n        raise MetricInputError("Se requieren al menos dos unidades territoriales para una operación espacial")\n    w = np.asarray(weights, dtype=float)\n\n    if w.ndim != 2 or w.shape != (n, n):\n        raise MetricInputError("weights debe tener dimensión (n, n)")''',
+              '''    if float(np.sum(w)) <= 0.0:\n        raise MetricInputError("weights debe contener al menos una conexión")\n\n    return w''': '''    row_sum = np.sum(w, axis=1)\n    if np.any(row_sum <= 0.0):\n        raise MetricInputError("Cada unidad territorial debe tener al menos un vecino con peso positivo")\n    if float(np.sum(row_sum)) <= 0.0:\n        raise MetricInputError("weights debe contener al menos una conexión")\n\n    return w''',
+              '''    if mean_value <= 0.0:\n        raise MetricInputError("La media debe ser positiva")\n\n    ratio = arr / mean_value\n    positive = ratio > 0.0\n\n    return float(np.mean(ratio[positive] * np.log(ratio[positive])))''': '''    if mean_value <= 0.0:\n        raise MetricInputError("La media debe ser positiva")\n\n    ratio = arr / mean_value\n    positive = ratio > 0.0\n    terms = np.zeros_like(ratio)\n    terms[positive] = ratio[positive] * np.log(ratio[positive])\n\n    return float(np.mean(terms))''',
+              '''    truth = _validate_binary(y_true, name="y_true")\n    p = _validate_probabilities(probabilities)\n    _validate_same_length(truth, p)\n    observed = float(np.mean(truth))\n    mean_logit = float(np.mean(np.log(np.clip(p, 1e-15, 1 - 1e-15) / np.clip(1 - p, 1e-15, 1 - 1e-15))))\n    target_logit = log(observed / (1.0 - observed)) if 0 < observed < 1 else float("inf")\n    return float(target_logit - mean_logit)''': '''    truth = _validate_binary(y_true, name="y_true")\n    p = _validate_probabilities(probabilities)\n    _validate_same_length(truth, p)\n    observed = float(np.mean(truth))\n    if not 0.0 < observed < 1.0:\n        raise MetricInputError(\n            "calibration-in-the-large no está definida cuando la prevalencia observada es 0 o 1"\n        )\n    mean_logit = float(np.mean(np.log(np.clip(p, 1e-15, 1 - 1e-15) / np.clip(1 - p, 1e-15, 1 - 1e-15))))\n    target_logit = log(observed / (1.0 - observed))\n    return float(target_logit - mean_logit)''',
+              '''def territorial_variance(\n    values: Sequence[float] | np.ndarray,\n) -> float:\n    """Varianza transversal entre unidades territoriales."""\n    return float(np.var(_validate_territorial_vector(values, name="values"), ddof=1))''': '''def territorial_variance(\n    values: Sequence[float] | np.ndarray,\n) -> float:\n    """Varianza transversal entre unidades territoriales."""\n    arr = _validate_territorial_vector(values, name="values")\n    _require_at_least_two(arr, "values")\n    return float(np.var(arr, ddof=1))''',
+              '''    arr = _validate_territorial_vector(values, name="values")\n    mean_value = float(np.mean(arr))\n\n    if mean_value == 0.0:''': '''    arr = _validate_territorial_vector(values, name="values")\n    _require_at_least_two(arr, "values")\n    mean_value = float(np.mean(arr))\n\n    if mean_value == 0.0:''',
+              '''    arr = _validate_territorial_vector(values, name="values")\n    sd = float(np.std(arr, ddof=1))\n\n    if sd == 0.0:''': '''    arr = _validate_territorial_vector(values, name="values")\n    _require_at_least_two(arr, "values")\n    sd = float(np.std(arr, ddof=1))\n\n    if sd == 0.0:''',
+              '''    matrix = territorial_multi_pressure_matrix(pressures)\n    mean_values = np.mean(matrix, axis=0)''': '''    matrix = territorial_multi_pressure_matrix(pressures)\n    if matrix.shape[0] < 2:\n        raise MetricInputError("Se requieren al menos dos unidades territoriales")\n    mean_values = np.mean(matrix, axis=0)''',
+              '''    if p.shape[0] < 1:\n        raise MetricInputError("No hay unidades territoriales")''': '''    if p.shape[0] < 2:\n        raise MetricInputError("Se requieren al menos dos unidades territoriales")''',
+          }
+
+          for old, new in replacements.items():
+              if old not in text:
+                  raise SystemExit(f"Expected source fragment not found: {old[:100]!r}")
+              text = text.replace(old, new, 1)
+
+          path.write_text(text, encoding="utf-8")
+          if text == original:
+              raise SystemExit("No metric correction was applied")
+
+      - name: Commit corrections and remove one-time workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add backend/app/core/metrics.py
+          git rm .github/workflows/one-time-metrics-hardening.yml
+          git commit -m "fix: enforce metric mathematical boundary contracts"
+          git push

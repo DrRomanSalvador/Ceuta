@@ -1,17 +1,17 @@
 # CeutIA — Autonomous Task State
 
 **Updated:** 2026-09-14
-**HEAD:** `cabf340c5c154d8ca108adc7f011d22bd02e5925`
+**HEAD:** `b0368d134f15c6814d8a151fd1049727e71ab136`
 
 This file is an execution-state ledger, not a completion claim. The queue must expand when discovery identifies additional scientifically justified work.
 
 ## CURRENT_TASK
 
-Class-level temporal validation audit: identify and harden all validation-window contracts against timezone/ordering ambiguity and temporal leakage.
+Class-level prospective scoring audit: verify that proper-scoring mechanisms reject mathematically invalid probability domains rather than silently clipping endpoints.
 
 ## NEXT_TASK
 
-Audit prospective forecast scoring and settlement boundaries for the same point-in-time information-set contract; verify that forecast generation, outcome availability, and scoring cannot use post-cutoff revisions.
+Audit persisted forecast settlement state for temporal/provenance integrity: report identity, submission/deadline/outcome clocks, verification identity, and replay consistency after restart.
 
 ## BACKLOG
 
@@ -24,6 +24,7 @@ Audit prospective forecast scoring and settlement boundaries for the same point-
 - Audit NaN/Inf propagation across numerical outputs and aggregation boundaries.
 - Audit cascade/propagation semantics and distinguish observation from causal inference.
 - Audit scientific preregistration hashes for deterministic serialization of non-JSON-native specifications.
+- Audit persistent scoring/settlement provenance and idempotency boundaries.
 - Re-run global security, integration and regression searches after each material mathematical change.
 - Synchronize `docs/ENGINEERING_EXECUTION_STATUS.md` with verified repository evidence.
 
@@ -51,10 +52,12 @@ None currently identified as blocking all independent work.
 - Network density now requires integer graph counts and rejects edge counts above the maximum simple-graph bound.
 - Preregistration validation windows now parse ISO-8601 boundaries and compare instants in UTC instead of relying on lexicographic timestamp ordering; naive datetime boundaries are rejected.
 - Regression tests cover timezone-offset inversion and naive datetime rejection in preregistration windows.
+- Proper-scoring forecasts now require probabilities strictly inside (0,1); endpoint clipping was removed so log-score semantics remain exact rather than silently epsilon-biased.
+- Regression tests cover endpoint rejection for reports, expected log loss, and strict-propriety candidate grids.
 
 ## VALIDATION_STATE
 
-The current HEAD `cabf340c5c154d8ca108adc7f011d22bd02e5925` has no associated workflow run reported yet. Do not treat earlier green runs as validation of this or later changes.
+The current HEAD `b0368d134f15c6814d8a151fd1049727e71ab136` has no associated workflow run reported yet. Do not treat earlier green runs as validation of this or later changes.
 
 ## STOP CONDITION
 

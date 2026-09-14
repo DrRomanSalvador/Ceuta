@@ -122,7 +122,7 @@ def test_spatial_lag_rejects_isolated_territory():
         [1.0, 0.0, 0.0],
         [0.0, 0.0, 0.0],
     ]
-    with pytest.raises(MetricInputError, match="vecinos|conexión|fila"):
+    with pytest.raises(MetricInputError, match="vecino|conexión|fila"):
         territorial_spatial_lag([1.0, 2.0, 3.0], weights)
 
 

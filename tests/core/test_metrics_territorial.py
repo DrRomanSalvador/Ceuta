@@ -13,6 +13,7 @@ from app.core.metrics import (
     calibration_in_the_large,
     calibration_slope,
     get_metric_definition,
+    territorial_bottleneck_index,
     territorial_bottleneck_migration,
     territorial_bottleneck_ratio,
     territorial_capacity_reserve,
@@ -20,8 +21,12 @@ from app.core.metrics import (
     territorial_dependency_matrix,
     territorial_gearys_c,
     territorial_morans_i,
+    territorial_multi_pressure_score,
     territorial_normalized_entropy,
     territorial_observation_coverage,
+    territorial_pressure_breadth_fraction,
+    territorial_pressure_dependence,
+    territorial_reserve_depletion,
     territorial_signal_to_noise,
     territorial_share,
     territorial_spatial_lag,
@@ -82,9 +87,15 @@ def test_territorial_demand_capacity_rejects_zero_capacity():
 def test_territorial_capacity_reserve_preserves_negative_debt():
     reserve = territorial_capacity_reserve([12.0, 5.0], [10.0, 8.0])
     assert np.allclose(reserve, [-2.0, 3.0])
+    depletion = territorial_reserve_depletion([-2.0, 3.0], [-4.0, 2.0])
+    assert np.allclose(depletion, [2.0, 1.0])
 
 
-def test_territorial_bottleneck_migration_is_location_change_only():
+def test_territorial_bottleneck_ties_are_not_arbitrarily_ranked():
+    assert territorial_bottleneck_index([8.0, 8.0], [10.0, 10.0]) is None
+    assert territorial_bottleneck_migration(
+        [8.0, 2.0], [10.0, 10.0], [8.0, 8.0], [10.0, 10.0]
+    ) is None
     assert territorial_bottleneck_migration(
         [8.0, 2.0], [10.0, 10.0], [2.0, 9.0], [10.0, 10.0]
     ) == 1
@@ -145,6 +156,19 @@ def test_territorial_dependency_rejects_constant_or_single_observation():
         territorial_dependency_matrix([[1.0, 2.0]])
     with pytest.raises(MetricInputError):
         territorial_dependency_matrix([[1.0, 2.0], [1.0, 3.0]])
+
+
+def test_pressure_breadth_fraction_uses_one_zscore_transform():
+    pressures = [[0.0, 0.0], [1.0, 2.0], [2.0, 4.0]]
+    score = territorial_multi_pressure_score(pressures)
+    assert np.all(np.isfinite(score))
+    breadth = territorial_pressure_breadth_fraction(pressures, threshold=0.0)
+    assert np.allclose(breadth, [0.0, 1.0, 1.0])
+
+
+def test_pressure_dependence_rejects_constant_dimension():
+    with pytest.raises(MetricInputError):
+        territorial_pressure_dependence([[1.0, 1.0], [2.0, 1.0]])
 
 
 def test_cascade_depth_accepts_explicit_observed_layers():

@@ -1,13 +1,13 @@
 # CeutIA — Autonomous Task State
 
 **Updated:** 2026-09-14
-**HEAD:** `b0368d134f15c6814d8a151fd1049727e71ab136`
+**HEAD:** `492c59c309f6730c53f8ee47262ed4d8373ba873`
 
 This file is an execution-state ledger, not a completion claim. The queue must expand when discovery identifies additional scientifically justified work.
 
 ## CURRENT_TASK
 
-Class-level prospective scoring audit: verify that proper-scoring mechanisms reject mathematically invalid probability domains rather than silently clipping endpoints.
+Class-level reproducibility audit: ensure preregistered model specifications have a strict, deterministic serialization domain before hashing.
 
 ## NEXT_TASK
 
@@ -23,7 +23,6 @@ Audit persisted forecast settlement state for temporal/provenance integrity: rep
 - Audit provenance: source identity, acquisition time, publication time, revision/version and corroboration.
 - Audit NaN/Inf propagation across numerical outputs and aggregation boundaries.
 - Audit cascade/propagation semantics and distinguish observation from causal inference.
-- Audit scientific preregistration hashes for deterministic serialization of non-JSON-native specifications.
 - Audit persistent scoring/settlement provenance and idempotency boundaries.
 - Re-run global security, integration and regression searches after each material mathematical change.
 - Synchronize `docs/ENGINEERING_EXECUTION_STATUS.md` with verified repository evidence.
@@ -54,10 +53,12 @@ None currently identified as blocking all independent work.
 - Regression tests cover timezone-offset inversion and naive datetime rejection in preregistration windows.
 - Proper-scoring forecasts now require probabilities strictly inside (0,1); endpoint clipping was removed so log-score semantics remain exact rather than silently epsilon-biased.
 - Regression tests cover endpoint rejection for reports, expected log loss, and strict-propriety candidate grids.
+- Preregistration specification hashes now accept only strict JSON and reject non-finite values/non-JSON structures instead of hashing unstable `str()` representations.
+- Regression tests cover deterministic hashing domain rejection.
 
 ## VALIDATION_STATE
 
-The current HEAD `b0368d134f15c6814d8a151fd1049727e71ab136` has no associated workflow run reported yet. Do not treat earlier green runs as validation of this or later changes.
+The current HEAD `492c59c309f6730c53f8ee47262ed4d8373ba873` has no associated workflow run reported yet. Do not treat earlier green runs as validation of this or later changes.
 
 ## STOP CONDITION
 

@@ -3110,7 +3110,9 @@ def territorial_pressure_concentration(
     """Concentración territorial de la carga multidimensional."""
     score = territorial_multi_pressure_score(pressures)
 
-    shifted = score - np.min(score) + 1e-12
+    shifted = score - np.min(score)
+    if np.allclose(shifted, 0.0):
+        return float(1.0 / shifted.size)
 
     return territorial_concentration_hhi(shifted)
 

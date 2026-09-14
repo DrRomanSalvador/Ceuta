@@ -3,6 +3,8 @@
 Only URLs explicitly registered in OfficialSourceRegistry may be retrieved. The
 client uses conditional HTTP requests, bounded timeouts and content hashing. A
 network response is data, not truth: downstream evidence gates remain mandatory.
+Redirects are deliberately disabled so a registered source cannot silently turn
+into an SSRF path to an unregistered host.
 """
 from __future__ import annotations
 
@@ -32,7 +34,7 @@ class OfficialSourceClient:
         self.registry = registry
         self.timeout_seconds = timeout_seconds
         self.max_bytes = max_bytes
-        self._client = httpx.Client(timeout=timeout_seconds, follow_redirects=True)
+        self._client = httpx.Client(timeout=timeout_seconds, follow_redirects=False)
 
     def close(self) -> None:
         self._client.close()
@@ -64,7 +66,7 @@ class OfficialSourceClient:
             source_id, content, timestamp, response.status_code,
             etag=response.headers.get("etag"),
             last_modified=response.headers.get("last-modified"),
-            verified=response.status_code < 400,
+            verified=response.status_code < 400 and not 300 <= response.status_code < 400,
         )
         self.registry.register_snapshot(snapshot)
         return RetrievedSource(source_id, response.status_code, content, snapshot, dict(response.headers))

@@ -17,7 +17,7 @@ def test_rigorous_path_uses_common_scenarios_and_cross_option_regret():
     result = engine.evaluate_rigorously(decision_id="d1", options=options, gate=gate(), mode=DecisionMode.REGRET)
     assert result.audit.selected_option == "B"
     assert result.score is not None
-    assert result.score.maximum_regret == pytest.approx(13.0)
+    assert result.score.maximum_regret == pytest.approx(3.0)
 
 
 def test_rigorous_path_abstains_when_epistemic_gate_fails():

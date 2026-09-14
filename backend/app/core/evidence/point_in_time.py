@@ -1,9 +1,9 @@
 """Point-in-time evidence contracts for revision-aware temporal evaluation.
 
-A longitudinal observation time is not the same thing as the time at which a
-specific revision became available to the evaluator. This module keeps those
-clocks explicit and provides a fail-closed snapshot operation for retrospective
-replay.
+Observation time, source publication time, system acquisition time and effective
+validity are distinct clocks. The snapshot contract uses acquisition time as the
+information-availability boundary and keeps publication/effective metadata
+explicit for provenance and replay.
 """
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ from typing import Hashable, Sequence
 
 @dataclass(frozen=True, slots=True)
 class TemporalEvidenceRecord:
-    """One revision of an observation with explicit availability metadata."""
+    """One revision of an observation with explicit temporal provenance."""
 
     observation_id: Hashable
     entity_id: Hashable
@@ -22,19 +22,33 @@ class TemporalEvidenceRecord:
     available_at: float
     value: float
     revision: int = 0
+    published_at: float | None = None
+    acquired_at: float | None = None
     valid_from: float | None = None
     valid_to: float | None = None
 
     def __post_init__(self) -> None:
-        for name, value in (("observed_at", self.observed_at), ("available_at", self.available_at), ("value", self.value)):
+        for name, value in (
+            ("observed_at", self.observed_at),
+            ("available_at", self.available_at),
+            ("value", self.value),
+        ):
             if not isfinite(value):
                 raise ValueError(f"{name} must be finite")
+        for name, value in (
+            ("published_at", self.published_at),
+            ("acquired_at", self.acquired_at),
+            ("valid_from", self.valid_from),
+            ("valid_to", self.valid_to),
+        ):
+            if value is not None and not isfinite(value):
+                raise ValueError(f"{name} must be finite when provided")
+        if self.acquired_at is not None and self.acquired_at > self.available_at:
+            raise ValueError("available_at cannot precede acquired_at")
+        if self.published_at is not None and self.published_at > self.available_at:
+            raise ValueError("available_at cannot precede published_at")
         if self.revision < 0:
             raise ValueError("revision must be non-negative")
-        if self.valid_from is not None and not isfinite(self.valid_from):
-            raise ValueError("valid_from must be finite when provided")
-        if self.valid_to is not None and not isfinite(self.valid_to):
-            raise ValueError("valid_to must be finite when provided")
         if self.valid_from is not None and self.valid_to is not None and self.valid_from >= self.valid_to:
             raise ValueError("valid_from must be earlier than valid_to")
         if self.valid_from is not None and self.observed_at < self.valid_from:

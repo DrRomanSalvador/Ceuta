@@ -68,11 +68,7 @@ class ClaimRegistry:
 
         publication = evidence.publication_time
         revision = evidence.revision_time
-        ingestion = max(
-            evidence.ingestion_time,
-            publication or evidence.ingestion_time,
-            revision or evidence.ingestion_time,
-        )
+        ingestion = evidence.ingestion_time
         claim = self.claims.get(evidence.claim_id, {}).get("statement", evidence.semantic_definition)
         return EvidenceContract(
             evidence_id=evidence.evidence_id,

@@ -47,6 +47,8 @@ class ScientificSource:
     methodology: str = ""
     population_context: str = ""
     domain: str = ""
+    question_types: tuple[str, ...] = ()
+    response_types: tuple[str, ...] = ()
     finding: str = ""
     limitation: str = ""
     applicability: str = ""
@@ -76,6 +78,17 @@ class EvidenceSelection:
     source_ids: tuple[str, ...]
     trace: tuple[str, ...]
     limitations: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class ScientificResponse:
+    question_type: str
+    domain: str
+    response_type: str
+    source_ids: tuple[str, ...]
+    evidence_trace: tuple[str, ...]
+    limitations: tuple[str, ...]
+    uncertainty: tuple[str, ...]
 
 
 _LEVEL_RANK = {
@@ -113,10 +126,14 @@ class ScientificKnowledgeRegistry:
             for source in self._sources.values()
             if _LEVEL_RANK[source.evidence_level] >= minimum
             and (not requirement.domain or source.domain == requirement.domain)
+            and (not source.question_types or requirement.question_type in source.question_types)
+            and (not source.response_types or requirement.response_type in source.response_types)
         ]
         candidates.sort(
             key=lambda source: (
                 source.domain == requirement.domain if requirement.domain else False,
+                requirement.question_type in source.question_types if source.question_types else False,
+                requirement.response_type in source.response_types if source.response_types else False,
                 _LEVEL_RANK[source.evidence_level],
                 source.year or 0,
                 source.source_id,
@@ -138,12 +155,30 @@ class ScientificKnowledgeRegistry:
             limitations=limitations,
         )
 
+    def respond(self, requirement: EvidenceRequirement) -> ScientificResponse:
+        selection = self.select(requirement)
+        uncertainty = tuple(
+            f"{source_id}: applicability and limitations must be interpreted from the source context"
+            for source_id in selection.source_ids
+            if self.get(source_id).limitation or self.get(source_id).applicability
+        )
+        return ScientificResponse(
+            question_type=requirement.question_type,
+            domain=requirement.domain,
+            response_type=requirement.response_type,
+            source_ids=selection.source_ids,
+            evidence_trace=selection.trace,
+            limitations=selection.limitations,
+            uncertainty=uncertainty,
+        )
+
 
 __all__ = [
     "EvidenceLevel",
     "EvidenceRequirement",
     "EvidenceSelection",
     "ScientificKnowledgeRegistry",
+    "ScientificResponse",
     "ScientificSource",
     "SourceType",
 ]

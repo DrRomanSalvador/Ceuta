@@ -145,6 +145,17 @@ class ScientificGovernance:
         canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), allow_nan=False)
         return sha256(canonical.encode()).hexdigest()
 
+    @staticmethod
+    def _persisted_values(signal: GovernanceSignal) -> tuple[object, ...]:
+        return (
+            signal.signal_id, signal.decision_id, signal.disposition.value,
+            json.dumps([x.value for x in signal.reasons]),
+            json.dumps(signal.evidence_refs), json.dumps(signal.provenance_refs),
+            signal.mechanism_ref, signal.created_at.isoformat(), signal.code_revision,
+            signal.configuration_hash, signal.rule_version, signal.input_fingerprint,
+            signal.effect, signal.audit_hash,
+        )
+
     def evaluate(self, decision_id: str, value: GovernanceInput, *, created_at: datetime | None = None) -> GovernanceSignal:
         if not decision_id:
             raise ValueError("decision_id is required")
@@ -192,8 +203,14 @@ class ScientificGovernance:
         signal = GovernanceSignal(signal_id, decision_id, disposition, tuple(dict.fromkeys(reasons)), value.evidence_ids, value.provenance_refs, value.mechanism_ref, created_at, value.code_revision, value.configuration_hash, self.RULE_VERSION, fingerprint, effect, audit_hash)
         self._signals[signal_id] = signal
         if self.storage_path:
+            values = self._persisted_values(signal)
             with self._db() as db:
-                db.execute("INSERT OR REPLACE INTO scientific_governance_signals VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)", (signal.signal_id, signal.decision_id, signal.disposition.value, json.dumps([x.value for x in signal.reasons]), json.dumps(signal.evidence_refs), json.dumps(signal.provenance_refs), signal.mechanism_ref, signal.created_at.isoformat(), signal.code_revision, signal.configuration_hash, signal.rule_version, signal.input_fingerprint, signal.effect, signal.audit_hash))
+                existing = db.execute("SELECT signal_id,decision_id,disposition,reasons,evidence_refs,provenance_refs,mechanism_ref,created_at,code_revision,configuration_hash,rule_version,input_fingerprint,effect,audit_hash FROM scientific_governance_signals WHERE signal_id=?", (signal.signal_id,)).fetchone()
+                if existing is not None:
+                    if tuple(existing) != values:
+                        raise RuntimeError("scientific governance signal identity collision: existing signal differs")
+                else:
+                    db.execute("INSERT INTO scientific_governance_signals VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)", values)
         return signal
 
     def get(self, signal_id: str) -> GovernanceSignal:

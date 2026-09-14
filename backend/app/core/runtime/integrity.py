@@ -4,6 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from hashlib import sha256
 from math import isfinite
+from string import hexdigits
 from typing import Iterable, Sequence
 
 from app.core.decision.control_plane import EvidenceDisposition, UncertaintyState
@@ -56,7 +57,7 @@ class IntegrityEngine:
 
 
 def validate_evidence_set(evidence: Sequence[DecisionEvidence]) -> None:
-    """Reject duplicate identities, missing provenance and blocked inputs before decisioning."""
+    """Reject duplicate identities, malformed provenance and blocked inputs before decisioning."""
     seen: set[str] = set()
     for item in evidence:
         if item.evidence_id in seen:
@@ -64,6 +65,10 @@ def validate_evidence_set(evidence: Sequence[DecisionEvidence]) -> None:
         seen.add(item.evidence_id)
         if not item.provenance_refs:
             raise ValueError(f"evidence lacks provenance: {item.evidence_id}")
+        if len(item.content_hash) != 64 or any(char not in hexdigits for char in item.content_hash):
+            raise ValueError(f"evidence content hash is not a valid SHA-256 hex digest: {item.evidence_id}")
+        if item.assessment.evidence_id != item.evidence_id or item.assessment.source_id != item.source_id:
+            raise ValueError(f"evidence assessment identity mismatch: {item.evidence_id}")
         if item.assessment.disposition in {EvidenceDisposition.BLOCK, EvidenceDisposition.QUARANTINE}:
             raise ValueError(f"blocked/quarantined evidence cannot be a decision input: {item.evidence_id}")
 

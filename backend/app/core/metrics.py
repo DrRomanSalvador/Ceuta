@@ -231,6 +231,7 @@ def standard_deviation(values: Sequence[float] | np.ndarray, *, ddof: int = 1) -
 
 def coefficient_of_variation(values: Sequence[float] | np.ndarray) -> float:
     arr = _as_float_array(values, name="values")
+    _require_at_least_two(arr, "values")
     m = float(np.mean(arr))
     if m == 0.0:
         raise MetricInputError("El coeficiente de variación no está definido con media 0")
@@ -252,6 +253,7 @@ def median_absolute_deviation(values: Sequence[float] | np.ndarray) -> float:
 
 def z_score(value: float, baseline: Sequence[float] | np.ndarray) -> float:
     arr = _as_float_array(baseline, name="baseline")
+    _require_at_least_two(arr, "baseline")
     sd = float(np.std(arr, ddof=1))
     if sd == 0.0:
         raise MetricInputError("No se puede estandarizar una línea basal constante")
@@ -355,9 +357,10 @@ def exponential_moving_average(values: Sequence[float] | np.ndarray, alpha: floa
 
 def autocorrelation(values: Sequence[float] | np.ndarray, lag: int = 1) -> float:
     arr = _as_float_array(values, name="values")
-    _require_at_least_two(arr, "values")
     if lag < 1 or lag >= arr.size:
         raise MetricInputError("lag debe estar entre 1 y n-1")
+    if arr.size < lag + 2:
+        raise MetricInputError("autocorrelation requiere al menos lag+2 observaciones")
     x = arr[:-lag]
     y = arr[lag:]
     sx = np.std(x, ddof=1)
@@ -620,8 +623,12 @@ def calibration_in_the_large(
     p = _validate_probabilities(probabilities)
     _validate_same_length(truth, p)
     observed = float(np.mean(truth))
+    if not 0.0 < observed < 1.0:
+        raise MetricInputError(
+            "calibration-in-the-large no está definida cuando la prevalencia observada es 0 o 1"
+        )
     mean_logit = float(np.mean(np.log(np.clip(p, 1e-15, 1 - 1e-15) / np.clip(1 - p, 1e-15, 1 - 1e-15))))
-    target_logit = log(observed / (1.0 - observed)) if 0 < observed < 1 else float("inf")
+    target_logit = log(observed / (1.0 - observed))
     return float(target_logit - mean_logit)
 
 
@@ -977,6 +984,7 @@ def coefficient_of_variation_of_residuals(
     obs = _as_float_array(observed, name="observed")
     fit = _as_float_array(fitted, name="fitted")
     _validate_same_length(obs, fit)
+    _require_at_least_two(obs, "observed")
     residual = obs - fit
     mean_obs = float(np.mean(obs))
     if mean_obs == 0:
@@ -1149,6 +1157,7 @@ def climatic_water_balance(precipitation: Sequence[float] | np.ndarray, pet: Seq
 def standardized_water_balance(values: Sequence[float] | np.ndarray) -> np.ndarray:
     """Estandarización simple de P-PET; no se etiqueta como SPEI oficial."""
     arr = _as_float_array(values, name="water_balance")
+    _require_at_least_two(arr, "water_balance")
     sd = float(np.std(arr, ddof=1))
     if sd == 0:
         raise MetricInputError("Balance hídrico constante")
@@ -1167,6 +1176,7 @@ def rainfall_accumulation_intensity(values_mm: Sequence[float] | np.ndarray, dur
 
 def standardized_anomaly_series(values: Sequence[float] | np.ndarray) -> np.ndarray:
     arr = _as_float_array(values, name="values")
+    _require_at_least_two(arr, "values")
     sd = float(np.std(arr, ddof=1))
     if sd == 0:
         raise MetricInputError("Serie constante")
@@ -2105,6 +2115,8 @@ def _validate_spatial_matrix(
     weights: Sequence[Sequence[float]] | np.ndarray,
     n: int,
 ) -> np.ndarray:
+    if n < 2:
+        raise MetricInputError("Se requieren al menos dos unidades territoriales para una operación espacial")
     w = np.asarray(weights, dtype=float)
 
     if w.ndim != 2 or w.shape != (n, n):
@@ -2117,7 +2129,10 @@ def _validate_spatial_matrix(
     w = w.copy()
     np.fill_diagonal(w, 0.0)
 
-    if float(np.sum(w)) <= 0.0:
+    row_sum = np.sum(w, axis=1)
+    if np.any(row_sum <= 0.0):
+        raise MetricInputError("Cada unidad territorial debe tener al menos un vecino con peso positivo")
+    if float(np.sum(row_sum)) <= 0.0:
         raise MetricInputError("weights debe contener al menos una conexión")
 
     return w
@@ -2278,8 +2293,10 @@ def territorial_theil(
 
     ratio = arr / mean_value
     positive = ratio > 0.0
+    terms = np.zeros_like(ratio)
+    terms[positive] = ratio[positive] * np.log(ratio[positive])
 
-    return float(np.mean(ratio[positive] * np.log(ratio[positive])))
+    return float(np.mean(terms))
 
 
 def territorial_mean(
@@ -2293,7 +2310,9 @@ def territorial_variance(
     values: Sequence[float] | np.ndarray,
 ) -> float:
     """Varianza transversal entre unidades territoriales."""
-    return float(np.var(_validate_territorial_vector(values, name="values"), ddof=1))
+    arr = _validate_territorial_vector(values, name="values")
+    _require_at_least_two(arr, "values")
+    return float(np.var(arr, ddof=1))
 
 
 def territorial_coefficient_of_variation(
@@ -2886,6 +2905,8 @@ def territorial_multi_pressure_zscores(
 ) -> np.ndarray:
     """Z-score territorial independiente para cada dimensión."""
     matrix = territorial_multi_pressure_matrix(pressures)
+    if matrix.shape[0] < 2:
+        raise MetricInputError("Se requieren al menos dos unidades territoriales")
     mean_values = np.mean(matrix, axis=0)
     std_values = np.std(matrix, axis=0, ddof=1)
 
@@ -3760,8 +3781,8 @@ def territorial_systemic_sensitivity_matrix(
             "perturbations y responses deben compartir unidades territoriales"
         )
 
-    if p.shape[0] < 1:
-        raise MetricInputError("No hay unidades territoriales")
+    if p.shape[0] < 2:
+        raise MetricInputError("Se requieren al menos dos unidades territoriales")
 
     p_scale = np.std(p, axis=0, ddof=1)
 

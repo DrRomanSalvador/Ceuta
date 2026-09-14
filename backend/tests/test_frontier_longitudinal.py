@@ -13,7 +13,8 @@ from app.core.evidence.frontier_selection_transport import (
     optimism_corrected_bootstrap,
     transport_validate,
 )
-from app.core.evidence.longitudinal_validation import LongitudinalRecord, rolling_origin_splits
+from app.core.evidence.frontier_temporal import strict_rolling_origin
+from app.core.evidence.longitudinal_validation import LongitudinalRecord
 
 
 def _records() -> list[LongitudinalRecord]:
@@ -28,13 +29,14 @@ def _records() -> list[LongitudinalRecord]:
         LongitudinalRecord("d", 2, 1, 0.6, cluster_id="w", horizon=2),
         LongitudinalRecord("e", 3, 1, 0.7, cluster_id="v", horizon=1),
         LongitudinalRecord("f", 3, 0, 0.3, cluster_id="u", horizon=1),
+        LongitudinalRecord("g", 4, 1, 0.8, cluster_id="t", horizon=1),
     ]
 
 
 def test_dependence_diagnostic_counts_independent_units():
     result = dependence_diagnostic(_records())
-    assert result.n_observations == 10
-    assert result.independent_units == 6
+    assert result.n_observations == 11
+    assert result.independent_units == 7
     assert result.max_repeated_per_unit == 2
 
 
@@ -50,7 +52,7 @@ def test_cluster_bootstrap_preserves_repeated_units():
 def test_true_block_bootstrap_generates_full_samples():
     indices = block_bootstrap_indices(_records(), BlockBootstrapSpec("circular", 2, 500, 7))
     assert len(indices) == 500
-    assert all(len(sample) == 10 for sample in indices)
+    assert all(len(sample) == 11 for sample in indices)
 
 
 def test_cluster_robust_mean_uses_units_not_rows():
@@ -104,22 +106,32 @@ def test_optimism_correction_is_nested_inside_bootstrap():
 
 def test_nested_temporal_cv_keeps_selection_inside_outer_training():
     records = _records()
-    outer = rolling_origin_splits(
-        records, initial_train_time=1, test_horizon=1, step=1, gap=0, expanding=True
+    outer_design = strict_rolling_origin(
+        records, initial_train_duration=1, test_duration=1, step=1, purge_gap=0, expanding=True
     )
-    inner = rolling_origin_splits(
-        records, initial_train_time=1, test_horizon=1, step=1, gap=0, expanding=True
+    inner_design = strict_rolling_origin(
+        records, initial_train_duration=1, test_duration=1, step=1, purge_gap=0, expanding=True
     )
     result = nested_temporal_cv(
         records,
-        outer,
-        inner,
+        outer_design,
+        inner_design,
         parameters=(0, 1),
         fit=lambda rows, parameter: parameter,
         score=lambda model, rows: -sum(abs(model - r.outcome) for r in rows) / len(rows),
     )
-    assert len(result.outer_scores) == len(outer)
-    assert len(result.selected_parameters) == len(outer)
+    assert len(result.outer_scores) == len(outer_design)
+    assert len(result.selected_parameters) == len(outer_design)
+
+
+def test_strict_temporal_design_has_no_overlap():
+    folds = strict_rolling_origin(
+        _records(), initial_train_duration=1, test_duration=1, step=1, purge_gap=0
+    )
+    for fold in folds:
+        assert max(_records()[i].time for i in fold.train_indices) < min(
+            _records()[i].time for i in fold.test_indices
+        )
 
 
 def test_transport_validation_does_not_refit_target():

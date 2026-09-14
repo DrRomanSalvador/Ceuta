@@ -1,17 +1,17 @@
 # CeutIA — Autonomous Task State
 
 **Updated:** 2026-09-15
-**HEAD:** `6430c5de2a87e6689b4f9d659239e932de32f26a`
+**HEAD:** `cb373fc374bbb58a19c321d826b77fcb888d3ebe`
 
 This file is an execution-state ledger, not a completion claim. The queue must expand when discovery identifies additional scientifically justified work.
 
 ## CURRENT_TASK
 
-Governance persistence hardening: the active decision store now binds the default scientific-governance database path, and governance input fingerprints now use strict canonical JSON rather than `default=str`. This removes representation-dependent fingerprints and preserves deterministic audit identity.
+Decision persistence hardening: outcome and decision-lineage records are now immutable by identity. Repeated identical writes are idempotent; conflicting writes fail closed instead of silently replacing persisted scientific history.
 
 ## NEXT_TASK
 
-Continue class-level numerical and persistence-contract discovery: audit equivalent divisions, zero-denominator handling, finite-value propagation, sample-size requirements, idempotency, and provenance across runtime/scientific/decision persistence boundaries. Preserve concurrent work and treat failures as new root-cause tasks.
+Continue the repository-wide persistence audit: conflict-resolution records, source records, citation traces, temporal cycle snapshots, concurrent writers, and schema migration semantics. In parallel continue numerical denominator, finite-value, sample-size, provenance, and temporal-leakage discovery.
 
 ## BACKLOG
 
@@ -63,10 +63,13 @@ None currently identified as blocking all independent work.
 - Regression tests lock the non-DP aggregation contract and finite-input/sample-size guards.
 - Scientific governance persistence is bound to the active decision-store path and covered by regression tests.
 - Scientific governance fingerprints use strict canonical JSON serialization with non-finite values rejected by the input contract.
+- Decision outcome persistence no longer silently overwrites an existing outcome with the same identity; identical writes are idempotent and conflicting payloads fail closed.
+- Decision lineage persistence no longer silently replaces an existing lineage for a decision; identical writes are idempotent and conflicting lineage fails closed.
+- Regression coverage added for both immutable persistence contracts.
 
 ## VALIDATION_STATE
 
-HEAD `6430c5de2a87e6689b4f9d659239e932de32f26a` has newly triggered GitHub Actions validation. Integration and security are not yet green; do not mark the HEAD validated until the relevant runs conclude successfully.
+HEAD `cb373fc374bbb58a19c321d826b77fcb888d3ebe` has new commits and must be revalidated by the repository workflows. Do not mark this HEAD green until the relevant integration, security, regression, and scientific validation runs conclude successfully.
 
 ## STOP CONDITION
 

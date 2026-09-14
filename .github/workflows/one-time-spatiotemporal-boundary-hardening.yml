@@ -1,0 +1,42 @@
+name: One-time spatiotemporal boundary hardening
+
+on:
+  push:
+    paths:
+      - '.github/workflows/one-time-spatiotemporal-boundary-hardening.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply spatiotemporal contracts
+        shell: python
+        run: |
+          from pathlib import Path
+          path = Path("backend/app/core/metrics.py")
+          text = path.read_text(encoding="utf-8")
+          replacements = {
+              '''    matrix = np.asarray(values_by_time, dtype=float)\n\n    if matrix.ndim != 2:\n        raise MetricInputError("values_by_time debe ser una matriz 2D")\n\n    thresholds = np.quantile(matrix, quantile_level, axis=1)''': '''    matrix = np.asarray(values_by_time, dtype=float)\n\n    if matrix.ndim != 2 or matrix.shape[0] < 1 or matrix.shape[1] < 1:\n        raise MetricInputError("values_by_time debe ser una matriz 2D no vacía")\n    if not np.all(np.isfinite(matrix)):\n        raise MetricInputError("values_by_time contiene valores no finitos")\n\n    thresholds = np.quantile(matrix, quantile_level, axis=1)''',
+              '''def territorial_time_concentration(\n    values_by_time: Sequence[Sequence[float]] | np.ndarray,\n) -> np.ndarray:\n    """HHI territorial para cada instante."""\n    matrix = np.asarray(values_by_time, dtype=float)\n\n    if matrix.ndim != 2:\n        raise MetricInputError("values_by_time debe ser una matriz 2D")''': '''def territorial_time_concentration(\n    values_by_time: Sequence[Sequence[float]] | np.ndarray,\n) -> np.ndarray:\n    """HHI territorial para cada instante."""\n    matrix = np.asarray(values_by_time, dtype=float)\n\n    if matrix.ndim != 2 or matrix.shape[0] < 1 or matrix.shape[1] < 1:\n        raise MetricInputError("values_by_time debe ser una matriz 2D no vacía")\n    if not np.all(np.isfinite(matrix)):\n        raise MetricInputError("values_by_time contiene valores no finitos")''',
+              '''def territorial_spatiotemporal_breadth(\n    values_by_time: Sequence[Sequence[float]] | np.ndarray,\n    *,\n    threshold: float,\n) -> np.ndarray:\n    """\n    Número de unidades territoriales sobre el umbral en cada instante.\n    """\n    matrix = np.asarray(values_by_time, dtype=float)\n\n    if matrix.ndim != 2:\n        raise MetricInputError("values_by_time debe ser una matriz 2D")\n\n    return np.sum(matrix >= threshold, axis=1).astype(float)''': '''def territorial_spatiotemporal_breadth(\n    values_by_time: Sequence[Sequence[float]] | np.ndarray,\n    *,\n    threshold: float,\n) -> np.ndarray:\n    """Número de unidades territoriales sobre el umbral en cada instante."""\n    matrix = np.asarray(values_by_time, dtype=float)\n\n    if matrix.ndim != 2 or matrix.shape[0] < 1 or matrix.shape[1] < 1:\n        raise MetricInputError("values_by_time debe ser una matriz 2D no vacía")\n    if not np.all(np.isfinite(matrix)):\n        raise MetricInputError("values_by_time contiene valores no finitos")\n\n    return np.sum(matrix >= threshold, axis=1).astype(float)''',
+              '''    matrix = np.asarray(values_by_time, dtype=float)\n\n    return territorial_spatiotemporal_breadth(\n        matrix,\n        threshold=threshold,\n    ) / matrix.shape[1]''': '''    matrix = np.asarray(values_by_time, dtype=float)\n    if matrix.ndim != 2 or matrix.shape[0] < 1 or matrix.shape[1] < 1:\n        raise MetricInputError("values_by_time debe ser una matriz 2D no vacía")\n\n    return territorial_spatiotemporal_breadth(\n        matrix,\n        threshold=threshold,\n    ) / matrix.shape[1]''',
+          }
+          for old, new in replacements.items():
+              if old not in text:
+                  raise SystemExit(f"Expected source fragment not found: {old[:120]!r}")
+              text = text.replace(old, new, 1)
+          path.write_text(text, encoding="utf-8")
+      - name: Commit correction and remove workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f backend/app/core/metrics.py
+          git rm .github/workflows/one-time-spatiotemporal-boundary-hardening.yml
+          git commit -m "fix: reject empty spatiotemporal metric inputs"
+          git push

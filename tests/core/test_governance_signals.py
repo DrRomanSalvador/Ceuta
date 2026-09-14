@@ -38,6 +38,16 @@ def test_clean_path_releases_and_persists(tmp_path):
     assert restored.get(signal.signal_id).audit_hash == signal.audit_hash
 
 
+def test_fingerprint_is_strict_and_reproducible():
+    value = good()
+    first = ScientificGovernance._fingerprint("decision-1", value)
+    second = ScientificGovernance._fingerprint("decision-1", value)
+    assert first == second
+    assert len(first) == 64
+    with pytest.raises(ValueError):
+        ScientificGovernance._fingerprint("decision-1", good(evidence_quality=float("nan")))
+
+
 def test_decision_store_binds_default_governance_persistence(tmp_path):
     db = tmp_path / "decision.sqlite"
     store = SQLiteDecisionStore(str(db))

@@ -4,7 +4,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import StrEnum
 
-from app.core.final_epistemic_control import FinalEpistemicAssessment, SystemValidity
+from app.core.final_epistemic_control import (
+    EpistemicIntegrityStatus,
+    FinalEpistemicAssessment,
+    SystemValidity,
+)
 from app.core.system_intelligence import SystemAssessment
 
 
@@ -36,8 +40,14 @@ class SystemIntelligenceGate:
             reasons.extend(final_epistemic.reasons)
             if final_epistemic.validity in {SystemValidity.DOUBT, SystemValidity.ABSTAIN}:
                 return SystemGateResult(SystemGateDisposition.ABSTAIN, tuple(reasons), 0.0)
+            if final_epistemic.composition is EpistemicIntegrityStatus.BROKEN:
+                reasons.append("epistemic composition is broken")
+                return SystemGateResult(SystemGateDisposition.ABSTAIN, tuple(reasons), 0.0)
         degraded = assessment.missing_data_risk >= 0.35 or assessment.measurement_process_risk >= 0.35
-        if final_epistemic is not None and final_epistemic.composition.value in {"weakened", "unknown"}:
+        if final_epistemic is not None and final_epistemic.composition in {
+            EpistemicIntegrityStatus.WEAKENED,
+            EpistemicIntegrityStatus.UNKNOWN,
+        }:
             degraded = True
             reasons.append("epistemic composition is weakened or unresolved")
         if degraded:

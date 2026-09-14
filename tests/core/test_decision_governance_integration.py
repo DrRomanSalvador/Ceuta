@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import datetime, timezone
 from hashlib import sha256
 
@@ -6,6 +7,7 @@ from app.core.decision.control_plane import EvidenceAssessment
 from app.core.decision.decision_system import DecisionContext, DecisionObjective, DecisionOption, ScenarioOutcome
 from app.core.decision.persistence import SQLiteDecisionStore
 from app.core.runtime.decision_lifecycle import BitemporalRef, DecisionEvidence, DecisionLifecycleEngine
+from app.core.runtime.model_governance import ModelGovernanceRecord
 from app.core.scientific.governance_signals import GovernanceInput, GovernanceDisposition, GovernanceReason
 
 NOW = datetime(2026, 9, 15, tzinfo=timezone.utc)
@@ -35,10 +37,37 @@ def inputs(configuration_hash, **changes):
     return GovernanceInput(**value)
 
 
+def model_release():
+    record = ModelGovernanceRecord(
+        model_id="model:test",
+        version="1",
+        code_hash=sha256(b"model-code").hexdigest(),
+        data_snapshot_hash=sha256(b"model-data").hexdigest(),
+        assumptions=("test assumption",),
+        valid_from=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        calibrated=True,
+        validation_ref="validation:test",
+        calibration_ref="calibration:test",
+        approval_ref="approval:test",
+    )
+    return replace(record, release_hash=record.fingerprint())
+
+
 def execute(engine, evidence_item, governance_input):
     context = DecisionContext("d1", "operator", "short", (DecisionObjective("safety", 1.0),))
     option = DecisionOption("o1", (ScenarioOutcome("s1", 1.0, 1.0, 0.0),))
-    return engine.execute(context, (option,), (evidence_item,), state_refs=("state1",), purpose="test decision", at=NOW, scientific_governance_input=governance_input)
+    return engine.execute(
+        context,
+        (option,),
+        (evidence_item,),
+        state_refs=("state1",),
+        scenario_refs=("scenario:test",),
+        model_refs=("model:test",),
+        model_releases={"model:test": model_release()},
+        purpose="test decision",
+        at=NOW,
+        scientific_governance_input=governance_input,
+    )
 
 
 def test_clean_governance_reaches_recommendation(tmp_path):

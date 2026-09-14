@@ -170,8 +170,14 @@ class ClaimRegistry:
         return link
 
     def get_evidences_for_backtest(self, simulation_time: datetime, variable_filter: Optional[str] = None) -> List[Evidence]:
-        all_ev = list(self.evidences.values())
-        filtered = TemporalFilter.filter_by_available_at(all_ev, simulation_time)
+        all_versions = [
+            evidence
+            for versions in self.evidence_versions.values()
+            for evidence in versions
+        ]
+        if not all_versions:
+            all_versions = list(self.evidences.values())
+        filtered = TemporalFilter.snapshot_by_available_at(all_versions, simulation_time)
         TemporalFilter.assert_no_future_leak(filtered, simulation_time)
         if variable_filter is None:
             return filtered

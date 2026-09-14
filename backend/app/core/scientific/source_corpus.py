@@ -341,13 +341,17 @@ class ScientificSourceCorpus:
         with self._db() as db:
             rows = db.execute("SELECT source_id,version,record_hash,payload FROM scientific_sources ORDER BY source_id,version").fetchall()
             impacts = db.execute("SELECT impact_id,impact_hash,payload FROM scientific_impacts ORDER BY impact_id").fetchall()
-        for source_id, version, record_hash, payload in rows:
-            if record_hash != _digest(_decode_source(json.loads(payload))):
-                return False
-        for impact_id, impact_hash, payload in impacts:
-            impact = _decode_impact(json.loads(payload))
-            if impact_id != impact.impact_id or impact_hash != _digest(impact):
-                return False
+        try:
+            for source_id, version, record_hash, payload in rows:
+                source = _decode_source(json.loads(payload))
+                if source_id != source.source_id or version != source.version or record_hash != _digest(source):
+                    return False
+            for impact_id, impact_hash, payload in impacts:
+                impact = _decode_impact(json.loads(payload))
+                if impact_id != impact.impact_id or impact_hash != _digest(impact):
+                    return False
+        except (KeyError, TypeError, ValueError, json.JSONDecodeError):
+            return False
         return True
 
 

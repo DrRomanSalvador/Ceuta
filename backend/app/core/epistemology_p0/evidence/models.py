@@ -239,6 +239,8 @@ class Evidence:
             "created_at": _ser(self.created_at),
             "parent_version_id": self.parent_version_id,
             "unavailable_fields": self.unavailable_fields,
+            "valid_from": _ser(self.valid_from),
+            "valid_to": _ser(self.valid_to),
             "schema_version": "1.0",
         }
 

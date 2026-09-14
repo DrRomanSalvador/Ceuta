@@ -131,11 +131,9 @@ class ScientificEvidenceGate:
                 uncertainty = max(uncertainty, 0.55)
                 disposition = max_disposition(disposition, GateDisposition.HUMAN_REVIEW)
 
-            # External validation and calibration are conditional on actual
-            # prediction-model use. A methodological or validation paper can
-            # legitimately be evidence about methods without itself being a
-            # deployed prediction model.
-            if item.prediction_model:
+            # Prediction-quality controls apply to declared prediction models and
+            # to high-impact evidence being used as a predictive decision input.
+            if item.prediction_model or item.high_impact:
                 if item.validation_level in {ValidationLevel.NONE, ValidationLevel.APPARENT, ValidationLevel.INTERNAL}:
                     reasons.append(f"{item.evidence_id}:no_external_validation")
                     controls.append(f"{item.evidence_id}:external_validation")

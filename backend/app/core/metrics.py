@@ -3888,6 +3888,10 @@ def territorial_systemic_sensitivity_matrix(
 
     if p.shape[0] < 2:
         raise MetricInputError("Se requieren al menos dos unidades territoriales")
+    if p.shape[1] < 1 or r.shape[1] < 1:
+        raise MetricInputError("Debe existir al menos una perturbación y una respuesta")
+    if not np.all(np.isfinite(p)) or not np.all(np.isfinite(r)):
+        raise MetricInputError("perturbations y responses contienen valores no finitos")
 
     p_scale = np.std(p, axis=0, ddof=1)
 

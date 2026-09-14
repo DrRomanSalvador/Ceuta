@@ -43,12 +43,9 @@ class TemporalContext:
     valid_to: Optional[datetime] = None
 
     def __post_init__(self) -> None:
-        for field in (
-            "event_time", "event_start", "event_end", "publication_time",
-            "ingestion_time", "revision_time", "detection_time",
-            "assessment_time", "impact_time", "valid_from", "valid_to",
-        ):
-            _require_aware(getattr(self, field), field)
+        # Legacy construction permits naive timestamps. Retrospective and
+        # validity comparisons fail closed unless their query boundary and
+        # compared timestamps are timezone-aware.
         if self.event_start is not None and self.event_end is not None and self.event_start > self.event_end:
             raise ValueError("event_start must not be after event_end")
         if self.valid_from is not None and self.valid_to is not None and self.valid_from >= self.valid_to:
@@ -61,10 +58,13 @@ class TemporalContext:
     def is_available_at(self, simulation_time: datetime) -> bool:
         _require_aware(simulation_time, "simulation_time")
         available = self.available_at
+        _require_aware(available, "available_at")
         return available is not None and available <= simulation_time
 
     def is_valid_at(self, simulation_time: datetime) -> bool:
         _require_aware(simulation_time, "simulation_time")
+        _require_aware(self.valid_from, "valid_from")
+        _require_aware(self.valid_to, "valid_to")
         if self.valid_from is not None and simulation_time < self.valid_from:
             return False
         if self.valid_to is not None and simulation_time >= self.valid_to:
@@ -130,13 +130,7 @@ class TemporalFilter:
 
     @classmethod
     def snapshot_by_available_at(cls, evidences: List, simulation_time: datetime) -> List:
-        """Return the latest available immutable version of each evidence item.
-
-        Historical replay must not expose multiple versions of the same
-        evidence item. A stable ``evidence_id`` and non-negative integer
-        ``version`` (or explicit adapter ``revision``) are required; otherwise
-        the function fails closed rather than guessing version order.
-        """
+        """Return the latest available immutable version of each evidence item."""
         available = cls.filter_by_available_at(evidences, simulation_time)
         selected: dict[object, object] = {}
         for evidence in available:

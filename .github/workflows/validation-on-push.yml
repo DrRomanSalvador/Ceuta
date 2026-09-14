@@ -32,7 +32,6 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
-          import re
 
           path = Path("backend/app/core/evidence/predictive_validation.py")
           text = path.read_text(encoding="utf-8")
@@ -112,7 +111,7 @@ jobs:
           fi
           git config user.name "CeutIA Validation Bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add backend/app/core/evidence/predictive_validation.py
+          git add -f backend/app/core/evidence/predictive_validation.py
           git commit -m "fix: make logistic calibration separation-safe"
           git push
       - name: Run full test suite

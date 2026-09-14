@@ -1,0 +1,120 @@
+import numpy as np
+import pytest
+
+from app.core.metrics import (
+    MetricInputError,
+    MetricNotPermittedError,
+    MetricNotValidatedError,
+    OutputChannel,
+    assert_output_permitted,
+    assert_metric_executable,
+    get_metric_definition,
+    territorial_bottleneck_migration,
+    territorial_bottleneck_ratio,
+    territorial_capacity_reserve,
+    territorial_demand_per_capacity,
+    territorial_gearys_c,
+    territorial_morans_i,
+    territorial_observation_coverage,
+    territorial_signal_to_noise,
+    territorial_share,
+    territorial_spatial_lag,
+    territorial_spatial_propagation,
+    territorial_cascade_depth,
+    validate_registry_integrity,
+    validate_probability_output,
+)
+
+
+def test_territorial_share_is_normalized():
+    shares = territorial_share([1.0, 1.0, 2.0])
+    assert np.allclose(shares, [0.25, 0.25, 0.5])
+    assert np.isclose(np.sum(shares), 1.0)
+
+
+def test_territorial_demand_capacity_rejects_zero_capacity():
+    with pytest.raises(MetricInputError):
+        territorial_demand_per_capacity([10.0, 5.0], [0.0, 5.0])
+
+
+def test_territorial_capacity_reserve_preserves_negative_debt():
+    reserve = territorial_capacity_reserve([12.0, 5.0], [10.0, 8.0])
+    assert np.allclose(reserve, [-2.0, 3.0])
+
+
+def test_territorial_bottleneck_migration_is_location_change_only():
+    assert territorial_bottleneck_migration(
+        [8.0, 2.0], [10.0, 10.0], [2.0, 9.0], [10.0, 10.0]
+    ) == 1
+    assert territorial_bottleneck_migration(
+        [8.0, 2.0], [10.0, 10.0], [7.0, 2.0], [10.0, 10.0]
+    ) is None
+    assert territorial_bottleneck_ratio([8.0, 2.0], [10.0, 10.0]) == pytest.approx(0.8)
+
+
+def test_spatial_lag_uses_row_normalization():
+    values = [1.0, 3.0, 5.0]
+    weights = [
+        [0.0, 1.0, 0.0],
+        [1.0, 0.0, 1.0],
+        [0.0, 1.0, 0.0],
+    ]
+    assert np.allclose(territorial_spatial_lag(values, weights), [3.0, 3.0, 3.0])
+
+
+def test_spatial_metrics_reject_constant_values():
+    weights = [[0.0, 1.0], [1.0, 0.0]]
+    with pytest.raises(MetricInputError):
+        territorial_morans_i([2.0, 2.0], weights)
+    with pytest.raises(MetricInputError):
+        territorial_gearys_c([2.0, 2.0], weights)
+
+
+def test_spatial_propagation_is_descriptive_and_finite():
+    previous = [1.0, 2.0, 3.0]
+    current = [2.0, 2.0, 5.0]
+    weights = [
+        [0.0, 1.0, 0.0],
+        [1.0, 0.0, 1.0],
+        [0.0, 1.0, 0.0],
+    ]
+    result = territorial_spatial_propagation(previous, current, weights)
+    assert np.isfinite(result)
+    assert result >= 0.0
+
+
+def test_cascade_depth_does_not_claim_causality():
+    assert territorial_cascade_depth([0.0, 1.0], [1.0, 1.0]) == 1
+    assert territorial_cascade_depth([1.0, 1.0], [1.0, 1.0]) == 0
+
+
+def test_observation_coverage_is_bounded():
+    coverage = territorial_observation_coverage([50.0, 100.0], [100.0, 100.0])
+    assert np.all((coverage >= 0.0) & (coverage <= 1.0))
+    with pytest.raises(MetricInputError):
+        territorial_observation_coverage([101.0], [100.0])
+
+
+def test_signal_to_noise_rejects_zero_noise():
+    with pytest.raises(MetricInputError):
+        territorial_signal_to_noise([1.0, 2.0], [0.0, 1.0])
+
+
+def test_registry_controls_unvalidated_strategic_probability():
+    definition = get_metric_definition("intergroup_violence_early_warning")
+    assert definition.executable is False
+    with pytest.raises(MetricNotValidatedError):
+        assert_metric_executable("intergroup_violence_early_warning")
+    with pytest.raises(MetricNotPermittedError):
+        assert_output_permitted("intergroup_violence_early_warning", OutputChannel.PUBLIC_USER)
+    with pytest.raises(MetricNotValidatedError):
+        validate_probability_output(
+            "intergroup_violence_early_warning",
+            [0.2, 0.8],
+            calibrated=True,
+            externally_validated=True,
+        )
+
+
+def test_registry_integrity_remains_executable():
+    validate_registry_integrity()

@@ -71,6 +71,15 @@ def self_model() -> EpistemicSelfModel:
     )
 
 
+def prospective_protocol(protocol_id: str = "p1", precommitted: bool = True) -> ProspectiveEvaluationProtocol:
+    return ProspectiveEvaluationProtocol(
+        protocol_id=protocol_id, target="decision", population="ceuta", context="deployment",
+        horizon="12m", decision_rule="precommitted", comparator="baseline",
+        outcome="decision_quality", protocol_version="1", system_version="1",
+        model_version="1", ontology_version="1", policy_version="1", precommitted=precommitted,
+    )
+
+
 def test_broken_composition_cannot_be_hidden():
     transformation = EpistemicTransformation(
         transformation_id="t1",
@@ -108,18 +117,34 @@ def test_ontology_suspicion_requires_persistence_and_structure():
 
 
 def test_controller_does_not_claim_method_effectiveness_without_prospective_evidence():
-    protocol = ProspectiveEvaluationProtocol(
-        protocol_id="p1", target="decision", population="ceuta", context="deployment",
-        horizon="12m", decision_rule="precommitted", comparator="baseline",
-        outcome="decision_quality", protocol_version="1", system_version="1",
-        model_version="1", ontology_version="1", policy_version="1", precommitted=True,
-    )
+    protocol = prospective_protocol()
     result = ProspectiveEvaluationResult("p1", None, True, "empirically_unvalidated")
     assessment = FinalEpistemicController().assess(
         reality_anchor=anchor(), transformations=(), self_model=self_model(),
         prospective_protocol=protocol, prospective_result=result,
     )
     assert not assessment.method_effectiveness_established
+
+
+def test_controller_requires_precommitted_protocol_for_effectiveness():
+    protocol = prospective_protocol(precommitted=False)
+    result = ProspectiveEvaluationResult("p1", 0.4, True, "prospectively_validated")
+    assessment = FinalEpistemicController().assess(
+        reality_anchor=anchor(), transformations=(), self_model=self_model(),
+        prospective_protocol=protocol, prospective_result=result,
+    )
+    assert not assessment.method_effectiveness_established
+
+
+def test_controller_requires_result_to_match_active_protocol():
+    protocol = prospective_protocol("p1")
+    result = ProspectiveEvaluationResult("different-protocol", 0.4, True, "prospectively_validated")
+    assessment = FinalEpistemicController().assess(
+        reality_anchor=anchor(), transformations=(), self_model=self_model(),
+        prospective_protocol=protocol, prospective_result=result,
+    )
+    assert not assessment.method_effectiveness_established
+    assert "prospective result is not linked to the active protocol" in assessment.reasons
 
 
 def test_controller_enters_global_doubt():

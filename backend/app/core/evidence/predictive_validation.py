@@ -56,7 +56,7 @@ def _sigmoid(x: float) -> float:
     return z / (1.0 + z)
 
 def _fit_logistic_calibration(logits: Sequence[float], outcomes: Sequence[int]) -> tuple[float, float, float, float, float]:
-    """Fit logistic calibration with explicit finite handling of separation."""
+    """Fit logistic calibration with correct information-matrix semantics."""
     if len(logits) != len(outcomes) or len(logits) < 3:
         raise ValueError("at least three paired predictions/outcomes are required")
     if len(set(outcomes)) < 2:
@@ -82,12 +82,12 @@ def _fit_logistic_calibration(logits: Sequence[float], outcomes: Sequence[int]) 
             determinant = h00 * h11 - h01 * h01
             if penalty == 0.0:
                 scale = max(abs(h00 * h11), abs(h01 * h01), 1.0)
-                if determinant >= -1e-14 * scale or abs(determinant) <= 1e-14 * scale:
+                if determinant <= 0.0 or abs(determinant) <= 1e-14 * scale:
                     return None
-            elif determinant >= 0.0 or abs(determinant) < 1e-15:
+            elif determinant <= 0.0 or abs(determinant) < 1e-15:
                 return None
             if max(abs(g0), abs(g1)) <= 1e-12:
-                return alpha, beta, h11 / determinant, -h01 / determinant, h00 / determinant
+                return alpha, beta, -h11 / determinant, h01 / determinant, -h00 / determinant
             step_alpha = (g0 * h11 - g1 * h01) / determinant
             step_beta = (h00 * g1 - h01 * g0) / determinant
             accepted = False
@@ -114,8 +114,6 @@ def _fit_logistic_calibration(logits: Sequence[float], outcomes: Sequence[int]) 
     if result is None:
         result = fit(1e-2)
     if result is None:
-        # Finite penalized fallback for complete/semi separation. This is
-        # deliberately identified as a penalized estimator, not an MLE.
         import numpy as np
         from sklearn.linear_model import LogisticRegression
 
@@ -131,9 +129,9 @@ def _fit_logistic_calibration(logits: Sequence[float], outcomes: Sequence[int]) 
         h01 = -float(np.sum(weights * x))
         h11 = -float(np.sum(weights * x * x)) - 0.01
         determinant = h00 * h11 - h01 * h01
-        if determinant >= 0.0 or abs(determinant) < 1e-15:
+        if determinant <= 0.0 or abs(determinant) < 1e-15:
             raise ValueError("finite calibration fallback information matrix is singular")
-        result = (alpha, beta, h11 / determinant, -h01 / determinant, h00 / determinant)
+        result = (alpha, beta, -h11 / determinant, h01 / determinant, -h00 / determinant)
     alpha, beta, cov00, cov01, cov11 = result
     if abs(alpha) < 1e-9:
         alpha = 0.0

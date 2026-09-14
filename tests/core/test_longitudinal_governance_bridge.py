@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+from math import log
 
 import pytest
 
@@ -15,7 +16,7 @@ def make_report(report_id: str, supplier: str, probability: float = 0.8, evidenc
     return ForecastReport(
         report_id=report_id,
         supplier_id=supplier,
-        question_id=f"q-{report_id}",
+        question_id="q-shared",
         horizon="default",
         probability=probability,
         submitted_at=BASE,
@@ -96,7 +97,7 @@ def test_corrupted_chain_fails_closed(tmp_path):
 
 def test_bounded_log_score_preserves_strict_propriety_and_exposure_bound():
     policy = BoundedLogScorePolicy(epsilon=0.01, stake=2.0)
-    assert policy.maximum_loss == pytest.approx(2.0 * -__import__("math").log(0.01))
+    assert policy.maximum_loss == pytest.approx(2.0 * -log(0.01))
     assert policy.strictly_proper(belief=0.7, candidate_reports=(0.2, 0.4, 0.7, 0.9))
     assert policy.truthful_report_gap(belief=0.7, report_probability=0.4) > 0
     with pytest.raises(ValueError):

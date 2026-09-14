@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: ceutia-validation-${{ github.ref }}
@@ -26,56 +26,9 @@ jobs:
         run: python -m pip install --upgrade pip && python -m pip install '.[dev]'
       - name: Compile Python sources
         run: python -m compileall -q backend api ceuta-final
-      - name: Repair separated logistic calibration solver
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-
-          path = Path("backend/app/core/evidence/predictive_validation.py")
-          text = path.read_text(encoding="utf-8")
-          if "separation-safe bounded fallback v3" not in text:
-              marker = '              if result is None:\n                  raise ValueError("calibration likelihood optimization failed")\n'
-              replacement = '''              if result is None:
-                  # separation-safe bounded fallback v3. The penalized logistic
-                  # estimator is finite; it is not an unpenalized MLE.
-                  import numpy as np
-                  from sklearn.linear_model import LogisticRegression
-
-                  matrix = np.asarray(logits, dtype=float).reshape(-1, 1)
-                  model = LogisticRegression(C=100.0, solver="lbfgs", fit_intercept=True)
-                  model.fit(matrix, np.asarray(outcomes, dtype=int))
-                  alpha = float(model.intercept_[0])
-                  beta = float(model.coef_[0, 0])
-                  probabilities = np.asarray(model.predict_proba(matrix)[:, 1], dtype=float)
-                  h00 = -float(np.sum(probabilities * (1.0 - probabilities)))
-                  h01 = -float(np.sum(probabilities * (1.0 - probabilities) * np.asarray(logits)))
-                  h11 = -float(np.sum(probabilities * (1.0 - probabilities) * np.asarray(logits) ** 2)) - 0.01
-                  determinant = h00 * h11 - h01 * h01
-                  if determinant >= 0.0 or abs(determinant) < 1e-15:
-                      raise ValueError("finite calibration fallback information matrix is singular")
-                  result = (alpha, beta, h11 / determinant, -h01 / determinant, h00 / determinant)
-                  # separation-safe bounded fallback v3
-                  if abs(result[0]) < 1e-9:
-                      result = (0.0, result[1], result[2], result[3], result[4])
-'''
-              if marker not in text:
-                  raise SystemExit("expected calibration failure block not found")
-              text = text.replace(marker, replacement, 1)
-              path.write_text(text, encoding="utf-8")
-          PY
-          if git diff --quiet -- backend/app/core/evidence/predictive_validation.py; then
-            exit 0
-          fi
-          git config user.name "CeutIA Validation Bot"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -f backend/app/core/evidence/predictive_validation.py
-          git commit -m "fix: use finite calibration fallback under separation"
-          git push
       - name: Run full test suite
         run: python -m pytest
-      - name: Run new runtime integrity tests
+      - name: Run runtime integrity tests
         run: python -m pytest backend/tests/test_runtime_integrity.py -q
       - name: Static analysis of changed runtime modules
         run: python -m ruff check backend/app/main.py backend/app/core/runtime/decision_lifecycle.py backend/app/core/runtime/evidence_persistence.py backend/app/core/runtime/integrity.py backend/app/core/runtime/source_configuration.py

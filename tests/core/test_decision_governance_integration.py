@@ -3,11 +3,10 @@ from hashlib import sha256
 
 from app.core.decision.config_provenance import ConfigurationProvenance
 from app.core.decision.control_plane import EvidenceAssessment
-from app.core.decision.decision_system import DecisionContext, DecisionMode, DecisionObjective, DecisionOption, ScenarioOutcome
+from app.core.decision.decision_system import DecisionContext, DecisionObjective, DecisionOption, ScenarioOutcome
 from app.core.decision.persistence import SQLiteDecisionStore
 from app.core.runtime.decision_lifecycle import BitemporalRef, DecisionEvidence, DecisionLifecycleEngine
 from app.core.scientific.governance_signals import GovernanceInput, GovernanceDisposition, GovernanceReason
-
 
 NOW = datetime(2026, 9, 15, tzinfo=timezone.utc)
 
@@ -15,7 +14,7 @@ NOW = datetime(2026, 9, 15, tzinfo=timezone.utc)
 def engine(tmp_path):
     store = SQLiteDecisionStore(str(tmp_path / "decision.sqlite"))
     config = ConfigurationProvenance("test", "1", ("test-config",), {"mode": "test"})
-    return DecisionLifecycleEngine(store, code_revision="test-revision", configuration=config), store
+    return DecisionLifecycleEngine(store, code_revision="test-revision", configuration=config), store, config
 
 
 def evidence(disposition=None):
@@ -24,13 +23,13 @@ def evidence(disposition=None):
     return DecisionEvidence("e1", "source1", "claim1", sha256(b"e1").hexdigest(), ("citation:e1",), temporal, assessment)
 
 
-def inputs(**changes):
+def inputs(configuration_hash, **changes):
     value = dict(
         evidence_ids=("e1",), provenance_refs=("citation:e1",), evidence_quality=0.9,
         independent_evidence_ratio=1.0, contradiction_ratio=0.0, credibility=0.9,
         mechanism_satisfied=True, provenance_valid=True, mechanism_integrity_valid=True,
         uncertainty=0.1, response_closure_complete=True, code_revision="test-revision",
-        configuration_hash="external-config", mechanism_ref="mechanism:test",
+        configuration_hash=configuration_hash, mechanism_ref="mechanism:test",
     )
     value.update(changes)
     return GovernanceInput(**value)
@@ -43,8 +42,8 @@ def execute(engine, evidence_item, governance_input):
 
 
 def test_clean_governance_reaches_recommendation(tmp_path):
-    engine_instance, store = engine(tmp_path)
-    result = execute(engine_instance, evidence(), inputs())
+    engine_instance, store, config = engine(tmp_path)
+    result = execute(engine_instance, evidence(), inputs(config.fingerprint()))
     assert result.governance_signal is not None
     assert result.governance_signal.disposition is GovernanceDisposition.RELEASE
     assert result.disposition.value == "recommend"
@@ -53,8 +52,8 @@ def test_clean_governance_reaches_recommendation(tmp_path):
 
 
 def test_manipulation_signal_forces_abstain(tmp_path):
-    engine_instance, _ = engine(tmp_path)
-    result = execute(engine_instance, evidence(), inputs(manipulation_flags=1))
+    engine_instance, _, config = engine(tmp_path)
+    result = execute(engine_instance, evidence(), inputs(config.fingerprint(), manipulation_flags=1))
     assert result.governance_signal.disposition is GovernanceDisposition.ABSTAIN
     assert GovernanceReason.STRATEGIC_MANIPULATION in result.governance_signal.reasons
     assert result.disposition.value == "abstain"
@@ -62,8 +61,8 @@ def test_manipulation_signal_forces_abstain(tmp_path):
 
 
 def test_closure_incomplete_requires_review(tmp_path):
-    engine_instance, _ = engine(tmp_path)
-    result = execute(engine_instance, evidence(), inputs(response_closure_complete=False))
+    engine_instance, _, config = engine(tmp_path)
+    result = execute(engine_instance, evidence(), inputs(config.fingerprint(), response_closure_complete=False))
     assert result.governance_signal.disposition is GovernanceDisposition.REVIEW_REQUIRED
     assert GovernanceReason.RESPONSE_CLOSURE_INCOMPLETE in result.governance_signal.reasons
     assert result.disposition.value == "abstain"

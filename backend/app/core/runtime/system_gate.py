@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
+from math import isfinite
 
 from app.core.final_epistemic_control import (
     EpistemicIntegrityStatus,
@@ -34,6 +35,16 @@ class SystemIntelligenceGate:
         final_epistemic: FinalEpistemicAssessment | None = None,
     ) -> SystemGateResult:
         reasons = list(assessment.reasons)
+        if (
+            not isfinite(assessment.missing_data_risk)
+            or not 0.0 <= assessment.missing_data_risk <= 1.0
+            or not isfinite(assessment.measurement_process_risk)
+            or not 0.0 <= assessment.measurement_process_risk <= 1.0
+            or not isfinite(assessment.predictability.confidence)
+            or not 0.0 <= assessment.predictability.confidence <= 1.0
+        ):
+            reasons.append("system assessment contains invalid non-finite or out-of-range risk/confidence values")
+            return SystemGateResult(SystemGateDisposition.ABSTAIN, tuple(reasons), 0.0)
         if assessment.abstain:
             return SystemGateResult(SystemGateDisposition.ABSTAIN, tuple(reasons), 0.0)
         if final_epistemic is not None:

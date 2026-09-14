@@ -104,6 +104,11 @@ class ScientificSourceRecord:
     implementation_implications: tuple[str, ...]
     validation_requirements: tuple[str, ...]
     provenance: str
+    client_contexts: tuple[str, ...] = ()
+    question_types: tuple[str, ...] = ()
+    risk_levels: tuple[str, ...] = ()
+    response_types: tuple[str, ...] = ()
+    contexts: tuple[str, ...] = ()
     version: int = 1
     retrieval: RetrievalMetadata | None = None
 
@@ -196,6 +201,18 @@ def _digest(value: object) -> str:
 class ScientificSourceCorpus:
     """Append-only SQLite corpus for sources, relations, impacts and missions."""
 
+    _LEVEL_RANK = {
+        CorpusEvidenceLevel.META_ANALYTIC: 9,
+        CorpusEvidenceLevel.SYSTEMATIC_REVIEW: 8,
+        CorpusEvidenceLevel.CONTROLLED: 7,
+        CorpusEvidenceLevel.LONGITUDINAL: 6,
+        CorpusEvidenceLevel.OBSERVATIONAL: 5,
+        CorpusEvidenceLevel.METHODOLOGICAL: 4,
+        CorpusEvidenceLevel.CONSENSUS: 4,
+        CorpusEvidenceLevel.OFFICIAL: 4,
+        CorpusEvidenceLevel.CONTEXTUAL: 2,
+    }
+
     def __init__(self, storage_path: str) -> None:
         if not storage_path:
             raise ValueError("storage_path is required")
@@ -251,6 +268,38 @@ class ScientificSourceCorpus:
             ) latest ON latest.source_id=s.source_id AND latest.version=s.version ORDER BY s.source_id""").fetchall()
         return tuple(_decode_source(json.loads(row[0])) for row in rows)
 
+    def select(
+        self,
+        *,
+        client: str = "",
+        question_type: str = "",
+        domain: str = "",
+        risk_level: str = "",
+        response_type: str = "",
+        context: str = "",
+        minimum_evidence_level: CorpusEvidenceLevel = CorpusEvidenceLevel.CONTEXTUAL,
+    ) -> tuple[ScientificSourceRecord, ...]:
+        minimum = self._LEVEL_RANK[minimum_evidence_level]
+        candidates = [
+            source for source in self.all_latest()
+            if self._LEVEL_RANK[source.evidence_level] >= minimum
+            and (not client or not source.client_contexts or client in source.client_contexts)
+            and (not question_type or not source.question_types or question_type in source.question_types)
+            and (not domain or source.domain == domain)
+            and (not risk_level or not source.risk_levels or risk_level in source.risk_levels)
+            and (not response_type or not source.response_types or response_type in source.response_types)
+            and (not context or not source.contexts or context in source.contexts)
+        ]
+        candidates.sort(key=lambda source: (
+            domain == source.domain if domain else False,
+            risk_level in source.risk_levels if risk_level and source.risk_levels else False,
+            question_type in source.question_types if question_type and source.question_types else False,
+            _score(source.evidence_level),
+            source.year,
+            source.source_id,
+        ), reverse=True)
+        return tuple(candidates)
+
     def add_relation(self, relation: ScientificRelation) -> None:
         with self._db() as db:
             if not db.execute("SELECT 1 FROM scientific_sources WHERE source_id=?", (relation.source_id,)).fetchone():
@@ -302,10 +351,14 @@ class ScientificSourceCorpus:
         return True
 
 
+def _score(level: CorpusEvidenceLevel) -> int:
+    return ScientificSourceCorpus._LEVEL_RANK[level]
+
+
 def _decode_source(payload: dict) -> ScientificSourceRecord:
     payload["authors"] = tuple(payload["authors"])
-    for key in ("phenomenon", "findings", "limitations", "applicability", "relevant_mechanism", "ceutia_components", "implementation_implications", "validation_requirements"):
-        payload[key] = tuple(payload[key])
+    for key in ("phenomenon", "findings", "limitations", "applicability", "relevant_mechanism", "ceutia_components", "implementation_implications", "validation_requirements", "client_contexts", "question_types", "risk_levels", "response_types", "contexts"):
+        payload[key] = tuple(payload.get(key, ()))
     payload["source_type"] = CorpusSourceType(payload["source_type"])
     payload["evidence_level"] = CorpusEvidenceLevel(payload["evidence_level"])
     if payload.get("retrieval"):

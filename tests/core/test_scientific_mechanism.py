@@ -31,6 +31,17 @@ def test_mechanism_settles_verified_report_and_computes_transfer() -> None:
     assert mechanism.settlement("r1") == settlement
 
 
+def test_persistent_state_survives_mechanism_restart(tmp_path) -> None:
+    path = str(tmp_path / "mechanism.sqlite")
+    first = ProperScoringMechanism(stake=2.0, storage_path=path)
+    first.submit(make_report(probability=0.8))
+    first.settle("r1", outcome=1, verified_at=BASE + timedelta(days=1), verifier_id="v1")
+
+    second = ProperScoringMechanism(stake=2.0, storage_path=path)
+    assert second.report("r1") == first.report("r1")
+    assert second.settlement("r1") == first.settlement("r1")
+
+
 def test_duplicate_forecaster_question_is_rejected() -> None:
     mechanism = ProperScoringMechanism()
     mechanism.submit(make_report())
@@ -48,6 +59,7 @@ def test_settlement_cannot_precede_outcome_due_time() -> None:
 def test_log_score_is_strictly_proper_on_grid() -> None:
     candidates = tuple(i / 10 for i in range(1, 10))
     assert ProperScoringMechanism.verify_strict_propriety(belief=0.7, candidate_reports=candidates)
+    assert not ProperScoringMechanism.verify_strict_propriety(belief=0.75, candidate_reports=candidates)
 
 
 def test_expected_log_loss_is_minimized_at_truthful_belief() -> None:

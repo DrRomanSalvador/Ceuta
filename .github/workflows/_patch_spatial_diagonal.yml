@@ -1,7 +1,8 @@
 name: Patch spatial matrix diagonal contract
 
 on:
-  workflow_dispatch:
+  push:
+    branches: [main]
 
 permissions:
   contents: write
@@ -23,20 +24,11 @@ jobs:
               raise SystemExit(f"expected exactly one spatial diagonal block, found {text.count(old)}")
           path.write_text(text.replace(old, new, 1))
           PY
-      - name: Commit patch
+      - name: Commit patch and remove workflow
         run: |
           git config user.name "CeutIA engineering bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add backend/app/core/metrics.py .github/workflows/_patch_spatial_diagonal.yml
+          git add backend/app/core/metrics.py
+          git rm -f .github/workflows/_patch_spatial_diagonal.yml
           git commit -m "fix: reject nonzero spatial weight diagonal"
           git push origin HEAD:main
-      - name: Remove temporary workflow
-        if: always()
-        run: |
-          git rm -f .github/workflows/_patch_spatial_diagonal.yml || true
-          git config user.name "CeutIA engineering bot"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if ! git diff --cached --quiet; then
-            git commit -m "chore: remove temporary spatial patch workflow"
-            git push origin HEAD:main
-          fi

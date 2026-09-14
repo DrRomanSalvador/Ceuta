@@ -35,75 +35,34 @@ jobs:
 
           path = Path("backend/app/core/evidence/predictive_validation.py")
           text = path.read_text(encoding="utf-8")
-          if "separation-safe bounded fallback v2" not in text:
-              start = text.index("def _fit_logistic_calibration")
-              end = text.index("def _wilson_interval", start)
-              replacement = '''def _fit_logistic_calibration(logits: Sequence[float], outcomes: Sequence[int]) -> tuple[float, float, float, float, float]:
-              """Fit logistic calibration with a finite separation-safe fallback."""
-              if len(logits) != len(outcomes) or len(logits) < 3:
-                  raise ValueError("at least three paired predictions/outcomes are required")
-              if len(set(outcomes)) < 2:
-                  raise ValueError("calibration is not identifiable with one outcome class")
+          if "separation-safe bounded fallback v3" not in text:
+              marker = '              if result is None:\n                  raise ValueError("calibration likelihood optimization failed")\n'
+              replacement = '''              if result is None:
+                  # separation-safe bounded fallback v3. The penalized logistic
+                  # estimator is finite; it is not an unpenalized MLE.
+                  import numpy as np
+                  from sklearn.linear_model import LogisticRegression
 
-              def fit(penalty: float) -> tuple[float, float, float, float, float] | None:
-                  alpha, beta = 0.0, 1.0
-                  for _ in range(200):
-                      g0 = g1 = h00 = h01 = h11 = objective = 0.0
-                      for x, y in zip(logits, outcomes):
-                          eta = alpha + beta * x
-                          p = _sigmoid(eta)
-                          w = p * (1.0 - p)
-                          residual = y - p
-                          g0 += residual
-                          g1 += residual * x
-                          h00 -= w
-                          h01 -= w * x
-                          h11 -= w * x * x
-                          objective += y * log(max(p, _EPS)) + (1 - y) * log(max(1 - p, _EPS))
-                      g1 -= penalty * beta
-                      h11 -= penalty
-                      determinant = h00 * h11 - h01 * h01
-                      scale = max(abs(h00 * h11), abs(h01 * h01), 1.0)
-                      if determinant >= -1e-14 * scale or abs(determinant) <= 1e-14 * scale:
-                          return None
-                      if max(abs(g0), abs(g1)) <= 1e-12:
-                          return alpha, beta, h11 / determinant, -h01 / determinant, h00 / determinant
-                      step_alpha = (g0 * h11 - g1 * h01) / determinant
-                      step_beta = (h00 * g1 - h01 * g0) / determinant
-                      accepted = False
-                      factor = 1.0
-                      current = objective - 0.5 * penalty * beta * beta
-                      for _ in range(80):
-                          candidate_alpha = alpha - factor * step_alpha
-                          candidate_beta = max(-20.0, min(20.0, beta - factor * step_beta))
-                          candidate = 0.0
-                          for x, y in zip(logits, outcomes):
-                              q = _sigmoid(candidate_alpha + candidate_beta * x)
-                              candidate += y * log(max(q, _EPS)) + (1 - y) * log(max(1 - q, _EPS))
-                          candidate -= 0.5 * penalty * candidate_beta * candidate_beta
-                          if candidate >= current:
-                              alpha, beta = candidate_alpha, candidate_beta
-                              accepted = True
-                              break
-                          factor *= 0.5
-                      if not accepted:
-                          return None
-                  return None
-
-              result = fit(0.0)
-              if result is None:
-                  # separation-safe bounded fallback v2; this is a finite penalized
-                  # functional and must not be reported as an unpenalized MLE.
-                  result = fit(1e-2)
-              if result is None:
-                  raise ValueError("calibration likelihood optimization failed")
-              alpha, beta, cov00, cov01, cov11 = result
-              if abs(alpha) < 1e-9:
-                  alpha = 0.0
-              return alpha, beta, cov00, cov01, cov11
-
-          '''
-              text = text[:start] + replacement + text[end:]
+                  matrix = np.asarray(logits, dtype=float).reshape(-1, 1)
+                  model = LogisticRegression(C=100.0, solver="lbfgs", fit_intercept=True)
+                  model.fit(matrix, np.asarray(outcomes, dtype=int))
+                  alpha = float(model.intercept_[0])
+                  beta = float(model.coef_[0, 0])
+                  probabilities = np.asarray(model.predict_proba(matrix)[:, 1], dtype=float)
+                  h00 = -float(np.sum(probabilities * (1.0 - probabilities)))
+                  h01 = -float(np.sum(probabilities * (1.0 - probabilities) * np.asarray(logits)))
+                  h11 = -float(np.sum(probabilities * (1.0 - probabilities) * np.asarray(logits) ** 2)) - 0.01
+                  determinant = h00 * h11 - h01 * h01
+                  if determinant >= 0.0 or abs(determinant) < 1e-15:
+                      raise ValueError("finite calibration fallback information matrix is singular")
+                  result = (alpha, beta, h11 / determinant, -h01 / determinant, h00 / determinant)
+                  # separation-safe bounded fallback v3
+                  if abs(result[0]) < 1e-9:
+                      result = (0.0, result[1], result[2], result[3], result[4])
+'''
+              if marker not in text:
+                  raise SystemExit("expected calibration failure block not found")
+              text = text.replace(marker, replacement, 1)
               path.write_text(text, encoding="utf-8")
           PY
           if git diff --quiet -- backend/app/core/evidence/predictive_validation.py; then
@@ -112,7 +71,7 @@ jobs:
           git config user.name "CeutIA Validation Bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -f backend/app/core/evidence/predictive_validation.py
-          git commit -m "fix: strengthen calibration separation fallback"
+          git commit -m "fix: use finite calibration fallback under separation"
           git push
       - name: Run full test suite
         run: python -m pytest

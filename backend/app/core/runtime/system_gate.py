@@ -1,9 +1,10 @@
-"""Decision-runtime gate for system-level blind-spot controls."""
+"""Decision-runtime gate for system-level epistemic and blind-spot controls."""
 from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
 
+from app.core.final_epistemic_control import FinalEpistemicAssessment, SystemValidity
 from app.core.system_intelligence import SystemAssessment
 
 
@@ -21,18 +22,24 @@ class SystemGateResult:
 
 
 class SystemIntelligenceGate:
-    """Translate system observability limits into an explicit runtime state.
+    """Constrain downstream use when system or final epistemic controls are inadequate."""
 
-    This gate never converts an association into a causal claim. It only
-    constrains downstream use when observability, identifiability, measurement
-    integrity, regime stability or model agreement is inadequate.
-    """
-
-    def evaluate(self, assessment: SystemAssessment) -> SystemGateResult:
+    def evaluate(
+        self,
+        assessment: SystemAssessment,
+        final_epistemic: FinalEpistemicAssessment | None = None,
+    ) -> SystemGateResult:
         reasons = list(assessment.reasons)
         if assessment.abstain:
             return SystemGateResult(SystemGateDisposition.ABSTAIN, tuple(reasons), 0.0)
+        if final_epistemic is not None:
+            reasons.extend(final_epistemic.reasons)
+            if final_epistemic.validity in {SystemValidity.DOUBT, SystemValidity.ABSTAIN}:
+                return SystemGateResult(SystemGateDisposition.ABSTAIN, tuple(reasons), 0.0)
         degraded = assessment.missing_data_risk >= 0.35 or assessment.measurement_process_risk >= 0.35
+        if final_epistemic is not None and final_epistemic.composition.value in {"weakened", "unknown"}:
+            degraded = True
+            reasons.append("epistemic composition is weakened or unresolved")
         if degraded:
             reasons.append("system representation is usable but materially degraded")
             return SystemGateResult(SystemGateDisposition.DEGRADED, tuple(reasons), 0.5)

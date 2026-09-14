@@ -9,7 +9,7 @@ from app.core.epistemology_p0.temporal.multitemporal import TemporalContext, Tem
 @dataclass(frozen=True)
 class Evidence:
     evidence_id: str
-    revision: int
+    version: int
     context: TemporalContext
 
     @property
@@ -52,7 +52,7 @@ def test_temporal_context_exposes_effective_validity_boundary():
     assert context.is_valid_at(base + timedelta(hours=3)) is False
 
 
-def test_snapshot_selects_latest_revision_known_at_cutoff():
+def test_snapshot_selects_latest_version_known_at_cutoff():
     base = datetime(2026, 1, 1)
     first = Evidence("e1", 1, TemporalContext(ingestion_time=base + timedelta(hours=1)))
     second = Evidence("e1", 2, TemporalContext(ingestion_time=base + timedelta(hours=3)))
@@ -62,10 +62,10 @@ def test_snapshot_selects_latest_revision_known_at_cutoff():
     assert TemporalFilter.snapshot_by_available_at([first, second], base + timedelta(hours=4)) == [second]
 
 
-def test_snapshot_fails_closed_without_stable_revision_identity():
+def test_snapshot_fails_closed_without_stable_version_identity():
     base = datetime(2026, 1, 1)
     invalid = Evidence("e1", -1, TemporalContext(ingestion_time=base))
-    with pytest.raises(ValueError, match="evidence_id|revision"):
+    with pytest.raises(ValueError, match="evidence_id|version"):
         TemporalFilter.snapshot_by_available_at([invalid], base + timedelta(hours=1))
 
 

@@ -2,9 +2,33 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import UTC, date, datetime
 from hashlib import sha256
 import json
-from typing import Iterable
+
+
+def _parse_window_time(value: str) -> datetime:
+    """Parse an ISO-8601 window boundary without relying on string ordering.
+
+    Date-only boundaries are interpreted as UTC midnight for backwards
+    compatibility. Datetime boundaries must be timezone-aware so offsets cannot
+    silently produce an incorrect chronological ordering.
+    """
+    if not isinstance(value, str) or not value:
+        raise ValueError("validation window boundaries must be non-empty strings")
+    try:
+        parsed_date = date.fromisoformat(value)
+    except ValueError:
+        parsed_date = None
+    if parsed_date is not None and "T" not in value and "t" not in value:
+        return datetime.combine(parsed_date, datetime.min.time(), tzinfo=UTC)
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise ValueError("validation window boundaries must be ISO-8601 dates or datetimes") from exc
+    if parsed.tzinfo is None:
+        raise ValueError("validation window datetime boundaries must be timezone-aware")
+    return parsed.astimezone(UTC)
 
 
 @dataclass(frozen=True, slots=True)
@@ -16,7 +40,9 @@ class ValidationWindow:
     def __post_init__(self) -> None:
         if not self.name or not self.start or not self.end:
             raise ValueError("validation window requires name, start and end")
-        if self.start >= self.end:
+        start = _parse_window_time(self.start)
+        end = _parse_window_time(self.end)
+        if start >= end:
             raise ValueError("validation window start must precede end")
 
 
@@ -31,7 +57,11 @@ class ValidationPlan:
     def __post_init__(self) -> None:
         if not self.plan_id or not self.specification_hash:
             raise ValueError("plan_id and specification_hash are required")
-        if not (self.training.end <= self.validation.start <= self.validation.end <= self.deployment.start):
+        training_end = _parse_window_time(self.training.end)
+        validation_start = _parse_window_time(self.validation.start)
+        validation_end = _parse_window_time(self.validation.end)
+        deployment_start = _parse_window_time(self.deployment.start)
+        if not (training_end <= validation_start <= validation_end <= deployment_start):
             raise ValueError("training, validation and deployment windows must be chronological")
 
     @staticmethod

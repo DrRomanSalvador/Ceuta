@@ -56,7 +56,7 @@ def _sigmoid(x: float) -> float:
     return z / (1.0 + z)
 
 def _fit_logistic_calibration(logits: Sequence[float], outcomes: Sequence[int]) -> tuple[float, float, float, float, float]:
-    """Fit logistic calibration with a finite separation-safe fallback."""
+    """Fit logistic calibration; use a finite penalized estimator under separation."""
     if len(logits) != len(outcomes) or len(logits) < 3:
         raise ValueError("at least three paired predictions/outcomes are required")
     if len(set(outcomes)) < 2:
@@ -80,8 +80,11 @@ def _fit_logistic_calibration(logits: Sequence[float], outcomes: Sequence[int]) 
             g1 -= penalty * beta
             h11 -= penalty
             determinant = h00 * h11 - h01 * h01
-            scale = max(abs(h00 * h11), abs(h01 * h01), 1.0)
-            if determinant >= -1e-14 * scale or abs(determinant) <= 1e-14 * scale:
+            if penalty == 0.0:
+                scale = max(abs(h00 * h11), abs(h01 * h01), 1.0)
+                if determinant >= -1e-14 * scale or abs(determinant) <= 1e-14 * scale:
+                    return None
+            elif determinant >= 0.0 or abs(determinant) < 1e-15:
                 return None
             if max(abs(g0), abs(g1)) <= 1e-12:
                 return alpha, beta, h11 / determinant, -h01 / determinant, h00 / determinant
@@ -109,8 +112,8 @@ def _fit_logistic_calibration(logits: Sequence[float], outcomes: Sequence[int]) 
 
     result = fit(0.0)
     if result is None:
-        # separation-safe bounded fallback v2; this is a finite penalized
-        # functional and must not be reported as an unpenalized MLE.
+        # Finite separation-safe fallback; this is penalized and must not be
+        # interpreted as an unpenalized MLE.
         result = fit(1e-2)
     if result is None:
         raise ValueError("calibration likelihood optimization failed")

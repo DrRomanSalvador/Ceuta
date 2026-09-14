@@ -6,7 +6,7 @@ import logging
 import os
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import AsyncIterator
 
 from fastapi import FastAPI, Request
@@ -21,6 +21,7 @@ from app.core.decision.persistence import SQLiteDecisionStore
 from app.core.decision.review_policy import DecisionRisk
 from app.core.runtime.decision_lifecycle import BitemporalRef, DecisionEvidence, DecisionLifecycleEngine
 from app.core.runtime.evidence_persistence import DecisionEvidenceStore
+from app.core.runtime.model_governance import ModelGovernanceRecord
 
 APP_NAME = "CeutIA"
 APP_VERSION = "0.1.0"
@@ -224,6 +225,26 @@ async def evaluate_decision(payload: DecisionRequest) -> dict[str, object]:
             )
             for item in payload.options
         )
+        scenario_refs = tuple(payload.scenario_refs) or tuple(s.scenario_id for option in options for s in option.outcomes)
+        model_refs = tuple(payload.model_refs)
+        model_releases: dict[str, ModelGovernanceRecord] = {}
+        if not model_refs:
+            deterministic = ModelGovernanceRecord(
+                model_id="deterministic:decision-system",
+                version="1",
+                code_hash=RUNTIME_CONFIG.code_revision,
+                data_snapshot_hash=configuration.fingerprint(),
+                assumptions=("deterministic decision rules only",),
+                valid_from=datetime.now(timezone.utc),
+                calibrated=True,
+                validation_ref="governance:deterministic-rules",
+                calibration_ref="governance:deterministic-rules",
+                approval_ref="governance:decision-policy",
+            )
+            model_releases[deterministic.model_id] = ModelGovernanceRecord(
+                **{**deterministic.__dict__, "release_hash": deterministic.fingerprint()}
+            )
+            model_refs = (deterministic.model_id,)
         context = DecisionContext(
             decision_id=payload.decision_id,
             decision_maker=payload.decision_maker,
@@ -238,8 +259,8 @@ async def evaluate_decision(payload: DecisionRequest) -> dict[str, object]:
             evidence,
             state_refs=payload.state_refs,
             hypothesis_refs=payload.hypothesis_refs,
-            model_refs=payload.model_refs,
-            scenario_refs=payload.scenario_refs,
+            model_refs=model_refs,
+            scenario_refs=scenario_refs,
             assumption_refs=payload.assumptions,
             transformation_refs=payload.transformation_refs,
             constraint_refs=payload.constraint_refs,
@@ -247,6 +268,7 @@ async def evaluate_decision(payload: DecisionRequest) -> dict[str, object]:
             restricted=payload.restricted,
             output_visibility=payload.output_visibility,
             mode=payload.mode,
+            model_releases=model_releases,
         )
         return {
             "decision_id": result.decision_id,

@@ -3907,13 +3907,23 @@ def territorial_dependency_matrix(
 ) -> np.ndarray:
     """
     Matriz de dependencia empírica entre variables territoriales.
+
+    La correlación muestral requiere al menos dos observaciones y no está
+    definida para una dimensión territorial constante.
     """
     matrix = territorial_multi_pressure_matrix(variables)
 
+    if matrix.shape[0] < 2:
+        raise MetricInputError("Se requieren al menos dos observaciones territoriales")
     if matrix.shape[1] < 2:
         return np.ones((1, 1), dtype=float)
+    if np.any(np.std(matrix, axis=0, ddof=1) == 0.0):
+        raise MetricInputError("La matriz de dependencia no está definida para una variable constante")
 
-    return np.corrcoef(matrix, rowvar=False)
+    result = np.corrcoef(matrix, rowvar=False)
+    if not np.all(np.isfinite(result)):
+        raise MetricInputError("La matriz de dependencia contiene valores no finitos")
+    return result
 
 
 def territorial_effective_dimension(

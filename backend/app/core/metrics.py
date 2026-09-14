@@ -3520,15 +3520,11 @@ def territorial_hotspot_persistence(
     *,
     quantile_level: float = 0.90,
 ) -> np.ndarray:
-    """
-    Persistencia de hotspot por unidad:
-
-        H_i = (1/T) Σ_t I(x_it >= Q_t)
-    """
+    """Persistencia de hotspot por unidad."""
     matrix = np.asarray(values_by_time, dtype=float)
 
-    if matrix.ndim != 2:
-        raise MetricInputError("values_by_time debe ser una matriz 2D")
+    if matrix.ndim != 2 or matrix.shape[0] < 1 or matrix.shape[1] < 1:
+        raise MetricInputError("values_by_time debe ser una matriz 2D no vacía")
     if not np.all(np.isfinite(matrix)):
         raise MetricInputError("values_by_time contiene valores no finitos")
     if not 0.0 < quantile_level < 1.0:
@@ -3585,8 +3581,10 @@ def territorial_time_concentration(
     """HHI territorial para cada instante."""
     matrix = np.asarray(values_by_time, dtype=float)
 
-    if matrix.ndim != 2:
-        raise MetricInputError("values_by_time debe ser una matriz 2D")
+    if matrix.ndim != 2 or matrix.shape[0] < 1 or matrix.shape[1] < 1:
+        raise MetricInputError("values_by_time debe ser una matriz 2D no vacía")
+    if not np.all(np.isfinite(matrix)):
+        raise MetricInputError("values_by_time contiene valores no finitos")
 
     return np.asarray(
         [territorial_concentration_hhi(row) for row in matrix],
@@ -3614,13 +3612,13 @@ def territorial_spatiotemporal_breadth(
     *,
     threshold: float,
 ) -> np.ndarray:
-    """
-    Número de unidades territoriales sobre el umbral en cada instante.
-    """
+    """Número de unidades territoriales sobre el umbral en cada instante."""
     matrix = np.asarray(values_by_time, dtype=float)
 
-    if matrix.ndim != 2:
-        raise MetricInputError("values_by_time debe ser una matriz 2D")
+    if matrix.ndim != 2 or matrix.shape[0] < 1 or matrix.shape[1] < 1:
+        raise MetricInputError("values_by_time debe ser una matriz 2D no vacía")
+    if not np.all(np.isfinite(matrix)):
+        raise MetricInputError("values_by_time contiene valores no finitos")
 
     return np.sum(matrix >= threshold, axis=1).astype(float)
 

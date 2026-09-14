@@ -11,6 +11,16 @@ from .evidence_intelligence import EvidenceIntelligence, EvidenceItem, EvidenceS
 from .risk_escalation import RiskEscalationEngine, EscalationAssessment, Escalation
 from .decision_runtime import DecisionRuntime, DecisionRuntimeResult
 from .decision_control import DecisionControlPlane, DecisionAudit, HumanReview, ReassessmentTrigger
+from .decision_lifecycle import (
+    BitemporalRef,
+    DecisionEvidence,
+    DecisionSignal,
+    DecisionInference,
+    DecisionHypothesis,
+    DecisionPrediction,
+    DecisionLifecycleEngine,
+    DecisionLifecycleResult,
+)
 from .intervention_response import InterventionResponseEngine, InterventionExecution, ResponseAssessment
 from .online_learning import OnlineLearningEngine, PredictionOutcome, ModelStatus
 from .observability import ObservabilityEngine, ObservabilityAssessment

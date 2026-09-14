@@ -94,10 +94,7 @@ class FeatureSupport:
             return True
         width = self.observed_max - self.observed_min
         margin = self.review_margin * width
-        return (
-            self.deployment_value - self.observed_min <= margin
-            or self.observed_max - self.deployment_value <= margin
-        )
+        return self.deployment_value - self.observed_min <= margin or self.observed_max - self.deployment_value <= margin
 
 
 @dataclass(frozen=True, slots=True)
@@ -179,10 +176,7 @@ class RobustnessGate:
     maximum_regret: float
 
     def __post_init__(self) -> None:
-        values = (
-            self.satisficing_rate, self.minimum_satisficing_rate,
-            self.minimum_worst_case, self.maximum_regret,
-        )
+        values = (self.satisficing_rate, self.minimum_satisficing_rate, self.minimum_worst_case, self.maximum_regret)
         if any(not math.isfinite(v) for v in values):
             raise ValueError("robustness thresholds must be finite")
         if not 0 <= self.satisficing_rate <= 1:
@@ -229,13 +223,7 @@ class ScientificRuntimeAssessment:
     def state(self) -> RuntimeState:
         states = [self.reference_class.state, self.novelty.state]
         if self.causal is not None and self.causal.causal_claim_requested:
-            states.append(
-                RuntimeState.ABSTAIN
-                if self.causal.status is CausalIdentificationStatus.ABSTAIN
-                else RuntimeState.REVIEW
-                if self.causal.status is CausalIdentificationStatus.CONDITIONAL
-                else RuntimeState.RELEASE
-            )
+            states.append(RuntimeState.ABSTAIN if self.causal.status is CausalIdentificationStatus.ABSTAIN else RuntimeState.REVIEW if self.causal.status is CausalIdentificationStatus.CONDITIONAL else RuntimeState.RELEASE)
         if self.robustness is not None:
             states.append(self.robustness.state)
         if RuntimeState.ABSTAIN in states:
@@ -302,16 +290,14 @@ class ScientificRuntimeLedger:
 
     def append(self, assessment: ScientificRuntimeAssessment) -> None:
         payload = _canonical(asdict(assessment))
+        created_at = assessment.created_at or datetime.now(timezone.utc).isoformat()
         with sqlite3.connect(self.storage_path) as db:
             if db.execute("SELECT 1 FROM scientific_runtime_assessments WHERE assessment_id=?", (assessment.assessment_id,)).fetchone():
                 raise ValueError("scientific runtime assessment already exists")
             previous = db.execute("SELECT assessment_hash FROM scientific_runtime_assessments ORDER BY created_at DESC, assessment_id DESC LIMIT 1").fetchone()
             previous_hash = previous[0] if previous else ""
             digest = _digest({"payload": payload, "previous_hash": previous_hash})
-            db.execute(
-                "INSERT INTO scientific_runtime_assessments VALUES(?,?,?,?,?,?)",
-                (assessment.assessment_id, assessment.decision_id, payload, digest, previous_hash, assessment.created_at or datetime.now(timezone.utc).isoformat()),
-            )
+            db.execute("INSERT INTO scientific_runtime_assessments (assessment_id,decision_id,payload,assessment_hash,previous_hash,created_at) VALUES(?,?,?,?,?,?)", (assessment.assessment_id, assessment.decision_id, payload, digest, previous_hash, created_at))
 
     def verify_integrity(self) -> bool:
         with sqlite3.connect(self.storage_path) as db:
@@ -324,8 +310,4 @@ class ScientificRuntimeLedger:
         return True
 
 
-__all__ = [
-    "CausalIdentificationStatus", "CausalRuntimeContract", "FeatureSupport",
-    "NoveltyAssessment", "ReferenceClassAssessment", "RobustnessGate",
-    "RuntimeState", "ScientificRuntimeAssessment", "ScientificRuntimeLedger",
-]
+__all__ = ["CausalIdentificationStatus", "CausalRuntimeContract", "FeatureSupport", "NoveltyAssessment", "ReferenceClassAssessment", "RobustnessGate", "RuntimeState", "ScientificRuntimeAssessment", "ScientificRuntimeLedger"]

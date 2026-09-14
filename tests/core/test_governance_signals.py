@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 
 import pytest
 
+from app.core.decision.persistence import SQLiteDecisionStore
 from app.core.scientific.governance_signals import (
     GovernanceDisposition,
     GovernanceInput,
@@ -35,6 +36,17 @@ def test_clean_path_releases_and_persists(tmp_path):
 
     restored = ScientificGovernance(storage_path=str(db))
     assert restored.get(signal.signal_id).audit_hash == signal.audit_hash
+
+
+def test_decision_store_binds_default_governance_persistence(tmp_path):
+    db = tmp_path / "decision.sqlite"
+    store = SQLiteDecisionStore(str(db))
+    gov = ScientificGovernance()
+    signal = gov.evaluate("d-store", good(), created_at=NOW)
+    assert signal.disposition is GovernanceDisposition.RELEASE
+    restored = ScientificGovernance()
+    assert restored.get(signal.signal_id).decision_id == "d-store"
+    store.close()
 
 
 def test_quality_and_conflict_require_review():

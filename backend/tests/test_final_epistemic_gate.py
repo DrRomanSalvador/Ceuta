@@ -27,7 +27,7 @@ def base_system_assessment() -> SystemAssessment:
     )
 
 
-def final_assessment(validity: SystemValidity) -> FinalEpistemicAssessment:
+def final_assessment(validity: SystemValidity, composition: EpistemicIntegrityStatus = EpistemicIntegrityStatus.PRESERVED) -> FinalEpistemicAssessment:
     anchor = RealityAnchorAssessment(
         target_id="x", status=FalsifiabilityStatus.PARTIAL, conditions=(),
         external_evidence_refs=(), common_mode_dependencies=(), divergence_score=0.8,
@@ -35,11 +35,11 @@ def final_assessment(validity: SystemValidity) -> FinalEpistemicAssessment:
     )
     self_model = EpistemicSelfModel(
         version="1", assumptions=(), limitations=(), identification_limits=(),
-        ontology_status=OntologyStatus.ONTOLOGY_REVIEW_REQUIRED if validity is not SystemValidity.SUPPORTED else OntologyStatus.NORMAL,
+        ontology_status=OntologyStatus.ONTOLOGY_REVIEW_REQUIRED if validity is SystemValidity.SUPPORTED else OntologyStatus.NORMAL,
         ontology_version="1", unexplained_signals=(), global_validity=validity,
     )
     return FinalEpistemicAssessment(
-        anchor, EpistemicIntegrityStatus.PRESERVED, None, self_model,
+        anchor, composition, None, self_model,
         None, False, validity, ()
     )
 
@@ -47,6 +47,15 @@ def final_assessment(validity: SystemValidity) -> FinalEpistemicAssessment:
 def test_final_global_doubt_forces_abstention():
     result = SystemIntelligenceGate().evaluate(base_system_assessment(), final_assessment(SystemValidity.DOUBT))
     assert result.disposition is SystemGateDisposition.ABSTAIN
+
+
+def test_broken_epistemic_composition_forces_abstention():
+    result = SystemIntelligenceGate().evaluate(
+        base_system_assessment(),
+        final_assessment(SystemValidity.SUPPORTED, EpistemicIntegrityStatus.BROKEN),
+    )
+    assert result.disposition is SystemGateDisposition.ABSTAIN
+    assert "epistemic composition is broken" in result.reasons
 
 
 def test_supported_final_assessment_preserves_normal_gate():

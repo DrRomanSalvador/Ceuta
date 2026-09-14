@@ -6,7 +6,7 @@ response closure into an auditable RELEASE/REVIEW_REQUIRED/ABSTAIN decision.
 Prospective behavioural and outcome validation remain empirical questions.
 """
 from __future__ import annotations
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from enum import StrEnum
 from hashlib import sha256
@@ -19,13 +19,7 @@ _DEFAULT_STORAGE_PATH: str | None = None
 
 
 def set_default_storage_path(path: str) -> None:
-    """Bind default governance persistence to the active decision store.
-
-    The lifecycle constructs ``ScientificGovernance`` after constructing its
-    ``SQLiteDecisionStore``. Binding here makes persistence automatic without
-    introducing a second database or requiring callers to remember an optional
-    governance dependency.
-    """
+    """Bind default governance persistence to the active decision store."""
     if not path:
         raise ValueError("storage path is required")
     global _DEFAULT_STORAGE_PATH
@@ -147,8 +141,9 @@ class ScientificGovernance:
 
     @staticmethod
     def _fingerprint(decision_id: str, value: GovernanceInput) -> str:
-        payload = {k: getattr(value, k) for k in value.__dataclass_fields__}
-        return sha256(json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str).encode()).hexdigest()
+        payload = {"decision_id": decision_id, "input": asdict(value)}
+        canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), allow_nan=False)
+        return sha256(canonical.encode()).hexdigest()
 
     def evaluate(self, decision_id: str, value: GovernanceInput, *, created_at: datetime | None = None) -> GovernanceSignal:
         if not decision_id:

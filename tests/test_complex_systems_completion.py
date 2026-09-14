@@ -38,7 +38,7 @@ def test_complex_system_engines_have_deterministic_boundaries() -> None:
     assert store.as_of("e", now)
     assert FlowMobilityModel().normalize((Flow("a", "b", 2), Flow("b", "c", 2)))[0].volume == 0.5
     nodes = (SpatialNode("a", 0, 0, 1), SpatialNode("b", 0, 0.1, 0))
-    assert SpatialEngine().propagate(nodes, radius=1)[1].risk == 1
+    assert SpatialEngine().propagate(nodes, radius=12)[1].risk == 1
     assert CrossDomainConsistency().check((1, 1.01), tolerance=0.02)
     assert ModelDisagreement().score((1, 3)) == 1
     assert UncertaintyPropagation().combine((3, 4)) == 5

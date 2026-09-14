@@ -3066,30 +3066,30 @@ def territorial_pressure_breadth_fraction(
     *,
     threshold: float = 1.0,
 ) -> np.ndarray:
-    """B_i / K."""
+    """Fracción de dimensiones cuyo z-score territorial supera el umbral."""
+    if threshold < 0.0:
+        raise MetricInputError("threshold debe ser no negativo")
     z = territorial_multi_pressure_zscores(pressures)
-
-    return territorial_pressure_breadth(
-        z,
-        threshold=threshold,
-    ) / z.shape[1]
+    return np.mean(z >= threshold, axis=1)
 
 
 def territorial_pressure_dependence(
     pressures: Sequence[Sequence[float]] | np.ndarray,
 ) -> float:
-    """
-    Dependencia media absoluta entre dimensiones:
-
-        D = mean(|r_jk|)
-    """
+    """Dependencia media absoluta entre dimensiones no constantes."""
     matrix = territorial_multi_pressure_matrix(pressures)
 
+    if matrix.shape[0] < 2:
+        raise MetricInputError("Se requieren al menos dos observaciones territoriales")
     if matrix.shape[1] < 2:
         return 0.0
+    if np.any(np.std(matrix, axis=0, ddof=1) == 0.0):
+        raise MetricInputError("La dependencia por correlación no está definida para una dimensión constante")
 
     correlation = np.corrcoef(matrix, rowvar=False)
     upper = correlation[np.triu_indices(correlation.shape[0], k=1)]
+    if not np.all(np.isfinite(upper)):
+        raise MetricInputError("La dependencia territorial contiene valores no finitos")
 
     return float(np.mean(np.abs(upper)))
 
@@ -3133,16 +3133,16 @@ def territorial_reserve_depletion(
     Depleción:
 
         ΔR_i = R_i(before) - R_i(after)
+
+    La reserva puede ser negativa cuando existe deuda de capacidad.
     """
     before = _validate_territorial_vector(
         reserve_before,
         name="reserve_before",
-        nonnegative=True,
     )
     after = _validate_territorial_vector(
         reserve_after,
         name="reserve_after",
-        nonnegative=True,
     )
     _validate_same_length(before, after)
 

@@ -42,3 +42,27 @@ def test_validation_plan_rejects_temporal_leakage_order() -> None:
             deployment=ValidationWindow("deploy", "2026-01-01", "2027-01-01"),
             specification_hash="x",
         )
+
+
+def test_validation_plan_orders_timezone_offsets_by_instant() -> None:
+    with pytest.raises(ValueError, match="chronological"):
+        ValidationPlan(
+            plan_id="offset-order",
+            training=ValidationWindow(
+                "train", "2026-01-01T00:00:00+00:00", "2026-01-01T01:00:00+00:00"
+            ),
+            validation=ValidationWindow(
+                "validate", "2026-01-01T02:00:00+02:00", "2026-01-01T03:00:00+02:00"
+            ),
+            deployment=ValidationWindow(
+                "deploy", "2026-01-01T04:00:00+02:00", "2026-01-01T05:00:00+02:00"
+            ),
+            specification_hash="x",
+        )
+
+
+def test_validation_window_rejects_naive_datetime() -> None:
+    with pytest.raises(ValueError, match="timezone-aware"):
+        ValidationWindow(
+            "train", "2026-01-01T00:00:00", "2026-01-02T00:00:00"
+        )

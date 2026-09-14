@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from hashlib import sha256
+from math import isfinite
 from typing import Iterable, Sequence
 
 from app.core.decision.control_plane import EvidenceDisposition, UncertaintyState
@@ -38,7 +39,7 @@ class IntegrityEngine:
         reasons: list[str] = []
         if envelope.content_hash != sha256(payload).hexdigest():
             reasons.append("content hash mismatch")
-        if not 0 <= envelope.trust_score <= 1:
+        if not isfinite(envelope.trust_score) or not 0 <= envelope.trust_score <= 1:
             reasons.append("invalid trust score")
         if not envelope.record_id or not envelope.source_id or not envelope.origin_id:
             reasons.append("incomplete provenance")
@@ -70,10 +71,12 @@ def validate_evidence_set(evidence: Sequence[DecisionEvidence]) -> None:
 def validate_scenario_probabilities(probabilities: Sequence[float], tolerance: float = 1e-6) -> None:
     if not probabilities:
         raise ValueError("at least one scenario is required")
-    if any(p < 0 or p > 1 for p in probabilities):
-        raise ValueError("scenario probabilities must be in [0,1]")
+    if not isfinite(tolerance) or tolerance < 0:
+        raise ValueError("probability tolerance must be finite and non-negative")
+    if any(not isfinite(p) or p < 0 or p > 1 for p in probabilities):
+        raise ValueError("scenario probabilities must be finite values in [0,1]")
     total = sum(probabilities)
-    if abs(total - 1.0) > tolerance:
+    if not isfinite(total) or abs(total - 1.0) > tolerance:
         raise ValueError(f"scenario probabilities must sum to 1; got {total}")
 
 

@@ -82,7 +82,9 @@ class IndicatorGovernance:
         definitions: Iterable[IndicatorDefinition],
         registered_at: str,
     ) -> PreRegistration:
-        if registration_id in self._registrations:
+        if not registration_id:
+            raise ValueError("registration_id is required")
+        if registration_id in {item.registration_id for item in self._registrations.values()}:
             raise ValueError(f"duplicate registration_id: {registration_id}")
         items = tuple(definitions)
         if not items or any(item.epoch != epoch for item in items):

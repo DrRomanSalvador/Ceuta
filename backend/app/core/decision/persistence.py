@@ -8,11 +8,13 @@ from .lineage import DecisionLineage
 from ..evidence.citation_trace import CitationTrace, CitationTraceRegistry
 from ..evidence.conflict_resolution import EvidenceResolution
 from ..evidence.source_registry import ClaimEvidenceLink, SourceRecord, SourceRegistry, SourceRole, SourceVerification
+from ..scientific.governance_signals import set_default_storage_path
 
 class SQLiteDecisionStore:
     SCHEMA_VERSION=4
     def __init__(self,path:str)->None:
-        self.path = path
+        self.path=path
+        set_default_storage_path(path)
         self.connection=sqlite3.connect(path); self.connection.execute("PRAGMA journal_mode=WAL"); self.connection.execute("PRAGMA foreign_keys=ON"); self._migrate()
     def _migrate(self)->None:
         self.connection.execute("CREATE TABLE IF NOT EXISTS ceutia_schema_version (version INTEGER NOT NULL)"); row=self.connection.execute("SELECT version FROM ceutia_schema_version LIMIT 1").fetchone(); current=0 if row is None else int(row[0])

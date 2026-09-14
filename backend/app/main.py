@@ -6,10 +6,21 @@ import logging
 import os
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
+from datetime import datetime
 from typing import AsyncIterator
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field
+
+from app.core.decision.config_provenance import ConfigurationProvenance
+from app.core.decision.control_plane import EvidenceAssessment, EvidenceDisposition
+from app.core.decision.decision_system import DecisionContext, DecisionMode, DecisionObjective, DecisionOption, ScenarioOutcome
+from app.core.decision.information_boundary import InformationVisibility
+from app.core.decision.persistence import SQLiteDecisionStore
+from app.core.decision.review_policy import DecisionRisk
+from app.core.runtime.decision_lifecycle import BitemporalRef, DecisionEvidence, DecisionLifecycleEngine
+from app.core.runtime.model_governance import ModelGovernanceRecord
 
 APP_NAME = "CeutIA"
 APP_VERSION = "0.1.0"
@@ -37,6 +48,8 @@ _configure_logging()
 class RuntimeConfig:
     host: str
     port: int
+    code_revision: str
+    decision_db: str
 
 
 def _read_host() -> str:
@@ -48,8 +61,6 @@ def _read_host() -> str:
 
 def _read_port() -> int:
     raw_port = os.getenv("CEUTIA_PORT", str(DEFAULT_PORT)).strip()
-    if not raw_port:
-        raise ValueError("CEUTIA_PORT cannot be empty")
     try:
         port = int(raw_port)
     except ValueError as exc:
@@ -60,7 +71,12 @@ def _read_port() -> int:
 
 
 def load_runtime_config() -> RuntimeConfig:
-    return RuntimeConfig(host=_read_host(), port=_read_port())
+    return RuntimeConfig(
+        host=_read_host(),
+        port=_read_port(),
+        code_revision=os.getenv("CEUTIA_CODE_REVISION", "").strip(),
+        decision_db=os.getenv("CEUTIA_DECISION_DB", "").strip(),
+    )
 
 
 RUNTIME_CONFIG = load_runtime_config()
@@ -72,10 +88,15 @@ class ReadinessState:
     reason: str | None = None
 
 
-_INITIAL_READINESS = ReadinessState(
-    ready=False,
-    reason="Validated database, cache, monitoring and analytical dependencies are not yet connected.",
-)
+def _readiness() -> ReadinessState:
+    missing = []
+    if not RUNTIME_CONFIG.code_revision:
+        missing.append("CEUTIA_CODE_REVISION")
+    if not RUNTIME_CONFIG.decision_db:
+        missing.append("CEUTIA_DECISION_DB")
+    if missing:
+        return ReadinessState(False, "required decision-runtime configuration missing: " + ", ".join(missing))
+    return ReadinessState(True)
 
 
 @asynccontextmanager
@@ -91,12 +112,59 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         LOGGER.info("%s shutdown complete", APP_NAME)
 
 
-app = FastAPI(
-    title=APP_NAME,
-    version=APP_VERSION,
-    description=APP_DESCRIPTION,
-    lifespan=lifespan,
-)
+app = FastAPI(title=APP_NAME, version=APP_VERSION, description=APP_DESCRIPTION, lifespan=lifespan)
+
+
+class DecisionScenarioRequest(BaseModel):
+    scenario_id: str
+    probability: float = Field(ge=0.0, le=1.0)
+    utility: float
+    harm: float
+
+
+class DecisionOptionRequest(BaseModel):
+    option_id: str
+    scenarios: list[DecisionScenarioRequest]
+    resource_cost: float = Field(default=0.0, ge=0.0)
+    uncertainty: float = Field(default=0.0, ge=0.0, le=1.0)
+
+
+class DecisionEvidenceRequest(BaseModel):
+    evidence_id: str
+    source_id: str
+    claim_id: str
+    content_hash: str = Field(min_length=64, max_length=64)
+    valid_from: datetime
+    valid_until: datetime | None = None
+    recorded_from: datetime
+    recorded_until: datetime | None = None
+    base_weight: float = Field(ge=0.0, le=1.0)
+    adversarial_risk: float = Field(default=0.0, ge=0.0, le=1.0)
+    contradiction_weight: float = Field(default=0.0, ge=0.0, le=1.0)
+    independent_origin: bool = True
+    disposition: EvidenceDisposition = EvidenceDisposition.ACCEPT
+    provenance_refs: list[str]
+    visibility: InformationVisibility = InformationVisibility.PUBLIC
+
+
+class DecisionRequest(BaseModel):
+    decision_id: str
+    decision_maker: str
+    horizon: str
+    purpose: str
+    risk_class: DecisionRisk = DecisionRisk.LOW
+    mode: DecisionMode = DecisionMode.ROBUST
+    state_refs: list[str]
+    evidence: list[DecisionEvidenceRequest]
+    options: list[DecisionOptionRequest]
+    assumptions: list[str] = []
+    hypothesis_refs: list[str] = []
+    model_refs: list[str] = []
+    scenario_refs: list[str] = []
+    transformation_refs: list[str] = []
+    constraint_refs: list[str] = []
+    restricted: bool = False
+    output_visibility: InformationVisibility = InformationVisibility.PUBLIC
 
 
 @app.get("/", tags=["system"], summary="CeutIA service information")
@@ -111,21 +179,91 @@ async def health() -> dict[str, str]:
 
 @app.get("/ready", tags=["system"], summary="Application readiness check")
 async def ready() -> JSONResponse:
-    state = _INITIAL_READINESS
+    state = _readiness()
     if state.ready:
-        return JSONResponse(
-            status_code=200,
-            content={"status": STATUS_READY, "service": APP_NAME, "version": APP_VERSION},
+        return JSONResponse(status_code=200, content={"status": STATUS_READY, "service": APP_NAME, "version": APP_VERSION})
+    return JSONResponse(status_code=503, content={"status": STATUS_NOT_READY, "service": APP_NAME, "version": APP_VERSION, "reason": state.reason})
+
+
+@app.post("/decision/evaluate", tags=["decision"], summary="Execute the integrated evidence-to-decision lifecycle")
+async def evaluate_decision(payload: DecisionRequest) -> dict[str, object]:
+    state = _readiness()
+    if not state.ready:
+        return JSONResponse(status_code=503, content={"status": STATUS_NOT_READY, "reason": state.reason})
+    store = SQLiteDecisionStore(RUNTIME_CONFIG.decision_db)
+    try:
+        configuration = ConfigurationProvenance(
+            configuration_id="ceutia-decision-runtime",
+            version="1",
+            source_refs=("environment:decision-runtime",),
+            values={"risk_class": payload.risk_class.value, "mode": payload.mode.value},
         )
-    return JSONResponse(
-        status_code=503,
-        content={
-            "status": STATUS_NOT_READY,
-            "service": APP_NAME,
-            "version": APP_VERSION,
-            "reason": state.reason,
-        },
-    )
+        lifecycle = DecisionLifecycleEngine(store, code_revision=RUNTIME_CONFIG.code_revision, configuration=configuration)
+        evidence: list[DecisionEvidence] = []
+        for item in payload.evidence:
+            temporal = BitemporalRef(item.valid_from, item.valid_until, item.recorded_from, item.recorded_until, item.evidence_id)
+            assessment = EvidenceAssessment(
+                evidence_id=item.evidence_id,
+                source_id=item.source_id,
+                base_weight=item.base_weight,
+                adversarial_risk=item.adversarial_risk,
+                contradiction_weight=item.contradiction_weight,
+                independent_origin=item.independent_origin,
+                disposition=item.disposition,
+            )
+            evidence.append(DecisionEvidence(item.evidence_id, item.source_id, item.claim_id, item.content_hash, tuple(item.provenance_refs), temporal, assessment, item.visibility))
+        options = tuple(
+            DecisionOption(
+                item.option_id,
+                tuple(ScenarioOutcome(s.scenario_id, s.probability, s.utility, s.harm) for s in item.scenarios),
+                item.resource_cost,
+                item.uncertainty,
+            )
+            for item in payload.options
+        )
+        context = DecisionContext(
+            decision_id=payload.decision_id,
+            decision_maker=payload.decision_maker,
+            horizon=payload.horizon,
+            objectives=(DecisionObjective("expected_utility", 1.0, 1),),
+            assumptions=tuple(payload.assumptions),
+            risk_class=payload.risk_class,
+        )
+        result = lifecycle.execute(
+            context,
+            options,
+            evidence,
+            state_refs=payload.state_refs,
+            hypothesis_refs=payload.hypothesis_refs,
+            model_refs=payload.model_refs,
+            scenario_refs=payload.scenario_refs,
+            assumption_refs=payload.assumptions,
+            transformation_refs=payload.transformation_refs,
+            constraint_refs=payload.constraint_refs,
+            purpose=payload.purpose,
+            restricted=payload.restricted,
+            output_visibility=payload.output_visibility,
+            mode=payload.mode,
+        )
+        return {
+            "decision_id": result.decision_id,
+            "disposition": result.disposition.value,
+            "recommendation": {
+                "option_id": result.recommendation.option_id,
+                "score": result.recommendation.score,
+                "expected_utility": result.recommendation.expected_utility,
+                "expected_harm": result.recommendation.expected_harm,
+                "maximum_regret": result.recommendation.maximum_regret,
+                "reasons": result.recommendation.reasons,
+            },
+            "control_reason": result.control_reason,
+            "audit_event_id": result.audit_event_id,
+            "lineage_fingerprint": result.lineage.semantic_fingerprint(),
+            "uncertainty": result.uncertainty.value,
+            "degraded_reasons": result.degraded_reasons,
+        }
+    finally:
+        store.close()
 
 
 @app.get("/version", tags=["system"], summary="Application version")
@@ -135,45 +273,42 @@ async def version() -> dict[str, str]:
 
 @app.get("/diagnostics", tags=["system"], summary="Minimal non-sensitive runtime diagnostics")
 async def diagnostics() -> dict[str, object]:
+    state = _readiness()
     return {
         "service": APP_NAME,
         "version": APP_VERSION,
         "application": STATUS_RUNNING,
         "liveness": STATUS_HEALTHY,
-        "readiness": STATUS_NOT_READY,
+        "readiness": STATUS_READY if state.ready else STATUS_NOT_READY,
         "runtime": {
             "host_configured": bool(RUNTIME_CONFIG.host),
             "port_configured": MIN_PORT <= RUNTIME_CONFIG.port <= MAX_PORT,
+            "code_revision_configured": bool(RUNTIME_CONFIG.code_revision),
+            "decision_persistence_configured": bool(RUNTIME_CONFIG.decision_db),
         },
     }
 
 
 @app.get("/diagnostics/config", tags=["system"], summary="Non-sensitive runtime configuration validation")
 async def diagnostics_config() -> dict[str, object]:
+    state = _readiness()
     return {
-        "status": "valid",
+        "status": "valid" if state.ready else "incomplete",
         "host_configured": bool(RUNTIME_CONFIG.host),
         "port_valid": MIN_PORT <= RUNTIME_CONFIG.port <= MAX_PORT,
+        "code_revision_configured": bool(RUNTIME_CONFIG.code_revision),
+        "decision_persistence_configured": bool(RUNTIME_CONFIG.decision_db),
     }
 
 
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
-    LOGGER.exception(
-        "Unhandled exception: method=%s path=%s",
-        request.method,
-        request.url.path,
-        exc_info=exc,
-    )
-    return JSONResponse(
-        status_code=500,
-        content={"error": "internal_server_error", "service": APP_NAME, "version": APP_VERSION},
-    )
+    LOGGER.exception("Unhandled exception: method=%s path=%s", request.method, request.url.path, exc_info=exc)
+    return JSONResponse(status_code=500, content={"error": "internal_server_error", "service": APP_NAME, "version": APP_VERSION})
 
 
 def main() -> None:
     import uvicorn
-
     uvicorn.run("app.main:app", host=RUNTIME_CONFIG.host, port=RUNTIME_CONFIG.port)
 
 

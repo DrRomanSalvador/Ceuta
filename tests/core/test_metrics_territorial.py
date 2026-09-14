@@ -33,6 +33,7 @@ from app.core.metrics import (
     territorial_spatial_propagation,
     territorial_cascade_depth,
     territorial_spatiotemporal_variability,
+    territorial_systemic_sensitivity_matrix,
     territorial_theil,
     territorial_variance,
     validate_registry_integrity,
@@ -156,6 +157,11 @@ def test_territorial_dependency_rejects_constant_or_single_observation():
         territorial_dependency_matrix([[1.0, 2.0]])
     with pytest.raises(MetricInputError):
         territorial_dependency_matrix([[1.0, 2.0], [1.0, 3.0]])
+
+
+def test_systemic_sensitivity_rejects_nonfinite_inputs():
+    with pytest.raises(MetricInputError):
+        territorial_systemic_sensitivity_matrix([[1.0], [np.nan]], [[1.0], [2.0]])
 
 
 def test_pressure_breadth_fraction_uses_one_zscore_transform():

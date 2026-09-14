@@ -1,9 +1,9 @@
 """Operational governance signals derived from scientific mechanism state.
 
 The governance layer converts evidence quality, independence, provenance,
-mechanism integrity, strategic-risk findings, credibility, uncertainty and
-response closure into an auditable RELEASE/REVIEW_REQUIRED/ABSTAIN decision.
-Prospective behavioural and outcome validation remain empirical questions.
+mechanism integrity, strategic-risk findings, credibility, uncertainty,
+response closure and cross-cutting scientific constraints into an auditable
+RELEASE/REVIEW_REQUIRED/ABSTAIN decision.
 """
 from __future__ import annotations
 from dataclasses import asdict, dataclass
@@ -19,7 +19,6 @@ _DEFAULT_STORAGE_PATH: str | None = None
 
 
 def set_default_storage_path(path: str) -> None:
-    """Bind default governance persistence to the active decision store."""
     if not path:
         raise ValueError("storage path is required")
     global _DEFAULT_STORAGE_PATH
@@ -44,6 +43,10 @@ class GovernanceReason(StrEnum):
     MODEL_CONFLICT = "model_conflict"
     UNCERTAINTY_HIGH = "uncertainty_high"
     RESPONSE_CLOSURE_INCOMPLETE = "response_closure_incomplete"
+    REFERENCE_CLASS_UNSUPPORTED = "reference_class_unsupported"
+    OUT_OF_DISTRIBUTION = "out_of_distribution"
+    CAUSAL_IDENTIFICATION_UNSATISFIED = "causal_identification_unsatisfied"
+    ROBUSTNESS_GATE_FAILED = "robustness_gate_failed"
     INTEGRITY_VERIFIED = "integrity_verified"
 
 
@@ -63,6 +66,7 @@ class GovernanceInput:
     model_conflict: bool = False
     uncertainty: float = 0.0
     response_closure_complete: bool = True
+    scientific_findings: tuple[str, ...] = ()
     code_revision: str = ""
     configuration_hash: str = ""
     mechanism_ref: str = ""
@@ -101,7 +105,7 @@ class GovernanceSignal:
 
 class ScientificGovernance:
     """Fail-closed, persistent governance bridge."""
-    RULE_VERSION = "scientific-governance-v1"
+    RULE_VERSION = "scientific-governance-v2"
 
     def __init__(self, *, storage_path: str | None = None, minimum_evidence_quality: float = 0.5,
                  minimum_independence: float = 0.5, minimum_credibility: float = 0.35,
@@ -170,12 +174,24 @@ class ScientificGovernance:
             reasons.append(GovernanceReason.STRATEGIC_MANIPULATION)
         if value.collusion_flags:
             reasons.append(GovernanceReason.COLLUSION_FLAG)
+        if "reference_class_unsupported" in value.scientific_findings:
+            reasons.append(GovernanceReason.REFERENCE_CLASS_UNSUPPORTED)
+        if "deployment_outside_observed_support" in value.scientific_findings:
+            reasons.append(GovernanceReason.OUT_OF_DISTRIBUTION)
+        if "causal_identification_unsatisfied" in value.scientific_findings:
+            reasons.append(GovernanceReason.CAUSAL_IDENTIFICATION_UNSATISFIED)
+        if "robustness_gate_not_met" in value.scientific_findings:
+            reasons.append(GovernanceReason.ROBUSTNESS_GATE_FAILED)
         if value.uncertainty >= self.review_uncertainty:
             reasons.append(GovernanceReason.UNCERTAINTY_HIGH)
         if not value.response_closure_complete:
             reasons.append(GovernanceReason.RESPONSE_CLOSURE_INCOMPLETE)
-        hard = {GovernanceReason.PROVENANCE_COMPROMISED, GovernanceReason.MECHANISM_UNSATISFIED,
-                GovernanceReason.STRATEGIC_MANIPULATION, GovernanceReason.COLLUSION_FLAG}
+        hard = {
+            GovernanceReason.PROVENANCE_COMPROMISED, GovernanceReason.MECHANISM_UNSATISFIED,
+            GovernanceReason.STRATEGIC_MANIPULATION, GovernanceReason.COLLUSION_FLAG,
+            GovernanceReason.REFERENCE_CLASS_UNSUPPORTED, GovernanceReason.OUT_OF_DISTRIBUTION,
+            GovernanceReason.CAUSAL_IDENTIFICATION_UNSATISFIED,
+        }
         if value.uncertainty >= self.abstain_uncertainty:
             reasons.append(GovernanceReason.UNCERTAINTY_HIGH)
         if any(r in hard for r in reasons) or value.uncertainty >= self.abstain_uncertainty:

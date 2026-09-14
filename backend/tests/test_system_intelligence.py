@@ -35,6 +35,14 @@ def test_state_estimator_preserves_competing_hypotheses() -> None:
     assert "competing" in result.uncertainty_note
 
 
+def test_state_hypothesis_rejects_non_finite_probability() -> None:
+    covariance = ((0.1,),)
+    with pytest.raises(ValueError, match="finite"):
+        StateHypothesis("nan", (1.0,), covariance, StateKind.LATENT, float("nan"))
+    with pytest.raises(ValueError, match="finite"):
+        StateHypothesis("inf", (1.0,), covariance, StateKind.LATENT, float("inf"))
+
+
 def test_linear_observability_detects_unobserved_dimension() -> None:
     assessment = ObservabilityAnalyzer.linear(((1.0, 0.0), (0.0, 1.0)), ((1.0, 0.0),))
     assert assessment.observable is False
@@ -65,6 +73,11 @@ def test_predictability_abstains_after_mechanism_change() -> None:
     assert assessment.abstain_recommended is True
 
 
+def test_predictability_rejects_non_finite_model_spread() -> None:
+    with pytest.raises(ValueError, match="finite"):
+        PredictabilityAnalyzer.assess((0.1, 0.2), model_spread=float("nan"))
+
+
 def test_model_disagreement_is_preserved() -> None:
     result = ModelDisagreementAnalyzer.compare(
         (
@@ -75,6 +88,11 @@ def test_model_disagreement_is_preserved() -> None:
     assert result is not None
     assert result.material is True
     assert result.spread == pytest.approx(0.4)
+
+
+def test_model_alternative_rejects_non_finite_uncertainty() -> None:
+    with pytest.raises(ValueError, match="invalid"):
+        ModelAlternative("m1", "1", 0.1, float("nan"), "valid")
 
 
 def test_regime_requires_dwell() -> None:

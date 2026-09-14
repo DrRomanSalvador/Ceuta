@@ -93,12 +93,7 @@ class TemporalFilter:
 
     @staticmethod
     def _version(evidence) -> Optional[int]:
-        """Return the canonical evidence revision number.
-
-        P0's immutable evidence model calls this field ``version``. ``revision``
-        remains accepted for lightweight adapters so the temporal layer does not
-        invent a second versioning scheme.
-        """
+        """Return the canonical evidence revision number."""
         version = getattr(evidence, "version", None)
         if version is None:
             version = getattr(evidence, "revision", None)
@@ -106,12 +101,17 @@ class TemporalFilter:
 
     @classmethod
     def filter_by_available_at(cls, evidences: List, simulation_time: datetime) -> List:
-        """Return only evidence known to be available at simulation_time."""
-        return [
-            ev for ev in evidences
-            if (available := cls._available_at(ev)) is not None
-            and available <= simulation_time
-        ]
+        """Return only evidence available and effective at simulation_time."""
+        result = []
+        for evidence in evidences:
+            available = cls._available_at(evidence)
+            if available is None or available > simulation_time:
+                continue
+            is_valid = getattr(evidence, "is_valid_at", None)
+            if callable(is_valid) and not is_valid(simulation_time):
+                continue
+            result.append(evidence)
+        return result
 
     @classmethod
     def snapshot_by_available_at(cls, evidences: List, simulation_time: datetime) -> List:

@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
+import sqlite3
+
 from fastapi.testclient import TestClient
 import pytest
 
@@ -9,6 +12,9 @@ from tests.core.test_cross_repo_scientific_adversarial import _payload
 
 def test_product_replay_and_outcome_endpoints(tmp_path, monkeypatch):
     database = tmp_path / "decision.sqlite"
+    now = datetime.now(timezone.utc).replace(microsecond=0)
+    origin = now - timedelta(days=2)
+    available = origin + timedelta(minutes=5)
     monkeypatch.setenv("CEUTIA_CODE_REVISION", "r" * 40)
     monkeypatch.setenv("CEUTIA_DECISION_DB", str(database))
     monkeypatch.setenv("CEUTIA_SERPIENTE_TRANSPORT_SECRET", "shared-secret")
@@ -17,9 +23,7 @@ def test_product_replay_and_outcome_endpoints(tmp_path, monkeypatch):
     from app import main
 
     main.RUNTIME_CONFIG = main.load_runtime_config()
-    payload = _payload()
-    import sqlite3
-
+    payload = _payload(origin_time=origin.isoformat(), available_at=available.isoformat())
     connection = sqlite3.connect(database)
     try:
         record_prediction(connection, payload, decision_id="decision-1")
@@ -30,7 +34,7 @@ def test_product_replay_and_outcome_endpoints(tmp_path, monkeypatch):
         headers = {"X-CeutIA-Decision-Key": "decision-key"}
         replay = client.get(
             "/scientific/predictions/prediction-1/replay",
-            params={"as_of": "2026-09-15T06:00:00+00:00"},
+            params={"as_of": now.isoformat()},
             headers=headers,
         )
         assert replay.status_code == 200
@@ -39,7 +43,7 @@ def test_product_replay_and_outcome_endpoints(tmp_path, monkeypatch):
 
         early = client.get(
             "/scientific/predictions/prediction-1/replay",
-            params={"as_of": "2026-09-15T04:59:00+00:00"},
+            params={"as_of": (origin - timedelta(seconds=1)).isoformat()},
             headers=headers,
         )
         assert early.status_code == 422
@@ -53,7 +57,7 @@ def test_product_replay_and_outcome_endpoints(tmp_path, monkeypatch):
                 "action_id": "option-1",
                 "outcome_id": "outcome-1",
                 "target": "risk",
-                "outcome_time": "2026-09-16T05:00:00+00:00",
+                "outcome_time": now.isoformat(),
                 "observed": 1,
                 "provenance": ["test:outcome"],
             },
@@ -61,6 +65,23 @@ def test_product_replay_and_outcome_endpoints(tmp_path, monkeypatch):
         assert outcome.status_code == 200
         assert outcome.json()["prediction_id"] == "prediction-1"
         assert outcome.json()["brier_error"] == pytest.approx(0.09)
+
+        future = client.post(
+            "/scientific/predictions/outcomes",
+            headers=headers,
+            json={
+                "prediction_id": "prediction-1",
+                "decision_id": "decision-1",
+                "action_id": "option-1",
+                "outcome_id": "outcome-future",
+                "target": "risk",
+                "outcome_time": (now + timedelta(minutes=1)).isoformat(),
+                "observed": 1,
+                "provenance": ["test:future"],
+            },
+        )
+        assert future.status_code == 422
+        assert "future" in future.json()["error"]
 
 
 def test_readiness_requires_transport_secret(monkeypatch, tmp_path):

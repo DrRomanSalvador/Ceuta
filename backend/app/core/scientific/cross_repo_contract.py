@@ -1,6 +1,6 @@
 """Canonical CeutIA<->SERPIENTE scientific contract.
 
-Ceuta is the canonical owner of this contract. SERPIENTE emits the versioned
+CeutIA is the canonical owner of this contract. SERPIENTE emits the versioned
 message and validates the canonical contract identity plus receiver-side
 scientific semantics; it does not maintain a second schema definition.
 """
@@ -70,6 +70,8 @@ class ScientificPredictionMessage:
                 raise ValueError(f"{name} must be timezone-aware")
         if self.available_at < self.origin_time:
             raise ValueError("available_at cannot precede origin_time")
+        if not all(math.isfinite(value) for value in (self.probability, self.lower, self.upper, self.model_disagreement)):
+            raise ValueError("prediction interval and disagreement values must be finite")
         if not 0 <= self.probability <= 1 or not 0 <= self.model_disagreement <= 1:
             raise ValueError("probability and disagreement must be in [0,1]")
         if self.lower > self.upper or not self.provenance or not self.point_in_time_fingerprint:

@@ -51,13 +51,17 @@ def test_association_does_not_imply_causality():
     assert not any(item.kind is EdgeKind.CAUSALITY_SUPPORTED for item in graph.edges.values())
 
 
-def test_predictive_relation_is_distinct_from_causal_relation():
+def test_predictive_relation_matches_canonical_forecast_time_semantics():
     graph = _graph()
     edge = graph.add_edge(
         EdgeKind.PREDICTS,
         "e1",
         "p1",
-        properties={"prediction_id": "pred-1", "target_time": datetime(2026, 10, 1, tzinfo=UTC)},
+        properties={
+            "prediction_id": "pred-1",
+            "origin_time": datetime(2026, 9, 15, 8, 0, tzinfo=UTC),
+            "horizon": "30d",
+        },
     )
     assert edge.kind is EdgeKind.PREDICTS
     assert not any(item.kind in {EdgeKind.CAUSAL_HYPOTHESIS, EdgeKind.CAUSALITY_SUPPORTED} for item in graph.edges.values())
@@ -72,7 +76,8 @@ def test_predicts_rejects_embedded_causality_claim():
             "p1",
             properties={
                 "prediction_id": "pred-1",
-                "target_time": datetime(2026, 10, 1, tzinfo=UTC),
+                "origin_time": datetime(2026, 9, 15, 8, 0, tzinfo=UTC),
+                "horizon": "30d",
                 "causality_claim": True,
             },
         )

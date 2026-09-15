@@ -4,12 +4,11 @@ from __future__ import annotations
 import hmac
 import os
 import sqlite3
-from datetime import datetime
-from typing import Any
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Request
-from pydantic import BaseModel, Field
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field
 
 from .cross_repo_contract import validate_scientific_prediction_payload
 from .prediction_outcome_evaluation import record_prediction_outcome
@@ -35,10 +34,7 @@ def _authorize(request: Request) -> JSONResponse | None:
     configured_key = os.getenv("CEUTIA_DECISION_API_KEY", "").strip()
     provided_key = request.headers.get(DECISION_KEY_HEADER, "")
     if not configured_key:
-        return JSONResponse(
-            status_code=503,
-            content={"status": "not_ready", "reason": "CEUTIA_DECISION_API_KEY is not configured"},
-        )
+        return JSONResponse(status_code=503, content={"status": "not_ready", "reason": "CEUTIA_DECISION_API_KEY is not configured"})
     if not provided_key or not hmac.compare_digest(provided_key, configured_key):
         return JSONResponse(status_code=401, content={"error": "unauthorized"})
     return None
@@ -71,7 +67,7 @@ async def replay_scientific_prediction(prediction_id: str, request: Request, as_
         return JSONResponse(status_code=422, content={"error": str(exc)})
     return {
         "prediction_id": prediction.prediction_id,
-        "as_of": as_of.astimezone().isoformat(),
+        "as_of": as_of.astimezone(timezone.utc).isoformat(),
         "point_in_time_eligible": True,
         "scientific_contract_valid": True,
         "prediction": payload,

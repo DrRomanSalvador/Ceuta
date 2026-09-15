@@ -1,11 +1,7 @@
-"""Persistence adapter for canonical cross-repository prediction records.
-
-This module extends the existing SQLiteDecisionStore connection; it does not
-create a second persistence system. Prediction records remain distinct from
-model-release governance records.
-"""
+"""Persistence adapter for canonical cross-repository prediction records."""
 from __future__ import annotations
 
+from datetime import datetime, timezone
 import json
 import sqlite3
 from hashlib import sha256
@@ -57,3 +53,22 @@ def get_prediction(connection: sqlite3.Connection, prediction_id: str) -> dict[s
     ensure_prediction_schema(connection)
     row = connection.execute("SELECT payload_json FROM scientific_predictions WHERE prediction_id=?", (prediction_id,)).fetchone()
     return None if row is None else json.loads(row[0])
+
+
+def replay_prediction(connection: sqlite3.Connection, prediction_id: str, *, as_of: datetime) -> dict[str, Any]:
+    """Reconstruct the prediction only if it was legitimately available at as_of."""
+    if as_of.tzinfo is None or as_of.utcoffset() is None:
+        raise ValueError("replay as_of must be timezone-aware")
+    ensure_prediction_schema(connection)
+    row = connection.execute("SELECT available_at, origin_time, payload_json, payload_fingerprint FROM scientific_predictions WHERE prediction_id=?", (prediction_id,)).fetchone()
+    if row is None:
+        raise KeyError("prediction_id not found")
+    available_at = datetime.fromisoformat(str(row[0])).astimezone(timezone.utc)
+    origin_time = datetime.fromisoformat(str(row[1])).astimezone(timezone.utc)
+    reference = as_of.astimezone(timezone.utc)
+    if available_at > reference or origin_time > reference:
+        raise ValueError("prediction was not point-in-time eligible at replay time")
+    payload = json.loads(row[2])
+    if _fingerprint(payload) != str(row[3]):
+        raise RuntimeError("prediction persistence integrity mismatch")
+    return payload

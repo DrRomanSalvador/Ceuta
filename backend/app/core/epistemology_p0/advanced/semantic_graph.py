@@ -112,7 +112,7 @@ class SemanticGraph:
 
     _NONCAUSAL_REQUIRED_FIELDS = {
         EdgeKind.OBSERVES: {"observation_id"},
-        EdgeKind.PREDICTS: {"prediction_id", "target_time"},
+        EdgeKind.PREDICTS: {"prediction_id", "origin_time", "horizon"},
         EdgeKind.REPORTED_BY: {"reporting_process_id"},
         EdgeKind.ACQUIRED_BY: {"acquisition_process_id"},
         EdgeKind.REVISED_BY: {"revision_id"},
@@ -280,7 +280,10 @@ class SemanticGraph:
 
     @classmethod
     def _validate_noncausal_edge(cls, kind: EdgeKind, properties: Dict[str, Any]) -> None:
-        missing = sorted(cls._NONCAUSAL_REQUIRED_FIELDS[kind] - properties.keys())
+        missing = sorted(
+            field for field in cls._NONCAUSAL_REQUIRED_FIELDS[kind]
+            if properties.get(field) in (None, "", (), [], {})
+        )
         if missing:
             raise ValueError(f"{kind.value} requires explicit scientific identity: missing={missing}")
         if kind is EdgeKind.PREDICTS and properties.get("causality_claim") is True:

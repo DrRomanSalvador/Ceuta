@@ -44,6 +44,16 @@ class EdgeKind(str, Enum):
     SAME_AS = "same_as"
     DERIVED_FROM = "derived_from"
     MEASURES = "measures"
+    OBSERVES = "observes"
+    PREDICTS = "predicts"
+    REPORTED_BY = "reported_by"
+    ACQUIRED_BY = "acquired_by"
+    REVISED_BY = "revised_by"
+    INTERVENED_ON_BY = "intervened_on_by"
+    MODIFIES = "modifies"
+    CONDITIONS = "conditions"
+    CONFOUNDS = "confounds"
+    FEEDS_BACK_TO = "feeds_back_to"
     LOCATED_IN = "located_in"
     PUBLISHED_BY = "published_by"
 
@@ -100,6 +110,15 @@ class SemanticGraph:
         "falsification_criterion",
     }
 
+    _NONCAUSAL_REQUIRED_FIELDS = {
+        EdgeKind.OBSERVES: {"observation_id"},
+        EdgeKind.PREDICTS: {"prediction_id", "target_time"},
+        EdgeKind.REPORTED_BY: {"reporting_process_id"},
+        EdgeKind.ACQUIRED_BY: {"acquisition_process_id"},
+        EdgeKind.REVISED_BY: {"revision_id"},
+        EdgeKind.INTERVENED_ON_BY: {"intervention_id"},
+    }
+
     def __init__(self) -> None:
         self.nodes: Dict[str, GraphNode] = {}
         self.edges: Dict[str, GraphEdge] = {}
@@ -138,6 +157,8 @@ class SemanticGraph:
         edge_properties = properties or {}
         if kind in {EdgeKind.CAUSAL_HYPOTHESIS, EdgeKind.CAUSALITY_SUPPORTED}:
             self._validate_causal_edge(kind, edge_properties)
+        if kind in self._NONCAUSAL_REQUIRED_FIELDS:
+            self._validate_noncausal_edge(kind, edge_properties)
         if kind is EdgeKind.TEMPORAL_PRECEDENCE:
             self._validate_temporal_edge(edge_properties)
         if kind is EdgeKind.SOURCE_DEPENDENCY:
@@ -149,6 +170,44 @@ class SemanticGraph:
         self._out.setdefault(from_id, []).append(eid)
         self._in.setdefault(to_id, []).append(eid)
         return edge
+
+    def parents(self, node_id: str, *, edge_kind: Optional[EdgeKind] = None) -> tuple[str, ...]:
+        result = []
+        for eid in self._in.get(node_id, []):
+            edge = self.edges[eid]
+            if edge_kind is None or edge.kind is edge_kind:
+                result.append(edge.from_id)
+        return tuple(result)
+
+    def children(self, node_id: str, *, edge_kind: Optional[EdgeKind] = None) -> tuple[str, ...]:
+        result = []
+        for eid in self._out.get(node_id, []):
+            edge = self.edges[eid]
+            if edge_kind is None or edge.kind is edge_kind:
+                result.append(edge.to_id)
+        return tuple(result)
+
+    def ancestors(self, node_id: str, *, edge_kind: Optional[EdgeKind] = None) -> frozenset[str]:
+        found: set[str] = set()
+        stack = list(self.parents(node_id, edge_kind=edge_kind))
+        while stack:
+            current = stack.pop()
+            if current in found:
+                continue
+            found.add(current)
+            stack.extend(self.parents(current, edge_kind=edge_kind))
+        return frozenset(found)
+
+    def descendants(self, node_id: str, *, edge_kind: Optional[EdgeKind] = None) -> frozenset[str]:
+        found: set[str] = set()
+        stack = list(self.children(node_id, edge_kind=edge_kind))
+        while stack:
+            current = stack.pop()
+            if current in found:
+                continue
+            found.add(current)
+            stack.extend(self.children(current, edge_kind=edge_kind))
+        return frozenset(found)
 
     def add_evidence_contract(
         self,
@@ -218,6 +277,14 @@ class SemanticGraph:
             raise ValueError("causality_supported requires a validation_method")
         if properties.get("causality_confirmed") is True:
             raise ValueError("CAUSALITY_CONFIRMED is not a permitted default graph state")
+
+    @classmethod
+    def _validate_noncausal_edge(cls, kind: EdgeKind, properties: Dict[str, Any]) -> None:
+        missing = sorted(cls._NONCAUSAL_REQUIRED_FIELDS[kind] - properties.keys())
+        if missing:
+            raise ValueError(f"{kind.value} requires explicit scientific identity: missing={missing}")
+        if kind is EdgeKind.PREDICTS and properties.get("causality_claim") is True:
+            raise ValueError("PREDICTS cannot encode a causality claim; use CAUSAL_HYPOTHESIS")
 
     @staticmethod
     def _validate_temporal_edge(properties: Dict[str, Any]) -> None:

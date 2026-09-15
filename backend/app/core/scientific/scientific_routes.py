@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from .cross_repo_contract import validate_scientific_prediction_payload
+from .prediction_evaluation import aggregate_prediction_evaluation
 from .prediction_outcome_evaluation import record_prediction_outcome
 from .prediction_persistence import replay_prediction
 
@@ -99,6 +100,22 @@ async def record_scientific_prediction_outcome(request: Request, payload: Predic
             connection.close()
     except KeyError as exc:
         return JSONResponse(status_code=404, content={"error": str(exc)})
+    except (RuntimeError, ValueError) as exc:
+        return JSONResponse(status_code=422, content={"error": str(exc)})
+    return result
+
+
+@router.get("/predictions/evaluation")
+async def evaluate_scientific_predictions(request: Request, target: str | None = None, model_id: str | None = None):
+    denied = _authorize(request)
+    if denied is not None:
+        return denied
+    try:
+        connection = sqlite3.connect(_database_path(), timeout=10.0)
+        try:
+            result = aggregate_prediction_evaluation(connection, target=target, model_id=model_id)
+        finally:
+            connection.close()
     except (RuntimeError, ValueError) as exc:
         return JSONResponse(status_code=422, content={"error": str(exc)})
     return result

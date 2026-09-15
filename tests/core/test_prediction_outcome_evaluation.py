@@ -87,6 +87,24 @@ def test_outcome_cannot_precede_prediction_availability() -> None:
         )
 
 
+def test_outcome_cannot_precede_prediction_target_time() -> None:
+    connection = sqlite3.connect(":memory:")
+    record_prediction(connection, _prediction(), decision_id="decision-1")
+
+    with pytest.raises(ValueError, match="target time"):
+        record_prediction_outcome(
+            connection,
+            prediction_id="prediction-outcome-1",
+            decision_id="decision-1",
+            action_id="option-1",
+            outcome_id="outcome-before-target",
+            target="target.binary",
+            outcome_time=datetime(2026, 9, 15, 6, 30, tzinfo=timezone.utc),
+            observed=1,
+            provenance=("outcome:test",),
+        )
+
+
 def test_outcome_requires_prediction_decision_alignment() -> None:
     connection = sqlite3.connect(":memory:")
     record_prediction(connection, _prediction(), decision_id="decision-1")

@@ -1,11 +1,9 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
-
 from fastapi.testclient import TestClient
 
 from app.core.scientific.prediction_persistence import record_prediction
-from test_cross_repo_scientific_adversarial import _payload
+from tests.core.test_cross_repo_scientific_adversarial import _payload
 
 
 def test_product_replay_and_outcome_endpoints(tmp_path, monkeypatch):

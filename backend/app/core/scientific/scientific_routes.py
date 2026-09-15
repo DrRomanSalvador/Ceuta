@@ -66,13 +66,7 @@ async def replay_scientific_prediction(prediction_id: str, request: Request, as_
         return JSONResponse(status_code=404, content={"error": str(exc)})
     except (RuntimeError, ValueError) as exc:
         return JSONResponse(status_code=422, content={"error": str(exc)})
-    return {
-        "prediction_id": prediction.prediction_id,
-        "as_of": as_of.astimezone(timezone.utc).isoformat(),
-        "point_in_time_eligible": True,
-        "scientific_contract_valid": True,
-        "prediction": payload,
-    }
+    return {"prediction_id": prediction.prediction_id, "as_of": as_of.astimezone(timezone.utc).isoformat(), "point_in_time_eligible": True, "scientific_contract_valid": True, "prediction": payload}
 
 
 @router.post("/predictions/outcomes")
@@ -85,17 +79,7 @@ async def record_scientific_prediction_outcome(request: Request, payload: Predic
     try:
         connection = sqlite3.connect(_database_path(), timeout=10.0)
         try:
-            result = record_prediction_outcome(
-                connection,
-                prediction_id=payload.prediction_id,
-                decision_id=payload.decision_id,
-                action_id=payload.action_id,
-                outcome_id=payload.outcome_id,
-                target=payload.target,
-                outcome_time=payload.outcome_time,
-                observed=payload.observed,
-                provenance=tuple(payload.provenance),
-            )
+            result = record_prediction_outcome(connection, prediction_id=payload.prediction_id, decision_id=payload.decision_id, action_id=payload.action_id, outcome_id=payload.outcome_id, target=payload.target, outcome_time=payload.outcome_time, observed=payload.observed, provenance=tuple(payload.provenance))
         finally:
             connection.close()
     except KeyError as exc:
@@ -106,14 +90,14 @@ async def record_scientific_prediction_outcome(request: Request, payload: Predic
 
 
 @router.get("/predictions/evaluation")
-async def evaluate_scientific_predictions(request: Request, target: str | None = None, model_id: str | None = None):
+async def evaluate_scientific_predictions(request: Request, target: str | None = None, model_id: str | None = None, horizon: str | None = None):
     denied = _authorize(request)
     if denied is not None:
         return denied
     try:
         connection = sqlite3.connect(_database_path(), timeout=10.0)
         try:
-            result = aggregate_prediction_evaluation(connection, target=target, model_id=model_id)
+            result = aggregate_prediction_evaluation(connection, target=target, model_id=model_id, horizon=horizon)
         finally:
             connection.close()
     except (RuntimeError, ValueError) as exc:

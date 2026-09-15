@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from fastapi.testclient import TestClient
+import pytest
 
 from app.core.scientific.prediction_persistence import record_prediction
 from tests.core.test_cross_repo_scientific_adversarial import _payload
@@ -59,7 +60,7 @@ def test_product_replay_and_outcome_endpoints(tmp_path, monkeypatch):
         )
         assert outcome.status_code == 200
         assert outcome.json()["prediction_id"] == "prediction-1"
-        assert outcome.json()["brier_error"] == 0.09
+        assert outcome.json()["brier_error"] == pytest.approx(0.09)
 
 
 def test_readiness_requires_transport_secret(monkeypatch, tmp_path):

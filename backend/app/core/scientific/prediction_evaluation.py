@@ -6,11 +6,15 @@ import sqlite3
 from typing import Any
 
 
+PROTOCOL_ID = "CEUTIA-SERPIENTE-PREDICTIVE-EVAL-1"
+
+
 def aggregate_prediction_evaluation(
     connection: sqlite3.Connection,
     *,
     target: str | None = None,
     model_id: str | None = None,
+    horizon: str | None = None,
 ) -> dict[str, Any]:
     clauses: list[str] = []
     params: list[str] = []
@@ -28,19 +32,24 @@ def aggregate_prediction_evaluation(
         payload = json.loads(row[5])
         if model_id and str(payload.get("model_id")) != model_id:
             continue
+        if horizon and str(payload.get("horizon")) != horizon:
+            continue
         selected.append(row)
     if not selected:
         return {
+            "protocol_id": PROTOCOL_ID,
             "n": 0,
             "target": target,
             "model_id": model_id,
+            "horizon": horizon,
             "mean_brier_error": None,
             "mean_log_loss": None,
             "observed_rate": None,
             "mean_predicted_probability": None,
             "calibration_gap": None,
             "status": "insufficient_observed_outcomes",
-            "scientific_interpretation": "No point-in-time eligible observed outcomes match the requested evaluation slice.",
+            "prospective_validity_status": "NOT_ESTABLISHED",
+            "scientific_interpretation": "No point-in-time eligible observed outcomes match the requested target/model/horizon slice.",
         }
     n = len(selected)
     mean_brier = sum(float(row[3]) for row in selected) / n
@@ -49,17 +58,20 @@ def aggregate_prediction_evaluation(
     mean_probability = sum(float(row[2]) for row in selected) / n
     calibration_gap = mean_probability - observed_rate
     return {
+        "protocol_id": PROTOCOL_ID,
         "n": n,
         "target": target,
         "model_id": model_id,
+        "horizon": horizon,
         "mean_brier_error": mean_brier,
         "mean_log_loss": mean_log_loss,
         "observed_rate": observed_rate,
         "mean_predicted_probability": mean_probability,
         "calibration_gap": calibration_gap,
         "status": "descriptive_prospective_evaluation",
-        "scientific_interpretation": "Observed-outcome performance is summarized descriptively; this does not establish prospective deployment validity or causal effectiveness.",
+        "prospective_validity_status": "NOT_ESTABLISHED",
+        "scientific_interpretation": "Observed-outcome performance is summarized descriptively under a predeclared eligibility protocol; this does not establish prospective deployment validity or causal effectiveness.",
     }
 
 
-__all__ = ["aggregate_prediction_evaluation"]
+__all__ = ["PROTOCOL_ID", "aggregate_prediction_evaluation"]

@@ -66,6 +66,12 @@ def test_product_replay_and_outcome_endpoints(tmp_path, monkeypatch):
         assert outcome.json()["prediction_id"] == "prediction-1"
         assert outcome.json()["brier_error"] == pytest.approx(0.09)
 
+        evaluation = client.get("/scientific/predictions/evaluation", params={"target": "risk"}, headers=headers)
+        assert evaluation.status_code == 200
+        assert evaluation.json()["n"] == 1
+        assert evaluation.json()["status"] == "descriptive_prospective_evaluation"
+        assert evaluation.json()["calibration_gap"] == pytest.approx(-0.3)
+
         future = client.post(
             "/scientific/predictions/outcomes",
             headers=headers,

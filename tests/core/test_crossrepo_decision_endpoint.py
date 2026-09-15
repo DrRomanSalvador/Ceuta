@@ -10,8 +10,7 @@ from fastapi.testclient import TestClient
 
 from app.core.decision.persistence import SQLiteDecisionStore
 from app.core.evidence.source_registry import SourceRecord, SourceRole, SourceVerification
-from app.core.scientific.prediction_persistence import record_prediction
-from test_cross_repo_scientific_adversarial import _payload
+from tests.core.test_cross_repo_scientific_adversarial import _payload
 
 
 def _load_serpiente_transport():

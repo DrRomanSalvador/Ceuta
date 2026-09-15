@@ -1,9 +1,4 @@
-"""Versioned scientific method/preprocessing registry.
-
-Methodological literature makes preprocessing, analytical method and validation
-window part of the scientific object. This registry prevents a result from
-being detached from the method configuration that produced it.
-"""
+"""Versioned scientific method/preprocessing registry and compatibility metadata."""
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
@@ -61,10 +56,52 @@ class ScientificMethodRegistry:
                 raise ValueError("method release already exists")
             db.execute("INSERT INTO scientific_method_releases VALUES(?,?,?,?)", (release.method_id, release.version, payload, fingerprint))
 
+    def get(self, method_id: str, version: str) -> ScientificMethodRelease:
+        with sqlite3.connect(self.storage_path) as db:
+            row = db.execute("SELECT payload FROM scientific_method_releases WHERE method_id=? AND version=?", (method_id, version)).fetchone()
+        if not row:
+            raise KeyError((method_id, version))
+        data = json.loads(row[0])
+        data["preprocessing"] = tuple(data["preprocessing"]); data["assumptions"] = tuple(data["assumptions"]); data["source_ids"] = tuple(data["source_ids"])
+        return ScientificMethodRelease(**data)
+
+    def all(self) -> tuple[ScientificMethodRelease, ...]:
+        with sqlite3.connect(self.storage_path) as db:
+            rows = db.execute("SELECT payload FROM scientific_method_releases ORDER BY method_id,version").fetchall()
+        result = []
+        for (payload,) in rows:
+            data = json.loads(payload)
+            for key in ("preprocessing", "assumptions", "source_ids"):
+                data[key] = tuple(data[key])
+            result.append(ScientificMethodRelease(**data))
+        return tuple(result)
+
     def verify_integrity(self) -> bool:
         with sqlite3.connect(self.storage_path) as db:
             rows = db.execute("SELECT payload,fingerprint FROM scientific_method_releases").fetchall()
         return all(sha256(payload.encode()).hexdigest() == fingerprint for payload, fingerprint in rows)
 
 
-__all__ = ["ScientificMethodRegistry", "ScientificMethodRelease"]
+def register_core_method_releases(registry: ScientificMethodRegistry, *, code_revision: str, configuration_hash: str) -> None:
+    """Register only methods whose scientific identity is already present in the corpus.
+
+    This is a release catalogue, not a claim of prospective validity. Callers must
+    still run ScientificMethodCompatibility against their actual data contract.
+    """
+    releases = (
+        ScientificMethodRelease("csd", "1", "critical_slowing_down", ("lag1_autocorrelation", "variance", "minimum_observations"), ("adequate_sampling", "domain_specific_dynamics", "noise_not_dominant"), "prospective-required", "early_warning_supporting_diagnostic", ("dakos-2012-csd-robustness", "dakos-2026-ews-overview", "false-positives-2019-ews"), code_revision, configuration_hash),
+        ScientificMethodRelease("rdm", "1", "robust_decision_making", ("plausible_future_enumeration", "satisficing", "regret"), ("explicit_strategy_performance", "declared_thresholds"), "prospective-required", "deep_uncertainty_decision_support", ("dmdu-rdm-pandemic-2023", "dmdu-rand-robust-decision-making"), code_revision, configuration_hash),
+        ScientificMethodRelease("bma", "1", "bayesian_model_averaging", ("validation_log_predictive_score", "weight_normalization"), ("comparable_target_horizon", "point_in_time_validation"), "prospective-required", "probabilistic_forecast_aggregation", ("ensemble-bayesian-model-averaging",), code_revision, configuration_hash),
+        ScientificMethodRelease("causal-identification", "1", "causal_identification", ("estimand_specification", "assumption_audit"), ("consistency", "conditional_exchangeability", "positivity"), "prospective-required", "identified_causal_effects_only", ("pearl-2009-causality", "causal-generalizability-bareinboim"), code_revision, configuration_hash),
+        ScientificMethodRelease("metric-reactivity", "1", "reflexive_measurement", ("exposure_tracking", "outcome_decoupling", "source_divergence"), ("indicator_exposure_observable", "independent_outcome_measurement"), "prospective-required", "incentive_exposed_indicators", ("bevan-hood-2006-target-gaming", "mannion-braithwaite-2012-unintended-consequences"), code_revision, configuration_hash),
+        ScientificMethodRelease("nonstationarity", "1", "regime_change_detection", ("rolling_mean_shift", "variance_ratio", "support_check"), ("ordered_observations", "reference_support_declared"), "prospective-required", "time_series_with_declared_support", ("dakos-2026-ews-overview", "wolpert-macready-1997-no-free-lunch"), code_revision, configuration_hash),
+    )
+    for release in releases:
+        try:
+            registry.register(release)
+        except ValueError as exc:
+            if "already exists" not in str(exc):
+                raise
+
+
+__all__ = ["ScientificMethodRegistry", "ScientificMethodRelease", "register_core_method_releases"]

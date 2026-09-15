@@ -1,0 +1,42 @@
+name: Scientific Traceability Runtime
+
+on:
+  push:
+    branches: [scientific-traceability-crossrepo]
+  pull_request:
+    branches: [main, scientific-full-system-integration]
+    paths:
+      - "backend/app/main.py"
+      - "backend/app/core/scientific/**"
+      - "backend/app/core/runtime/decision_lifecycle.py"
+      - "tests/core/test_scientific_*.py"
+      - "tests/core/test_cross_repo_*.py"
+      - "tests/core/test_*nonstationarity*.py"
+      - "tests/core/test_*intervention*.py"
+      - ".github/workflows/scientific-traceability.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  scientific:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+      - name: Checkout SERPIENTE producer repository
+        run: git clone --depth 1 https://github.com/DrRomanSalvador/SERPIENTE.git "$RUNNER_TEMP/SERPIENTE"
+      - run: python -m pip install --upgrade pip && python -m pip install -e ".[dev]"
+      - name: Compile scientific modules
+        env:
+          PYTHONPATH: ${{ github.workspace }}/backend:${{ github.workspace }}
+        run: python -m compileall -q backend/app/main.py backend/app/core/scientific backend/app/core/runtime/decision_lifecycle.py
+      - name: Run scientific traceability suites
+        env:
+          PYTHONPATH: ${{ github.workspace }}/backend:${{ github.workspace }}
+          SERPIENTE_ROOT: ${{ runner.temp }}/SERPIENTE
+        run: python -m pytest -c /dev/null --import-mode=importlib tests/core/test_scientific_traceability.py tests/core/test_scientific_method_catalog.py tests/core/test_scientific_method_registry.py tests/core/test_scientific_runtime_contract.py tests/core/test_scientific_runtime_lifecycle_integration.py tests/core/test_cross_repo_scientific_adversarial.py tests/core/test_cross_repo_transport_integration.py tests/core/test_cross_repo_producer_consumer.py tests/core/test_crossrepo_decision_endpoint.py tests/core/test_intervention_independent_validation.py tests/core/test_intervention_validation_lifecycle.py tests/core/test_nonstationarity.py tests/core/test_nonstationarity_lifecycle_integration.py tests/core/test_prediction_outcome_evaluation.py tests/core/test_scientific_product_runtime.py -q

@@ -7,6 +7,7 @@ from pathlib import Path
 import sqlite3
 
 from fastapi.testclient import TestClient
+import pytest
 
 from app.core.decision.persistence import SQLiteDecisionStore
 from app.core.evidence.source_registry import SourceRecord, SourceRole, SourceVerification
@@ -64,7 +65,6 @@ def test_authenticated_prediction_reaches_actual_decision_endpoint(tmp_path, mon
         nonce="decision-endpoint-nonce-123456",
     )
 
-    content_hash = "a" * 64
     decision_payload = {
         "decision_id": "decision-crossrepo-1",
         "decision_maker": "test-owner",
@@ -73,12 +73,13 @@ def test_authenticated_prediction_reaches_actual_decision_endpoint(tmp_path, mon
         "risk_class": "low",
         "mode": "robust",
         "state_refs": ["state:test"],
+        "transformation_refs": ["serpiente-prediction-integration"],
         "evidence": [
             {
                 "evidence_id": "evidence:test-1",
                 "source_id": "source:test-official",
                 "claim_id": "claim:test-1",
-                "content_hash": content_hash,
+                "content_hash": "a" * 64,
                 "valid_from": (now - timedelta(hours=1)).isoformat(),
                 "recorded_from": (now - timedelta(hours=1)).isoformat(),
                 "base_weight": 1.0,
@@ -109,3 +110,28 @@ def test_authenticated_prediction_reaches_actual_decision_endpoint(tmp_path, mon
     finally:
         connection.close()
     assert row == ("decision-crossrepo-1",)
+
+
+def test_prediction_without_epistemic_transformation_is_abstained(tmp_path, monkeypatch):
+    database = tmp_path / "decision.sqlite"
+    monkeypatch.setenv("CEUTIA_CODE_REVISION", "r" * 40)
+    monkeypatch.setenv("CEUTIA_DECISION_DB", str(database))
+    monkeypatch.setenv("CEUTIA_SERPIENTE_TRANSPORT_SECRET", "shared-secret")
+    monkeypatch.setenv("CEUTIA_DECISION_API_KEY", "decision-key")
+    from app import main
+    main.RUNTIME_CONFIG = main.load_runtime_config()
+    with TestClient(main.app) as client:
+        response = client.post(
+            "/decision/evaluate",
+            headers={"X-CeutIA-Decision-Key": "decision-key"},
+            json={
+                "decision_id": "decision-missing-transformation",
+                "decision_maker": "test-owner",
+                "horizon": "24h",
+                "purpose": "governance gate test",
+                "state_refs": ["state:test"],
+                "evidence": [],
+                "options": [{"option_id": "option-1", "scenarios": [{"scenario_id": "scenario-1", "probability": 1.0, "utility": 1.0, "harm": 0.0}]}],
+            },
+        )
+    assert response.status_code == 422

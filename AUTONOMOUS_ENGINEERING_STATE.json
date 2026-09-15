@@ -1,44 +1,24 @@
 {
-  "session": "GPT-1",
-  "continuation_required": true,
-  "updated_at": "2026-09-15T06:52:00Z",
-  "authoritative_repositories": ["DrRomanSalvador/Ceuta", "DrRomanSalvador/SERPIENTE"],
-  "active_branch": "DrRomanSalvador/Ceuta:scientific-traceability-crossrepo",
-  "active_capability": "SERPIENTE forecast -> canonical scientific contract -> authenticated transport -> CeutIA decision -> persistence -> lineage -> replay -> outcome",
-  "active_mission": "CROSSREPO-ENDPOINT-001",
-  "ownership": "GPT-1 runtime/integration/product; GPT-2 scientific semantics/review",
-  "current_commit": "77422ff9d419ff1c33198b77527e9fd370b98e02",
-  "last_verified_fact": "CeutIA scientific traceability run 32 passed all scientific suites after lineage provenance correction. Authenticated transport primitives now exist in both repositories: SERPIENTE signs a transport envelope; CeutIA verifies HMAC, timestamp window and consumes nonce through the existing decision database; canonical persistence strips the transport envelope.",
-  "last_validation": "CeutIA transport/traceability run 48 is in progress on commit 77422ff9d419ff1c33198b77527e9fd370b98e02. SERPIENTE run 98 is in progress on commit 09b7b2e056dfb525a09cb54088936bc7ff47a7ef after pytest security remediation. No green result is claimed yet.",
-  "last_error": "Authenticated transport is configuration-dependent: CEUTIA_SERPIENTE_TRANSPORT_SECRET activates strict producer transport enforcement. Existing local contract tests remain usable without the secret; configured runtime rejects missing transport. Final product closure still requires strict configured end-to-end endpoint evidence plus replay and outcome closure.",
-  "handoff": null,
-  "missions": [
-    {"mission_id":"CROSSREPO-CONTRACT-SEMANTICS-001","priority":"P0","status":"VALIDATED","result":"Canonical v1.1 receiver validates identity, integrity, finite values and point-in-time eligibility; OOD, uncalibrated and unknown source dependence are rejected."},
-    {"mission_id":"SERPIENTE-PRODUCER-001","priority":"P0","status":"TESTED","result":"SERPIENTE main scientific_boundary emits canonical v1.1 payload with explicit scientific metadata and pinned CeutIA contract hash."},
-    {"mission_id":"CROSSREPO-ENDPOINT-001","priority":"P0","status":"TESTING","result":"Real /decision/evaluate consumes canonical prediction, persists scientific prediction and creates explicit prediction lineage. Scientific lineage CI is green; authenticated transport primitives and strict configured-consumer tests are now implemented. Replay API and outcome evaluation remain."},
-    {"mission_id":"CROSSREPO-TRANSPORT-001","priority":"P1","status":"TESTING","result":"HMAC transport signing, timestamp skew protection, nonce replay protection and canonical-envelope separation implemented in CeutIA; SERPIENTE producer wrapper implemented. Cross-repository CI still running."},
-    {"mission_id":"CROSSREPO-REPLAY-001","priority":"P1","status":"QUEUED","result":"Transport nonce replay protection exists; point-in-time prediction replay/reconstruction API remains unimplemented."},
-    {"mission_id":"SERPIENTE-PERSIST-REVALIDATE-001","priority":"P0","status":"TESTING","result":"Runtime/PostgreSQL persistence passed in run 94; dependency vulnerability remediation committed and run 98 is revalidating it."},
-    {"mission_id":"PRODUCT-CAPABILITY-1-001","priority":"P1","status":"QUEUED","result":"Forecast-to-decision customer capability follows cross-repository closure."}
+  "session":"GPT-1",
+  "continuation_required":true,
+  "updated_at":"2026-09-15T06:55:00Z",
+  "authoritative_repositories":["DrRomanSalvador/Ceuta","DrRomanSalvador/SERPIENTE"],
+  "active_branch":"DrRomanSalvador/Ceuta:scientific-traceability-crossrepo",
+  "active_capability":"SERPIENTE forecast -> canonical scientific contract -> authenticated transport -> CeutIA decision -> persistence -> lineage -> replay -> outcome",
+  "active_mission":"CROSSREPO-ENDPOINT-001",
+  "current_commit":"9c53b9dd4f072c5cd7f3d7fb4726bb688a3125d0",
+  "last_verified_fact":"CeutIA scientific traceability workflow run 55 completed its scientific suites successfully. Point-in-time replay implementation and tests are committed. SERPIENTE runtime run 99 is executing after correcting the pytest/pytest-asyncio dependency conflict introduced by the security remediation.",
+  "last_validation":"CeutIA run 34936542827: compile and scientific traceability suites passed. SERPIENTE run 34936587288: in progress. No final SERPIENTE green status claimed.",
+  "last_error":"SERPIENTE run 98 failed during dependency installation because pytest>=9 conflicted with pytest-asyncio<1.0. Fixed by requiring pytest-asyncio>=1.2,<2.0; run 99 is the revalidation.",
+  "missions":[
+    {"mission_id":"CROSSREPO-CONTRACT-SEMANTICS-001","priority":"P0","status":"VALIDATED"},
+    {"mission_id":"SERPIENTE-PRODUCER-001","priority":"P0","status":"TESTING","result":"Canonical producer plus authenticated transport wrapper implemented; final CI pending."},
+    {"mission_id":"CROSSREPO-ENDPOINT-001","priority":"P0","status":"TESTING","result":"Canonical endpoint, scientific governance, durable prediction persistence and explicit prediction lineage are implemented; lineage CI green; authenticated transport and point-in-time replay primitives are implemented and tested. Remaining closure is end-to-end configured transport evidence, replay integration at product API level, outcome linkage/evaluation, and final cross-repository CI."},
+    {"mission_id":"CROSSREPO-TRANSPORT-001","priority":"P1","status":"TESTING","result":"HMAC signing, timestamp window, nonce replay protection, configured-consumer enforcement and transport-envelope stripping implemented."},
+    {"mission_id":"CROSSREPO-REPLAY-001","priority":"P1","status":"TESTING","result":"replay_prediction reconstructs persisted prediction only when origin/availability are <= as_of and verifies stored fingerprint."},
+    {"mission_id":"SERPIENTE-PERSIST-REVALIDATE-001","priority":"P0","status":"TESTING","result":"Persistence parity passed previously; dependency remediation is now under run 99."}
   ],
-  "scientific_requirements": [
-    "schema compatibility must not imply scientific applicability",
-    "prediction must remain distinct from causal identification",
-    "future availability must be rejected at decision time",
-    "OOD/unknown calibration/provenance or dependence uncertainty must not be silently accepted",
-    "hash integrity must not be represented as authentication",
-    "prediction provenance must survive decision lineage and replay"
-  ],
-  "p1_backlog": [
-    "point-in-time prediction replay",
-    "outcome linkage and prospective evaluation",
-    "method registry runtime adoption for forecast methods",
-    "real Ceuta source -> evidence -> event vertical"
-  ],
-  "p2_backlog": [
-    "prospective calibration evidence",
-    "operational validation",
-    "broader scientific corpus method coverage"
-  ],
-  "next_action": "Verify both active CI runs; then implement point-in-time prediction replay against scientific_predictions using available_at/origin_time/point_in_time_fingerprint, followed by outcome linkage and evaluation. Do not reopen lineage work already green."
+  "scientific_requirements":["prediction != causation","historical fit != prospective validity","schema compatibility != scientific compatibility","hash integrity != authentication","future availability prohibited","abstention preserved"],
+  "p1_backlog":["product-level replay endpoint/integration","outcome linkage and prospective evaluation","real Ceuta source -> evidence -> event vertical"],
+  "next_action":"Wait only for active CI completion as validation dependency; if green, integrate replay into the existing product runtime path and close outcome linkage/evaluation. If a test fails, diagnose and fix it before continuing."
 }

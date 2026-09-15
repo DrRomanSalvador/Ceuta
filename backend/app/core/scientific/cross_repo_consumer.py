@@ -15,7 +15,7 @@ class CrossRepoAcceptance:
 
 
 def consume_serpiente_prediction(payload: dict[str, Any]) -> CrossRepoAcceptance:
-    """Reject schema-valid but scientifically unusable predictions."""
+    """Reject scientifically unusable predictions without conflating prediction with causality."""
     try:
         prediction = validate_scientific_prediction_payload(payload)
     except (TypeError, ValueError, KeyError) as exc:
@@ -26,8 +26,6 @@ def consume_serpiente_prediction(payload: dict[str, Any]) -> CrossRepoAcceptance
         return CrossRepoAcceptance(False, "scientifically_incompatible:ood_unknown", prediction)
     if prediction.calibration_status != "CALIBRATED":
         return CrossRepoAcceptance(False, "scientifically_incompatible:uncalibrated", prediction)
-    if prediction.causal_status == "ABSTAIN":
-        return CrossRepoAcceptance(False, "scientifically_incompatible:causal_abstention", prediction)
     if prediction.source_independence == "UNKNOWN":
         return CrossRepoAcceptance(False, "scientifically_incompatible:source_dependence_unknown", prediction)
     return CrossRepoAcceptance(True, "scientifically_compatible", prediction)

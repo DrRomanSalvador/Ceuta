@@ -1,4 +1,4 @@
-"""Durable prospective prediction -> observed outcome evaluation."""
+"""Durable prospective prediction -> decision -> intervention -> outcome evaluation."""
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -8,7 +8,7 @@ import sqlite3
 from typing import Any
 
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 def ensure_prediction_outcome_schema(connection: sqlite3.Connection) -> None:
@@ -16,6 +16,7 @@ def ensure_prediction_outcome_schema(connection: sqlite3.Connection) -> None:
         """CREATE TABLE IF NOT EXISTS scientific_prediction_outcomes (
             prediction_id TEXT PRIMARY KEY,
             decision_id TEXT NOT NULL,
+            action_id TEXT NOT NULL,
             outcome_id TEXT NOT NULL UNIQUE,
             target TEXT NOT NULL,
             outcome_time TEXT NOT NULL,
@@ -27,6 +28,9 @@ def ensure_prediction_outcome_schema(connection: sqlite3.Connection) -> None:
             recorded_at TEXT NOT NULL
         )"""
     )
+    columns = {row[1] for row in connection.execute("PRAGMA table_info(scientific_prediction_outcomes)")}
+    if columns and "action_id" not in columns:
+        connection.execute("ALTER TABLE scientific_prediction_outcomes ADD COLUMN action_id TEXT NOT NULL DEFAULT ''")
     connection.execute(
         "CREATE INDEX IF NOT EXISTS idx_prediction_outcomes_decision "
         "ON scientific_prediction_outcomes(decision_id, outcome_time)"
@@ -44,6 +48,7 @@ def record_prediction_outcome(
     *,
     prediction_id: str,
     decision_id: str,
+    action_id: str,
     outcome_id: str,
     target: str,
     outcome_time: datetime,
@@ -51,7 +56,7 @@ def record_prediction_outcome(
     provenance: tuple[str, ...],
 ) -> dict[str, Any]:
     """Link one persisted prediction to its point-in-time observed binary outcome."""
-    if not prediction_id or not decision_id or not outcome_id or not target or not provenance:
+    if not prediction_id or not decision_id or not action_id or not outcome_id or not target or not provenance:
         raise ValueError("prediction outcome identity and provenance are required")
     if outcome_time.tzinfo is None or outcome_time.utcoffset() is None:
         raise ValueError("outcome_time must be timezone-aware")
@@ -83,12 +88,13 @@ def record_prediction_outcome(
     log_loss_error = _log_loss(probability, observed)
     canonical_provenance = tuple(dict.fromkeys(str(item) for item in provenance))
     row = connection.execute(
-        "SELECT decision_id, outcome_id, target, outcome_time, observed, predicted_probability, brier_error, log_loss_error, provenance_json "
+        "SELECT decision_id, action_id, outcome_id, target, outcome_time, observed, predicted_probability, brier_error, log_loss_error, provenance_json "
         "FROM scientific_prediction_outcomes WHERE prediction_id=?",
         (prediction_id,),
     ).fetchone()
     values = (
         decision_id,
+        action_id,
         outcome_id,
         target,
         normalized_outcome_time.isoformat(),
@@ -104,6 +110,7 @@ def record_prediction_outcome(
         return {
             "prediction_id": prediction_id,
             "decision_id": decision_id,
+            "action_id": action_id,
             "outcome_id": outcome_id,
             "target": target,
             "observed": observed,
@@ -122,13 +129,14 @@ def record_prediction_outcome(
         raise RuntimeError("outcome identity collision: outcome_id is already linked to another prediction")
     recorded_at = datetime.now(timezone.utc).isoformat()
     connection.execute(
-        "INSERT INTO scientific_prediction_outcomes(prediction_id,decision_id,outcome_id,target,outcome_time,observed,predicted_probability,brier_error,log_loss_error,provenance_json,recorded_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+        "INSERT INTO scientific_prediction_outcomes(prediction_id,decision_id,action_id,outcome_id,target,outcome_time,observed,predicted_probability,brier_error,log_loss_error,provenance_json,recorded_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
         (prediction_id, *values, recorded_at),
     )
     connection.commit()
     return {
         "prediction_id": prediction_id,
         "decision_id": decision_id,
+        "action_id": action_id,
         "outcome_id": outcome_id,
         "target": target,
         "observed": observed,
@@ -143,7 +151,7 @@ def record_prediction_outcome(
 def get_prediction_outcome(connection: sqlite3.Connection, prediction_id: str) -> dict[str, Any] | None:
     ensure_prediction_outcome_schema(connection)
     row = connection.execute(
-        "SELECT prediction_id, decision_id, outcome_id, target, outcome_time, observed, predicted_probability, brier_error, log_loss_error, provenance_json, recorded_at FROM scientific_prediction_outcomes WHERE prediction_id=?",
+        "SELECT prediction_id, decision_id, action_id, outcome_id, target, outcome_time, observed, predicted_probability, brier_error, log_loss_error, provenance_json, recorded_at FROM scientific_prediction_outcomes WHERE prediction_id=?",
         (prediction_id,),
     ).fetchone()
     if row is None:
@@ -151,15 +159,16 @@ def get_prediction_outcome(connection: sqlite3.Connection, prediction_id: str) -
     return {
         "prediction_id": row[0],
         "decision_id": row[1],
-        "outcome_id": row[2],
-        "target": row[3],
-        "outcome_time": row[4],
-        "observed": row[5],
-        "predicted_probability": row[6],
-        "brier_error": row[7],
-        "log_loss_error": row[8],
-        "provenance": tuple(json.loads(row[9])),
-        "recorded_at": row[10],
+        "action_id": row[2],
+        "outcome_id": row[3],
+        "target": row[4],
+        "outcome_time": row[5],
+        "observed": row[6],
+        "predicted_probability": row[7],
+        "brier_error": row[8],
+        "log_loss_error": row[9],
+        "provenance": tuple(json.loads(row[10])),
+        "recorded_at": row[11],
     }
 
 

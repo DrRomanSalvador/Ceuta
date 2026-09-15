@@ -1,14 +1,15 @@
 """Durable prospective prediction -> decision -> intervention -> outcome evaluation."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import json
 import math
+import re
 import sqlite3
 from typing import Any
 
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 
 def ensure_prediction_outcome_schema(connection: sqlite3.Connection) -> None:
@@ -41,6 +42,23 @@ def ensure_prediction_outcome_schema(connection: sqlite3.Connection) -> None:
 def _log_loss(probability: float, observed: int) -> float:
     bounded = min(max(probability, 1e-8), 1.0 - 1e-8)
     return float(-(observed * math.log(bounded) + (1 - observed) * math.log(1.0 - bounded)))
+
+
+def _horizon_delta(horizon: str) -> timedelta:
+    value = horizon.strip().upper()
+    iso = re.fullmatch(r"P(?:(?P<days>\d+(?:\.\d+)?)D)?(?:T(?:(?P<hours>\d+(?:\.\d+)?)H)?(?:(?P<minutes>\d+(?:\.\d+)?)M)?(?:(?P<seconds>\d+(?:\.\d+)?)S)?)?", value)
+    if iso and any(iso.group(name) is not None for name in ("days", "hours", "minutes", "seconds")):
+        return timedelta(
+            days=float(iso.group("days") or 0),
+            hours=float(iso.group("hours") or 0),
+            minutes=float(iso.group("minutes") or 0),
+            seconds=float(iso.group("seconds") or 0),
+        )
+    compact = re.fullmatch(r"(?P<value>\d+(?:\.\d+)?)(?P<unit>[SMHD])", value)
+    if compact:
+        amount = float(compact.group("value"))
+        return {"S": timedelta(seconds=amount), "M": timedelta(minutes=amount), "H": timedelta(hours=amount), "D": timedelta(days=amount)}[compact.group("unit")]
+    raise ValueError(f"unsupported prediction horizon for outcome alignment: {horizon}")
 
 
 def record_prediction_outcome(
@@ -79,9 +97,15 @@ def record_prediction_outcome(
     available_at = datetime.fromisoformat(str(available_at_raw))
     if available_at.tzinfo is None or available_at.utcoffset() is None:
         raise RuntimeError("persisted prediction availability timestamp is not timezone-aware")
+    origin_time = datetime.fromisoformat(str(payload["origin_time"]))
+    if origin_time.tzinfo is None or origin_time.utcoffset() is None:
+        raise RuntimeError("persisted prediction origin timestamp is not timezone-aware")
     normalized_outcome_time = outcome_time.astimezone(timezone.utc)
     if normalized_outcome_time < available_at.astimezone(timezone.utc):
         raise ValueError("outcome cannot precede prediction availability")
+    expected_target_time = origin_time.astimezone(timezone.utc) + _horizon_delta(str(payload["horizon"]))
+    if normalized_outcome_time < expected_target_time:
+        raise ValueError("outcome precedes prediction target time; prospective outcome is not yet eligible")
 
     probability = float(payload["probability"])
     brier_error = float((probability - observed) ** 2)

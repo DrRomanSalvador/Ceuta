@@ -28,7 +28,7 @@ def _transport_payload(payload: dict[str, Any]) -> tuple[dict[str, Any], dict[st
 
 
 def consume_serpiente_prediction(payload: dict[str, Any], *, decision_time: datetime | None = None) -> CrossRepoAcceptance:
-    """Authenticate when transport is configured, then enforce scientific eligibility."""
+    """Authenticate and enforce scientific eligibility before a prediction can enter decision persistence."""
     try:
         transport_present = "_transport" in payload
         secret = os.getenv("CEUTIA_SERPIENTE_TRANSPORT_SECRET", "").strip()
@@ -51,20 +51,20 @@ def consume_serpiente_prediction(payload: dict[str, Any], *, decision_time: date
         return CrossRepoAcceptance(False, str(exc), None)
     if decision_time is not None:
         if decision_time.tzinfo is None or decision_time.utcoffset() is None:
-            return CrossRepoAcceptance(False, "temporally_ineligible:decision_time_not_timezone_aware", prediction)
+            return CrossRepoAcceptance(False, "temporally_ineligible:decision_time_not_timezone_aware", None)
         reference_time = decision_time.astimezone(timezone.utc)
         if prediction.origin_time.astimezone(timezone.utc) > reference_time:
-            return CrossRepoAcceptance(False, "temporally_ineligible:prediction_origin_in_future", prediction)
+            return CrossRepoAcceptance(False, "temporally_ineligible:prediction_origin_in_future", None)
         if prediction.available_at.astimezone(timezone.utc) > reference_time:
-            return CrossRepoAcceptance(False, "temporally_ineligible:prediction_not_available", prediction)
+            return CrossRepoAcceptance(False, "temporally_ineligible:prediction_not_available", None)
     if prediction.ood_state == "OUT_OF_DISTRIBUTION":
-        return CrossRepoAcceptance(False, "scientifically_incompatible:out_of_distribution", prediction)
+        return CrossRepoAcceptance(False, "scientifically_incompatible:out_of_distribution", None)
     if prediction.ood_state == "UNKNOWN":
-        return CrossRepoAcceptance(False, "scientifically_incompatible:ood_unknown", prediction)
+        return CrossRepoAcceptance(False, "scientifically_incompatible:ood_unknown", None)
     if prediction.calibration_status != "CALIBRATED":
-        return CrossRepoAcceptance(False, "scientifically_incompatible:uncalibrated", prediction)
+        return CrossRepoAcceptance(False, "scientifically_incompatible:uncalibrated", None)
     if prediction.source_independence == "UNKNOWN":
-        return CrossRepoAcceptance(False, "scientifically_incompatible:source_dependence_unknown", prediction)
+        return CrossRepoAcceptance(False, "scientifically_incompatible:source_dependence_unknown", None)
     return CrossRepoAcceptance(True, "scientifically_compatible", prediction)
 
 

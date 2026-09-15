@@ -9,6 +9,7 @@ on:
       - "backend/app/core/scientific/**"
       - "backend/app/core/runtime/decision_lifecycle.py"
       - "tests/core/test_scientific_*.py"
+      - "tests/core/test_cross_repo_*.py"
       - "tests/core/test_*nonstationarity*.py"
       - "tests/core/test_*intervention*.py"
       - ".github/workflows/scientific-traceability.yml"
@@ -34,4 +35,4 @@ jobs:
       - name: Run scientific traceability suites
         env:
           PYTHONPATH: ${{ github.workspace }}/backend:${{ github.workspace }}
-        run: python -m pytest -c /dev/null --import-mode=importlib tests/core/test_scientific_traceability.py tests/core/test_scientific_method_catalog.py tests/core/test_scientific_method_registry.py tests/core/test_scientific_runtime_contract.py tests/core/test_scientific_runtime_lifecycle_integration.py tests/core/test_intervention_independent_validation.py tests/core/test_intervention_validation_lifecycle.py tests/core/test_nonstationarity.py tests/core/test_nonstationarity_lifecycle_integration.py -q
+        run: python -m pytest -c /dev/null --import-mode=importlib tests/core/test_scientific_traceability.py tests/core/test_scientific_method_catalog.py tests/core/test_scientific_method_registry.py tests/core/test_scientific_runtime_contract.py tests/core/test_scientific_runtime_lifecycle_integration.py tests/core/test_cross_repo_scientific_adversarial.py tests/core/test_intervention_independent_validation.py tests/core/test_intervention_validation_lifecycle.py tests/core/test_nonstationarity.py tests/core/test_nonstationarity_lifecycle_integration.py -q

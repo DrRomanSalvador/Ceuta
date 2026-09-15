@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import math
 import sqlite3
 
 import pytest
@@ -49,13 +50,13 @@ def _prediction() -> dict[str, object]:
 
 def test_prediction_outcome_is_linked_and_evaluated() -> None:
     connection = sqlite3.connect(":memory:")
-    prediction = _prediction()
-    record_prediction(connection, prediction, decision_id="decision-1")
+    record_prediction(connection, _prediction(), decision_id="decision-1")
 
     result = record_prediction_outcome(
         connection,
         prediction_id="prediction-outcome-1",
         decision_id="decision-1",
+        action_id="option-1",
         outcome_id="outcome-1",
         target="target.binary",
         outcome_time=datetime(2026, 9, 15, 7, 5, tzinfo=timezone.utc),
@@ -64,8 +65,8 @@ def test_prediction_outcome_is_linked_and_evaluated() -> None:
     )
 
     assert result["brier_error"] == pytest.approx(0.0625)
-    assert result["log_loss_error"] == pytest.approx(-__import__("math").log(0.75))
-    assert get_prediction_outcome(connection, "prediction-outcome-1")["outcome_id"] == "outcome-1"
+    assert result["log_loss_error"] == pytest.approx(-math.log(0.75))
+    assert get_prediction_outcome(connection, "prediction-outcome-1")["action_id"] == "option-1"
 
 
 def test_outcome_cannot_precede_prediction_availability() -> None:
@@ -77,6 +78,7 @@ def test_outcome_cannot_precede_prediction_availability() -> None:
             connection,
             prediction_id="prediction-outcome-1",
             decision_id="decision-1",
+            action_id="option-1",
             outcome_id="outcome-early",
             target="target.binary",
             outcome_time=datetime(2026, 9, 15, 6, 1, tzinfo=timezone.utc),
@@ -94,6 +96,7 @@ def test_outcome_requires_prediction_decision_alignment() -> None:
             connection,
             prediction_id="prediction-outcome-1",
             decision_id="decision-2",
+            action_id="option-1",
             outcome_id="outcome-2",
             target="target.binary",
             outcome_time=datetime(2026, 9, 15, 7, 5, tzinfo=timezone.utc),

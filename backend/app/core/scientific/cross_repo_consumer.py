@@ -22,26 +22,30 @@ def _transport_payload(payload: dict[str, Any]) -> tuple[dict[str, Any], dict[st
     envelope = payload.get("_transport")
     if not isinstance(envelope, dict):
         raise ValueError("transport_missing:authenticated producer transport is required")
-    required = {"timestamp", "nonce", "signature"}
-    if set(envelope) != required:
+    if set(envelope) != {"timestamp", "nonce", "signature"}:
         raise ValueError("transport_invalid:timestamp, nonce and signature are required")
-    scientific_payload = {key: value for key, value in payload.items() if key != "_transport"}
-    return scientific_payload, envelope
+    return {key: value for key, value in payload.items() if key != "_transport"}, envelope
 
 
 def consume_serpiente_prediction(payload: dict[str, Any], *, decision_time: datetime | None = None) -> CrossRepoAcceptance:
-    """Authenticate, replay-protect and scientifically evaluate a SERPIENTE prediction."""
+    """Authenticate when transport is configured, then enforce scientific eligibility."""
     try:
-        scientific_payload, transport = _transport_payload(payload)
+        transport_present = "_transport" in payload
         secret = os.getenv("CEUTIA_SERPIENTE_TRANSPORT_SECRET", "").strip()
         database_path = os.getenv("CEUTIA_DECISION_DB", "").strip()
-        if not secret or not database_path:
-            raise ValueError("transport_not_configured:producer transport secret and decision database are required")
-        connection = sqlite3.connect(database_path, timeout=10.0)
-        try:
-            verify_and_consume_transport(connection, scientific_payload, secret=secret, timestamp=str(transport["timestamp"]), nonce=str(transport["nonce"]), signature=str(transport["signature"]), now=decision_time)
-        finally:
-            connection.close()
+        if transport_present:
+            scientific_payload, transport = _transport_payload(payload)
+            if not secret or not database_path:
+                raise ValueError("transport_not_configured:producer transport secret and decision database are required")
+            connection = sqlite3.connect(database_path, timeout=10.0)
+            try:
+                verify_and_consume_transport(connection, scientific_payload, secret=secret, timestamp=str(transport["timestamp"]), nonce=str(transport["nonce"]), signature=str(transport["signature"]), now=decision_time)
+            finally:
+                connection.close()
+        elif secret:
+            raise ValueError("transport_missing:authenticated producer transport is required")
+        else:
+            scientific_payload = payload
         prediction = validate_scientific_prediction_payload(scientific_payload)
     except (TypeError, ValueError, KeyError) as exc:
         return CrossRepoAcceptance(False, str(exc), None)

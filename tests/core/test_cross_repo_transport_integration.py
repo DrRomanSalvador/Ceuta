@@ -18,8 +18,10 @@ def test_configured_consumer_rejects_replay(tmp_path, monkeypatch):
     monkeypatch.setenv("CEUTIA_DECISION_DB", str(tmp_path / "decision.sqlite"))
     payload = _payload()
     now = datetime(2026, 9, 15, 5, 0, tzinfo=timezone.utc)
-    transport = sign_transport(payload, secret="shared-secret", timestamp=now.isoformat(), nonce="producer-nonce-654321")
-    authenticated = {**payload, "_transport": transport}
+    timestamp = now.isoformat()
+    nonce = "producer-nonce-654321"
+    signature = sign_transport(payload, secret="shared-secret", timestamp=timestamp, nonce=nonce)
+    authenticated = {**payload, "_transport": {"timestamp": timestamp, "nonce": nonce, "signature": signature}}
     first = consume_serpiente_prediction(authenticated, decision_time=now)
     assert first.accepted is True
     replay = consume_serpiente_prediction(authenticated, decision_time=now)

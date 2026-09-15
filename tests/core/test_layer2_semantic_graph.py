@@ -40,6 +40,9 @@ def test_required_relation_types_exist_separately_from_epistemic_states():
         EdgeKind.ACQUIRED_BY,
         EdgeKind.REVISED_BY,
         EdgeKind.INTERVENED_ON_BY,
+        EdgeKind.MODIFIES,
+        EdgeKind.CONDITIONS,
+        EdgeKind.CONFOUNDS,
         EdgeKind.FEEDS_BACK_TO,
     }.issubset(set(EdgeKind))
 
@@ -95,6 +98,26 @@ def test_observation_reporting_acquisition_revision_and_intervention_require_ide
         graph.add_edge(EdgeKind.REVISED_BY, "e1", "e2")
     with pytest.raises(ValueError, match="intervention_id"):
         graph.add_edge(EdgeKind.INTERVENED_ON_BY, "e1", "i1")
+
+
+def test_reflexive_process_edges_are_distinct_noncausal_labels():
+    graph = _graph()
+    modifies = graph.add_edge(EdgeKind.MODIFIES, "i1", "v1", properties={"mechanism_id": "m-1"})
+    conditions = graph.add_edge(EdgeKind.CONDITIONS, "v1", "e1", properties={"condition_id": "cond-1"})
+    confounds = graph.add_edge(EdgeKind.CONFOUNDS, "v1", "e2", properties={"confounder_id": "conf-1"})
+    feedback = graph.add_edge(
+        EdgeKind.FEEDS_BACK_TO,
+        "p1",
+        "e1",
+        properties={"lag": "one_cycle", "mechanism": "intervention_changes_observation_process"},
+    )
+    assert {modifies.kind, conditions.kind, confounds.kind, feedback.kind} == {
+        EdgeKind.MODIFIES,
+        EdgeKind.CONDITIONS,
+        EdgeKind.CONFOUNDS,
+        EdgeKind.FEEDS_BACK_TO,
+    }
+    assert all(edge.kind not in {EdgeKind.CAUSALITY_SUPPORTED} for edge in graph.edges.values())
 
 
 def test_dependency_and_feedback_edges_remain_noncausal_labels():

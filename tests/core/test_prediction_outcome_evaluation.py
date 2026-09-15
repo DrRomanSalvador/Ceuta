@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+from hashlib import sha256
+import json
 import math
 import sqlite3
 
@@ -54,6 +56,9 @@ def test_prediction_outcome_is_linked_and_evaluated() -> None:
     prediction = _prediction()
     prediction["origin_time"] = (now - timedelta(hours=2)).isoformat()
     prediction["available_at"] = (now - timedelta(hours=1, minutes=55)).isoformat()
+    unsigned = dict(prediction)
+    unsigned.pop("integrity_hash", None)
+    prediction["integrity_hash"] = sha256(json.dumps(unsigned, sort_keys=True, separators=(",", ":"), default=str).encode()).hexdigest()
     record_prediction(connection, prediction, decision_id="decision-1")
 
     result = record_prediction_outcome(

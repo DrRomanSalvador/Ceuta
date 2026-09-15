@@ -44,9 +44,9 @@ class Uncertainty(BaseModel):
     @model_validator(mode="after")
     def validate_interval(self) -> Uncertainty:
         if (self.lower is None) != (self.upper is None):
-            raise ValueError("lower and upper must be supplied together")  # noqa: TRY003
+            raise ValueError("lower and upper must be supplied together")
         if self.lower is not None and self.upper is not None and self.lower > self.upper:
-            raise ValueError("uncertainty lower bound cannot exceed upper bound")  # noqa: TRY003
+            raise ValueError("uncertainty lower bound cannot exceed upper bound")
         return self
 
 
@@ -90,24 +90,23 @@ class EvidenceContract(BaseModel):
             ("revision_time", self.revision_time),
         ):
             if value is not None and value.tzinfo is None:
-                raise ValueError(f"{name} must be timezone-aware")  # noqa: TRY003
+                raise ValueError(f"{name} must be timezone-aware")
         if self.ingestion_time.tzinfo is None:
-            raise ValueError("ingestion_time must be timezone-aware")  # noqa: TRY003
+            raise ValueError("ingestion_time must be timezone-aware")
         if self.publication_time is not None and self.ingestion_time < self.publication_time:
-            raise ValueError("ingestion_time cannot precede publication_time")  # noqa: TRY003
-        if self.revision_time is not None and self.revision_time > self.ingestion_time:
-            raise ValueError("revision_time cannot be later than ingestion_time")  # noqa: TRY003
+            raise ValueError("ingestion_time cannot precede publication_time")
+        # A revision is a new information state and may legitimately occur
+        # after the original ingestion timestamp. The legacy model currently
+        # carries the original ingestion_time across versions, so constraining
+        # revision_time <= ingestion_time incorrectly rejects valid revisions.
+        # Point-in-time eligibility uses revision_time itself as availability.
         if self.observed_at > self.ingestion_time:
-            raise ValueError("observed_at cannot be later than ingestion_time")  # noqa: TRY003
+            raise ValueError("observed_at cannot be later than ingestion_time")
         if self.epistemic_status == EpistemicStatus.CORROBORATED_FACT:
             if self.independent_source_count < 2:
-                raise ValueError(  # noqa: TRY003
-                    "CORROBORATED_FACT requires at least two independent sources"
-                )
+                raise ValueError("CORROBORATED_FACT requires at least two independent sources")
             if not self.corroborating_evidence_ids:
-                raise ValueError(  # noqa: TRY003
-                    "CORROBORATED_FACT requires corroborating evidence IDs"
-                )
+                raise ValueError("CORROBORATED_FACT requires corroborating evidence IDs")
         return self
 
     @property
@@ -128,23 +127,17 @@ class TemporalEligibility(BaseModel):
     @model_validator(mode="after")
     def validate_eligibility(self) -> TemporalEligibility:
         if self.evaluation_time.tzinfo is None or self.available_at.tzinfo is None:
-            raise ValueError(  # noqa: TRY003
-                "evaluation_time and available_at must be timezone-aware"
-            )
+            raise ValueError("evaluation_time and available_at must be timezone-aware")
         expected = self.available_at <= self.evaluation_time
         if self.eligible != expected:
-            raise ValueError(  # noqa: TRY003
-                "eligible must equal available_at <= evaluation_time"
-            )
+            raise ValueError("eligible must equal available_at <= evaluation_time")
         return self
 
 
-def evaluate_temporal_eligibility(
-    *, evidence_id: str, available_at: datetime, evaluation_time: datetime
-) -> TemporalEligibility:
+def evaluate_temporal_eligibility(*, evidence_id: str, available_at: datetime, evaluation_time: datetime) -> TemporalEligibility:
     """Return deterministic feature eligibility for a point-in-time evaluation."""
     if available_at.tzinfo is None or evaluation_time.tzinfo is None:
-        raise ValueError("timestamps must be timezone-aware")  # noqa: TRY003
+        raise ValueError("timestamps must be timezone-aware")
     eligible = available_at <= evaluation_time
     return TemporalEligibility(
         evidence_id=evidence_id,

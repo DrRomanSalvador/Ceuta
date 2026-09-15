@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 
 from app.core.scientific.cross_repo_consumer import consume_serpiente_prediction
-from test_cross_repo_scientific_adversarial import _payload
+from tests.core.test_cross_repo_scientific_adversarial import _payload
 
 
 def _load_serpiente_transport():

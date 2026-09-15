@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 
 from app.core.scientific.cross_repo_consumer import consume_serpiente_prediction
 from app.core.scientific.transport_security import sign_transport
-from test_cross_repo_scientific_adversarial import _payload
+from tests.core.test_cross_repo_scientific_adversarial import _payload
 
 
 def test_configured_consumer_requires_authenticated_transport(tmp_path, monkeypatch):

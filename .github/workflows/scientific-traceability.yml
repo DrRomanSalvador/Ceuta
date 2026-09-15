@@ -1,7 +1,10 @@
 name: Scientific Traceability Runtime
 
 on:
+  push:
+    branches: [scientific-traceability-crossrepo]
   pull_request:
+    branches: [main, scientific-full-system-integration]
     paths:
       - "backend/app/core/scientific/**"
       - "backend/app/core/runtime/decision_lifecycle.py"

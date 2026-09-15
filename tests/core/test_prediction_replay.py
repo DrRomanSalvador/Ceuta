@@ -35,3 +35,20 @@ def test_replay_rejects_naive_time():
     record_prediction(connection, _payload(), decision_id="d1")
     with pytest.raises(ValueError, match="timezone-aware"):
         replay_prediction(connection, "p-replay", as_of=datetime(2026, 9, 15, 5, 0))
+
+
+def test_replay_detects_persisted_payload_mutation():
+    connection = sqlite3.connect(":memory:")
+    record_prediction(connection, _payload(), decision_id="d1")
+    connection.execute("UPDATE scientific_predictions SET payload_json=? WHERE prediction_id=?", ('{"prediction_id":"p-replay","probability":0.1}', "p-replay"))
+    connection.commit()
+    with pytest.raises(RuntimeError, match="integrity mismatch"):
+        replay_prediction(connection, "p-replay", as_of=NOW + timedelta(minutes=1))
+
+
+def test_duplicate_delivery_is_idempotent_and_conflicting_identity_is_rejected():
+    connection = sqlite3.connect(":memory:")
+    fingerprint = record_prediction(connection, _payload(), decision_id="d1")
+    assert record_prediction(connection, _payload(), decision_id="d1") == fingerprint
+    with pytest.raises(RuntimeError, match="identity collision"):
+        record_prediction(connection, _payload(), decision_id="d2")

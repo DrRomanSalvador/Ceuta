@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import math
 import sqlite3
 
@@ -50,7 +50,11 @@ def _prediction() -> dict[str, object]:
 
 def test_prediction_outcome_is_linked_and_evaluated() -> None:
     connection = sqlite3.connect(":memory:")
-    record_prediction(connection, _prediction(), decision_id="decision-1")
+    now = datetime.now(timezone.utc).replace(microsecond=0)
+    prediction = _prediction()
+    prediction["origin_time"] = (now - timedelta(hours=2)).isoformat()
+    prediction["available_at"] = (now - timedelta(hours=1, minutes=55)).isoformat()
+    record_prediction(connection, prediction, decision_id="decision-1")
 
     result = record_prediction_outcome(
         connection,
@@ -59,7 +63,7 @@ def test_prediction_outcome_is_linked_and_evaluated() -> None:
         action_id="option-1",
         outcome_id="outcome-1",
         target="target.binary",
-        outcome_time=datetime(2026, 9, 15, 7, 5, tzinfo=timezone.utc),
+        outcome_time=now,
         observed=1,
         provenance=("outcome:test",),
     )

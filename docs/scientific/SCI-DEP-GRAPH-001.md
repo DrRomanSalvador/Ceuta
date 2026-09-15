@@ -4,7 +4,9 @@
 **Priority:** P0
 **Branch:** `scientific-dependency-semantics`
 **Base:** `main@80fa872c95bab5af5ed279c42774173bc7a52652`
-**Head:** `00c525bd42f1b45cc73eff5250c2a0db80ac17c8`
+**Implementation head:** `971c37eb70a5000ddb27f91e8fcb8984d1e16dd4`
+**Integrated into:** `scientific-reflexive-control-constraints`
+**Integration checkpoint:** `fcbbe67631e5f17a6b319e0eadcdc49f97356133`
 **PR:** #31
 
 ## Scientific problem
@@ -33,7 +35,7 @@ Represent at minimum:
 Temporal precedence MUST NOT imply causality.
 
 ## Current implementation
-`backend/app/core/epistemology_p0/advanced/semantic_graph.py` now contains explicit `EdgeKind` values for:
+`backend/app/core/epistemology_p0/advanced/semantic_graph.py` contains explicit `EdgeKind` values for:
 
 `OBSERVES`, `PREDICTS`, `REPORTED_BY`, `ACQUIRED_BY`, `REVISED_BY`, `INTERVENED_ON_BY`, `MODIFIES`, `CONDITIONS`, `CONFOUNDS`, `FEEDS_BACK_TO`.
 
@@ -70,6 +72,7 @@ Temporal context and provenance remain external properties of the participating 
 4. Point-in-time process relations fail closed when their identity is absent.
 5. Replay/temporal consumers preserve the distinction between observation time and availability/revision time.
 6. Cross-domain consumers do not infer causal status from `PREDICTS`, `DEPENDS_ON`, or `TEMPORAL_PRECEDENCE`.
+7. Reflexive edges (`MODIFIES`, `CONDITIONS`, `CONFOUNDS`, `FEEDS_BACK_TO`) remain semantically distinct from causal confirmation.
 
 ## Failure condition
 Any runtime path that upgrades:
@@ -87,9 +90,12 @@ or
 without an explicit causal identification assessment is scientifically invalid.
 
 ## Remaining uncertainty
-The graph ontology is now richer, but mechanism identifiability is not solved by adding edge types. Competing hypotheses, assumptions, evidence, intervention information and falsification tests remain necessary for causal identification.
+The graph ontology is richer, but mechanism identifiability is not solved by adding edge types. Competing hypotheses, assumptions, evidence, intervention information and falsification tests remain necessary for causal identification.
 
-The current repository does not yet provide an independently recorded validation run for PR #31. GitHub Actions exposes no PR-triggered run for the current head, and the repository CI workflow is configured for manual dispatch only.
+A dedicated independent validation run for PR #31 is still required before the artifact can be marked VALIDATED. The current PR32 head has a successful security-control-plane workflow, but that is not equivalent to scientific validation of the semantic graph.
+
+## Evidence integration
+The reflexive-control evidence integration is recorded in `docs/scientific/SCI-EVIDENCE-INTEGRATION-001.md`. It explicitly separates empirical evidence for measurement reactivity from the stronger, unsupported claim of universal indicator collapse and links official acquisition/versioning evidence to acquisition-process semantics.
 
 ## Checkpoint
 - Repository inspected: current `main` at `80fa872c95bab5af5ed279c42774173bc7a52652`.
@@ -98,4 +104,4 @@ The current repository does not yet provide an independently recorded validation
 - SERPIENTE `Observation` and `Forecast` contracts inspected; both enforce timezone-aware temporal semantics, and `Forecast` uses `origin_time` + `horizon`.
 - Implementation, regression tests and scientific handoff/checkpoint were committed on the scientific branch.
 - PR #31 opened against current `main`.
-- `fetch_commit_workflow_runs` for the branch head returned no runs.
+- Subsequent reflexive evidence integration preserves the distinction between predictive, observational, acquisition, intervention and causal semantics.

@@ -1,0 +1,54 @@
+{
+  "protocol_id": "CEUTIA-SERPIENTE-PREDICTIVE-EVAL-1",
+  "version": "1.0",
+  "status": "predeclared_protocol",
+  "purpose": "Evaluate prospective binary SERPIENTE predictions against point-in-time eligible observed outcomes without temporal leakage.",
+  "forecast_eligibility": {
+    "canonical_contract_version": "1.1",
+    "required_contract_hash": "672dfa6b60d2e8c0854a024e83acf6b23eed44f2cd3293708aee533d7a9dc1f0",
+    "required_integrity": true,
+    "required_availability_before_replay": true,
+    "required_calibration_metadata": true,
+    "required_ood_metadata": true,
+    "required_point_in_time_fingerprint": true
+  },
+  "temporal_rules": {
+    "forecast_origin": "origin_time",
+    "forecast_availability": "available_at",
+    "outcome_eligibility": "outcome_time >= origin_time + horizon and outcome_time >= available_at",
+    "future_outcome_rejected": true,
+    "timezone_required": true,
+    "information_set_rule": "The evaluation system may only treat a forecast as eligible when its persisted availability timestamp is at or before the evaluation reference time. Point-in-time fingerprint provenance remains a producer responsibility and is not inferred from the prediction timestamp alone."
+  },
+  "population": {
+    "reference_population": "prediction.reference_class",
+    "target": "exact target match required",
+    "horizon": "exact horizon match required",
+    "domain": "producer-declared reference class and OOD state",
+    "subgroup_analysis": "not established until a scientifically justified subgroup schema and adequate sample size exist"
+  },
+  "metrics": {
+    "primary": ["Brier score", "log loss"],
+    "calibration": ["mean predicted probability", "observed event rate", "calibration gap"],
+    "discrimination": "not estimated by the current aggregate endpoint; requires outcome population and paired negative/positive labels across an evaluation window",
+    "baseline_comparison": "required before claiming comparative predictive utility; baseline model is not yet supplied by the current endpoint"
+  },
+  "missing_outcomes": {
+    "policy": "exclude outcomes that are not yet eligible; do not impute them as observed",
+    "selection_warning": "missingness and ascertainment selection are not currently modeled; aggregate results must not be interpreted as unbiased deployment performance"
+  },
+  "dependence": {
+    "repeated_forecasts": "allowed as observations but not assumed independent",
+    "current_inference": "descriptive aggregate only; no confidence interval or hypothesis test is emitted",
+    "required_future_extension": "clustered or time-aware uncertainty accounting if inferential claims are introduced"
+  },
+  "prospective_validity": {
+    "status": "NOT_ESTABLISHED",
+    "reason": "Software fixtures and historical replay do not establish real-world prospective predictive validity.",
+    "minimum_evidence": "A predeclared evaluation window with prospectively generated forecasts, prospectively ascertained outcomes, complete point-in-time eligibility records, predefined target/horizon population, and a locked evaluation procedure."
+  },
+  "causal_validity": {
+    "status": "NOT_ESTABLISHED",
+    "reason": "Prediction error metrics do not identify intervention effects or causal benefit."
+  }
+}

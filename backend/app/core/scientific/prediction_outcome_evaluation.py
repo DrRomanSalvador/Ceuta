@@ -9,7 +9,7 @@ import sqlite3
 from typing import Any
 
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 
 def ensure_prediction_outcome_schema(connection: sqlite3.Connection) -> None:
@@ -101,6 +101,8 @@ def record_prediction_outcome(
     if origin_time.tzinfo is None or origin_time.utcoffset() is None:
         raise RuntimeError("persisted prediction origin timestamp is not timezone-aware")
     normalized_outcome_time = outcome_time.astimezone(timezone.utc)
+    if normalized_outcome_time > datetime.now(timezone.utc):
+        raise ValueError("outcome cannot be in the future")
     if normalized_outcome_time < available_at.astimezone(timezone.utc):
         raise ValueError("outcome cannot precede prediction availability")
     expected_target_time = origin_time.astimezone(timezone.utc) + _horizon_delta(str(payload["horizon"]))

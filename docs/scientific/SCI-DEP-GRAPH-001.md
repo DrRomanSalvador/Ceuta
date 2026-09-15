@@ -4,7 +4,7 @@
 **Priority:** P0
 **Branch:** `scientific-dependency-semantics`
 **Base:** `main@80fa872c95bab5af5ed279c42774173bc7a52652`
-**Head:** `7781463d2355f16cb19e4a00ae52439e93558298`
+**Head:** `00c525bd42f1b45cc73eff5250c2a0db80ac17c8`
 **PR:** #31
 
 ## Scientific problem
@@ -39,6 +39,8 @@ Temporal precedence MUST NOT imply causality.
 
 Point-in-time process edges require explicit scientific identity fields. `PREDICTS` rejects an embedded `causality_claim=true` and therefore cannot silently upgrade a predictive relation into a causal claim.
 
+The prediction edge contract was reconciled against SERPIENTE `Forecast`: it requires `prediction_id`, `origin_time`, and `horizon`, rather than inventing a `target_time` field absent from the producer contract.
+
 ## Mathematical consequence
 The project can now preserve separate graph layers conceptually:
 
@@ -53,7 +55,7 @@ No causal interpretation is inferred from membership in `G_obs` or `G_pred`.
 Every process-sensitive edge must carry an identity that can be traced to a durable artifact:
 
 - observation → `observation_id`;
-- prediction → `prediction_id`, `target_time`;
+- prediction → `prediction_id`, `origin_time`, `horizon`;
 - reporting → `reporting_process_id`;
 - acquisition → `acquisition_process_id`;
 - revision → `revision_id`;
@@ -87,12 +89,13 @@ without an explicit causal identification assessment is scientifically invalid.
 ## Remaining uncertainty
 The graph ontology is now richer, but mechanism identifiability is not solved by adding edge types. Competing hypotheses, assumptions, evidence, intervention information and falsification tests remain necessary for causal identification.
 
-The current repository does not yet provide an independently recorded validation run for PR #31.
+The current repository does not yet provide an independently recorded validation run for PR #31. GitHub Actions exposes no PR-triggered run for the current head, and the repository CI workflow is configured for manual dispatch only.
 
 ## Checkpoint
 - Repository inspected: current `main` at `80fa872c95bab5af5ed279c42774173bc7a52652`.
 - Existing temporal implementation verified in `epistemology_p0/temporal/multitemporal.py`.
 - Existing semantic graph and causal contracts inspected.
-- Two commits created on the scientific branch: implementation + regression tests.
+- SERPIENTE `Observation` and `Forecast` contracts inspected; both enforce timezone-aware temporal semantics, and `Forecast` uses `origin_time` + `horizon`.
+- Implementation, regression tests and scientific handoff/checkpoint were committed on the scientific branch.
 - PR #31 opened against current `main`.
-- Workflow evidence for PR head was not yet available at checkpoint time.
+- `fetch_commit_workflow_runs` for the branch head returned no runs.

@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.3",
+  "schema_version": "1.4",
   "registry_type": "multi_mission_control_plane",
   "status": "ACTIVE",
   "discovery_contract": "docs/missions/MISSION_INVOCATION_CONTRACT.md",
@@ -22,9 +22,17 @@
       "tests": "tests/test_universal_mission_execution.py",
       "authority": "Execution-control invariant only; does not grant mission authority.",
       "purpose": "Universal coherence gates, incremental persistence, checkpoints, task-state semantics, liveness classification, CAS recovery and fixed-point controls."
+    },
+    "APOYO_COLLABORATION_CONTROL": {
+      "status": "ACTIVE_REPOSITORY_RUNTIME",
+      "contract": "docs/missions/apoyo/APOYO_INVOCATION_CONTRACT.json",
+      "implementation": "backend/app/missions/apoyo.py",
+      "tests": "tests/test_apoyo_mission.py",
+      "authority": "Temporary collaboration support subordinate to the requesting mission; no independent mission authority.",
+      "purpose": "Persistent discovery, explicit invocation, bounded collaboration, handoff, recovery and replication boundary for APOYO."
     }
   },
-  "architecture_amendments": ["docs/missions/ROMAN_ARCHITECTURE_INTEGRATION.md", "docs/missions/UNIVERSAL_EXECUTION_CONSTITUTION.md"],
+  "architecture_amendments": ["docs/missions/ROMAN_ARCHITECTURE_INTEGRATION.md", "docs/missions/UNIVERSAL_EXECUTION_CONSTITUTION.md", "docs/missions/apoyo/APOYO_ARCHITECTURE_INTEGRATION.md"],
   "missions": [
     {"mission_id":"MISSION-01","canonical_name":"INGENIERO","mission_type":"ENGINEERING_SYSTEMS_INTEGRATION","status":"ACTIVE","contract":"docs/missions/MISSION_BOOTSTRAPS.md#mission-01--ingeniero"},
     {"mission_id":"MISSION-02","canonical_name":"ESPÍA","mission_type":"SCIENTIFIC_INTEGRATION","status":"ACTIVE","contract":"docs/missions/MISSION_BOOTSTRAPS.md#mission-02--espía"},
@@ -41,6 +49,7 @@
     {"mission_id":"MISSION-13","canonical_name":"NOTARIO","mission_type":"EPISTEMOLOGY_PROVENANCE","status":"DEFINED","contract":"docs/missions/MISSION_BOOTSTRAPS.md#mission-13--notario"},
     {"mission_id":"MISSION-14","canonical_name":"ABISMO","mission_type":"EXTREMES_TAIL_RISK","status":"DEFINED","contract":"docs/missions/MISSION_BOOTSTRAPS.md#mission-14--abismo"},
     {"mission_id":"MISSION-15","canonical_name":"CIBERSEGURIDAD","mission_type":"SECURITY_GOVERNANCE","status":"ACTIVE","contract":"docs/security/CYBERSECURITY_MISSION_CONTRACT.md"},
+    {"mission_id":"APOYO","canonical_name":"APOYO","mission_type":"UNIVERSAL_COLLABORATION_SUPPORT","status":"ACTIVE","purpose":"Provide bounded, persistent, non-intrusive collaboration support to authorized missions without assuming their authority or identity.","authority":"SUBORDINATE_TO_REQUESTING_MISSION","invocation_contract":"docs/missions/apoyo/APOYO_INVOCATION_CONTRACT.json","bootstrap":"docs/missions/apoyo/APOYO_BOOTSTRAP.md","state_location":"docs/missions/apoyo/APOYO_MISSION_STATE.json","meeting_point":"APOYO-MEETING-POINT","account_authorization":"docs/missions/apoyo/APOYO_ACCOUNT_AUTHORIZATION.json","implementation":"backend/app/missions/apoyo.py","tests":"tests/test_apoyo_mission.py","current_state":"REGISTERED_DISCOVERABLE_INVOCABLE_REPOSITORY_RUNTIME","external_runtime_boundary":"New external sessions/processes cannot be created by this repository runtime without a verified provisioner."},
     {
       "mission_id":"ROMAN",
       "canonical_name":"ROMÁN",

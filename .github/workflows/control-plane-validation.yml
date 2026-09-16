@@ -26,7 +26,7 @@ jobs:
       - name: Compile control-plane sources
         run: python -m compileall -q mission
       - name: Run control-plane unit tests
-        run: python -m unittest mission.test_control_plane mission.test_event_log
+        run: python -m unittest mission.test_control_plane mission.test_event_log mission.test_work_claims
       - name: Run zero-context reconstruction
         run: python -m pytest mission/test_zero_context_replay.py -q
       - name: Run authoritative bootstrap

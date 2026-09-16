@@ -1,23 +1,72 @@
 {
   "schema_version": "1.1",
   "mission_id": "APOYO",
-  "mission_version": "1.1",
-  "state": "REGISTERED",
+  "mission_version": "1.2",
+  "state": "WAITING_AT_MEETING_POINT",
   "mission_lifecycle": "ACTIVE",
   "instance_id": "APOYO-ROOT",
   "parent_instance": null,
   "generation": 0,
-  "meeting_point": {"mission_id":"APOYO","meeting_point_id":"APOYO-MEETING-POINT","purpose":"Canonical permanent return, coordination and availability point; not a terminal state","discovery_method":"MISSION_REGISTRY_BY_CANONICAL_MISSION_ID","invocation_method":"EXPLICIT_COLLABORATION_REQUEST","availability_state":"WAITING","current_instance":"APOYO-ROOT","active_collaborations":[],"last_checkpoint":null,"memory_reference":"docs/missions/apoyo/APOYO_MISSION_STATE.json","authority_reference":"docs/missions/apoyo/APOYO_INVOCATION_CONTRACT.json"},
-  "identity":{"canonical_name":"APOYO","role":"COLLABORATION_SUPPORT","purpose":"Help active missions that can benefit from bounded subordinate collaboration until no relevant useful work remains.","authority":"SUBORDINATE_TO_REQUESTING_MISSION","capabilities":[],"limits":["no_self_authorization","no_identity_redefinition","no_authority_transfer","no_fake_sessions","no_fake_accounts","no_fake_runtime_validation","no_interference","no_duplicate_work"]},
-  "known_agents":{},
-  "active_collaborations":{},
-  "completed_collaborations":{},
-  "handoffs":[],
-  "instances":{"APOYO-ROOT":{"instance_id":"APOYO-ROOT","parent_instance":null,"generation":0,"state":"WAITING","assigned_scope":null,"current_task":null,"memory_checkpoint":null,"collaboration_history":[]}},
-  "replication_history":[],
-  "support_queue":[],
-  "internal_work_queue":[],
-  "completion":{"mission_complete":false,"active_agents":0,"pending_collaborations":false,"active_support_instances":0,"useful_support_tasks":false,"executable_internal_work":false},
-  "events":[],
-  "state_version":"GENESIS"
+  "lineage_id": "APOYO-LINEAGE-ROOT",
+  "meeting_point": {
+    "mission_id": "APOYO",
+    "meeting_point_id": "APOYO-MEETING-POINT",
+    "purpose": "Canonical permanent return, coordination and availability point; not a terminal state",
+    "discovery_method": "MISSION_REGISTRY_BY_CANONICAL_MISSION_ID",
+    "invocation_method": "EXPLICIT_COLLABORATION_REQUEST",
+    "availability_state": "WAITING",
+    "current_instance": "APOYO-ROOT",
+    "active_collaborations": [],
+    "last_checkpoint": null,
+    "memory_reference": "docs/missions/apoyo/APOYO_MISSION_STATE.json",
+    "authority_reference": "docs/missions/apoyo/APOYO_INVOCATION_CONTRACT.json",
+    "minimum_ready_support_instances": 1,
+    "coverage_required": true
+  },
+  "identity": {
+    "canonical_name": "APOYO",
+    "role": "COLLABORATION_SUPPORT",
+    "purpose": "Help active missions that can benefit from bounded subordinate collaboration until no relevant useful work remains.",
+    "authority": "SUBORDINATE_TO_REQUESTING_MISSION",
+    "capabilities": ["RECEIVE", "GREET", "OFFER_SUPPORT", "ASSIST", "VALIDATE", "PERSIST", "HANDOFF", "SUCCESSOR_COORDINATION"],
+    "limits": ["no_self_authorization", "no_identity_redefinition", "no_authority_transfer", "no_fake_sessions", "no_fake_accounts", "no_fake_runtime_validation", "no_interference", "no_duplicate_work"]
+  },
+  "known_agents": {},
+  "active_collaborations": {},
+  "completed_collaborations": {},
+  "handoffs": [],
+  "pending_handoffs": [],
+  "instances": {
+    "APOYO-ROOT": {
+      "instance_id": "APOYO-ROOT",
+      "parent_instance": null,
+      "generation": 0,
+      "lineage_id": "APOYO-LINEAGE-ROOT",
+      "state": "WAITING_AT_MEETING_POINT",
+      "meeting_point_status": "OCCUPIED",
+      "assigned_scope": null,
+      "current_task": null,
+      "memory_checkpoint": null,
+      "collaboration_history": []
+    }
+  },
+  "successor_slots": {},
+  "replication_history": [],
+  "support_queue": [],
+  "internal_work_queue": [],
+  "completion": {
+    "mission_complete": false,
+    "active_agents": 0,
+    "prospective_agents": 0,
+    "pending_collaborations": false,
+    "pending_handoffs": false,
+    "active_support_instances": 0,
+    "useful_support_tasks": false,
+    "executable_internal_work": false,
+    "successor_needed": false
+  },
+  "events": [
+    {"type": "MEETING_POINT_OCCUPIED", "at": "GENESIS", "instance_id": "APOYO-ROOT"}
+  ],
+  "state_version": "GENESIS"
 }

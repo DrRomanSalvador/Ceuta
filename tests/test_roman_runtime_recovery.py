@@ -65,6 +65,19 @@ def test_roman_universal_execution_recovery_and_idempotency(tmp_path: Path):
     assert runtime.checkpoint(checkpoint, expected_version=after) == after
 
 
+def test_roman_recovery_survives_fresh_runtime_instance(tmp_path: Path):
+    runtime = UniversalExecutionRuntime(tmp_path)
+    task = ExecutionTask("ROMAN-TASK-RESTART", "ROMAN", "fresh runtime recovery", (), (), ("recover",))
+    version = runtime.register_task(task)
+    version = runtime.claim_task(task.task_id, expected_version=version)
+    runtime.checkpoint(_roman_checkpoint(task.task_id, version, "ROMAN-CP-RESTART"), expected_version=version)
+    restarted_runtime = UniversalExecutionRuntime(tmp_path)
+    recovered = restarted_runtime.zero_context_reconstruct(task.task_id)
+    assert recovered["task"]["mission_id"] == "ROMAN"
+    assert recovered["checkpoint"]["checkpoint_id"] == "ROMAN-CP-RESTART"
+    assert restarted_runtime.liveness(task.task_id, process_present=False, seconds_since_progress=None, observation_interval_seconds=None) == "RECOVERABLE"
+
+
 def test_roman_stale_state_version_is_rejected(tmp_path: Path):
     runtime = UniversalExecutionRuntime(tmp_path)
     task = ExecutionTask("ROMAN-TASK-STALE", "ROMAN", "stale CAS rejection", (), (), ("CAS",))

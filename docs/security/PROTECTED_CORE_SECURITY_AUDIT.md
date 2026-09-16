@@ -3,7 +3,7 @@
 **Mission:** CIBERSEGURIDAD / MISSION-15  
 **Repository:** `DrRomanSalvador/Ceuta`  
 **Audited ref:** `main`  
-**Audited HEAD:** `7c8c41968eab55ffc8599a0f89e935e30fcfaea1`  
+**Audited HEAD:** `5784d2734f5b75fc740d82f5275ea5cf1936de5d`  
 **Audit mode:** defensive, non-invasive  
 **Protected-core modification performed:** NO
 
@@ -17,14 +17,15 @@ The repository contains substantial documented and workflow-level controls, but 
 
 The repository owner observed through GitHub is `DrRomanSalvador`. The current CODEOWNERS file names `@drsalvadorroman-beep` for the protected control plane. The authenticated GitHub profile available to this audit is `DrRomanSalvador` and exposes `iglesiasroman@hotmail.es` through the connector.
 
-The owner-specified authorized human emails are:
+The owner-specified authorized human emails are exactly:
 
-- `DR.esta@Hotmail.com`
+- `dr.salvadorroman@gmail.com`
+- `Iglesiasroman@hotmail.es`
 - `Roigsa1102@gmail.com`
 
-The available evidence does not establish a verified mapping from those two emails to GitHub identities, nor does it establish that `@drsalvadorroman-beep` and `DrRomanSalvador` are the same authorized human identity. Status: `IDENTITY_MAPPING_UNVERIFIED`.
+The available evidence establishes that the connected GitHub profile exposes `Iglesiasroman@hotmail.es`, but this alone does not establish the complete required identity mapping or human authorization chain. Verified email, GitHub account identity, MFA/2FA, recovery controls, ownership/collaborator configuration and explicit human confirmation remain required. No third identity has been added or inferred.
 
-No third identity has been added or inferred.
+Status: `IDENTITY_MAPPING_UNVERIFIED`.
 
 ## 3. PROTECTED_CORE perimeter
 
@@ -55,8 +56,8 @@ No file has been promoted into or removed from the canonical PROTECTED_CORE by t
 - Repository rulesets endpoint: empty (`[]`) — observed.
 - `main` branch protection: not verified; the available endpoint returned `403 Resource not accessible by integration`.
 - CODEOWNERS: present and protects the currently declared control plane.
-- Security workflow: present and active as repository code.
-- Security workflow run on audited HEAD: no workflow runs were returned for that commit.
+- Security workflow: present as repository code.
+- Security workflow run on audited HEAD: no workflow runs were returned for that commit in the prior audit; no new execution evidence has been established by this activation.
 - Commit signature status: not verified by the available commit metadata.
 
 Therefore GitHub-level technical immutability is **NOT VERIFIED**.
@@ -134,7 +135,8 @@ After explicit human declaration of the exact PROTECTED_CORE, MISSION-01 / Chat 
 ## 10. Human decisions required
 
 - Declare the exact canonical PROTECTED_CORE file set.
-- Verify the GitHub identity corresponding to `DR.esta@Hotmail.com`.
+- Verify the GitHub identity corresponding to `dr.salvadorroman@gmail.com`.
+- Verify the GitHub identity corresponding to `Iglesiasroman@hotmail.es`.
 - Verify the GitHub identity corresponding to `Roigsa1102@gmail.com`.
 - Confirm which verified GitHub identity is the authorized owner; do not infer this from repository ownership, a CODEOWNERS username, an AI session or an email alone.
 - Confirm the human-only recovery/break-glass mechanism.

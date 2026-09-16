@@ -1,10 +1,10 @@
 # Knowledge-to-Capability Frontier 001
 
-This file is a working frontier for the open **Ingeniero de CeutIA — Maximum Knowledge-to-Capability** mission. It is intentionally not a closure document.
+This file is the current open implementation frontier of the **single continuous CeutIA + SERPIENTE scientific-engineering mission**. “Maximum Knowledge-to-Capability” is a property of the continuous mission, not a separate mission or phase. This file is intentionally not a closure document.
 
 ## Current implementation frontier
 
-The completed audits show that the immediate opportunity is primarily **composition and governance of existing primitives**, not indiscriminate addition of advanced statistical models.
+The accumulated audits show that the immediate opportunity is primarily **composition and governance of existing primitives**, not indiscriminate addition of advanced statistical models.
 
 ### Priority 1 — scientific information-set contract
 Status: IMPLEMENTABLE IMMEDIATELY.
@@ -60,4 +60,6 @@ No advanced family is admitted to production merely because it is mathematically
 
 `phenomenon → data-generating process → estimand → identifiable parameters → assumptions → validation design → operational use → failure handling`.
 
-This frontier remains open until target-specific capabilities are either implemented and verified or formally classified as externally dependent.
+The frontier is subordinate to the persistent mission state and must be reconciled with repository evidence before each implementation decision. It remains open until the continuous mission's closure criteria are actually satisfied.
+
+See `mission/CEUTIA_SERPIENTE_MISSION_STATE.json` and `mission/MISSION_BOOTSTRAP.md` for the persistent identity and reproducible continuation protocol.

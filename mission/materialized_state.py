@@ -1,5 +1,6 @@
-"""Atomic per-mission compare-and-swap for materialized control-plane projections."""
+"""Atomic event-backed compare-and-swap for materialized control-plane projections."""
 from __future__ import annotations
+
 import json
 import os
 import tempfile
@@ -10,53 +11,143 @@ from typing import Any, Iterator
 try:
     import fcntl
 except ImportError:  # pragma: no cover
-    fcntl=None
+    fcntl = None
 
-from .event_log import append_payload
+from .event_log import append_payload, load_jsonl, validate_chain
+
 
 @contextmanager
-def _locked(path:Path)->Iterator[None]:
-    lock_path=path.with_suffix(path.suffix+".lock"); lock_path.parent.mkdir(parents=True,exist_ok=True)
-    with lock_path.open("a+",encoding="utf-8") as lock:
-        if fcntl is not None: fcntl.flock(lock.fileno(),fcntl.LOCK_EX)
-        try: yield
+def _locked(path: Path) -> Iterator[None]:
+    lock_path = path.with_suffix(path.suffix + ".lock")
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    with lock_path.open("a+", encoding="utf-8") as lock:
+        if fcntl is not None:
+            fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+        try:
+            yield
         finally:
-            if fcntl is not None: fcntl.flock(lock.fileno(),fcntl.LOCK_UN)
+            if fcntl is not None:
+                fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
 
-def _load(path:Path)->dict[str,Any]:
-    if not path.exists(): return {"schema_version":"1.1.0","missions":{}}
-    data=json.loads(path.read_text(encoding="utf-8"))
-    if not isinstance(data.get("missions"),dict): raise ValueError("Invalid materialized state registry")
+
+def _load(path: Path) -> dict[str, Any]:
+    if not path.exists():
+        return {"schema_version": "1.1.0", "missions": {}}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(data.get("missions"), dict):
+        raise ValueError("Invalid materialized state registry")
     return data
 
-def _atomic_write(path:Path,data:dict[str,Any])->None:
-    path.parent.mkdir(parents=True,exist_ok=True)
-    fd,tmp=tempfile.mkstemp(prefix=f".{path.name}.",dir=path.parent)
+
+def _atomic_write(path: Path, data: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
     try:
-        with os.fdopen(fd,"w",encoding="utf-8") as handle:
-            json.dump(data,handle,sort_keys=True,indent=2,ensure_ascii=False); handle.write("\n"); handle.flush(); os.fsync(handle.fileno())
-        os.replace(tmp,path)
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            json.dump(data, handle, sort_keys=True, indent=2, ensure_ascii=False)
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(tmp, path)
     except Exception:
-        try: os.unlink(tmp)
-        except FileNotFoundError: pass
+        try:
+            os.unlink(tmp)
+        except FileNotFoundError:
+            pass
         raise
 
-def read_mission(path:Path,mission_id:str)->dict[str,Any]:
-    data=_load(path); record=data["missions"].get(mission_id)
-    if record is None: return {"mission_id":mission_id,"revision":0,"projection":{}}
+
+def read_mission(path: Path, mission_id: str) -> dict[str, Any]:
+    data = _load(path)
+    record = data["missions"].get(mission_id)
+    if record is None:
+        return {"mission_id": mission_id, "revision": 0, "projection": {}}
     return dict(record)
 
-def compare_and_swap_mission(path:Path,mission_id:str,expected_revision:int,new_projection:dict[str,Any],*,event_log:Path|None=None,actor:str|None=None,timestamp:str|None=None)->dict[str,Any]:
-    if not mission_id: raise ValueError("mission_id is required")
-    if expected_revision<0: raise ValueError("expected_revision cannot be negative")
-    if event_log is not None and not actor: raise ValueError("actor is required when event_log is supplied")
-    if event_log is not None and not timestamp: raise ValueError("timestamp is required when event_log is supplied")
+
+def compare_and_swap_mission(
+    path: Path,
+    mission_id: str,
+    expected_revision: int,
+    new_projection: dict[str, Any],
+    *,
+    event_log: Path,
+    actor: str,
+    timestamp: str,
+) -> dict[str, Any]:
+    """Apply one canonical event-backed materialized-state mutation.
+
+    The event is persisted before the projection. If projection persistence is
+    interrupted after the event append, ``recover_materialized_state`` can
+    deterministically rebuild the projection from the canonical event stream.
+    """
+    if not mission_id:
+        raise ValueError("mission_id is required")
+    if expected_revision < 0:
+        raise ValueError("expected_revision cannot be negative")
+    if not actor:
+        raise ValueError("actor is required")
+    if not timestamp:
+        raise ValueError("timestamp is required")
+
     with _locked(path):
-        data=_load(path); current=data["missions"].get(mission_id,{"mission_id":mission_id,"revision":0,"projection":{}})
-        if current["revision"]!=expected_revision:
-            raise ValueError(f"Stale materialized-state writer for {mission_id}: expected revision {expected_revision}, current {current['revision']}")
-        updated={"mission_id":mission_id,"revision":expected_revision+1,"projection":dict(new_projection)}
-        if event_log is not None:
-            event=append_payload(event_log,event_type="MATERIALIZED_STATE_CAS",mission_id=mission_id,actor=actor or "",timestamp=timestamp or "",payload={"expected_revision":expected_revision,"new_revision":expected_revision+1,"projection":dict(new_projection)})
-            updated["mutation_event_id"]=event["event_id"]
-        data["missions"][mission_id]=updated; _atomic_write(path,data); return updated
+        data = _load(path)
+        current = data["missions"].get(
+            mission_id,
+            {"mission_id": mission_id, "revision": 0, "projection": {}},
+        )
+        if current["revision"] != expected_revision:
+            raise ValueError(
+                f"Stale materialized-state writer for {mission_id}: "
+                f"expected {expected_revision}, current {current['revision']}"
+            )
+
+        new_revision = expected_revision + 1
+        event = append_payload(
+            event_log,
+            event_type="MATERIALIZED_STATE_CAS",
+            mission_id=mission_id,
+            actor=actor,
+            timestamp=timestamp,
+            payload={
+                "expected_revision": expected_revision,
+                "new_revision": new_revision,
+                "projection": dict(new_projection),
+            },
+        )
+        updated = {
+            "mission_id": mission_id,
+            "revision": new_revision,
+            "projection": dict(new_projection),
+            "mutation_event_id": event["event_id"],
+        }
+        data["missions"][mission_id] = updated
+        _atomic_write(path, data)
+        return updated
+
+
+def recover_materialized_state(path: Path, event_log: Path) -> dict[str, Any]:
+    """Rebuild materialized state from canonical CAS events."""
+    events = load_jsonl(event_log)
+    validate_chain(events)
+    missions: dict[str, dict[str, Any]] = {}
+    for event in events:
+        if event["event_type"] != "MATERIALIZED_STATE_CAS":
+            continue
+        mission_id = event["mission_id"]
+        payload = event["payload"]
+        expected = payload["expected_revision"]
+        new_revision = payload["new_revision"]
+        current_revision = missions.get(mission_id, {"revision": 0})["revision"]
+        if expected != current_revision or new_revision != expected + 1:
+            raise ValueError(f"Materialized-state recovery revision divergence for {mission_id}")
+        missions[mission_id] = {
+            "mission_id": mission_id,
+            "revision": new_revision,
+            "projection": dict(payload["projection"]),
+            "mutation_event_id": event["event_id"],
+        }
+
+    recovered = {"schema_version": "1.1.0", "missions": missions}
+    _atomic_write(path, recovered)
+    return recovered

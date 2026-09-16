@@ -76,7 +76,15 @@ def test_actionability_does_not_create_decision_authority():
     item = assessment()
     assert item.decision_authority is None
     assert item.can_claim_actionability()
+    assert item.can_claim_actionability(NOW + timedelta(hours=1))
     assert not item.requires_human_authority()
+
+
+def test_expiry_invalidates_current_actionability_claim():
+    item = assessment(expiry=NOW + timedelta(hours=1))
+    assert item.is_valid_at(NOW + timedelta(minutes=59))
+    assert not item.is_valid_at(NOW + timedelta(hours=1))
+    assert not item.can_claim_actionability(NOW + timedelta(hours=1))
 
 
 def test_actionability_chain_never_infers_missing_stages():
@@ -95,3 +103,9 @@ def test_outcome_validation_requires_evaluation_trace():
     )
     errors = validate_actionability_chain(item, ActionabilityTrace(assessment_id="a-1"))
     assert "OUTCOME_VALIDATED requires an evaluation trace" in errors
+
+
+def test_naive_evaluation_time_is_rejected():
+    item = assessment()
+    with pytest.raises(ValueError, match="timezone-aware"):
+        item.can_claim_actionability(datetime(2026, 9, 16, 13, 0))

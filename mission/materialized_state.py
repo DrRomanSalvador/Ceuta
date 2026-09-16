@@ -88,6 +88,38 @@ def _recover_projection_from_events(event_log: Path) -> dict[str, dict[str, Any]
     return missions
 
 
+def _matching_persisted_mutation(
+    event_log: Path,
+    *,
+    mission_id: str,
+    expected_revision: int,
+    new_projection: dict[str, Any],
+    actor: str,
+    timestamp: str,
+) -> dict[str, Any] | None:
+    """Return an already-persisted mutation when the retry is byte-semantically equivalent."""
+    if not event_log.exists():
+        return None
+    for event in load_jsonl(event_log):
+        if event["event_type"] != "MATERIALIZED_STATE_CAS" or event["mission_id"] != mission_id:
+            continue
+        payload = event["payload"]
+        if (
+            event["actor"] == actor
+            and event["timestamp"] == timestamp
+            and payload["expected_revision"] == expected_revision
+            and payload["new_revision"] == expected_revision + 1
+            and payload["projection"] == dict(new_projection)
+        ):
+            return {
+                "mission_id": mission_id,
+                "revision": payload["new_revision"],
+                "projection": dict(payload["projection"]),
+                "mutation_event_id": event["event_id"],
+            }
+    return None
+
+
 def compare_and_swap_mission(
     path: Path,
     mission_id: str,
@@ -100,9 +132,9 @@ def compare_and_swap_mission(
 ) -> dict[str, Any]:
     """Apply one canonical event-backed materialized-state mutation.
 
-    Before allocating a new mutation event, reconcile the projection with the
-    canonical event stream. This makes a retry after an interrupted projection
-    write recover the already-persisted mutation instead of creating a duplicate.
+    The event is the source of truth. If the event was durably appended but the
+    projection write was interrupted, an identical retry reuses that event and
+    repairs the projection instead of allocating a second mutation.
     """
     if not mission_id:
         raise ValueError("mission_id is required")
@@ -115,16 +147,32 @@ def compare_and_swap_mission(
 
     with _locked(path):
         data = _load(path)
-        if event_log.exists():
-            recovered = _recover_projection_from_events(event_log)
-            if recovered:
-                data["missions"].update(recovered)
-        current = data["missions"].get(mission_id, {"mission_id": mission_id, "revision": 0, "projection": {}})
+        recovered = _recover_projection_from_events(event_log) if event_log.exists() else {}
+        if recovered:
+            data["missions"].update(recovered)
+
+        current = data["missions"].get(
+            mission_id,
+            {"mission_id": mission_id, "revision": 0, "projection": {}},
+        )
         if current["revision"] != expected_revision:
-            raise ValueError(
-                f"Stale materialized-state writer for {mission_id}: "
-                f"expected {expected_revision}, current {current['revision']}"
+            persisted = _matching_persisted_mutation(
+                event_log,
+                mission_id=mission_id,
+                expected_revision=expected_revision,
+                new_projection=new_projection,
+                actor=actor,
+                timestamp=timestamp,
             )
+            if persisted is None:
+                raise ValueError(
+                    f"Stale materialized-state writer for {mission_id}: "
+                    f"expected {expected_revision}, current {current['revision']}"
+                )
+            data["missions"][mission_id] = persisted
+            _atomic_write(path, data)
+            return persisted
+
         new_revision = expected_revision + 1
         event = append_payload(
             event_log,
@@ -132,9 +180,18 @@ def compare_and_swap_mission(
             mission_id=mission_id,
             actor=actor,
             timestamp=timestamp,
-            payload={"expected_revision": expected_revision, "new_revision": new_revision, "projection": dict(new_projection)},
+            payload={
+                "expected_revision": expected_revision,
+                "new_revision": new_revision,
+                "projection": dict(new_projection),
+            },
         )
-        updated = {"mission_id": mission_id, "revision": new_revision, "projection": dict(new_projection), "mutation_event_id": event["event_id"]}
+        updated = {
+            "mission_id": mission_id,
+            "revision": new_revision,
+            "projection": dict(new_projection),
+            "mutation_event_id": event["event_id"],
+        }
         data["missions"][mission_id] = updated
         _atomic_write(path, data)
         return updated

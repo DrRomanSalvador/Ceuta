@@ -1,0 +1,57 @@
+schema_version: "1.0"
+mission: MISSION_13_NOTARIO
+state: IN_PROGRESS
+phase: VALIDATING
+closure_allowed: false
+basis: "Audit findings are not completion; five critical handoffs now have machine-readable contracts and negative/positive vectors, but runtime integration and re-audit remain pending."
+previous_audit_pr: 45
+execution_pr: 46
+critical_work:
+  H1_knowledge_impact_graph:
+    status: SPECIFIED
+    contract: contracts/v1/knowledge-impact-graph.schema.json
+    acceptance: "Changed upstream node yields downstream traversal and proportional revalidation obligations."
+    runtime_verified: false
+  H2_discovery_funnel:
+    status: SPECIFIED
+    contract: contracts/v1/discovery-candidate.schema.json
+    acceptance: "Anomaly remains candidate, enters rival hypotheses/falsification, and cannot become supported without evidence."
+    runtime_verified: false
+  H3_disagreement_lifecycle:
+    status: SPECIFIED
+    contract: contracts/v1/disagreement-lifecycle.schema.json
+    acceptance: "Typed disagreement preserves positions/minority/history and supports discriminative testing."
+    runtime_verified: false
+  H4_capability_regression:
+    status: SPECIFIED
+    contract: contracts/v1/capability-benchmark.schema.json
+    acceptance: "Reference-vs-observed revision detects capability gain/loss/change/fragility."
+    runtime_verified: false
+  H5_scientific_epistemic_debt:
+    status: SPECIFIED
+    contract: contracts/v1/scientific-epistemic-debt.schema.json
+    acceptance: "Material unvalidated knowledge creates distinct debt linked to affected knowledge and validation."
+    runtime_verified: false
+research:
+  external_literature_reviewed: true
+  contrary_evidence_sought: true
+  remaining_research_questions:
+    - collective_intelligence_gain_measurement
+    - emergent_capability_evidence_threshold
+    - exploration_exploitation_portfolio_policy
+    - capability_benchmark_external_validity
+  status: PARTIAL
+validation:
+  contract_vectors_created: true
+  ci_run_observed: false
+  runtime_integration_observed: false
+  post_integration_reaudit: false
+  status: PENDING
+blockers:
+  - id: EXT-RUNTIME-INTEGRATION
+    task: "Wire contracts into persistent runtime surfaces and execute acceptance vectors."
+    why_blocked: "NOTARIO can define and validate scientific contracts; production runtime integration belongs to existing engineering owners."
+    what_has_been_done: "Complete critical-contract definitions and test vectors; ownership and acceptance conditions recorded in PR 46."
+    what_can_continue: "Scientific re-audit, redundancy analysis, research, and adversarial contract review can continue independently."
+    external_dependency: "Existing engineering/runtime owners."
+    acceptance_condition: "Runtime persists, traverses, and enforces all five contracts with passing positive/negative tests."

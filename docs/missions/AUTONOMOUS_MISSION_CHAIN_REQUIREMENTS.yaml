@@ -1,4 +1,4 @@
-schema_version: "1.0"
+schema_version: "1.1"
 status: DESIGN_READY
 owner: MISSION-13
 integrator: MISSION-01
@@ -44,7 +44,7 @@ requirements:
     priority: P0
     existing_capability: mission lifecycle + second-order quality controls
     action: EXTEND
-    acceptance: no executable material non-redundant work remains, or only demonstrated external/human boundary remains
+    acceptance: no executable material non-redundant work remains, no active internal process remains, and no unresolved critical contradiction/high-value discovery/regression/integration/gap remains; only demonstrated external/human boundary may remain
   - id: AMC-007
     requirement: anti_loop_circuit_breakers
     class: SAFETY
@@ -73,9 +73,23 @@ requirements:
     existing_capability: constitution + authority model + invocation contract
     action: REUSE
     acceptance: automation cannot grant CAN_AUTHORIZE/CAN_MODIFY/CAN_VALIDATE outside declared authority
+  - id: AMC-011
+    requirement: asynchronous_execution_continuity
+    class: ORCHESTRATION
+    priority: P0
+    existing_capability: runtime observability + persistent mission state
+    action: EXTEND
+    acceptance: RUNNING processes are observable active work, independent work is discoverable/executable, and WAITING is permitted only when no internal active work remains
+  - id: AMC-012
+    requirement: zero_context_routing_replay
+    class: REPRODUCIBILITY
+    priority: P1
+    existing_capability: MissionEvolutionRuntime + deterministic policy
+    action: EXTEND
+    acceptance: persisted task/candidate inputs reconstruct identical mission-selection decisions without conversation context
 external_boundaries:
   - id: AMC-EXT-001
     capability: true_multi_process_transactional_leases_and_live_invocation
     status: NOT_ESTABLISHED
-    local_work: registry discovery, contract resolution, admission CAS, POSIX locking, zero-context reconstruction and deterministic policy can be tested locally
+    local_work: registry discovery, contract resolution, admission CAS, POSIX locking, zero-context reconstruction, deterministic policy replay and isolated-process policy execution are testable locally
     remaining_property: deployment-level cross-process orchestration semantics

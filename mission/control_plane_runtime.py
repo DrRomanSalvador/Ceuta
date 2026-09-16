@@ -7,37 +7,28 @@ from .control_plane import MissionState, transition
 from .event_log import append_payload, validate_chain
 
 
-def persist_transition(*, event_log: Path, mission_id: str, current: MissionState, target: MissionState,
-                       authorized_actor: str, evidence: list[str], payload: dict[str, Any] | None = None,
-                       timestamp: str) -> dict[str, Any]:
-    record = transition(current, target, authorized_actor=authorized_actor, evidence=evidence)
-    return append_payload(event_log, event_type="MISSION_STATE_TRANSITION", mission_id=mission_id,
-                          actor=authorized_actor, timestamp=timestamp,
-                          payload={**record, "payload": payload or {}})
+def persist_transition(*, event_log: Path, current: MissionState, target: MissionState, authorized_actor: str, evidence: list[str], timestamp: str, mission_id: str | None = None, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+    record=transition(current,target,authorized_actor=authorized_actor,evidence=evidence)
+    return append_payload(event_log,event_type="MISSION_STATE_TRANSITION",mission_id=mission_id or authorized_actor,actor=authorized_actor,timestamp=timestamp,payload={**record,"payload":payload or {}})
 
 
-def persist_handoff_event(*, event_log: Path, mission_id: str, actor: str, handoff_id: str,
-                          status: str, evidence: list[str], timestamp: str) -> dict[str, Any]:
-    return append_payload(event_log, event_type="HANDOFF_LIFECYCLE", mission_id=mission_id,
-                          actor=actor, timestamp=timestamp,
-                          payload={"handoff_id":handoff_id,"status":status,"evidence":evidence})
+def persist_handoff_event(*, event_log: Path, mission_id: str, actor: str, handoff_id: str, status: str, evidence: list[str], timestamp: str) -> dict[str, Any]:
+    return append_payload(event_log,event_type="HANDOFF_LIFECYCLE",mission_id=mission_id,actor=actor,timestamp=timestamp,payload={"handoff_id":handoff_id,"status":status,"evidence":evidence})
 
 
 def replay_state(events: list[dict[str, Any]]) -> dict[str, str]:
-    validate_chain(events)
-    states: dict[str, str] = {}
+    validate_chain(events); states: dict[str,str]={}
     for event in events:
-        if event["event_type"] != "MISSION_STATE_TRANSITION": continue
+        if event["event_type"]!="MISSION_STATE_TRANSITION": continue
         payload=event["payload"]; source=MissionState(payload["from"]); target=MissionState(payload["to"])
         previous=MissionState(states[event["mission_id"]]) if event["mission_id"] in states else source
-        if previous != source: raise ValueError(f"Replay divergence for {event['mission_id']}: expected {previous.value}, got {source.value}")
+        if previous!=source: raise ValueError(f"Replay divergence for {event['mission_id']}: expected {previous.value}, got {source.value}")
         states[event["mission_id"]]=target.value
     return states
 
 
-def replay_projection(events: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
-    validate_chain(events)
-    projections={"admissions":[],"retirements":[],"recoveries":[],"conflicts":[],"contributions":[],"claims":[],"handoffs":[]}
+def replay_projection(events: list[dict[str, Any]]) -> dict[str,list[dict[str,Any]]]:
+    validate_chain(events); projections={"admissions":[],"retirements":[],"recoveries":[],"conflicts":[],"contributions":[],"claims":[],"handoffs":[]}
     mapping={"MISSION_ADMISSION":"admissions","MISSION_RETIREMENT":"retirements","MISSION_RECOVERY":"recoveries","MISSION_CONTRADICTION":"conflicts","MISSION_CONTRIBUTION":"contributions","WORK_CLAIM_ACQUIRED":"claims","WORK_CLAIM_RELEASED":"claims","HANDOFF_LIFECYCLE":"handoffs"}
     for event in events:
         target=mapping.get(event["event_type"])

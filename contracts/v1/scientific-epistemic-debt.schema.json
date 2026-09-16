@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ceutia/contracts/v1/scientific-epistemic-debt.schema.json",
+  "title": "Scientific/Epistemic Debt Item",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["debt_id", "kind", "created_at", "cause", "affected_refs", "evidence_gap", "consequence", "priority_rationale", "status", "validation_required", "repayment_strategy"],
+  "properties": {
+    "debt_id": {"type": "string", "minLength": 1},
+    "kind": {"enum": ["SCIENTIFIC", "EPISTEMIC"]},
+    "created_at": {"type": "string", "format": "date-time"},
+    "ageing_days": {"type": "integer", "minimum": 0},
+    "cause": {"enum": ["PROVISIONAL_HYPOTHESIS", "PROXY", "UNVALIDATED_MODEL", "INSUFFICIENT_EVIDENCE", "OBSOLETE_SOURCE", "INCOMPLETE_DATA", "UNTESTED_ASSUMPTION", "EXTERNAL_DEPENDENCY", "UNQUANTIFIED_UNCERTAINTY", "OVERSTATED_DOCUMENTATION", "INHERITED_CLAIM", "UNREPLICATED_METHOD"]},
+    "affected_refs": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+    "evidence_gap": {"type": "string", "minLength": 1},
+    "consequence": {"enum": ["LOW", "MATERIAL", "CRITICAL"]},
+    "priority_rationale": {"type": "string", "minLength": 1},
+    "owner_ref": {"type": ["string", "null"]},
+    "status": {"enum": ["CREATED", "IDENTIFIED", "PRIORITIZED", "REDUCING", "VALIDATING", "CLOSED", "BLOCKED"]},
+    "validation_required": {"type": "boolean"},
+    "repayment_strategy": {"type": "string", "minLength": 1},
+    "resolution_refs": {"type": "array", "items": {"type": "string", "minLength": 1}}
+  }
+}

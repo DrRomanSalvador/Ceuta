@@ -15,4 +15,4 @@ def test_valid_prediction_enters_final_epistemic_dependency_graph():
     assessment=_final_epistemic_assessment(request,evidence)
     assert assessment.validity is SystemValidity.SUPPORTED
     assert assessment.composition is EpistemicIntegrityStatus.PRESERVED
-    assert "serpiente:p1" in assessment.reality_anchor.external_evidence_refs
+    assert "serpiente:prediction:p1" in assessment.reality_anchor.external_evidence_refs

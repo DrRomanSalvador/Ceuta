@@ -1,0 +1,128 @@
+schema_version: "1.0"
+mission: MISSION_13_NOTARIO
+purpose: executable_contract_vectors
+cases:
+  - id: discovery-generated-by-model-is-not-evidence
+    contract: contracts/v1/discovery-candidate.schema.json
+    expect_valid: true
+    payload:
+      candidate_id: dc-001
+      trigger_type: ANOMALY
+      observations: [obs-001]
+      scientific_question: "Why did the observed signal deviate from baseline?"
+      hypothesis_ids: [hyp-001, hyp-002]
+      falsification_required: true
+      status: CANDIDATE
+      provenance: [observation:obs-001, model:model-7]
+  - id: discovery-supported-requires-evidence
+    contract: contracts/v1/discovery-candidate.schema.json
+    expect_valid: false
+    payload:
+      candidate_id: dc-002
+      trigger_type: DISCREPANCY
+      observations: [obs-002]
+      scientific_question: "Does the anomaly represent a reproducible effect?"
+      hypothesis_ids: [hyp-003]
+      falsification_required: true
+      status: SUPPORTED
+      provenance: [observation:obs-002]
+  - id: disagreement-must-preserve-minority
+    contract: contracts/v1/disagreement-lifecycle.schema.json
+    expect_valid: true
+    payload:
+      disagreement_id: dg-001
+      type: MODEL_BASED
+      position_refs: [model-a:position, model-b:position]
+      source_refs: [source-a, source-b]
+      shared_premise_refs: [claim-1]
+      assumption_refs: [assumption-1]
+      discriminative_evidence_refs: [experiment-1]
+      voi_reference: voi-1
+      status: OPEN
+      minority_preserved: true
+      history:
+        - event_id: dg-001-open
+          at: "2026-09-16T00:00:00Z"
+          action: OPENED
+          actor_ref: mission-13
+  - id: disagreement-consensus-cannot-replace-history
+    contract: contracts/v1/disagreement-lifecycle.schema.json
+    expect_valid: false
+    payload:
+      disagreement_id: dg-002
+      type: FACTUAL
+      position_refs: [a, b]
+      source_refs: [source-a]
+      status: RESOLVED
+      minority_preserved: false
+      history:
+        - event_id: dg-002-open
+          at: "2026-09-16T00:00:00Z"
+          action: OPENED
+          actor_ref: mission-13
+  - id: impact-change-requires-revalidation
+    contract: contracts/v1/knowledge-impact-graph.schema.json
+    expect_valid: true
+    payload:
+      event_id: kig-001
+      as_of: "2026-09-16T00:00:00Z"
+      nodes:
+        - node_id: source-1
+          kind: SOURCE
+          version: v1
+          valid_from: "2026-01-01T00:00:00Z"
+          valid_to: null
+          epistemic_status: VERIFIED_FACT
+        - node_id: claim-1
+          kind: CLAIM
+          version: v3
+          valid_from: "2026-02-01T00:00:00Z"
+          valid_to: null
+          epistemic_status: INFERENCE
+      edges:
+        - from: source-1
+          to: claim-1
+          relation: SUPPORTS
+          provenance: [source-1:v1]
+      changed_node_ids: [source-1]
+      revalidation_obligations:
+        - target_node_id: claim-1
+          reason: upstream source changed
+          required_validation_level: INTERNALLY_VALIDATED
+          blocking: true
+  - id: capability-regression-is-not-unit-test-count
+    contract: contracts/v1/capability-benchmark.schema.json
+    expect_valid: true
+    payload:
+      benchmark_id: cb-001
+      capability_id: scientific-falsification
+      capability_definition: "Can a material hypothesis be exposed to a declared falsifying observation and retain the result?"
+      invariant_refs: [INV-FALSIFICATION-RESULT-PERSISTED]
+      reference_revision: rev-a
+      observed_revision: rev-b
+      test_results:
+        - test_id: falsification-001
+          expected_behavior: "Contrary observation yields FALSIFIED"
+          observed_behavior: "Contrary observation yields FALSIFIED"
+          pass: true
+          evidence_refs: [test-run-1]
+      regression: false
+      impact: NONE
+      revalidation_required: false
+  - id: material-claim-creates-epistemic-debt
+    contract: contracts/v1/scientific-epistemic-debt.schema.json
+    expect_valid: true
+    payload:
+      debt_id: debt-001
+      kind: EPISTEMIC
+      created_at: "2026-09-16T00:00:00Z"
+      ageing_days: 0
+      cause: UNVALIDATED_MODEL
+      affected_refs: [claim-9, model-4]
+      evidence_gap: "Prospective validation is absent"
+      consequence: MATERIAL
+      priority_rationale: "Decision depends on claim-9"
+      owner_ref: null
+      status: CREATED
+      validation_required: true
+      repayment_strategy: "Run prospective validation before promotion"

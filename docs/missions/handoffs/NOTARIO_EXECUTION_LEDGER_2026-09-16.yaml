@@ -1,0 +1,86 @@
+schema_version: "1.0"
+mission: MISSION-13
+name: NOTARIO
+iteration: "2026-09-16-execute-before-delegate"
+status: IN_PROGRESS
+fixed_point_reached: false
+
+- task_id: NOTARIO-CI-001
+  parent_task: NOTARIO-EXECUTION
+  discovered_by: NOTARIO
+  owner: MISSION-01
+  status: VERIFIED_BY_CI
+  classification: EXECUTABLE_LOCAL
+  why_required: "CI 665 exposed a scalar/list mismatch against the canonical registry."
+  existing_capability: "MissionRegistry + MISSION_REGISTRY.json"
+  action_taken: "Updated backend/tests/test_mission_registry.py to assert the canonical three-path implementation list."
+  tests_run: "CI 667: test passed; 582 tests passed overall before the remaining SERPIENTE failure."
+  failures: "Original scalar/list contract mismatch."
+  repairs: "Test reconciled to existing registry semantics."
+  verification: "CI 667 passed this test."
+  integration: "57b39eabd5048d048185b8359ff40838e2dc50cc"
+  evidence: "CI 35089050480, run 667."
+  remaining_external_boundary: false
+  next_action: "None for this task unless downstream re-audit finds contradiction."
+  closure_state: CLOSED
+  timestamp: "2026-09-16T11:13:05Z"
+
+- task_id: NOTARIO-CI-002
+  parent_task: NOTARIO-EXECUTION
+  discovered_by: NOTARIO
+  owner: MISSION-01
+  status: VERIFIED_BY_CI
+  classification: EXECUTABLE_LOCAL
+  why_required: "CI 665 exposed a SERPIENTE prediction identity mismatch."
+  existing_capability: "DecisionRequest + _final_epistemic_assessment + SerpientePredictionEnvelope"
+  action_taken: "Canonicalized identity to serpiente:prediction:<prediction_id> in reality-anchor external evidence and epistemic dependency references."
+  tests_run: "CI 667 passed test_serpiente_prediction_consumer."
+  failures: "Runtime originally emitted serpiente:<prediction_id>."
+  repairs: "backend/app/main.py updated."
+  verification: "CI 667 passed the consumer test."
+  integration: "bb26652b810132be4acd0427b292b9c55d2b85eb"
+  evidence: "CI 35089050480, run 667."
+  remaining_external_boundary: false
+  next_action: "Repair CI-003 discovered by downstream regression."
+  closure_state: CLOSED_WITH_DERIVED_WORK
+  timestamp: "2026-09-16T11:13:05Z"
+
+- task_id: NOTARIO-CI-003
+  parent_task: NOTARIO-CI-002
+  discovered_by: NOTARIO
+  owner: MISSION-01
+  status: REPAIRED_AWAITING_CI
+  classification: EXECUTABLE_LOCAL
+  why_required: "CI 667 revealed a second consumer test still asserting the obsolete SERPIENTE identity."
+  existing_capability: "SERPIENTE boundary canonical identity contract"
+  action_taken: "Updated backend/tests/test_serpiente_boundary_valid_path.py to assert serpiente:prediction:<prediction_id>."
+  tests_run: "CI 667 identified the failure; repair committed as d336fe3a1708dee56616307c285867ab396fc4d0."
+  failures: "test_valid_prediction_enters_final_epistemic_dependency_graph expected serpiente:p1."
+  repairs: "Consumer test reconciled to canonical prediction namespace."
+  verification: "Awaiting fresh CI."
+  integration: "d336fe3a1708dee56616307c285867ab396fc4d0"
+  evidence: "CI run 35089050480 failure and repair commit."
+  remaining_external_boundary: false
+  next_action: "Verify fresh CI and repair any further derived failures."
+  closure_state: OPEN_UNTIL_VERIFIED
+  timestamp: "2026-09-16T11:14:00Z"
+
+- task_id: NOTARIO-RUNTIME-BOUNDARY
+  parent_task: NOTARIO-H1-H5
+  discovered_by: NOTARIO
+  owner: MISSION-01
+  status: PARTIALLY_EXECUTED
+  classification: EXTERNAL_BOUNDARY_PLUS_LOCAL_WORK
+  why_required: "The invocation contract requires an external host/orchestrator for true multi-process leases and transactional live-state writes."
+  existing_capability: "MissionRegistry, MissionEvolutionRuntime, invocation envelope, zero-context validation and persistent admission transactions."
+  action_taken: "Inspected invocation contract and runtime; confirmed local discovery, authority checks, envelope construction, persistent admission staging/commit, stale-version rejection and zero-context validation are locally executable."
+  tests_run: "Mission evolution runtime tests passed in CI 667; distributed execution was not claimed."
+  failures: "The repository does not expose a true multi-process host/orchestrator."
+  repairs: "No fake distributed runtime created."
+  verification: "Invocation contract explicitly bounds the distributed property to an external orchestrator."
+  integration: "Canonical invocation/runtime surfaces retained."
+  evidence: "docs/missions/MISSION_INVOCATION_CONTRACT.md and backend/app/missions/evolution_runtime.py"
+  remaining_external_boundary: true
+  next_action: "Continue local H1-H5 replay/fixture/contract testing."
+  closure_state: OPEN_LOCAL_WORK_REMAINS
+  timestamp: "2026-09-16T11:13:00Z"

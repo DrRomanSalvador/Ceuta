@@ -1,0 +1,34 @@
+schema_version: "1.2"
+mission: MISSION_13_NOTARIO
+state: IN_PROGRESS
+phase: VALIDATING
+closure_allowed: false
+execution_pr: 46
+latest_known_head: 00058c3e30a8928bf4c225bfbbb3d075e6cc1e62
+basis: "CI-001 and CI-002 were repaired locally and persisted. Fresh CI verification is required. H1-H5 runtime integration remains unverified."
+critical_work:
+  H1_knowledge_impact_graph: {status: SPECIFIED, runtime_verified: false, handoff_status: HANDOFF_ACTIVE}
+  H2_discovery_funnel: {status: SPECIFIED, runtime_verified: false, handoff_status: HANDOFF_ACTIVE}
+  H3_disagreement_lifecycle: {status: SPECIFIED, runtime_verified: false, handoff_status: HANDOFF_ACTIVE}
+  H4_capability_regression: {status: SPECIFIED, runtime_verified: false, handoff_status: HANDOFF_ACTIVE}
+  H5_scientific_epistemic_debt: {status: SPECIFIED, runtime_verified: false, handoff_status: HANDOFF_ACTIVE}
+validation:
+  prior_ci: {run_id: 35088667389, run_number: 665, status: FAILED, result: "581 passed, 2 failed"}
+  repair_commit_registry_test: 57b39eabd5048d048185b8359ff40838e2dc50cc
+  repair_commit_serpiente_identity: bb26652b810132be4acd0427b292b9c55d2b85eb
+  current_ci: {run_id: 35089050480, run_number: 667, status: IN_PROGRESS}
+  runtime_integration_observed: false
+  post_integration_reaudit: false
+active_work:
+  - "Verify CI 667; repair residual executable failures."
+  - "Continue locally reproducible H1-H5 replay/fixture/contract testing."
+  - "Re-audit after every material repair and persist derived tasks."
+completed_work:
+  - "CI-001 repaired: registry test matches canonical three-path implementation list."
+  - "CI-002 repaired: SERPIENTE identity canonicalized to serpiente:prediction:<prediction_id>."
+  - "MissionEvolutionRuntime/invocation boundary inspected; local discovery, authority, envelope, admission persistence/CAS and zero-context validation confirmed as existing capabilities."
+external_boundary:
+  status: NOT_ESTABLISHED
+  capability: "True multi-process mission leases and transactional live-state writes through an external host/orchestrator."
+  local_work_exhausted: false
+  remaining_property: "Distributed execution and transactional orchestration evidence."

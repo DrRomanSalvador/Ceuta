@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ceutia/contracts/v1/discovery-candidate.schema.json",
+  "title": "Discovery Candidate",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["candidate_id", "trigger_type", "observations", "scientific_question", "hypothesis_ids", "falsification_required", "status", "provenance"],
+  "properties": {
+    "candidate_id": {"type": "string", "minLength": 1},
+    "trigger_type": {"enum": ["ANOMALY", "SIGNAL", "DISCREPANCY", "WEAK_SIGNAL"]},
+    "observations": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+    "scientific_question": {"type": "string", "minLength": 1},
+    "hypothesis_ids": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+    "falsification_required": {"const": true},
+    "status": {"enum": ["CANDIDATE", "UNDER_TEST", "SUPPORTED", "FALSIFIED", "INCONCLUSIVE", "TRANSFERRED", "REJECTED"]},
+    "promotion_evidence_ids": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "falsification_result_refs": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "provenance": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}
+  },
+  "allOf": [
+    {"if": {"properties": {"status": {"const": "SUPPORTED"}}}, "then": {"required": ["promotion_evidence_ids", "falsification_result_refs"], "properties": {"promotion_evidence_ids": {"minItems": 1}, "falsification_result_refs": {"minItems": 1}}}}
+  ]
+}

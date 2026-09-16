@@ -1,0 +1,427 @@
+schema_version: "1.0"
+mission: "MISSION_13_NOTARIO"
+audit: "SECOND_ORDER_SYSTEM_QUALITY_AUDIT"
+scope: "collective_intelligence_and_second_order_system_quality"
+constitutional_rules_reaudited: false
+new_mission_created: false
+status: "AUDIT_COMPLETE_ARTIFACT_PERSISTED"
+repository_basis:
+  main_commit: "47bdd7db9089884a28ced56fd04e6b7f7be18233"
+  constitution_branch_commit: "8b85b048c01390f8674604802d94fdc14c503265"
+
+statuses:
+  - EXISTING
+  - PARTIAL
+  - MISSING
+  - REDUNDANT
+  - CONTRADICTORY
+  - NOT_APPLICABLE
+  - REQUIRES_RESEARCH
+  - REJECTED_AS_NON_VALUE_ADDING
+
+capabilities:
+  - id: discovery_funnel
+    status: MISSING
+    evidence:
+      - backend/app/core/epistemology_p0/advanced/hypotheses.py
+      - backend/app/core/serpiente/weak_signals.py
+      - backend/app/core/serpiente/hypothesis_engine.py
+    gap: "No canonical organization-wide anomaly-to-discovery-candidate intake and routing lifecycle."
+    action: "ENGINEERING_HANDOFF"
+    priority: P0
+
+  - id: hypothesis_generation
+    status: EXISTING
+    evidence:
+      - backend/app/core/epistemology_p0/advanced/hypotheses.py
+      - backend/app/core/serpiente/hypothesis_engine.py
+    gap: "Transversal intake is missing; hypothesis validation is stronger than hypothesis discovery orchestration."
+    action: "EXTEND_EXISTING"
+    priority: P1
+
+  - id: active_falsification
+    status: EXISTING
+    evidence:
+      - backend/app/core/science/falsification.py
+      - contracts/v1/falsification-result.schema.json
+      - backend/app/core/causal/falsification.py
+    gap: "No demonstrated universal trigger linking material hypotheses to mandatory disconfirmatory search."
+    action: "RESEARCH_AND_GOVERNANCE"
+    priority: P1
+
+  - id: alternative_explanations
+    status: EXISTING
+    evidence:
+      - backend/app/core/epistemology_p0/advanced/hypotheses.py
+    gap: "No organization-wide longitudinal analytics of alternative survival and elimination."
+    action: "EXTEND_EXISTING"
+    priority: P1
+
+  - id: cognitive_diversity
+    status: PARTIAL
+    evidence:
+      - backend/app/core/system_intelligence.py
+      - docs/missions/MISSION_COLLABORATION_GRAPH.md
+    gap: "Diversity of agent, model, source, assumptions, data and pipeline is not jointly represented as a transversal property."
+    action: "REQUIRES_RESEARCH"
+    priority: P2
+
+  - id: evidence_independence
+    status: REDUNDANT
+    evidence:
+      - backend/app/core/epistemology_p0/sources/independence.py
+      - backend/app/core/evidence/dependence_graph.py
+    gap: "Two overlapping source-dependence implementations require canonicalization research."
+    action: "RESEARCH_REQUIRED"
+    priority: P1
+
+  - id: productive_disagreement
+    status: PARTIAL
+    evidence:
+      - backend/app/core/evidence/conflicts.py
+      - backend/app/core/evidence/conflict_resolution.py
+      - backend/app/core/decision/control_plane.py
+      - backend/app/core/system_intelligence.py
+    gap: "No transversal typed disagreement lifecycle preserving minority hypotheses and discriminative-test state."
+    action: "ENGINEERING_HANDOFF"
+    priority: P0
+
+  - id: value_of_information
+    status: EXISTING
+    evidence:
+      - backend/app/core/decision/value_of_information.py
+      - backend/app/core/decision/voi_contract.py
+    gap: "Decision-local primitive; not a system-level research portfolio allocator."
+    action: "EXTEND_EXISTING"
+    priority: P1
+
+  - id: research_resource_allocation
+    status: PARTIAL
+    evidence:
+      - backend/app/core/decision/resource_optimizer.py
+      - backend/app/core/decision/optimization.py
+      - backend/app/core/decision/value_of_information.py
+    gap: "No demonstrated collective scheduler balancing information gain, impact, uncertainty, cost and exploration."
+    action: "REQUIRES_RESEARCH"
+    priority: P2
+
+  - id: stopping_rules
+    status: PARTIAL
+    evidence:
+      - backend/app/core/scientific/response_closure.py
+      - backend/app/core/decision/review_policy.py
+    gap: "No general material-research stopping contract based on marginal information value."
+    action: "RESEARCH_REQUIRED"
+    priority: P1
+
+  - id: anti_goodhart
+    status: PARTIAL
+    evidence:
+      - docs/METRICS_VARIANTS_POLICY.md
+      - backend/app/core/metrics.py
+      - tests/core/test_metrics_integrity.py
+      - docs/metrics_duplicate_inventory_skeleton.json
+    gap: "No transversal metric threat model covering gaming, proxy failure and reward hacking."
+    action: "ENGINEERING_HANDOFF"
+    priority: P1
+
+  - id: failure_learning
+    status: PARTIAL
+    evidence:
+      - backend/app/core/governance/incident_ledger.py
+      - backend/app/core/knowledge/audit.py
+      - backend/app/core/adversarial_validation.py
+      - docs/verification/2026-09-10-adversarial-fix.md
+    gap: "Failures are recorded, but generalization from failure to reusable rule/pattern/test is not a demonstrated universal loop."
+    action: "EXTEND_EXISTING"
+    priority: P1
+
+  - id: scientific_regression
+    status: PARTIAL
+    evidence:
+      - backend/app/core/evidence/longitudinal_validation.py
+      - backend/app/core/knowledge/versioning.py
+      - backend/app/core/provenance/lineage.py
+    gap: "No canonical claim-level invalidation and downstream revalidation traversal."
+    action: "ENGINEERING_HANDOFF"
+    priority: P0
+
+  - id: knowledge_impact_graph
+    status: MISSING
+    evidence:
+      - backend/app/core/evidence/dependence_graph.py
+      - backend/app/core/decision/lineage.py
+      - backend/app/core/scientific/traceability_builder.py
+    gap: "Existing graphs are specialized; no unified SOURCE→CLAIM→MODEL→RESULT→DECISION→OUTCOME impact graph."
+    action: "ENGINEERING_HANDOFF"
+    priority: P0
+
+  - id: blast_radius
+    status: MISSING
+    evidence:
+      - backend/app/core/decision/lineage.py
+      - backend/app/core/evidence/dependence_graph.py
+    gap: "No demonstrated reverse impact traversal from changed knowledge node to affected validations and decisions."
+    action: "ENGINEERING_HANDOFF"
+    priority: P0
+
+  - id: scientific_epistemic_debt
+    status: MISSING
+    evidence:
+      - work/RISKS.md
+      - work/OPEN_QUESTIONS.md
+      - docs/architecture/PROJECT_OBJECTIVES_AND_GAP_REGISTER_V0.md
+    gap: "No dedicated debt ledger with consequence, owner, ageing and repayment/revalidation state."
+    action: "ENGINEERING_HANDOFF"
+    priority: P1
+
+  - id: freshness_obsolescence
+    status: PARTIAL
+    evidence:
+      - backend/app/core/runtime/change_points.py
+      - backend/app/core/calibration/drift.py
+      - backend/app/core/ingestion/schema_drift.py
+      - backend/app/core/epistemology_p0/temporal/multitemporal.py
+    gap: "Drift mechanisms exist; transversal claim freshness and revalidation policy is missing."
+    action: "EXTEND_EXISTING"
+    priority: P1
+
+  - id: reality_anchor
+    status: PARTIAL
+    evidence:
+      - backend/app/core/system/closed_loop.py
+      - backend/app/core/system_intelligence.py
+      - backend/app/core/decision/outcome_semantics.py
+    gap: "World-facing evidence is represented, but claim-level reality validation status is not universal."
+    action: "EXTEND_EXISTING"
+    priority: P1
+
+  - id: outcome_learning
+    status: PARTIAL
+    evidence:
+      - backend/app/core/system/closed_loop.py
+      - backend/app/core/decision/feedback.py
+      - backend/app/core/decision/outcome_semantics.py
+    gap: "Structural loop exists; prospective attribution and organizational learning are not demonstrated universally."
+    action: "PROSPECTIVE_VALIDATION"
+    priority: P1
+
+  - id: counterfactual_learning
+    status: EXISTING
+    evidence:
+      - backend/app/core/decision/counterfactual_engine.py
+      - backend/app/core/causal/intervention.py
+      - backend/app/core/causal/identification.py
+    gap: "Domain applicability and identification remain problem-specific."
+    action: "KEEP_DOMAIN_SPECIFIC"
+    priority: P1
+
+  - id: ensemble_intelligence
+    status: PARTIAL
+    evidence:
+      - backend/app/core/serpiente/multimodel_forecaster.py
+      - backend/app/core/system_intelligence.py
+    gap: "Model plurality exists; no general marginal-value test for adding another agent/model."
+    action: "REQUIRES_RESEARCH"
+    priority: P2
+
+  - id: meta_evaluation
+    status: PARTIAL
+    evidence:
+      - backend/app/core/adversarial_validation.py
+      - backend/app/core/governance/validation.py
+      - backend/app/core/review.py
+    gap: "Validation systems exist, but validation-of-validation is not a first-class registry."
+    action: "EXTEND_EXISTING"
+    priority: P1
+
+  - id: longitudinal_capability_benchmark
+    status: MISSING
+    evidence:
+      - tests/
+      - .github/workflows/ci.yml
+      - .github/workflows/continuous-advance.yml
+    gap: "Large test corpus exists without a demonstrated stable capability benchmark measuring collective scientific properties."
+    action: "ENGINEERING_HANDOFF"
+    priority: P1
+
+  - id: capability_regression
+    status: MISSING
+    evidence:
+      - .github/workflows/ci.yml
+      - tests/
+    gap: "Regression is test-centric, not capability-centric."
+    action: "ENGINEERING_HANDOFF"
+    priority: P1
+
+  - id: emergent_capability
+    status: MISSING
+    evidence:
+      - backend/app/core/complex_systems/interaction_algebra.py
+      - backend/app/core/system_intelligence.py
+      - backend/app/core/system/self_observation.py
+    gap: "Interaction primitives exist, but no explicit emergent-capability registry and validation workflow exists."
+    action: "REQUIRES_RESEARCH"
+    priority: P2
+
+  - id: complexity_budget
+    status: PARTIAL
+    evidence:
+      - docs/architecture/REPOSITORY_GAP_AUDIT_V2.md
+      - docs/architecture/CEUTIA_EXHAUSTIVE_CAPABILITY_INVENTORY_V1.md
+    gap: "Architecture audits discuss gaps and capability; no quantified marginal capability vs complexity contract is demonstrated."
+    action: "REQUIRES_RESEARCH"
+    priority: P2
+
+  - id: documentation_fidelity
+    status: PARTIAL
+    evidence:
+      - docs/
+      - backend/
+      - .github/workflows/
+    gap: "Documentation and implementation are extensive, but automated coverage of docs↔runtime claims is not demonstrated."
+    action: "EXTEND_EXISTING"
+    priority: P1
+
+  - id: observer_observability
+    status: PARTIAL
+    evidence:
+      - backend/app/core/runtime/observability.py
+      - backend/app/core/runtime/self_monitoring.py
+      - backend/app/core/system/self_observation.py
+    gap: "Component observability exists; no demonstrated collective-intelligence observability view."
+    action: "EXTEND_EXISTING"
+    priority: P1
+
+  - id: negative_space
+    status: PARTIAL
+    evidence:
+      - backend/app/core/observation_boundary.py
+      - backend/app/core/evidence/missingness.py
+      - backend/app/core/information_boundary.py
+    gap: "Observation limits are modelled locally; no universal claim-level cannot-observe registry."
+    action: "EXTEND_EXISTING"
+    priority: P1
+
+  - id: unknown_unknown_detection
+    status: PARTIAL
+    evidence:
+      - backend/app/core/runtime/evidence_intelligence.py
+      - backend/app/core/runtime/sensing.py
+      - backend/app/core/serpiente/weak_signals.py
+      - backend/app/core/system/observer_effect.py
+    gap: "Signals and anomalies exist; no explicit unknown-unknown candidate lifecycle."
+    action: "REQUIRES_RESEARCH"
+    priority: P2
+
+  - id: scientific_long_memory
+    status: PARTIAL
+    evidence:
+      - backend/app/core/knowledge/versioning.py
+      - backend/app/core/governance/incident_ledger.py
+      - backend/app/core/adversarial_validation.py
+    gap: "Failures are retained in several systems but not consolidated as reusable failed-hypothesis/method memory."
+    action: "EXTEND_EXISTING"
+    priority: P1
+
+  - id: cross_mission_transfer
+    status: PARTIAL
+    evidence:
+      - docs/missions/MISSION_COLLABORATION_GRAPH.md
+      - docs/missions/MISSION_CONTRIBUTION_SCHEMA.json
+    gap: "Transfer interfaces exist; effectiveness of transfer is not measured."
+    action: "EXTEND_EXISTING"
+    priority: P1
+
+  - id: exploration_exploitation
+    status: REQUIRES_RESEARCH
+    evidence:
+      - backend/app/core/decision/value_of_information.py
+      - backend/app/core/decision/optimization.py
+      - docs/missions/MISSION_COVERAGE_MATRIX.md
+    gap: "No validated portfolio theory for balancing exploratory discovery with exploitation/closure."
+    action: "RESEARCH_FIRST"
+    priority: P2
+
+  - id: metric_threat_model
+    status: MISSING
+    evidence:
+      - backend/app/core/metrics.py
+      - docs/METRICS_VARIANTS_POLICY.md
+      - docs/metrics_duplicate_inventory_skeleton.json
+    gap: "No systematic Goodhart/proxy-gaming analysis across material metrics."
+    action: "ENGINEERING_HANDOFF"
+    priority: P1
+
+  - id: validation_of_validation
+    status: PARTIAL
+    evidence:
+      - backend/app/core/governance/validation.py
+      - backend/app/core/adversarial_validation.py
+      - backend/tests/
+    gap: "Independent validation exists; meta-validation is not itself represented as a first-class capability."
+    action: "RESEARCH_AND_DESIGN"
+    priority: P1
+
+  - id: claim_freshness_policy
+    status: MISSING
+    evidence:
+      - backend/app/core/runtime/change_points.py
+      - backend/app/core/epistemology_p0/temporal/multitemporal.py
+      - backend/app/core/knowledge/versioning.py
+    gap: "No canonical claim-level freshness/reevaluation object."
+    action: "ENGINEERING_HANDOFF"
+    priority: P1
+
+  - id: emergent_collective_intelligence_measurement
+    status: REQUIRES_RESEARCH
+    evidence:
+      - docs/missions/MISSION_COLLABORATION_GRAPH.md
+      - backend/app/core/complex_systems/interaction_algebra.py
+      - backend/app/core/decision/value_of_information.py
+    gap: "No validated measure distinguishing collective gain from parallel-agent aggregate output."
+    action: "RESEARCH_FIRST"
+    priority: P2
+
+rejected_as_non_value_adding:
+  - global_collective_intelligence_score
+  - universal_agent_quality_score
+  - fixed_agents_per_task
+  - automatic_consensus_to_truth
+  - mandatory_ensemble_everywhere
+  - universal_knowledge_expiration
+  - new_orchestration_hierarchy_for_second_order_quality
+  - additional_documents_without_distinct_operational_semantics
+  - additional_tests_without_distinct_property_coverage
+
+engineering_handoffs:
+  - id: H1
+    capability: knowledge_impact_graph
+    owner_candidate: INGENIERO
+    priority: P0
+    acceptance: "Upstream mutation identifies affected downstream claims/results/decisions and proportional revalidation obligations."
+  - id: H2
+    capability: discovery_funnel
+    owner_candidate: existing_epistemology_scientific_runtime
+    priority: P0
+    acceptance: "Anomaly persists as candidate discovery, routes to rival hypotheses and falsification, and cannot silently become validated knowledge."
+  - id: H3
+    capability: disagreement_lifecycle
+    owner_candidate: governance_evidence
+    priority: P0
+    acceptance: "Typed unresolved disagreement survives serialization and can produce a discriminative investigation without consensus collapse."
+  - id: H4
+    capability: capability_regression_benchmark
+    owner_candidate: QA_ENGINEERING_ARCHITECTURE
+    priority: P1
+    acceptance: "Release comparison reports gain/loss/change/fragility across stable capability benchmarks."
+  - id: H5
+    capability: scientific_epistemic_debt
+    owner_candidate: NOTARIO_PLUS_ENGINEERING
+    priority: P1
+    acceptance: "Material unvalidated claim creates a distinct debt item linked to affected knowledge and validation state."
+
+mission_evolution:
+  new_mission_justified: false
+  rationale: "Existing owners can extend current epistemology, evidence, provenance, governance, learning, metrics and QA surfaces."
+  re_evaluate_only_if: "An existing owner cannot implement a materially necessary capability without a distinct stable responsibility boundary."

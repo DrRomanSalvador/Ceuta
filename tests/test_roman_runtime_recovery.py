@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from app.missions.registry import MissionRegistry, MissionRegistryError
-from app.missions.execution import Checkpoint, ExecutionTask, UniversalExecutionRuntime
+from app.missions.execution import Checkpoint, ExecutionControlError, ExecutionTask, UniversalExecutionRuntime
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -36,6 +36,16 @@ def test_roman_canonical_invocation_enforces_authority():
         )
 
 
+def _roman_checkpoint(task_id: str, state_version: str, checkpoint_id: str = "ROMAN-CP-001") -> Checkpoint:
+    return Checkpoint(
+        checkpoint_id=checkpoint_id, mission_id="ROMAN", mission_version="1.0.0", agent_id="ROMAN",
+        execution_id="ROMAN-EXEC-001", task_id=task_id, subtask="runtime-recovery", state="RUNNING",
+        state_version=state_version, last_result="CLAIMED", last_verified_revision="test-revision",
+        last_test_evidence=("canonical ROMAN runtime",), next_authorized_action="RECOVER_AND_CONTINUE",
+        dependencies=(), blockers=(), delegated_tasks=(), processes=(), created_at="2026-09-16T16:00:00+02:00",
+    )
+
+
 def test_roman_universal_execution_recovery_and_idempotency(tmp_path: Path):
     runtime = UniversalExecutionRuntime(tmp_path)
     task = ExecutionTask(
@@ -45,13 +55,7 @@ def test_roman_universal_execution_recovery_and_idempotency(tmp_path: Path):
     )
     version = runtime.register_task(task)
     version = runtime.claim_task(task.task_id, expected_version=version)
-    checkpoint = Checkpoint(
-        checkpoint_id="ROMAN-CP-001", mission_id="ROMAN", mission_version="1.0.0", agent_id="ROMAN",
-        execution_id="ROMAN-EXEC-001", task_id=task.task_id, subtask="runtime-recovery", state="RUNNING",
-        state_version=version, last_result="CLAIMED", last_verified_revision="test-revision",
-        last_test_evidence=("canonical ROMAN runtime",), next_authorized_action="RECOVER_AND_CONTINUE",
-        dependencies=(), blockers=(), delegated_tasks=(), processes=(), created_at="2026-09-16T16:00:00+02:00",
-    )
+    checkpoint = _roman_checkpoint(task.task_id, version)
     after = runtime.checkpoint(checkpoint, expected_version=version)
     recovered = runtime.zero_context_reconstruct(task.task_id)
     assert recovered["task"]["mission_id"] == "ROMAN"
@@ -61,7 +65,35 @@ def test_roman_universal_execution_recovery_and_idempotency(tmp_path: Path):
     assert runtime.checkpoint(checkpoint, expected_version=after) == after
 
 
-def test_universal_execution_state_must_not_claim_canonical_roman_identity():
+def test_roman_stale_state_version_is_rejected(tmp_path: Path):
+    runtime = UniversalExecutionRuntime(tmp_path)
+    task = ExecutionTask("ROMAN-TASK-STALE", "ROMAN", "stale CAS rejection", (), (), ("CAS",))
+    version = runtime.register_task(task)
+    newer = runtime.claim_task(task.task_id, expected_version=version)
+    assert newer != version
+    with pytest.raises(ExecutionControlError, match="STALE_STATE_VERSION"):
+        runtime.claim_task(task.task_id, expected_version=version)
+
+
+def test_roman_checkpoint_id_collision_is_rejected(tmp_path: Path):
+    runtime = UniversalExecutionRuntime(tmp_path)
+    task = ExecutionTask("ROMAN-TASK-COLLISION", "ROMAN", "checkpoint collision", (), (), ("collision",))
+    version = runtime.register_task(task)
+    version = runtime.claim_task(task.task_id, expected_version=version)
+    first = _roman_checkpoint(task.task_id, version, "ROMAN-CP-COLLISION")
+    version = runtime.checkpoint(first, expected_version=version)
+    conflicting = Checkpoint(
+        checkpoint_id="ROMAN-CP-COLLISION", mission_id="ROMAN", mission_version="1.0.0", agent_id="ROMAN",
+        execution_id="DIFFERENT-EXECUTION", task_id=task.task_id, subtask="runtime-recovery", state="RUNNING",
+        state_version=version, last_result="DIFFERENT", last_verified_revision="different-revision",
+        last_test_evidence=("adversarial collision",), next_authorized_action="STOP",
+        dependencies=(), blockers=(), delegated_tasks=(), processes=(), created_at="2026-09-16T16:01:00+02:00",
+    )
+    with pytest.raises(ExecutionControlError, match="CHECKPOINT_ID_COLLISION"):
+        runtime.checkpoint(conflicting, expected_version=version)
+
+
+def test_roman_universal_execution_state_must_not_claim_canonical_roman_identity():
     state = (ROOT / "docs/missions/UNIVERSAL_EXECUTION_STATE.json").read_text()
     assert '"control_id": "UNIVERSAL_EXECUTION_CONTROL"' in state
     assert '"mission_status": "COMPLETE"' in state

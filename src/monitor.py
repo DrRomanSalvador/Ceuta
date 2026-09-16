@@ -14,6 +14,7 @@ from .data_fetcher import DataFetcher
 from .risk_calculator import RiskCalculator
 from .alert_system import AlertSystem
 from .risk_calculator import RiskResult
+from .response_coupling import ResponseBinding
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -30,11 +31,11 @@ class CeutaMonitor:
     5. Repetir en intervalo configurado
     """
     
-    def __init__(self, config: SystemConfig = None):
+    def __init__(self, config: SystemConfig = None, response_sink=None):
         self.config = config or SystemConfig()
         self.data_fetcher = DataFetcher(self.config)
         self.risk_calculator = RiskCalculator(self.config)
-        self.alert_system = AlertSystem(self.config)
+        self.alert_system = AlertSystem(self.config, response_sink=response_sink)
         
         self.last_risk_result: Optional[RiskResult] = None
         self.is_running = False
@@ -70,6 +71,10 @@ class CeutaMonitor:
         
         logger.info(f"Ciclo completado. Riesgo: {risk_result.risk_score:.4f} ({risk_result.alert_level})")
         return risk_result
+
+    def record_alert_response(self, alert, binding: ResponseBinding, *, actor: str, timestamp: str) -> dict:
+        """Bind a real response to an emitted alert using explicit identities."""
+        return self.alert_system.record_response(alert, binding, actor=actor, timestamp=timestamp)
     
     def start_continuous(self, interval_hours: int = 6):
         """

@@ -1,0 +1,20 @@
+{
+  "checkpoint_id":"ROMAN_SUCCESSION_CHECKPOINT_004",
+  "mission_id":"ROMAN",
+  "checkpoint_type":"CHECKPOINT_POST_ACTION",
+  "created_at":"2026-09-16T16:47:00+02:00",
+  "pre_action_checkpoint":"ROMAN_SUCCESSION_CHECKPOINT_003",
+  "action":"Synchronize canonical ROMAN state metadata with the succession checkpoint chain.",
+  "result":"PERSISTED",
+  "state_commit":"dfb42d40cb87229fd19ff3f2788e90a5232f8953",
+  "canonical_state":"docs/missions/roman/ROMAN_MISSION_STATE.json",
+  "canonical_status":"ACTIVE",
+  "historical_universal_execution_control":"PRESERVED_AS_SEPARATE_VALIDATED_CONTROL_CAPABILITY",
+  "canonical_roman_runtime_validation":"PENDING",
+  "open_roman_owned_executable_work":0,
+  "global_work_owned_by_other_missions":true,
+  "external_boundaries_explicit":true,
+  "ingeniero":"UNKNOWN_UNRESOLVED_BY_AVAILABLE_EVIDENCE",
+  "next_action":"Repository-side ROMAN discovery/contract validation when an adequate test harness is available; no duplication of MISSION-01/ESPÍA work and no upgrade of external/unknown states.",
+  "succession_ready":true
+}

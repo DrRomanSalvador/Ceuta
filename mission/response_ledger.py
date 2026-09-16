@@ -12,7 +12,7 @@ try:
 except ImportError:  # pragma: no cover
     fcntl = None
 
-from .event_log import append_payload
+from .event_log import append_payload, load_jsonl, validate_chain
 
 EXECUTION_STATES={"NO_RESPONSE","EXECUTED","DELAYED_OUTSIDE_WINDOW","NOT_EXECUTED"}
 CAUSAL_STATUSES={"NOT_ASSESSED","DESCRIPTIVE_ONLY","IDENTIFICATION_INSUFFICIENT","IDENTIFICATION_SUPPORTED"}
@@ -69,12 +69,22 @@ def validate_response_record(record:dict[str,Any])->None:
         if not record["response_horizon"]: raise ValueError("Causal effectiveness requires a predeclared response horizon")
     if record["causal_status"] in {"IDENTIFICATION_SUPPORTED","IDENTIFICATION_INSUFFICIENT"} and record["execution_status"]=="NO_RESPONSE": raise ValueError("Response effectiveness cannot be evaluated as an executed intervention when no response occurred")
 
+def _matching_event(event_log:Path, *, mission_id:str, actor:str, timestamp:str, record:dict[str,Any])->dict[str,Any]|None:
+    if not event_log.exists(): return None
+    for event in load_jsonl(event_log):
+        if event["event_type"]=="RESPONSE_COUPLING_RECORDED" and event["mission_id"]==mission_id and event["actor"]==actor and event["timestamp"]==timestamp and event["payload"]==dict(record):
+            return event
+    return None
+
 def append_response(path:Path,event_log:Path,record:dict[str,Any],*,actor:str,timestamp:str)->dict[str,Any]:
     validate_response_record(record)
     if not actor or not timestamp: raise ValueError("Response mutation requires actor and timestamp")
     with _locked(path):
         data=_load(path)
-        if any(x.get("response_id")==record["response_id"] for x in data["records"]): raise ValueError("Duplicate response_id")
-        event=append_payload(event_log,event_type="RESPONSE_COUPLING_RECORDED",mission_id=record["mission_id"],actor=actor,timestamp=timestamp,payload=dict(record))
+        existing=next((x for x in data["records"] if x.get("response_id")==record["response_id"]),None)
+        if existing is not None: raise ValueError("Duplicate response_id")
+        event=_matching_event(event_log,mission_id=record["mission_id"],actor=actor,timestamp=timestamp,record=record)
+        if event is None:
+            event=append_payload(event_log,event_type="RESPONSE_COUPLING_RECORDED",mission_id=record["mission_id"],actor=actor,timestamp=timestamp,payload=dict(record))
         persisted={**record,"mutation_event_id":event["event_id"]}
         data["records"].append(persisted); _write(path,data); return persisted

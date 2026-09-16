@@ -62,5 +62,6 @@
     "INTEGRATED_BY": null,
     "AUTHORIZED_BY": null
   },
-  "last_verified_repository_commit": "e8b8c0c6e1a0b3c9b8f4d1d2a9d7a0f0e5b2c1a4"
+  "last_verified_repository_commit": "08f0392e1897eeca28a20f9636403977a9780e23",
+  "checkpoint_commit": "2dac2b14be1b818e1a7d482d1ecef9413656ab73"
 }

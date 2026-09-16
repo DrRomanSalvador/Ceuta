@@ -1,0 +1,21 @@
+{
+  "registry_id": "CEUTIA_SERPIENTE_SCIENTIFIC_EVIDENCE_REGISTRY",
+  "schema_version": "1.0.0",
+  "status": "ACTIVE",
+  "purpose": "Canonical persistent intake and integration record for bibliographic, methodological, dataset, standard and other scientific evidence affecting CeutIA/SERPIENTE.",
+  "owner": "INGENIERO",
+  "intake_contract": {
+    "every_new_source_is_pending_evaluation": true,
+    "required_classification": ["EXISTE_REUTILIZAR", "PARCIAL_EXTENDER", "INSUFICIENTE_PERFECCIONAR", "OBSOLETO_ACTUALIZAR", "DUPLICADO_CONSOLIDAR", "AUSENTE_CREAR", "NO_JUSTIFICADO_RECHAZAR"],
+    "required_assessment": ["knowledge_delta", "methodological_strengths", "limitations", "existing_system_coverage", "affected_layer", "required_contracts_or_components", "scientific_consequences", "open_validation_questions"],
+    "source_is_instruction": false,
+    "source_is_validation_by_default": false,
+    "silent_architectural_change_forbidden": true
+  },
+  "record_schema": {
+    "required_fields": ["evidence_id", "source", "date", "scope", "evidence_quality", "relevance", "affected_objects", "integration_decision", "derived_changes", "validation_state", "contradictions", "limitations", "implementation_traceability", "provenance"],
+    "optional_fields": ["owner", "methodology", "population", "denominator", "variable", "timestamp_semantics", "frequency", "latency", "revision_policy", "historical_depth", "access", "reproducibility", "upstream_dependencies", "external_validation_reference"]
+  },
+  "items": [],
+  "future_fragment_rule": "Append and reconcile; never replace prior evidence records silently."
+}

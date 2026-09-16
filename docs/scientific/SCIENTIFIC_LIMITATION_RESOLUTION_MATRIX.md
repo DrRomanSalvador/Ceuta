@@ -74,9 +74,24 @@ Scientific remainder: prospective calibration and uncertainty transport are empi
 
 ## Traceability amendments
 
+- `SL-01/SL-02`: `limitation_controls.py` adds deterministic PIT manifests, dependency eligibility, feature fingerprints and fail-closed rejection of outcome/future-derived dependencies.
+- `SL-03`: the same module adds immutable baseline identities with training/feature cutoffs; retrospective mutation of a baseline identity is rejected.
+- `SL-04`: `cluster_bootstrap_mean` and aggregate prediction evaluation now report uncertainty at a declared dependence unit rather than assuming row independence.
+- `SL-08`: `binary_calibration` reports Brier score, log loss, calibration gap and ECE while explicitly retaining `PROSPECTIVE_VALIDITY_STATUS=NOT_ESTABLISHED`.
 - `SL-07`: causal identification logic now explicitly separates internal identification from falsification diagnostics and transportability. Negative controls are not treated as universal identification prerequisites.
-- The corresponding adversarial tests verify that missing negative controls do not silently block an otherwise internally identified estimand, while an unaddressed backdoor candidate still blocks identification.
-- Engineering closure remains independent from the scientific claim of prospective causal validity.
+- Corresponding adversarial tests cover future dependencies, revision identity, immutable baselines, clustered resampling, calibration status, missing negative controls and unaddressed backdoor candidates.
+- Engineering closure remains independent from the scientific claim of prospective predictive or causal validity.
+
+## Second-order review state
+
+The resolution work has surfaced four material second-order boundaries that remain explicitly controlled rather than silently assumed resolved:
+
+1. PIT controls can prove eligibility and reproducible fingerprints for declared lineage, but cannot prove absence of undisclosed upstream preprocessing outside the manifest.
+2. Dependence-aware inference can enforce the declared unit, but selecting the correct independent unit remains a property of the target-generating process and study design.
+3. Calibration diagnostics can be computed correctly on held-out/replay data, but calibration transport to future regimes and populations remains empirical.
+4. Causal identification gates can prevent unsupported causal promotion, but identification assumptions and empirical causal support remain study-specific.
+
+No second-order finding currently reopens a closed engineering surface.
 
 ## Current engineering-scientific boundary
 

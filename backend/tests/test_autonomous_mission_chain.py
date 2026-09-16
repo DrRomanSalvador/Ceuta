@@ -1,4 +1,6 @@
 from dataclasses import replace
+import subprocess
+import sys
 
 from backend.app.missions.autonomous_chain import (
     AutonomousChainError,
@@ -11,9 +13,9 @@ from backend.app.missions.autonomous_chain import (
 )
 
 
-def _task() -> TaskCandidate:
+def _task(task_id: str = "task-1") -> TaskCandidate:
     return TaskCandidate(
-        task_id="task-1",
+        task_id=task_id,
         why_this_task="A validated contradiction requires a discriminative test.",
         why_now="The contradiction affects a downstream capability.",
         expected_value="MATERIAL",
@@ -70,16 +72,8 @@ def test_material_modification_requires_revalidation() -> None:
 
 
 def test_generated_result_never_counts_as_provenance_free_activation() -> None:
-    bad = TaskCandidate(
-        task_id="task-2",
-        why_this_task="derived",
-        why_now="now",
-        expected_value="MATERIAL",
-        acceptance_criteria=("done",),
-        stop_condition="done",
-        capability_required=("X",),
-        source_event_refs=(),
-    )
+    bad = _task("task-2")
+    bad = replace(bad, source_event_refs=())
     try:
         AutonomousMissionChain.validate_task(bad)
     except AutonomousChainError as exc:
@@ -127,6 +121,49 @@ def test_work_queue_rejects_duplicate_work_items() -> None:
         raise AssertionError("a work item cannot occupy two queue states")
 
 
+def test_zero_context_replay_is_deterministic() -> None:
+    task_a = _task("task-a")
+    task_b = _task("task-b")
+    candidates = {
+        "task-a": (
+            MissionCandidate("MISSION-B", True, True, True, True, True, True, 5, 1, 0, 0),
+            MissionCandidate("MISSION-A", True, True, True, True, True, True, 5, 1, 0, 0),
+        ),
+        "task-b": (
+            MissionCandidate("MISSION-C", True, True, True, True, True, True, 6, 2, 0, 0),
+        ),
+    }
+    first = AutonomousMissionChain.replay_selection_trace((task_a, task_b), candidates)
+    second = AutonomousMissionChain.replay_selection_trace((task_a, task_b), candidates)
+    assert first == second
+    assert tuple(decision.selected_mission for decision in first) == ("MISSION-A", "MISSION-C")
+
+
+def test_replay_rejects_duplicate_task_identity() -> None:
+    task = _task("duplicate")
+    try:
+        AutonomousMissionChain.replay_selection_trace((task, task), {})
+    except AutonomousChainError as exc:
+        assert "REPLAY_DUPLICATE_TASK" in str(exc)
+    else:
+        raise AssertionError("replay must reject duplicate task identity")
+
+
+def test_isolated_subprocess_can_reconstruct_core_policy_without_live_state() -> None:
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "from backend.app.missions.autonomous_chain import AutonomousMissionChain; "
+            "assert AutonomousMissionChain.circuit_break('isolated', recursion_depth=8)",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+
+
 def test_full_fixed_point_includes_processes_contradictions_and_discovery() -> None:
     closed = FixedPointState(
         executable_open_work=0,
@@ -139,6 +176,8 @@ def test_full_fixed_point_includes_processes_contradictions_and_discovery() -> N
     )
     assert AutonomousMissionChain.fixed_point_state(closed)
     assert not AutonomousMissionChain.fixed_point_state(replace(closed, active_internal_processes=1))
+    assert not AutonomousMissionChain.fixed_point_state(replace(closed, unresolved_critical_contradictions=1))
+    assert not AutonomousMissionChain.fixed_point_state(replace(closed, unprocessed_high_value_discovery=1))
 
 
 def test_fixed_point_legacy_arguments_remain_compatible() -> None:

@@ -11,7 +11,7 @@ EXACT_REPLAY_TYPES = {
     "WORK_CLAIM_ACQUIRED", "WORK_CLAIM_RELEASED", "HANDOFF_LIFECYCLE", "HANDOFF_STATE",
     "MISSION_CONTRIBUTION", "CONTRIBUTION_RECORDED", "MISSION_CONTRADICTION",
     "CONTRADICTION_RECORDED", "RESPONSE_COUPLING_RECORDED", "MATERIALIZED_STATE_CAS",
-    "MISSION_RETIREMENT", "MISSION_RECOVERY",
+    "MISSION_RETIREMENT", "MISSION_RECOVERY", "SCIENTIFIC_EXECUTION",
 }
 
 
@@ -70,8 +70,6 @@ def audit(root: Path) -> dict:
                 event_type = _event_type_keyword(node)
                 enclosing = _enclosing_function(node, parents)
                 if event_type is None:
-                    # lifecycle_governance._event is a canonical wrapper whose
-                    # callers supply the concrete event type; audit those callers below.
                     if enclosing is not None and enclosing.name == "_event":
                         continue
                     dynamic_event_types.append({"path": str(path.relative_to(root)), "line": node.lineno})

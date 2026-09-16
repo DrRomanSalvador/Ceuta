@@ -1,0 +1,22 @@
+{
+  "schema_version":"1.0",
+  "mission_id":"ROMAN",
+  "artifact_type":"MISSION_HANDOFF",
+  "required_fields":["handoff_id","source_mission","target_mission","timestamp","proposition","operation","evidence_level","source_refs","assumptions","validation_status","unresolved_uncertainty","conflict_status","next_action"],
+  "incoming":{
+    "BIBLIOTECARIO":"authorial source discovery and provenance packets",
+    "ESPÍA":"scientific-methodological structures relevant to Roman's intellectual architecture",
+    "FORJA":"mathematical/statistical verification requests",
+    "GROK":"adversarial/falsification findings",
+    "NOTARIO":"evidence and provenance classification"
+  },
+  "outgoing":{
+    "ESPÍA":"how scientific ideas are used, connected and transformed within the authorial model",
+    "FORJA":"claims requiring formal mathematical/statistical verification",
+    "GROK":"interpretations requiring adversarial testing",
+    "INGENIERO":"infrastructure or contract requirements",
+    "NOTARIO":"evidence/provenance questions"
+  },
+  "persistence_rule":"Handoffs are append-only/versioned artifacts; conflicts are preserved and reconciled explicitly.",
+  "identity_rule":"A handoff never transfers ownership of another mission's identity or authority."
+}

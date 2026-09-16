@@ -1,0 +1,10 @@
+{
+  "mission_id":"ROMAN",
+  "authority_model":"least_privilege",
+  "permissions":{"CAN_DISCOVER":true,"CAN_INVOKE":true,"CAN_READ":true,"CAN_PROPOSE":true,"CAN_MODIFY_MISSION_STATE":true,"CAN_MODIFY_MASTER_STATE":false,"CAN_MODIFY_OTHER_MISSION_STATE":false,"CAN_VALIDATE_AUTHORIAL_DOMAIN":true,"CAN_AUTHORIZE":false},
+  "scope":"authorial/intellectual architecture of Román based on authorized evidence",
+  "non_scope":["control-plane ownership","other mission identity","global voice","psychological diagnosis","invented biography","untraceable personal memory","political spokesperson function"],
+  "identity_invariant":"MISSION_IDENTITY > ROMAN_AUTHORIAL_MODEL",
+  "generation_invariant":"GENERATED_BY_ROMAN_MISSION != AUTHENTIC_ROMAN_SOURCE",
+  "authority_escalation":"No automatic escalation from invocation to modification or authorization."
+}

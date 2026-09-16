@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 import json
 from pathlib import Path
 
@@ -61,15 +62,14 @@ def test_invocation_preserves_requester_authority_and_returns_control(tmp_path: 
 
 def test_unauthorized_invocation_fails_closed(tmp_path: Path) -> None:
     runtime_instance = runtime(tmp_path)
-    denied = request()
-    denied = CollaborationRequest(**{**denied.__dict__, "authority": {"CAN_INVOKE": False}})
+    denied = replace(request(), authority={"CAN_INVOKE": False})
     with pytest.raises(ApoyoError, match="REQUEST_AUTHORITY_DENIED"):
         runtime_instance.invoke(denied)
 
 
 def test_unknown_requesting_mission_fails_closed(tmp_path: Path) -> None:
     runtime_instance = runtime(tmp_path)
-    unknown = CollaborationRequest(**{**request().__dict__, "requesting_mission": "NOT_A_MISSION"})
+    unknown = replace(request(), requesting_mission="NOT_A_MISSION")
     with pytest.raises(ApoyoError, match="REQUESTING_MISSION_NOT_DISCOVERABLE"):
         runtime_instance.invoke(unknown)
 

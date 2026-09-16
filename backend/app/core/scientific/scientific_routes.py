@@ -15,7 +15,6 @@ from .prediction_evaluation import aggregate_prediction_evaluation
 from .prediction_outcome_evaluation import record_prediction_outcome
 from .prediction_persistence import replay_prediction
 
-
 router = APIRouter(prefix="/scientific", tags=["scientific"])
 DECISION_KEY_HEADER = "X-CeutIA-Decision-Key"
 
@@ -29,6 +28,19 @@ class PredictionOutcomeRequest(BaseModel):
     outcome_time: datetime
     observed: int = Field(ge=0, le=1)
     provenance: list[str] = Field(min_length=1)
+    source_id: str = Field(min_length=1)
+    source_version: str = Field(min_length=1)
+    observation_time: datetime
+    availability_time: datetime
+    ascertainment_time: datetime
+    revision_id: str = Field(min_length=1)
+    measurement_process_id: str = Field(min_length=1)
+    outcome_definition_version: str = Field(min_length=1)
+    transformation_id: str = Field(min_length=1)
+    censoring_status: str = "NONE"
+    missingness_status: str = "OBSERVED"
+    selection_status: str = "NONE"
+    intervention_exposure_id: str | None = None
 
 
 def _authorize(request: Request) -> JSONResponse | None:
@@ -74,12 +86,26 @@ async def record_scientific_prediction_outcome(request: Request, payload: Predic
     denied = _authorize(request)
     if denied is not None:
         return denied
-    if payload.outcome_time.tzinfo is None or payload.outcome_time.utcoffset() is None:
-        return JSONResponse(status_code=422, content={"error": "outcome_time must be timezone-aware"})
+    for field_name in ("outcome_time", "observation_time", "availability_time", "ascertainment_time"):
+        value = getattr(payload, field_name)
+        if value.tzinfo is None or value.utcoffset() is None:
+            return JSONResponse(status_code=422, content={"error": f"{field_name} must be timezone-aware"})
     try:
         connection = sqlite3.connect(_database_path(), timeout=10.0)
         try:
-            result = record_prediction_outcome(connection, prediction_id=payload.prediction_id, decision_id=payload.decision_id, action_id=payload.action_id, outcome_id=payload.outcome_id, target=payload.target, outcome_time=payload.outcome_time, observed=payload.observed, provenance=tuple(payload.provenance))
+            result = record_prediction_outcome(
+                connection, prediction_id=payload.prediction_id, decision_id=payload.decision_id,
+                action_id=payload.action_id, outcome_id=payload.outcome_id, target=payload.target,
+                outcome_time=payload.outcome_time, observed=payload.observed, provenance=tuple(payload.provenance),
+                source_id=payload.source_id, source_version=payload.source_version,
+                observation_time=payload.observation_time, availability_time=payload.availability_time,
+                ascertainment_time=payload.ascertainment_time, revision_id=payload.revision_id,
+                measurement_process_id=payload.measurement_process_id,
+                outcome_definition_version=payload.outcome_definition_version,
+                transformation_id=payload.transformation_id, censoring_status=payload.censoring_status,
+                missingness_status=payload.missingness_status, selection_status=payload.selection_status,
+                intervention_exposure_id=payload.intervention_exposure_id,
+            )
         finally:
             connection.close()
     except KeyError as exc:

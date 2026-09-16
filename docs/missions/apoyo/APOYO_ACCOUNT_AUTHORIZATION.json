@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0",
+  "control_id": "APOYO_ACCOUNT_AUTHORIZATION",
+  "status": "NOT_CONFIGURED",
+  "required_account_count": 3,
+  "authorized_accounts": [null, null, null],
+  "source_of_truth": "EXTERNAL_ROOT_OF_TRUST",
+  "repository_may_define_policy": true,
+  "repository_may_invent_account_identity": false,
+  "fail_closed": true,
+  "validation": {
+    "required": ["exactly_three_verified_accounts", "authorized", "available", "runtime_permitted", "within_concurrency_limit"],
+    "unknown_account_is_authorized": false,
+    "technical_access_implies_authorization": false
+  }
+}

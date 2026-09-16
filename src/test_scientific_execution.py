@@ -18,13 +18,7 @@ from .scientific_execution import (
 class ScientificExecutionTests(unittest.TestCase):
     def test_execution_record_is_reproducible_and_point_in_time_bound(self) -> None:
         origin = datetime(2026, 9, 16, 12, tzinfo=UTC)
-        record = build_execution_record(
-            execution_id="exec-1", capability_id="forecast-1", epistemic_boundary=ScientificBoundary.PREDICTIVE,
-            input_ids=["x1", "x2"], source_ids=["source-1"], model_version="model-v1",
-            data_vintage="2026-09-16T11:00Z", configuration={"horizon": 1}, parameters={"alpha": 0.1},
-            code_revision="abc123", environment="python-3.12", executed_at=origin + timedelta(minutes=1),
-            output={"p": 0.4}, prediction_origin=origin,
-        )
+        record = build_execution_record(execution_id="exec-1", capability_id="forecast-1", epistemic_boundary=ScientificBoundary.PREDICTIVE, input_ids=["x1", "x2"], source_ids=["source-1"], model_version="model-v1", data_vintage="2026-09-16T11:00Z", configuration={"horizon": 1}, parameters={"alpha": 0.1}, code_revision="abc123", environment="python-3.12", executed_at=origin + timedelta(minutes=1), output={"p": 0.4}, prediction_origin=origin)
         self.assertEqual(record.execution_state, ScientificExecutionState.EXECUTED)
         self.assertEqual(record.output_digest, canonical_digest({"p": 0.4}))
         require_point_in_time([origin - timedelta(seconds=1)], origin)
@@ -54,7 +48,7 @@ class ScientificExecutionTests(unittest.TestCase):
         self.assertAlmostEqual(mean_absolute_calibration_error([0.1, 0.2, 0.8, 0.9], [0, 0, 1, 1], bins=2), 0.15)
 
     def test_calibration_slope_is_identifiable_and_positive(self) -> None:
-        slope = calibration_slope([0.1, 0.2, 0.3, 0.7, 0.8, 0.9], [0, 0, 0, 1, 1, 1])
+        slope = calibration_slope([0.1, 0.2, 0.3, 0.7, 0.8, 0.9], [0, 1, 0, 1, 0, 1])
         self.assertGreater(slope, 0)
 
     def test_calibration_slope_rejects_unidentified_case(self) -> None:

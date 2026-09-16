@@ -2,14 +2,17 @@ import unittest
 from datetime import UTC, datetime, timedelta
 
 from .scientific_capability import (
+    BaselineScore,
     DynamicDenominator,
     EpistemicIdentifiability,
     IdentifiabilityAssessment,
+    ObservationProcess,
     ObservationRecord,
     ProbabilisticForecast,
     brier_score,
     calibration_in_the_large,
     compare_baselines,
+    expected_binary_loss,
     log_score,
     mean_crps,
     normal_crps,
@@ -65,6 +68,22 @@ class ScientificCapabilityTests(unittest.TestCase):
         )
         self.assertAlmostEqual(denominator.rate(20), 0.02)
 
+    def test_observation_process_is_explicit_and_invertible_only_when_identified(self):
+        process = ObservationProcess(
+            process_id="OBS-1",
+            phenomenon_id="P-1",
+            detection_probability=0.5,
+            reporting_fraction=0.8,
+            coverage_fraction=0.5,
+        )
+        self.assertAlmostEqual(process.expected_observed_events(100), 20.0)
+        self.assertAlmostEqual(process.infer_latent_events(20), 100.0)
+
+        unknown = ObservationProcess(process_id="OBS-2", phenomenon_id="P-1")
+        self.assertIsNone(unknown.infer_latent_events(20))
+        with self.assertRaises(ValueError):
+            unknown.expected_observed_events(20)
+
     def test_non_identifiable_state_requires_equivalent_alternative(self):
         with self.assertRaises(ValueError):
             IdentifiabilityAssessment(
@@ -100,13 +119,24 @@ class ScientificCapabilityTests(unittest.TestCase):
         self.assertGreaterEqual(mean_crps(forecasts), 0.0)
 
     def test_baseline_comparison_is_directional_not_a_verdict(self):
-        baseline = type("B", (), {"brier": 0.20, "log_score": -0.60, "crps": 0.40, "lead_time": 1.0})()
-        candidate = type("B", (), {"brier": 0.15, "log_score": -0.50, "crps": 0.30, "lead_time": 1.5})()
+        baseline = BaselineScore(name="baseline", brier=0.20, log_score=-0.60, crps=0.40, lead_time=1.0)
+        candidate = BaselineScore(name="candidate", brier=0.15, log_score=-0.50, crps=0.30, lead_time=1.5)
         result = compare_baselines(baseline, candidate)
         self.assertLess(result.delta_brier, 0)
         self.assertGreater(result.delta_log_score, 0)
         self.assertLess(result.delta_crps, 0)
         self.assertTrue(result.has_any_improvement)
+
+    def test_expected_utility_is_exposed_as_action_comparison(self):
+        no_action, action = expected_binary_loss(
+            0.8,
+            action_cost=1.0,
+            false_positive_cost=2.0,
+            false_negative_cost=10.0,
+        )
+        self.assertEqual(no_action, 8.0)
+        self.assertEqual(action, 1.4)
+        self.assertLess(action, no_action)
 
 
 if __name__ == "__main__":

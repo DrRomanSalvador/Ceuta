@@ -14,9 +14,12 @@ from .scientific_capability import (
     compare_baselines,
     expected_binary_loss,
     log_score,
+    mean_absolute_error,
     mean_crps,
     normal_crps,
     point_in_time_filter,
+    persistence_forecast,
+    rolling_origin_persistence,
 )
 
 
@@ -137,6 +140,13 @@ class ScientificCapabilityTests(unittest.TestCase):
         self.assertEqual(no_action, 8.0)
         self.assertEqual(action, 1.4)
         self.assertLess(action, no_action)
+
+    def test_rolling_origin_persistence_has_no_future_leakage(self):
+        forecasts, outcomes = rolling_origin_persistence([1, 2, 4, 7], min_history=2)
+        self.assertEqual(forecasts, [2.0, 4.0])
+        self.assertEqual(outcomes, [4.0, 7.0])
+        self.assertAlmostEqual(mean_absolute_error(forecasts, outcomes), 2.5)
+        self.assertEqual(persistence_forecast([1, 2, 4], horizon=3), [4.0, 4.0, 4.0])
 
 
 if __name__ == "__main__":

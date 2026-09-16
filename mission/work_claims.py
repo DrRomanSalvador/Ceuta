@@ -7,148 +7,78 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterator
-
 try:
     import fcntl
-except ImportError:  # pragma: no cover - Windows fallback
-    fcntl = None
+except ImportError: fcntl = None
+from .event_log import append_payload, load_jsonl
 
-from .event_log import append_payload
-
-
-def utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat()
-
-
-def _parse_time(value: str) -> datetime:
-    return datetime.fromisoformat(value.replace("Z", "+00:00"))
-
-
+def utc_now() -> str: return datetime.now(timezone.utc).isoformat()
+def _parse_time(value: str) -> datetime: return datetime.fromisoformat(value.replace("Z", "+00:00"))
 def load_claims(path: Path) -> dict[str, Any]:
-    if not path.exists():
-        return {"schema_version": "1.3.0", "claims": {}, "history": []}
-    data = json.loads(path.read_text(encoding="utf-8"))
-    if not isinstance(data.get("claims"), dict) or not isinstance(data.get("history", []), list):
-        raise ValueError("Invalid work-claim ledger")
+    if not path.exists(): return {"schema_version":"1.3.0","claims":{},"history":[]}
+    data=json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(data.get("claims"),dict) or not isinstance(data.get("history",[]),list): raise ValueError("Invalid work-claim ledger")
     return data
 
-
-def _atomic_write(path: Path, data: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
+def _atomic_write(path: Path,data: dict[str,Any])->None:
+    path.parent.mkdir(parents=True,exist_ok=True); fd,tmp=tempfile.mkstemp(prefix=f".{path.name}.",dir=path.parent)
     try:
-        with os.fdopen(fd, "w", encoding="utf-8") as handle:
-            json.dump(data, handle, sort_keys=True, indent=2, ensure_ascii=False)
-            handle.write("\n")
-            handle.flush()
-            os.fsync(handle.fileno())
-        os.replace(tmp, path)
+        with os.fdopen(fd,"w",encoding="utf-8") as handle:
+            json.dump(data,handle,sort_keys=True,indent=2,ensure_ascii=False); handle.write("\n"); handle.flush(); os.fsync(handle.fileno())
+        os.replace(tmp,path)
     except Exception:
-        try:
-            os.unlink(tmp)
-        except FileNotFoundError:
-            pass
+        try: os.unlink(tmp)
+        except FileNotFoundError: pass
         raise
 
-
 @contextmanager
-def _locked(path: Path) -> Iterator[None]:
-    lock_path = path.with_suffix(path.suffix + ".lock")
-    lock_path.parent.mkdir(parents=True, exist_ok=True)
-    with lock_path.open("a+", encoding="utf-8") as lock:
-        if fcntl is not None:
-            fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
-        try:
-            yield
+def _locked(path:Path)->Iterator[None]:
+    lock_path=path.with_suffix(path.suffix+".lock"); lock_path.parent.mkdir(parents=True,exist_ok=True)
+    with lock_path.open("a+",encoding="utf-8") as lock:
+        if fcntl is not None: fcntl.flock(lock.fileno(),fcntl.LOCK_EX)
+        try: yield
         finally:
-            if fcntl is not None:
-                fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
+            if fcntl is not None: fcntl.flock(lock.fileno(),fcntl.LOCK_UN)
 
+def _active_and_unexpired(claim:dict[str,Any],now:datetime)->bool: return claim.get("status")=="ACTIVE" and _parse_time(claim["lease_expires_at"])>now
+def _strip_ids(value:Any)->Any:
+    if isinstance(value,dict): return {k:_strip_ids(v) for k,v in value.items() if k!="mutation_event_id"}
+    if isinstance(value,list): return [_strip_ids(v) for v in value]
+    return value
+def _matching_event(event_log:Path,*,event_type:str,mission_id:str,actor:str,timestamp:str,payload:dict[str,Any])->dict[str,Any]|None:
+    if not event_log.exists(): return None
+    expected=_strip_ids(payload)
+    for event in load_jsonl(event_log):
+        if event.get("event_type")==event_type and event.get("mission_id")==mission_id and event.get("actor")==actor and event.get("timestamp")==timestamp and _strip_ids(event.get("payload"))==expected: return event
+    return None
 
-def _active_and_unexpired(claim: dict[str, Any], now: datetime) -> bool:
-    return claim.get("status") == "ACTIVE" and _parse_time(claim["lease_expires_at"]) > now
-
-
-def acquire(
-    path: Path,
-    *,
-    work_id: str,
-    mission_id: str,
-    actor: str,
-    lease_id: str,
-    lease_expires_at: str,
-    now: str | None = None,
-    event_log: Path,
-) -> dict[str, Any]:
-    if not all((work_id, mission_id, actor, lease_id, lease_expires_at)):
-        raise ValueError("Work claim identity and lease fields are required")
-    current_time = _parse_time(now) if now else datetime.now(timezone.utc)
-    expiry = _parse_time(lease_expires_at)
-    if expiry <= current_time:
-        raise ValueError("Lease must expire in the future")
-    event_timestamp = now or utc_now()
+def acquire(path:Path,*,work_id:str,mission_id:str,actor:str,lease_id:str,lease_expires_at:str,now:str|None=None,event_log:Path)->dict[str,Any]:
+    if not all((work_id,mission_id,actor,lease_id,lease_expires_at)): raise ValueError("Work claim identity and lease fields are required")
+    current_time=_parse_time(now) if now else datetime.now(timezone.utc); expiry=_parse_time(lease_expires_at)
+    if expiry<=current_time: raise ValueError("Lease must expire in the future")
+    event_timestamp=now or utc_now()
     with _locked(path):
-        data = load_claims(path)
-        existing = data["claims"].get(work_id)
-        if existing and _active_and_unexpired(existing, current_time):
+        data=load_claims(path); existing=data["claims"].get(work_id)
+        if existing and _active_and_unexpired(existing,current_time):
+            retry_claim={k:existing[k] for k in ("work_id","mission_id","actor","lease_id","status","acquired_at","lease_expires_at")}
+            matching=_matching_event(event_log,event_type="WORK_CLAIM_ACQUIRED",mission_id=mission_id,actor=actor,timestamp=event_timestamp,payload={"claim":retry_claim,"expired_previous":[]})
+            if matching is not None and existing.get("lease_id")==lease_id and existing.get("lease_expires_at")==lease_expires_at and existing.get("acquired_at")==event_timestamp: return dict(existing)
             raise RuntimeError(f"Work {work_id} already has an active unexpired claim")
-        history = []
+        history=[]
         if existing:
-            terminal = dict(existing)
-            if terminal.get("status") == "ACTIVE":
-                terminal["status"] = "EXPIRED"
-                terminal["expired_at"] = event_timestamp
+            terminal=dict(existing)
+            if terminal.get("status")=="ACTIVE": terminal["status"]="EXPIRED"; terminal["expired_at"]=event_timestamp
             history.append(terminal)
-        claim = {
-            "work_id": work_id,
-            "mission_id": mission_id,
-            "actor": actor,
-            "lease_id": lease_id,
-            "status": "ACTIVE",
-            "acquired_at": event_timestamp,
-            "lease_expires_at": lease_expires_at,
-        }
-        event = append_payload(
-            event_log,
-            event_type="WORK_CLAIM_ACQUIRED",
-            mission_id=mission_id,
-            actor=actor,
-            timestamp=event_timestamp,
-            payload={"claim": claim, "expired_previous": history},
-        )
-        claim["mutation_event_id"] = event["event_id"]
-        data["history"].extend(history)
-        data["claims"][work_id] = claim
-        _atomic_write(path, data)
-        return claim
+        claim={"work_id":work_id,"mission_id":mission_id,"actor":actor,"lease_id":lease_id,"status":"ACTIVE","acquired_at":event_timestamp,"lease_expires_at":lease_expires_at}; payload={"claim":claim,"expired_previous":history}
+        event=_matching_event(event_log,event_type="WORK_CLAIM_ACQUIRED",mission_id=mission_id,actor=actor,timestamp=event_timestamp,payload=payload)
+        if event is None: event=append_payload(event_log,event_type="WORK_CLAIM_ACQUIRED",mission_id=mission_id,actor=actor,timestamp=event_timestamp,payload=payload)
+        claim["mutation_event_id"]=event["event_id"]; data["history"].extend(history); data["claims"][work_id]=claim; _atomic_write(path,data); return claim
 
-
-def release(
-    path: Path,
-    *,
-    work_id: str,
-    actor: str,
-    now: str,
-    event_log: Path,
-) -> dict[str, Any]:
+def release(path:Path,*,work_id:str,actor:str,now:str,event_log:Path)->dict[str,Any]:
     with _locked(path):
-        data = load_claims(path)
-        claim = data["claims"].get(work_id)
-        if not claim or claim.get("status") != "ACTIVE":
-            raise ValueError(f"No active claim for {work_id}")
-        if claim.get("actor") != actor:
-            raise PermissionError("Only the claiming actor may release the claim")
-        released = {**claim, "status": "RELEASED", "released_by": actor, "released_at": now}
-        event = append_payload(
-            event_log,
-            event_type="WORK_CLAIM_RELEASED",
-            mission_id=claim["mission_id"],
-            actor=actor,
-            timestamp=now,
-            payload={"claim": released},
-        )
-        released["mutation_event_id"] = event["event_id"]
-        data["history"].append(released)
-        data["claims"][work_id] = released
-        _atomic_write(path, data)
-        return released
+        data=load_claims(path); claim=data["claims"].get(work_id)
+        if not claim or claim.get("status")!="ACTIVE": raise ValueError(f"No active claim for {work_id}")
+        if claim.get("actor")!=actor: raise PermissionError("Only the claiming actor may release the claim")
+        released={**claim,"status":"RELEASED","released_by":actor,"released_at":now}; payload={"claim":released}; event=_matching_event(event_log,event_type="WORK_CLAIM_RELEASED",mission_id=claim["mission_id"],actor=actor,timestamp=now,payload=payload)
+        if event is None: event=append_payload(event_log,event_type="WORK_CLAIM_RELEASED",mission_id=claim["mission_id"],actor=actor,timestamp=now,payload=payload)
+        released["mutation_event_id"]=event["event_id"]; data["history"].append(released); data["claims"][work_id]=released; _atomic_write(path,data); return released

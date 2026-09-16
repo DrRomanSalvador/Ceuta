@@ -1,0 +1,34 @@
+{
+  "schema_version": "1.0.0",
+  "mission_id": "CEUTIA_SERPIENTE_CONTINUOUS_SCIENTIFIC_ENGINEERING",
+  "purpose": "Machine-readable current-state corrections that must be applied when reconciling the canonical mission snapshot with later verified repository evidence.",
+  "supersedes_only": ["stale_snapshot_fields"],
+  "does_not_delete_history": true,
+  "corrections": {
+    "response_coupling": {
+      "status": "ACTIVE_FRONTIER",
+      "scientific_state": "FORMALIZED",
+      "empirical_state": "NOT_ESTABLISHED",
+      "engineering_state": "IMPLEMENTATION_PENDING_FOR_EXPLICIT_RESPONSE_LEDGER_OR_CONTRACT_IF_REQUIRED_FIELDS_ARE_ABSENT",
+      "source": "docs/scientific/SCIENTIFIC_RESPONSE_GAP_001.md",
+      "required_distinctions": ["predictive_validity", "response_execution", "response_effectiveness", "operational_utility"],
+      "required_response_fields": ["warning_or_prediction_identity", "decision_identity/time", "action_identity/execution_time", "response_eligibility", "intended_mechanism", "response_delay", "intervention_exposure/intensity", "implementation_failure", "resource_capacity_constraints", "outcome_ascertainment_identity", "response_horizon", "counterfactual_causal_status"]
+    },
+    "legacy_autonomous_engineering_state": {
+      "path": "AUTONOMOUS_ENGINEERING_STATE.json",
+      "status": "HISTORICAL_SNAPSHOT",
+      "rule": "Retain for historical reconstruction; do not inherit its stale mission label, branch or commit as current state."
+    },
+    "finite_closure_artifacts": {
+      "status": "BOUNDED_CLOSURES_ONLY",
+      "rule": "Closure of a finite audit or limitation set does not close the continuous mission."
+    }
+  },
+  "next_high_centrality_work": [
+    "inspect current warning/decision/action consumers and existing response persistence before adding a response ledger",
+    "determine whether required response fields already exist under different semantics",
+    "avoid duplicate state; extend existing contracts only if a concrete missing invariant is demonstrated",
+    "add ordinary and adversarial tests for response/no-response/delayed/non-executed/confounded scenarios if implementation is required",
+    "persist the resulting reconciliation and capability state"
+  ]
+}

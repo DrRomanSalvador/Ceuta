@@ -1,0 +1,17 @@
+{
+  "schema_version": "1.0.0",
+  "mission_state_machine": {
+    "states": ["UNKNOWN","DISCOVERED","REGISTERED","BOOTSTRAP_PENDING","BOOTSTRAPPED","READY","ACTIVE","BLOCKED","WAITING_EXTERNAL","WAITING_INTERNAL","HANDOFF_PENDING","VALIDATION_PENDING","INTEGRATION_PENDING","SUSPENDED","RECOVERY_REQUIRED","RETIRED","COMPLETE"],
+    "terminal_states": ["RETIRED"],
+    "forbidden_direct_transitions": ["UNKNOWN->COMPLETE","UNKNOWN->ACTIVE","REGISTERED->COMPLETE","BOOTSTRAP_PENDING->COMPLETE"],
+    "transition_contract": ["FROM","TO","TRIGGER","AUTHORIZED_ACTOR","PRECONDITIONS","POSTCONDITIONS","EVIDENCE","PERSISTENCE","VALIDATION"],
+    "implementation": "mission/control_plane.py::transition"
+  },
+  "global_state_machine": {
+    "states": ["CONTROL_PLANE_DISCOVERY","CONTROL_PLANE_REENGINEERING","CONTROL_PLANE_VALIDATION","CONTROL_PLANE_OPERATIONALLY_VALIDATED","RECOVERY_REQUIRED","SUSPENDED"],
+    "current": "CONTROL_PLANE_REENGINEERING",
+    "completion_gate": "CONTROL_PLANE_OPERATIONALLY_VALIDATED",
+    "completion_requires": ["registration","bootstrap","state transitions","work assignment","dependency management","handoff","ownership","authority","checkpoint","reconciliation","recovery","cross-mission coordination","admission","conflict handling","adversarial resistance"],
+    "implementation_status": "SPECIFIED_AND_PARTIALLY_IMPLEMENTED"
+  }
+}

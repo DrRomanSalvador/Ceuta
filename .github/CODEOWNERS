@@ -11,6 +11,12 @@
 /02_SECURITY_CONTROL_PLANE/* @drsalvadorroman-beep
 /03_INCIDENTS_AND_RECOVERY/* @drsalvadorroman-beep
 
+# Mission control-plane surfaces are owner-reviewed as a single protected family.
+/mission/* @drsalvadorroman-beep
+/docs/missions/* @drsalvadorroman-beep
+/.github/CODEOWNERS @drsalvadorroman-beep
+/.github/workflows/* @drsalvadorroman-beep
+
 # Root compatibility links remain protected because they are bootstrap paths.
 /OWNER_AUTHORITY_ROOT.md @drsalvadorroman-beep
 /OWNER_SECURITY_AND_LIABILITY_CONTROL_PLANE.md @drsalvadorroman-beep
@@ -29,7 +35,5 @@
 /SUPRMIND_AI_COUNCIL_CONSTITUTION.md @drsalvadorroman-beep
 /AI_SECURITY_INCIDENT_LESSONS.md @drsalvadorroman-beep
 
-/.github/CODEOWNERS @drsalvadorroman-beep
-/.github/workflows/security-control-plane.yml @drsalvadorroman-beep
 /Ceuta/backend/app/security/* @drsalvadorroman-beep
 /Ceuta/tests/test_external_trust.py @drsalvadorroman-beep

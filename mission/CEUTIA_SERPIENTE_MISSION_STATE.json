@@ -1,0 +1,208 @@
+{
+  "schema_version": "1.0.0",
+  "mission_id": "CEUTIA_SERPIENTE_CONTINUOUS_SCIENTIFIC_ENGINEERING",
+  "mission_identity": {
+    "agent_role": "Ingeniero de CeutIA",
+    "mission_type": "continuous_cumulative_autonomous_scientific_engineering",
+    "continuity_rule": "All engineering, scientific, epistemic, acquisition, mathematical, statistical, predictive, dynamic, warning and prevention work belongs to one continuous mission.",
+    "not_a_new_phase": true,
+    "premature_closure_forbidden": true
+  },
+  "purpose": "Build, audit, integrate, validate and continuously extend a scientifically governed CeutIA + SERPIENTE system for evidence-grounded territorial knowledge and dynamic risk intelligence, without confusing implementation with empirical validity.",
+  "scope": {
+    "systems": ["CeutIA", "SERPIENTE"],
+    "domains": ["evidence", "provenance", "acquisition", "temporal_information", "longitudinal_dynamics", "prediction", "uncertainty", "calibration", "outcome_ascertainment", "causal_inference", "interactions", "system_of_systems", "early_warning", "prevention", "real_time_monitoring", "self_monitoring", "mathematics", "statistics", "scientific_governance"],
+    "extension_rule": "New scientifically justified domains become part of this mission; they do not create a new mission."
+  },
+  "architecture": {
+    "ceutia": "source -> document -> observation -> claim -> evidence -> corroboration/contradiction -> provenance -> confidence -> decision context",
+    "serpiente": "state -> dynamics -> interaction -> prediction -> uncertainty -> risk -> warning",
+    "integration": "Integrated system with explicit scientific separation of epistemic/evidence functions and dynamic/predictive functions.",
+    "causal_boundary": "Prediction is not causation; descriptive propagation is not causal propagation."
+  },
+  "scientific_principles": [
+    "prediction != causation",
+    "correlation != mechanism",
+    "predictive dependence != causal dependence",
+    "calibration != validity",
+    "CI green != scientific validation",
+    "historical fit != prospective validation",
+    "source authority != evidence strength",
+    "multiple sources != independent corroboration",
+    "implementation != effectiveness",
+    "warning != prevention effectiveness",
+    "absence of evidence != evidence of absence",
+    "NOT_ESTABLISHED != NOT_IMPLEMENTABLE"
+  ],
+  "epistemology": {
+    "interaction_ladder": ["association", "statistical_dependence", "predictive_dependence", "mechanistic_hypothesis", "causal_hypothesis", "causally_supported", "intervention_supported", "operationally_validated"],
+    "evidence_requirements": ["source_identity", "source_authority", "provenance", "temporal_validity", "corroboration", "contradiction", "source_dependency", "revision_state", "uncertainty", "confidence", "causal_status"],
+    "status_vocabulary": ["KNOWN", "SUPPORTED", "IMPLEMENTED", "TESTED", "EVALUATED", "VALIDATED", "NOT_IDENTIFIED", "NOT_IMPLEMENTABLE_YET", "REQUIRES_DATA", "REQUIRES_PROSPECTIVE_EVIDENCE", "REQUIRES_EXTERNAL_INTERVENTION", "SCIENTIFICALLY_UNJUSTIFIED", "UNKNOWN"]
+  },
+  "current_state": {
+    "ENGINEERING_STATUS": "AUDITED_FOUNDATION_COMPLETE",
+    "GLOBAL_ENGINEERING_AUDIT": "AUDIT_COMPLETE",
+    "SCIENTIFIC_LIMITATION_RESOLUTION": "COMPLETE",
+    "PROSPECTIVE_PREDICTIVE_VALIDITY": "NOT_ESTABLISHED",
+    "DATA_STATUS": "Core temporal/provenance/PIT structures are present; continuous live acquisition of all relevant Ceuta sources is not established.",
+    "VALIDATION_STATUS": "Engineering and methodological testing established; prospective target-population validation remains external.",
+    "OPERATIONAL_STATUS": "Core traceability/decision infrastructure exists; continuous real-world effectiveness is not established.",
+    "EVIDENCE_STATUS": "Epistemic/provenance controls exist; empirical prospective claims require external evidence."
+  },
+  "verified_history": {
+    "completed_audits_are_not_reopened_without_regression": true,
+    "engineering_audit_surfaces": ["persistence/historical integrity", "concurrency/transactions/SQLite migrations", "provenance/traceability/hashes", "temporal semantics/future leakage", "mathematical/numerical correctness", "registry/epistemology/consumer enforcement", "SERPIENTE dynamics and CeutIA-SERPIENTE separation", "runtime/integration/failure modes", "adversarial/regression coverage", "final CI/repository reconciliation"],
+    "scientific_limitations": ["PIT semantic binding", "future-derived feature detection", "prospective baseline integrity", "repeated-forecast dependence", "counterfactual/intervention evidence", "real-world response effectiveness", "causal validity", "calibrated predictive uncertainty", "validated causal propagation"],
+    "second_order_findings": ["information-set ontology I_t", "temporal semantic separation", "probability epistemic ladder", "outcome ascertainment as a data-generating process", "dependence-aware evaluation", "baseline hierarchy", "descriptive/predictive/decision/interventional/causal separation", "propagation taxonomy", "WORLD/DATA/MODEL/SCIENTIFIC_VALIDITY monitoring", "source-process intelligence", "uncertainty provenance", "warning context", "emergent joint anomalies", "interaction/coupling drift", "incremental predictive value", "value of information"],
+    "material_repairs_recorded": ["SQLite migration atomicity", "prediction persistence race/identity", "prediction payload mutation before outcome scoring", "probability/lower/upper/uncertainty/model-disagreement domains", "caller transaction preservation", "runtime scientific ledger concurrency/hash ordering", "PostgreSQL outcome uniqueness", "outcome ascertainment identity/temporal semantics", "cross-repo producer/consumer contract", "adversarial regressions", "final ensemble probability calibration", "irregular-sampling physical-time derivative normalization"]
+  },
+  "current_capabilities": {
+    "PIT": "IMPLEMENTED_AND_TESTED",
+    "provenance": "IMPLEMENTED_AND_TESTED",
+    "feature_fingerprinting": "IMPLEMENTED_AND_TESTED",
+    "temporal_eligibility": "IMPLEMENTED_AND_TESTED",
+    "outcome_lineage": "IMPLEMENTED_AND_TESTED",
+    "dependence_aware_evaluation": "IMPLEMENTED_AND_TESTED_FOR_DECLARED_UNITS",
+    "probability_calibration": "IMPLEMENTED_AND_TESTED; prospective transport not established",
+    "causal_governance": "IMPLEMENTED_AND_TESTED_AS_GOVERNANCE; causal empirical validity not established",
+    "warning_response_lineage": "IMPLEMENTED_AS_TRACEABILITY; effectiveness not established",
+    "dynamic_derivatives": "IMPLEMENTED_AND_TESTED_WITH_PHYSICAL_TIME_NORMALIZATION",
+    "crossrepo_contract": "IMPLEMENTED_AND_TESTED",
+    "continuous_source_acquisition": "UNKNOWN/NOT_ESTABLISHED_AS_A_COMPLETE_SYSTEM",
+    "automated_source_process_intelligence": "PARTIALLY_SUPPORTED",
+    "generic_interaction_drift": "NOT_IMPLEMENTED_AS_A_GENERIC_PRODUCTION_CAPABILITY",
+    "generic_emergent_joint_anomaly": "NOT_IMPLEMENTED_AS_A_GENERIC_PRODUCTION_CAPABILITY",
+    "generic_change_point_regime_engine": "NOT_IMPLEMENTED_AS_A_GENERIC_PRODUCTION_CAPABILITY",
+    "generic_incremental_predictive_value_engine": "NOT_IMPLEMENTED_AS_A_GENERIC_PRODUCTION_CAPABILITY",
+    "generic_VOI_engine": "REQUIRES_DECISION_TARGET"
+  },
+  "limitations": {
+    "SL01_PIT": "PARTIALLY_RESOLVED; hidden upstream preprocessing outside declared lineage cannot be disproved by repository controls alone.",
+    "SL02_future_derived_features": "PARTIALLY_RESOLVED; undisclosed external transformation/backdated metadata cannot be ruled out without complete production lineage.",
+    "SL03_baseline": "PARTIALLY_RESOLVED; prospective superiority requires future held-out observations.",
+    "SL04_dependence": "PARTIALLY_RESOLVED; correct independent unit is process/study-specific.",
+    "SL05_intervention": "PARTIALLY_RESOLVED; intervention-effect evidence requires real exposure/assignment/outcome data.",
+    "SL06_response_effectiveness": "PARTIALLY_RESOLVED; real operational response/outcome observations required.",
+    "SL07_causality": "PARTIALLY_RESOLVED; study-specific empirical evidence required.",
+    "SL08_uncertainty": "PARTIALLY_RESOLVED; prospective calibration/transport remains empirical.",
+    "SL09_causal_propagation": "PARTIALLY_RESOLVED; specific mechanisms require empirical evidence.",
+    "repository_unknowns": "Any state not verified from repository code, tests, CI, Git history or authoritative documentation must be marked UNKNOWN rather than inferred."
+  },
+  "temporal_model": {
+    "information_boundary": "I_t = legitimately available information at forecast origin t",
+    "computational_representation": "X_t = declared computational representation of I_t",
+    "forecast": "Yhat_t = f(I_t, M_t)",
+    "time_semantics": ["observation index", "elapsed physical time", "event time", "publication time", "acquisition time", "availability time", "revision time"],
+    "rule": "Observation-order lags and physical-time lags are distinct and must not be conflated."
+  },
+  "spatial_model": {
+    "status": "KNOWN_CONCEPTUALLY; target-specific operationalization depends on registered spatial units and data.",
+    "required_dimensions": ["location", "spatial_unit", "population_at_risk", "spatial_resolution", "spatial_boundary_version", "movement/exposure_when_relevant"]
+  },
+  "system_model": {
+    "hierarchy": ["variable", "domain_state", "cross_domain_state", "trajectory", "interaction", "configuration", "risk_signal"],
+    "system_of_systems": ["A->B", "A<->B", "A->B->C", "A+B->C", "A->B->A", "A<->B<->C"],
+    "phenomena": ["feedback", "higher_order_interactions", "distributed_lags", "dynamic_coupling", "nonlinear_relationships", "regime_changes", "network_propagation", "spatial_propagation", "multiscale_dynamics", "population_dynamics", "measurement_process_dynamics", "cascades", "emergent_states", "multisystem_forecasting"]
+  },
+  "forecasting": {
+    "principle": "Forecasts are conditional on information set, model state/version, target definition and horizon.",
+    "existing_controls": ["PIT binding", "feature/source provenance", "fingerprints", "temporal eligibility", "probability domain enforcement", "calibration diagnostics", "dependence-aware evaluation"],
+    "advanced_methods": "Candidate families require target phenomenon, data-generating process, estimand, identifiability, assumptions and validation design before implementation."
+  },
+  "uncertainty": {
+    "propagation": ["source", "observation", "state", "interaction/model", "forecast", "risk", "warning"],
+    "types": ["measurement", "data/source", "parameter", "model disagreement/structural", "aleatoric", "epistemic"],
+    "rule": "Distinct uncertainty sources must not be silently collapsed into a single numerical quantity."
+  },
+  "early_warning": {
+    "chain": "signal -> anomaly/change status -> trajectory context -> evidence -> provenance -> uncertainty -> horizon -> severity -> warning",
+    "warning_is_not": ["proof of future harm", "causal proof", "prevention effectiveness"],
+    "controls_to_use_when_target_registered": ["persistence", "hysteresis", "duplicate suppression", "multi-signal confirmation", "evidence thresholds", "uncertainty-aware escalation", "lead-time measurement"]
+  },
+  "prevention": {
+    "chain": "prediction -> warning -> decision support -> feasible response -> action/no action -> outcome -> effectiveness",
+    "effectiveness_status": "NOT_ESTABLISHED_PROSPECTIVELY"
+  },
+  "self_monitoring": {
+    "four_planes": ["WORLD", "DATA", "MODEL", "SCIENTIFIC_VALIDITY"],
+    "targets": ["data drift", "concept drift", "regime shift", "interaction drift", "calibration drift", "forecast degradation", "source degradation", "missingness", "latency", "uncertainty", "model disagreement", "distribution shift", "outcome ascertainment drift"],
+    "validity_message": "CURRENT CONDITIONS MAY BE OUTSIDE THE CONDITIONS UNDER WHICH THIS BEHAVIOUR WAS EVALUATED."
+  },
+  "acquisition": {
+    "classes": ["REAL_TIME", "NEAR_REAL_TIME", "PERIODIC", "RETROSPECTIVE", "STATIC"],
+    "rule": "Never label a source REAL_TIME without verified acquisition behaviour.",
+    "registry_fields": ["source", "acquisition_method", "cadence", "latency", "event_time", "publication_time", "acquisition_time", "availability_rule", "revision_policy", "raw_preservation", "validation", "normalization", "semantic_mapping", "provenance", "failure_detection", "expected_missingness", "scientific_consequence_of_delay"]
+  },
+  "evaluation": {
+    "retrospective": "Allowed for engineering/methodological and historical analyses under explicit information-set and outcome constraints.",
+    "prospective": "Required for prospective predictive validity, calibration transport, intervention effectiveness and operational effectiveness claims.",
+    "proper_scoring": ["Brier", "log loss", "calibration diagnostics"],
+    "temporal_rule": "Preserve chronology and information eligibility.",
+    "dependence_rule": "Use declared process/study-specific evaluation units; do not silently assume row independence."
+  },
+  "governance": {
+    "claim_boundary": "A green CI proves the tested engineering state, not scientific truth in the external world.",
+    "external_evidence": "External evidence requirements remain active dependencies and do not terminate the mission.",
+    "unknown_rule": "UNKNOWN is a valid state and must be preserved when repository evidence is insufficient."
+  },
+  "testing": {
+    "engineering": "AUDIT_COMPLETE",
+    "adversarial": "Implemented for key PIT, temporal, provenance, probability, transaction, outcome, causal and cross-repo invariants.",
+    "historical_failure_preservation": true,
+    "ci_evidence": {
+      "ceutia_scientific_integration": "35071683700 SUCCESS",
+      "serpiente_runtime_validation": "35071185835 SUCCESS",
+      "pit_workflow": "35070241485 FAILURE; retained as historical negative evidence, not positive validation"
+    }
+  },
+  "git_state_at_persistence": {
+    "ceutia_repository": "DrRomanSalvador/Ceuta",
+    "ceutia_branch": "maximum-knowledge-to-capability",
+    "ceutia_head_before_persistence": "be71de863df3d067f96a713e3b33887da4fa9454",
+    "ceutia_base_branch": "scientific-traceability-crossrepo",
+    "serpiente_repository": "DrRomanSalvador/SERPIENTE",
+    "serpiente_branch": "main",
+    "serpiente_reference": "03cd2b3678a56e1b23480cf69113d0bdd97fc7f8",
+    "pr": "DrRomanSalvador/Ceuta#35",
+    "pr_state_at_persistence": "OPEN",
+    "pr_merge_status_at_persistence": "NOT_MERGED"
+  },
+  "authoritative_documents": [
+    "docs/scientific/GLOBAL_ENGINEERING_AUDIT_MATRIX.md",
+    "docs/scientific/SCIENTIFIC_LIMITATION_RESOLUTION_MATRIX.md",
+    "docs/scientific/SECOND_ORDER_SCIENTIFIC_EXTRACTION_AUDIT_001.md",
+    "docs/scientific/MAXIMUM_KNOWLEDGE_TO_CAPABILITY_AUDIT_001.md",
+    "docs/scientific/KNOWLEDGE_TO_CAPABILITY_FRONTIER_001.md",
+    "docs/scientific/PROSPECTIVE_EVALUATION_PROTOCOL.json",
+    "docs/scientific/SCIENTIFIC_EWS_DESIGN_AUDIT_001.md",
+    "docs/scientific/CROSSREPO_ENDPOINT_EVIDENCE_MATRIX.md",
+    "docs/scientific/SCIENTIFIC_RESPONSE_GAP_001.md"
+  ],
+  "bibliography_map": {
+    "status": "PARTIALLY_RECONSTRUCTED_FROM_REPOSITORY-VERIFIED_DOCUMENTATION",
+    "rule": "Do not invent citations. The authoritative bibliographic mapping is whatever references are actually present in repository scientific documentation and source lineage; missing mapping remains UNKNOWN until verified.",
+    "method_families": ["stochastic processes", "state-space", "HMM", "Kalman/particle filtering", "VAR/VARX/TVP-VAR", "VECM", "dynamic factors", "hierarchical/mixed effects", "survival/hazard", "point processes/Hawkes", "compartmental models", "network diffusion", "graph dynamics", "nonlinear ODE/SDE/delay systems", "change-point/regime detection", "threshold models", "dynamic coupling", "distributed lags", "causal graphical/structural models", "ensemble forecasting", "conformal prediction", "proper scoring/calibration", "sequential methods", "spatiotemporal models", "Gaussian processes/random fields", "information theory", "copulas/tail dependence", "extreme-value theory", "uncertainty propagation", "sensitivity analysis", "variance decomposition", "VOI/optimal design", "sequential decision theory"],
+    "admission_rule": "A method is not implemented merely because it is known; it must pass scientific need -> phenomenon -> data -> identifiability -> assumptions -> implementability -> testability -> incremental value."
+  },
+  "open_frontiers": [
+    {"id": "F01", "name": "scientific information-set contract", "status": "IMPLEMENTABLE", "constraint": "Must be connected to existing PIT/provenance contracts without duplicating them."},
+    {"id": "F02", "name": "forecast forensic reconstruction", "status": "IMPLEMENTABLE", "constraint": "Use existing forecast/PIT/provenance identities."},
+    {"id": "F03", "name": "source-process intelligence", "status": "TARGET_SPECIFIC", "constraint": "Requires concrete source adapters and historical process metadata."},
+    {"id": "F04", "name": "interaction drift", "status": "TARGET_SPECIFIC", "constraint": "Requires registered variables, sampling and interaction estimand."},
+    {"id": "F05", "name": "emergent joint anomaly", "status": "TARGET_SPECIFIC", "constraint": "Requires registered multisystem state and reference distribution."},
+    {"id": "F06", "name": "change-point/regime detection", "status": "TARGET_SPECIFIC", "constraint": "Method depends on signal, sampling and loss function."},
+    {"id": "F07", "name": "incremental predictive value", "status": "TARGET_SPECIFIC", "constraint": "Requires baseline/augmented target and registered outcome."},
+    {"id": "F08", "name": "value of information", "status": "REQUIRES_DECISION_TARGET", "constraint": "Requires decision, utility/loss, candidate acquisition and uncertainty model."}
+  ],
+  "mission_loop": ["RECONSTRUCT", "INTEGRATE", "DISCOVER", "FORMALIZE", "CROSS_REFERENCE", "IDENTIFY_CAPABILITY", "CLASSIFY", "PRIORITIZE", "IMPLEMENT", "TEST", "ADVERSARIAL_TEST", "VERIFY", "PERSIST", "RECONSTRUCT", "DISCOVER_AGAIN"],
+  "closure_criteria": {
+    "mission_complete_only_when": ["reasonably implementable central capabilities are exhausted", "relevant sources are integrated or explicitly classified", "relevant mathematics/statistics are audited for the actual phenomena", "interactions and system-of-systems are sufficiently explored", "immediate justified capabilities are built", "external limitations are explicitly separated", "no central scientifically justified implementable capability remains undiscovered"],
+    "non_closure_conditions": ["PROSPECTIVE_PREDICTIVE_VALIDITY = NOT_ESTABLISHED", "EXTERNAL_EVIDENCE_REQUIRED", "NO_ESTABLISHED", "individual audit completion"]
+  },
+  "replication": {
+    "bootstrap_entrypoint": "mission/MISSION_BOOTSTRAP.md",
+    "machine_state": "mission/CEUTIA_SERPIENTE_MISSION_STATE.json",
+    "integrity_rule": "A new instance must verify the current Git state and authoritative files before trusting persisted status.",
+    "continuation_rule": "Load state -> verify -> reconcile code/tests/docs -> identify highest-centrality unfinished capability -> continue mission."
+  }
+}

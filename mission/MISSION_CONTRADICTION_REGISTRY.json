@@ -1,0 +1,8 @@
+{
+  "schema_version": "1.0.0",
+  "registry_id": "CEUTIA_SERPIENTE_MISSION_CONTRADICTION_REGISTRY",
+  "status": "ACTIVE",
+  "items": [],
+  "required_fields": ["contradiction_id","claim_a","claim_b","category","evidence_a","evidence_b","owner","status"],
+  "rule": "Contradictions are preserved and classified. They may be unresolved, but they may not be silently discarded or promoted to certainty."
+}

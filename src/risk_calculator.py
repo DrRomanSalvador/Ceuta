@@ -1,10 +1,9 @@
 """
 Calculadora de Riesgo Existencial
-Fórmulas matemáticas trazables con intervalos de confianza.
-
-The legacy score remains backward compatible. Rate-like quantities are now
-explicitly tied to a dynamic denominator, and binomial rate uncertainty is
-reported separately from the heuristic risk-score uncertainty.
+The legacy score remains backward compatible. Rate-like quantities are tied to
+a dynamic denominator, and Wilson rate uncertainty is reported separately.
+The legacy risk-score interval is a heuristic approximation, not a statistical
+confidence interval for an estimated probability.
 """
 
 from __future__ import annotations
@@ -50,6 +49,7 @@ class RiskResult:
         return {
             "risk_score": self.risk_score,
             "confidence_interval": self.confidence_interval,
+            "confidence_interval_semantics": "HEURISTIC_SCORE_INTERVAL_NOT_STATISTICAL_CONFIDENCE_INTERVAL",
             "confidence_level": self.confidence_level,
             "standard_error": self.standard_error,
             "sample_size": self.sample_size,
@@ -62,6 +62,7 @@ class RiskResult:
             "denominator_id": self.denominator_id,
             "event_rate_interval": self.event_rate_interval,
             "event_rate_confidence_level": self.event_rate_confidence_level,
+            "event_rate_interval_semantics": "WILSON_BINOMIAL_PROPORTION_INTERVAL",
         }
 
 

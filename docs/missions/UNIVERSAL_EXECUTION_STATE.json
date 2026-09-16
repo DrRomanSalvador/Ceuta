@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "mission_id": "ROMAN",
+  "control_id": "UNIVERSAL_EXECUTION_CONTROL",
+  "status": "IMPLEMENTED_VALIDATION_PENDING",
+  "constitutional_location": "docs/missions/UNIVERSAL_EXECUTION_CONSTITUTION.md",
+  "contract_location": "docs/missions/UNIVERSAL_EXECUTION_CONTRACT.json",
+  "runtime_location": "backend/app/missions/execution.py",
+  "test_location": "tests/test_universal_mission_execution.py",
+  "inheritance": "MISSION_REGISTRY_LEVEL",
+  "repository_enforcement": "IMPLEMENTED",
+  "runtime_enforcement": "IMPLEMENTED_REPOSITORY_RUNTIME",
+  "cross_process_enforcement": "EXTERNAL_BOUNDARY",
+  "live_orchestrator": "NOT_ESTABLISHED",
+  "github_branch_protection_for_new_paths": "NOT_VERIFIED",
+  "ingeniero_case": {
+    "status": "UNKNOWN_WITH_REPOSITORY_EVIDENCE",
+    "verified_facts": [
+      "The persistent mission architecture defines INGENIERO as the technical custodian.",
+      "The repository contains persistent mission state and an execution pipeline, but no repository record proves the currently running process state of INGENIERO.",
+      "The canonical mission contract explicitly states that true multi-process leases and transactional live-state writes require an external orchestrator."
+    ],
+    "unverified": [
+      "whether INGENIERO is currently active, stalled, blocked or lost outside the repository",
+      "whether a live heartbeat exists for the current execution",
+      "whether an active process currently holds unpersisted work"
+    ],
+    "classification": "UNKNOWN"
+  },
+  "last_action": "Implement universal contract/runtime/tests without interrupting any unobservable external execution.",
+  "next_authorized_action": "Run repository test suite and CI; then verify external orchestrator lease/CAS/liveness/recovery capabilities before claiming cross-process enforcement.",
+  "fixed_point": false,
+  "limitations": [
+    "Repository code cannot prove the live state of an external INGENIERO process.",
+    "GitHub CODEOWNERS/branch rules are external enforcement and must be independently verified for the new constitutional paths.",
+    "A repository runtime cannot by itself guarantee that every external model/provider/session actually routes all writes through this runtime."
+  ]
+}

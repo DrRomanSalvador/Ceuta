@@ -20,6 +20,26 @@ def test_roman_canonical_identity_and_contract_are_discoverable():
     assert contract["authority"]["can_authorize"] is False
 
 
+def test_roman_zero_context_bootstrap_preserves_identity_contract_state_and_source_boundary():
+    registry = MissionRegistry(ROOT)
+    mission = registry.get("ROMAN")
+    contract = registry.load_contract("ROMAN")
+    state = (ROOT / "docs/missions/roman/ROMAN_MISSION_STATE.json").read_text()
+    bootstrap = (ROOT / "docs/missions/roman/ROMAN_BOOTSTRAP.md").read_text()
+    source_corpus = (ROOT / "docs/missions/roman/ROMAN_SOURCE_CORPUS.json").read_text()
+
+    assert mission["mission_id"] == "ROMAN"
+    assert mission["mission_type"] == "AUTHORIAL_INTELLECTUAL_FORENSIC"
+    assert contract["mission_id"] == "ROMAN"
+    assert contract["authority"]["can_authorize"] is False
+    assert '"status":"ACTIVE"' in state
+    assert "Load `docs/missions/MISSION_REGISTRY.json`." in bootstrap
+    assert "Load `docs/missions/roman/ROMAN_INVOCATION_CONTRACT.json`." in bootstrap
+    assert "Load `docs/missions/roman/ROMAN_MISSION_STATE.json`." in bootstrap
+    assert '"sources":[]' in source_corpus
+    assert '"generated_output_policy":"Outputs produced by ROMAN or other models are never inserted automatically as authentic authorial sources."' in source_corpus
+
+
 def test_roman_canonical_invocation_enforces_authority():
     registry = MissionRegistry(ROOT)
     envelope = registry.build_invocation(
@@ -100,7 +120,7 @@ def test_roman_checkpoint_id_collision_is_rejected(tmp_path: Path):
         execution_id="DIFFERENT-EXECUTION", task_id=task.task_id, subtask="runtime-recovery", state="RUNNING",
         state_version=version, last_result="DIFFERENT", last_verified_revision="different-revision",
         last_test_evidence=("adversarial collision",), next_authorized_action="STOP",
-        dependencies=(), blockers=(), delegated_tasks=(), processes=(), created_at="2026-09-16T16:01:00+02:00",
+        dependencies=(), blockers=(), delegated_tasks=(), processes=(), created_at="2026-09-16T16:01:00+00:00",
     )
     with pytest.raises(ExecutionControlError, match="CHECKPOINT_ID_COLLISION"):
         runtime.checkpoint(conflicting, expected_version=version)

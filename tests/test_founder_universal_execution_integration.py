@@ -34,8 +34,10 @@ def test_founder_checkpoint_is_idempotent(tmp_path: Path):
     version = runtime.register_task(task)
     version = runtime.claim_task(task.task_id, expected_version=version)
     checkpoint = Checkpoint(
-        "FOUNDER-CP-002", "FOUNDER", "1.0.0", "ROMAN", "EXEC-2", task.task_id, "subtask", "RUNNING", version,
-        "ok", "rev", ("test",), "CONTINUE", (), (), (), "2026-09-16T14:00:00+00:00"
+        checkpoint_id="FOUNDER-CP-002", mission_id="FOUNDER", mission_version="1.0.0", agent_id="ROMAN",
+        execution_id="EXEC-2", task_id=task.task_id, subtask="subtask", state="RUNNING", state_version=version,
+        last_result="ok", last_verified_revision="rev", last_test_evidence=("test",), next_authorized_action="CONTINUE",
+        dependencies=(), blockers=(), delegated_tasks=(), processes=(), created_at="2026-09-16T14:00:00+00:00",
     )
     first = runtime.checkpoint(checkpoint, expected_version=version)
     second = runtime.checkpoint(checkpoint, expected_version=first)

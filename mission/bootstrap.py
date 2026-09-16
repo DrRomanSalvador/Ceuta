@@ -11,6 +11,7 @@ import json
 from pathlib import Path
 
 STATE_PATH = Path(__file__).with_name("CEUTIA_SERPIENTE_MISSION_STATE.json")
+RECONCILIATION_PATH = Path(__file__).with_name("STATE_RECONCILIATION_001.md")
 REQUIRED_KEYS = {
     "schema_version",
     "mission_id",
@@ -87,9 +88,15 @@ def validate_state(state: dict) -> None:
         raise ValueError("Mission loop is incomplete")
 
 
+def validate_repository_layout() -> None:
+    if not RECONCILIATION_PATH.exists():
+        raise FileNotFoundError(f"Missing mission reconciliation record: {RECONCILIATION_PATH}")
+
+
 def main() -> int:
     state = load_state()
     validate_state(state)
+    validate_repository_layout()
     print(f"MISSION_ID={state['mission_id']}")
     print(f"AGENT_ROLE={state['mission_identity']['agent_role']}")
     print(f"ENGINEERING_STATUS={state['current_state']['ENGINEERING_STATUS']}")

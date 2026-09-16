@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timedelta, timezone
+import json
 import sqlite3
 
 import pytest
 
 from app.core.decision.persistence import SQLiteDecisionStore
+from app.core.scientific.prediction_outcome_evaluation import record_prediction_outcome
 from app.core.scientific.prediction_persistence import record_prediction
 
 
@@ -17,6 +20,8 @@ def _prediction(prediction_id: str = "concurrent-prediction") -> dict[str, objec
         "contract_id": "serpiente.scientific_prediction",
         "schema_version": "1.1",
         "probability": 0.7,
+        "target": "risk",
+        "horizon": "1h",
     }
 
 
@@ -88,3 +93,18 @@ def test_concurrent_conflicting_prediction_identity_is_rejected(tmp_path):
             record_prediction(conflicting, second, decision_id="decision-1")
     finally:
         conflicting.close()
+
+
+def test_mutated_prediction_cannot_enter_outcome_evaluation(tmp_path):
+    database = tmp_path / "prediction-integrity.sqlite"
+    connection = sqlite3.connect(database, timeout=10.0)
+    try:
+        record_prediction(connection, _prediction("integrity-prediction"), decision_id="decision-integrity")
+        payload = json.loads(connection.execute("SELECT payload_json FROM scientific_predictions WHERE prediction_id=?", ("integrity-prediction",)).fetchone()[0])
+        payload["probability"] = 0.99
+        connection.execute("UPDATE scientific_predictions SET payload_json=? WHERE prediction_id=?", (json.dumps(payload, sort_keys=True, separators=(",", ":")), "integrity-prediction"))
+        connection.commit()
+        with pytest.raises(RuntimeError, match="integrity mismatch"):
+            record_prediction_outcome(connection, prediction_id="integrity-prediction", decision_id="decision-integrity", action_id="action-1", outcome_id="outcome-1", target="risk", outcome_time=datetime.now(timezone.utc) + timedelta(hours=2), observed=1, provenance=("test",))
+    finally:
+        connection.close()

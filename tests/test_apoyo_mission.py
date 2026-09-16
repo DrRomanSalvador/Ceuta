@@ -117,6 +117,18 @@ def test_three_account_policy_fails_closed_when_unconfigured(tmp_path: Path) -> 
         ))
 
 
+def test_stale_writer_is_rejected(tmp_path: Path) -> None:
+    first = runtime(tmp_path)
+    second = ApoyoRuntime(ROOT, state_path=tmp_path / "APOYO_MISSION_STATE.json")
+    state_a = first.load()
+    state_b = second.load()
+    state_a["events"].append({"type": "writer-a"})
+    state_b["events"].append({"type": "writer-b"})
+    first._persist(state_a)
+    with pytest.raises(ApoyoError, match="STALE_STATE_VERSION"):
+        second._persist(state_b)
+
+
 def test_state_identity_cannot_be_redefined(tmp_path: Path) -> None:
     state_path = tmp_path / "APOYO_MISSION_STATE.json"
     payload = json.loads(STATE_TEMPLATE.read_text(encoding="utf-8"))

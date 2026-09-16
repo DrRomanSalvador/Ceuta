@@ -15,8 +15,8 @@ from typing import Any, Callable, Mapping, Optional
 class ResponseBinding:
     """Evidence supplied by the real decision/action pathway.
 
-    prediction_identity is deliberately required rather than derived from an
-    audit hash: an audit hash is provenance, not a canonical prediction ID.
+    ``prediction_identity`` is deliberately required rather than derived from
+    an audit hash: an audit hash is provenance, not a canonical prediction ID.
     """
 
     response_id: str
@@ -38,21 +38,37 @@ class ResponseBinding:
     execution_status: str
     causal_status: str
 
-    def to_record(self, *, mission_id: str, alert: Any) -> dict[str, Any]:
-        """Build the existing mission response-ledger record.
+    def validate(self) -> None:
+        """Reject internally contradictory response evidence before persistence.
 
-        The alert's audit hash and timestamp are preserved as provenance; they
-        are never promoted to decision/action identities.
+        This validates only semantics that are explicit in this contract. It
+        does not infer missing decision/action identities from alert metadata.
         """
-        if not mission_id:
-            raise ValueError("mission_id is required")
-        if not self.prediction_identity:
-            raise ValueError("prediction_identity is required")
         if not self.response_id:
             raise ValueError("response_id is required")
+        if not self.prediction_identity:
+            raise ValueError("prediction_identity is required")
         if not self.responsible_actor:
             raise ValueError("responsible_actor is required")
-        record = {
+        if self.decision_identity and not self.decision_time:
+            raise ValueError("decision_time is required when decision_identity is supplied")
+        if self.action_identity and not self.execution_time:
+            raise ValueError("execution_time is required when action_identity is supplied")
+        if self.execution_time and not self.action_identity:
+            raise ValueError("action_identity is required when execution_time is supplied")
+        if self.execution_status == "EXECUTED" and not self.action_identity:
+            raise ValueError("action_identity is required for EXECUTED responses")
+        if self.execution_status == "DECIDED" and not self.decision_identity:
+            raise ValueError("decision_identity is required for DECIDED responses")
+        if self.execution_status == "NO_RESPONSE" and self.action_identity:
+            raise ValueError("action_identity cannot be supplied for NO_RESPONSE")
+
+    def to_record(self, *, mission_id: str, alert: Any) -> dict[str, Any]:
+        """Build the existing mission response-ledger record."""
+        if not mission_id:
+            raise ValueError("mission_id is required")
+        self.validate()
+        return {
             "mission_id": mission_id,
             "response_id": self.response_id,
             "warning_presence": "PRESENT",
@@ -76,16 +92,10 @@ class ResponseBinding:
             "warning_audit_hash": alert.audit_hash,
             "warning_timestamp": alert.timestamp,
         }
-        return record
 
 
 class ResponseCouplingSink:
-    """Minimal persistence boundary for AlertSystem integration.
-
-    A concrete sink can delegate to mission.response_ledger.append_response.
-    Keeping the boundary dependency-injected avoids creating a second ledger
-    contract inside src and makes absence of a real response producer explicit.
-    """
+    """Minimal persistence boundary for AlertSystem integration."""
 
     def __init__(self, writer: Callable[..., dict[str, Any]], mission_id: str):
         if not callable(writer):
@@ -96,5 +106,11 @@ class ResponseCouplingSink:
         self.mission_id = mission_id
 
     def record(self, alert: Any, binding: ResponseBinding, *, actor: str, timestamp: str) -> dict[str, Any]:
+        if not actor:
+            raise ValueError("actor is required")
+        if not timestamp:
+            raise ValueError("timestamp is required")
+        if actor != binding.responsible_actor:
+            raise ValueError("actor must match binding.responsible_actor")
         record = binding.to_record(mission_id=self.mission_id, alert=alert)
         return self._writer(record=record, actor=actor, timestamp=timestamp)

@@ -41,8 +41,10 @@ def transition(current,target,*,authorized_actor,evidence,preconditions_met=True
 def validate_mission_contract(mission):
     required=("mission_id","mission_name","mission_version","mission_class","mission_status","mission_owner","authority_scope","repository_scope","allowed_write_surfaces","forbidden_write_surfaces","inputs","outputs","dependencies","dependents","handoff_contract","validation_contract","state_source","current_objective","current_gap","next_authorized_action","completion_criteria","failure_policy","recovery_policy")
     require_fields(mission,required,"mission")
-    if not mission["mission_id"].startswith("MISSION-"): raise ValueError("Operational mission IDs must be MISSION-*")
-    if set(mission["allowed_write_surfaces"]) & set(mission["forbidden_write_surfaces"]): raise ValueError(f"Overlapping write boundaries: {mission['mission_id']}")
+    mission_id=mission["mission_id"]
+    if not (mission_id.startswith("MISSION-") or mission_id=="ROMAN"): raise ValueError("Mission IDs must use MISSION-* or the canonical ROMAN namespace")
+    if mission_id=="ROMAN" and mission["mission_status"] not in {"REGISTERED_SOURCE_REQUIRES_ADMISSION","REGISTERED","BOOTSTRAP_PENDING","BOOTSTRAPPED","READY","ACTIVE"}: raise ValueError("ROMAN has an invalid lifecycle status")
+    if set(mission["allowed_write_surfaces"]) & set(mission["forbidden_write_surfaces"]): raise ValueError(f"Overlapping write boundaries: {mission_id}")
 
 def validate_handoff(handoff):
     required=("handoff_id","source_mission","destination_mission","timestamp","source_commit","finding","evidence","affected_surface","severity","required_action","proposed_action","constraints","dependencies","validation_required","acceptance_criteria","status")

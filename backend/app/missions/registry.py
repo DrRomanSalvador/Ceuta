@@ -26,11 +26,13 @@ class InvocationEnvelope:
 class MissionRegistry:
     """Read-only discovery boundary for the canonical multi-mission registry.
 
-    This component deliberately does not mutate mission state or execute intellectual
-    work. A host/orchestrator owns execution, leases, transactions and persistence.
+    A host/orchestrator owns live execution, leases, transactions and external
+    process supervision. Universal execution policy is composed into every
+    loaded mission contract so a mission cannot opt out locally.
     """
 
     COMMON_REQUIRED_FIELDS = {"mission_id", "canonical_name", "mission_type", "status"}
+    UNIVERSAL_CONTRACT = "docs/missions/UNIVERSAL_EXECUTION_CONTRACT.json"
 
     def __init__(self, repository_root: Path | str) -> None:
         self.repository_root = Path(repository_root).resolve()
@@ -51,12 +53,7 @@ class MissionRegistry:
         if mission_id_or_name is None:
             return [dict(mission) for mission in missions]
         needle = mission_id_or_name.casefold()
-        return [
-            dict(mission)
-            for mission in missions
-            if mission["mission_id"].casefold() == needle
-            or mission["canonical_name"].casefold() == needle
-        ]
+        return [dict(mission) for mission in missions if mission["mission_id"].casefold() == needle or mission["canonical_name"].casefold() == needle]
 
     def get(self, mission_id: str) -> dict[str, Any]:
         matches = self.discover(mission_id)
@@ -75,45 +72,33 @@ class MissionRegistry:
         contract_ref = mission.get("invocation_contract")
         if not contract_ref:
             raise MissionRegistryError(f"Mission has no machine-readable invocation contract: {mission_id}")
-        contract_path = self.repository_root / contract_ref
-        try:
-            contract = json.loads(contract_path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError) as exc:
-            raise MissionRegistryError(f"Cannot load invocation contract: {contract_path}") from exc
+        contract = self._load_json(self.repository_root / contract_ref, f"Cannot load invocation contract: {contract_ref}")
         if contract.get("mission_id") != mission_id:
             raise MissionRegistryError("Mission/contract identity mismatch")
+        universal = self._load_json(self.repository_root / self.UNIVERSAL_CONTRACT, "Cannot load universal execution contract")
+        contract["universal_execution_contract"] = universal
+        contract["execution_inheritance"] = "MANDATORY"
+        contract["non_weakening"] = True
         return contract
 
-    def build_invocation(
-        self,
-        *,
-        mission_id: str,
-        operation: str,
-        request_id: str,
-        session_id: str,
-        requested_at: str,
-        authority_context: dict[str, bool],
-        input_refs: tuple[str, ...],
-        expected_output_type: str,
-        base_state_version: str,
-    ) -> InvocationEnvelope:
+    def build_invocation(self, *, mission_id: str, operation: str, request_id: str, session_id: str, requested_at: str, authority_context: dict[str, bool], input_refs: tuple[str, ...], expected_output_type: str, base_state_version: str) -> InvocationEnvelope:
         contract = self.load_contract(mission_id)
         operation_upper = operation.upper()
         if operation_upper not in contract.get("operations", []):
             raise MissionRegistryError(f"Unsupported operation for {mission_id}: {operation}")
         if not authority_context.get("CAN_INVOKE", False):
             raise MissionRegistryError("Invocation denied: CAN_INVOKE is not granted")
-        return InvocationEnvelope(
-            mission_id=mission_id,
-            operation=operation_upper,
-            request_id=request_id,
-            session_id=session_id,
-            requested_at=requested_at,
-            authority_context=dict(authority_context),
-            input_refs=tuple(input_refs),
-            expected_output_type=expected_output_type,
-            base_state_version=base_state_version,
-        )
+        return InvocationEnvelope(mission_id, operation_upper, request_id, session_id, requested_at, dict(authority_context), tuple(input_refs), expected_output_type, base_state_version)
+
+    @staticmethod
+    def _load_json(path: Path, error_message: str) -> dict[str, Any]:
+        try:
+            value = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise MissionRegistryError(error_message) from exc
+        if not isinstance(value, dict):
+            raise MissionRegistryError(f"Expected JSON object: {path}")
+        return value
 
     @classmethod
     def _validate_registry(cls, registry: dict[str, Any]) -> None:
@@ -141,3 +126,6 @@ class MissionRegistry:
             raise MissionRegistryError("ROMAN canonical identity is invalid")
         if roman.get("mission_type") != "AUTHORIAL_INTELLECTUAL_FORENSIC":
             raise MissionRegistryError("ROMAN mission type is invalid")
+        universal_path = Path(cls.UNIVERSAL_CONTRACT)
+        if not universal_path.as_posix().endswith("UNIVERSAL_EXECUTION_CONTRACT.json"):
+            raise MissionRegistryError("Universal execution contract reference is invalid")

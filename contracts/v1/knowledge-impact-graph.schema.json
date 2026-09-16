@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ceutia/contracts/v1/knowledge-impact-graph.schema.json",
+  "title": "Knowledge Impact Graph Event",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["event_id", "as_of", "nodes", "edges", "changed_node_ids", "revalidation_obligations"],
+  "properties": {
+    "event_id": {"type": "string", "minLength": 1},
+    "as_of": {"type": "string", "format": "date-time"},
+    "nodes": {"type": "array", "items": {"$ref": "#/$defs/node"}},
+    "edges": {"type": "array", "items": {"$ref": "#/$defs/edge"}},
+    "changed_node_ids": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "revalidation_obligations": {"type": "array", "items": {"$ref": "#/$defs/revalidation"}}
+  },
+  "$defs": {
+    "node": {
+      "type": "object", "additionalProperties": false,
+      "required": ["node_id", "kind", "version", "valid_from", "epistemic_status"],
+      "properties": {
+        "node_id": {"type": "string", "minLength": 1},
+        "kind": {"enum": ["SOURCE", "CLAIM", "ASSUMPTION", "EVIDENCE", "METHOD", "MODEL", "RESULT", "PREDICTION", "DECISION", "ACTION", "OUTCOME"]},
+        "version": {"type": "string", "minLength": 1},
+        "valid_from": {"type": "string", "format": "date-time"},
+        "valid_to": {"type": ["string", "null"], "format": "date-time"},
+        "epistemic_status": {"type": "string", "minLength": 1}
+      }
+    },
+    "edge": {
+      "type": "object", "additionalProperties": false,
+      "required": ["from", "to", "relation", "provenance"],
+      "properties": {
+        "from": {"type": "string", "minLength": 1},
+        "to": {"type": "string", "minLength": 1},
+        "relation": {"enum": ["DERIVED_FROM", "SUPPORTS", "ASSUMES", "USES", "PRODUCES", "PREDICTS", "INFORMS", "CAUSES", "RESULTS_IN", "DEPENDS_ON", "INVALIDATES"]},
+        "provenance": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      }
+    },
+    "revalidation": {
+      "type": "object", "additionalProperties": false,
+      "required": ["target_node_id", "reason", "required_validation_level", "blocking"],
+      "properties": {
+        "target_node_id": {"type": "string", "minLength": 1},
+        "reason": {"type": "string", "minLength": 1},
+        "required_validation_level": {"type": "string", "minLength": 1},
+        "blocking": {"type": "boolean"}
+      }
+    }
+  }
+}

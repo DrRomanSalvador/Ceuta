@@ -39,7 +39,7 @@ def append_scientific_execution(
         return event
     return append_payload(
         path,
-        event_type=SCIENTIFIC_EXECUTION_EVENT,
+        event_type="SCIENTIFIC_EXECUTION",
         mission_id=mission_id,
         actor=actor,
         timestamp=timestamp,

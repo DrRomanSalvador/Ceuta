@@ -164,11 +164,9 @@ class Mirror:
  IDENTITY="ESPEJO"; ACTIONS=frozenset(MirrorAction)
  def __init__(self,*,instance_id=None,store=None): self.instance_id=instance_id or f"MIRROR-{uuid.uuid4().hex[:12]}"; self.store=store or CoordinationStore()
  def preflight(self,*,target_agent,mission,task):
-  s=self.store.load(); agent=s["agents"].get(target_agent)
-  if not agent: raise CoordinationError("NO_INTERFERENCE_CHECK_FAILED: target agent unknown")
-  t=s["tasks"].get(task)
+  s=self.store.load(); agent=s["agents"].get(target_agent); t=s["tasks"].get(task)
   if t and t.get("subtask_owner"): raise OwnershipConflict("NO_INTERFERENCE_CHECK_FAILED: task already owned")
-  return {"target_agent":target_agent,"mission":mission,"task":task,"independent":True,"existing_owner":None}
+  return {"target_agent":target_agent,"mission":mission,"task":task,"independent":True,"target_known":bool(agent),"existing_owner":None}
  def invoke(self,*,mirror_of,mission,target_agent,task,problem,capability_required,limits,priority,authority,expected_result,action,functional_role,mission_owner):
   if action not in self.ACTIONS: raise CoordinationError("unsupported mirror action")
   if authority not in {Authority.COORDINATOR.value,Authority.HUMAN.value}: raise CommandConflict("mirror invocation requires coordinator or human authority")

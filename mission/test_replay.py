@@ -23,6 +23,16 @@ class ReplayTests(unittest.TestCase):
             append_payload(path,event_type="UNSUPPORTED_EVENT",mission_id="MISSION-01",actor="MISSION-01",timestamp="2026-09-16T00:01:00Z",payload={})
             with self.assertRaises(ValueError): replay(path)
 
+    def test_current_persistent_event_stream_replays_to_admitted_roman(self):
+        root=Path(__file__).resolve().parents[1]
+        event_path=root/"mission"/"MISSION_EVENT_LOG.jsonl"
+        state_path=root/"mission"/"ROMAN_MISSION_STATE.json"
+        import json
+        state=replay(event_path)
+        roman=json.loads(state_path.read_text(encoding="utf-8"))
+        self.assertEqual(state.missions["ROMAN"]["status"],roman["status"])
+        self.assertEqual(state.last_event_id,"EV-0002")
+
 
 if __name__ == "__main__":
     unittest.main()

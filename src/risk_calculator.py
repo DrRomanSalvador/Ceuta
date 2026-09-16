@@ -2,8 +2,9 @@
 Calculadora de Riesgo Existencial
 Fórmulas matemáticas trazables con intervalos de confianza.
 
-The legacy score remains backward compatible, but rate-like quantities are
-now explicitly tied to a dynamic denominator when supplied.
+The legacy score remains backward compatible. Rate-like quantities are now
+explicitly tied to a dynamic denominator, and binomial rate uncertainty is
+reported separately from the heuristic risk-score uncertainty.
 """
 
 from __future__ import annotations
@@ -21,7 +22,7 @@ from backend.app.core.p0_contracts import EvidenceContract
 from backend.app.core.epistemology_p0.epistemology.states import EpistemicStatus
 
 from .config import SystemConfig
-from .scientific_capability import DynamicDenominator
+from .scientific_capability import DynamicDenominator, wilson_interval
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +43,8 @@ class RiskResult:
     audit_hash: str
     event_rate: float | None = None
     denominator_id: str | None = None
+    event_rate_interval: Tuple[float, float] | None = None
+    event_rate_confidence_level: float | None = None
 
     def to_dict(self) -> Dict:
         return {
@@ -57,17 +60,13 @@ class RiskResult:
             "audit_hash": self.audit_hash,
             "event_rate": self.event_rate,
             "denominator_id": self.denominator_id,
+            "event_rate_interval": self.event_rate_interval,
+            "event_rate_confidence_level": self.event_rate_confidence_level,
         }
 
 
 class RiskCalculator:
-    """
-    Calcula riesgo a partir de evidencia canónica admisible.
-
-    La calculadora no acepta evidencia UNKNOWN/UNVERIFIED como si fuera
-    verificada. La disponibilidad de un payload y su admisibilidad epistémica
-    son contratos distintos.
-    """
+    """Calculate risk only from epistemically admissible evidence."""
 
     ADMISSIBLE_STATUSES = {
         EpistemicStatus.OBSERVED_FACT,
@@ -85,19 +84,19 @@ class RiskCalculator:
         event_count: float | None = None,
         denominator: DynamicDenominator | None = None,
     ) -> RiskResult:
-        """Calculate risk and, when requested, a denominator-bound event rate.
+        """Calculate heuristic risk and, optionally, denominator-bound event rate.
 
-        ``event_count`` and ``denominator`` must be supplied together. This
-        prevents a rate-like risk input from being inferred from a numerator
-        alone. The rate is descriptive and is not itself a causal or predictive
-        risk estimate.
+        ``event_count`` and ``denominator`` must be supplied together. The
+        event-rate interval is a Wilson interval and applies to a binomial
+        event proportion, not to the heuristic weighted risk score.
         """
         if not evidence_data:
             raise ValueError("Risk calculation requires at least one evidence record")
         if (event_count is None) != (denominator is None):
             raise ValueError("event_count and denominator must be supplied together")
-        if event_count is not None and denominator is not None and event_count < 0:
-            raise ValueError("event_count cannot be negative")
+        if event_count is not None and denominator is not None:
+            if event_count < 0 or event_count > denominator.population_at_risk:
+                raise ValueError("event_count must satisfy 0 <= event_count <= population_at_risk")
 
         inadmissible = [
             evidence.evidence_id
@@ -122,10 +121,15 @@ class RiskCalculator:
             "international_cooperation": normalized.get("international_cooperation", 0.5),
         }
         event_rate = denominator.rate(event_count) if denominator is not None and event_count is not None else None
+        event_rate_interval = (
+            self._event_rate_interval(event_count, denominator.population_at_risk)
+            if denominator is not None and event_count is not None
+            else None
+        )
 
         audit_content = (
             f"{risk_score}{ci_low}{ci_high}{self._dict_to_str(component_scores)}"
-            f"{event_rate}{denominator.denominator_id if denominator else None}"
+            f"{event_rate}{event_rate_interval}{denominator.denominator_id if denominator else None}"
         )
         audit_hash = hashlib.sha256(audit_content.encode()).hexdigest()[:16]
 
@@ -142,12 +146,22 @@ class RiskCalculator:
             audit_hash=audit_hash,
             event_rate=round(event_rate, 8) if event_rate is not None else None,
             denominator_id=denominator.denominator_id if denominator is not None else None,
+            event_rate_interval=(
+                (round(event_rate_interval[0], 8), round(event_rate_interval[1], 8))
+                if event_rate_interval is not None
+                else None
+            ),
+            event_rate_confidence_level=self.config.CONFIDENCE_LEVEL if event_rate is not None else None,
         )
         logger.info("Riesgo calculado: %.4f (nivel: %s)", result.risk_score, result.alert_level)
         return result
 
+    def _event_rate_interval(self, event_count: float, population_at_risk: float) -> Tuple[float, float]:
+        if not float(event_count).is_integer() or not float(population_at_risk).is_integer():
+            raise ValueError("Wilson event-rate interval requires integer event and population counts")
+        return wilson_interval(int(event_count), int(population_at_risk), z=self.config.Z_SCORE)
+
     def _extract_indicators(self, evidence_data: List[EvidenceContract]) -> Dict[str, float]:
-        """Extract indicators from canonical evidence without inventing verification."""
         indicators = {
             "capability_growth": 0.5,
             "incident_count": 0.3,
@@ -155,20 +169,16 @@ class RiskCalculator:
             "awareness_level": 0.4,
             "international_cooperation": 0.3,
         }
-
         for evidence in evidence_data:
             source = evidence.source_id
             try:
                 value = json.loads(evidence.claim)
             except (TypeError, json.JSONDecodeError):
                 value = None
-
             if "UN" in source and isinstance(value, dict) and isinstance(value.get("incidents"), (int, float)):
                 indicators["incident_count"] = min(value["incidents"] / 10.0, 1.0)
-
             if "Reuters" in source:
                 indicators["international_cooperation"] = 0.5
-
         return indicators
 
     def _normalize_indicators(self, indicators: Dict[str, float]) -> Dict[str, float]:
@@ -180,10 +190,7 @@ class RiskCalculator:
         return normalized
 
     def _calculate_raw_score(self, normalized: Dict[str, float]) -> float:
-        raw_score = 0.0
-        for indicator, weight in self.config.MODEL_WEIGHTS.items():
-            raw_score += weight * normalized.get(indicator, 0.5)
-        return raw_score
+        return sum(weight * normalized.get(indicator, 0.5) for indicator, weight in self.config.MODEL_WEIGHTS.items())
 
     def _sigmoid(self, x: float) -> float:
         return 1.0 / (1.0 + np.exp(-x))

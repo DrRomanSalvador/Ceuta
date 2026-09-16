@@ -164,6 +164,11 @@ class UniversalExecutionRuntime:
                     raise ExecutionControlError(f"CHECKPOINT_ID_COLLISION: {checkpoint.checkpoint_id}")
                 return state["state_version"]
             state["checkpoints"][checkpoint.checkpoint_id] = {"fingerprint": fingerprint, "payload": payload}
+            task = state["tasks"].get(checkpoint.task_id)
+            if isinstance(task, dict):
+                task["checkpoint_ref"] = checkpoint.checkpoint_id
+                task["updated_at"] = self._now()
+                state["tasks"][checkpoint.task_id] = task
             state["last_checkpoint_id"] = checkpoint.checkpoint_id
             state["state_version"] = self._next_version(state)
             self._write(state)

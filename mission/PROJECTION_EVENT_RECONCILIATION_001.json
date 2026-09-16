@@ -1,0 +1,52 @@
+{
+  "schema_version": "1.0.0",
+  "reconciliation_id": "CEUTIA_CONTROL_PLANE_PROJECTION_EVENT_RECONCILIATION_001",
+  "status": "ACTIVE",
+  "rule": "Historical records are never assigned synthetic original timestamps or event identities. Records without original event evidence remain explicitly unlinked until a real migration binding event is produced.",
+  "event_identity_classes": [
+    "ORIGINAL_EVENT_EVIDENCE",
+    "MATERIALIZED_HISTORICAL_RECORD",
+    "MIGRATION_BINDING_EVENT",
+    "NO_EVENT_EVIDENCE"
+  ],
+  "records": [
+    {
+      "projection": "MISSION_HANDOFF_REGISTRY",
+      "record_id": "HF-037-001",
+      "classification": "MATERIALIZED_HISTORICAL_RECORD",
+      "event_identity": "NO_EVENT_EVIDENCE",
+      "original_event_id": null,
+      "migration_binding_event_id": null,
+      "source_timestamp": "2026-09-16",
+      "source_timestamp_semantics": "historical_record_timestamp",
+      "evidence": ["GitHub issue #37", "docs/missions/MISSION_ARCHITECTURE_AUDIT.md on main", "docs/missions/MISSION_GOVERNANCE_PROTOCOLS.md on main"],
+      "provenance_note": "Existing handoff registry record; no persisted original event identity is present in the canonical event stream."
+    },
+    {
+      "projection": "MISSION_HANDOFF_REGISTRY",
+      "record_id": "HF-038-001",
+      "classification": "MATERIALIZED_HISTORICAL_RECORD",
+      "event_identity": "NO_EVENT_EVIDENCE",
+      "original_event_id": null,
+      "migration_binding_event_id": null,
+      "source_timestamp": "2026-09-16",
+      "source_timestamp_semantics": "historical_record_timestamp",
+      "evidence": ["GitHub issue #38"],
+      "provenance_note": "Existing handoff registry record; no persisted original event identity is present in the canonical event stream."
+    },
+    {
+      "projection": "MISSION_LIFECYCLE_LEDGER",
+      "record_id": "ROMAN:admission",
+      "classification": "ORIGINAL_EVENT_EVIDENCE",
+      "event_identity": "ORIGINAL_EVENT_EVIDENCE",
+      "original_event_id": "EV-0002",
+      "migration_binding_event_id": null,
+      "source_timestamp": "2026-09-16T10:30:00Z",
+      "source_timestamp_semantics": "event_timestamp",
+      "evidence": ["main:docs/missions/MISSION_REGISTRY.json", "main:docs/missions/MASTER_MISSION_STATE.json", "main:docs/missions/roman/ROMAN_MISSION_STATE.json"],
+      "provenance_note": "Lifecycle admission is directly represented by EV-0002 in the canonical append-only event stream."
+    }
+  ],
+  "unresolved_migration_bindings": ["HF-037-001", "HF-038-001"],
+  "reconstruction_rule": "Replay reconstructs only state represented by canonical events. Materialized historical records without original event evidence remain visible as unlinked historical projections and are not replay inputs until a genuine migration binding event exists."
+}

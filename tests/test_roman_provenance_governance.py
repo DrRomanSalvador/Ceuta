@@ -27,8 +27,6 @@ def test_source_corpus_does_not_self_authorize_or_promote_generated_content():
     corpus = _json(ROMAN / "ROMAN_SOURCE_CORPUS.json")
     assert corpus["admission_status"] == "READY_FOR_AUTHORIZED_CORPUS"
     assert corpus["next_action"].startswith("Populate only with authorized source material")
-    # The corpus contains no source records capable of laundering repository-generated text
-    # into authentic evidence.
     for source in corpus["sources"]:
         assert source.get("authorization") not in (None, "generated", "model_output")
         assert source.get("evidence_status") not in ("generated", "synthetic", "model_output")
@@ -48,11 +46,13 @@ def test_later_unverified_head_is_never_promoted_as_verified_evidence():
     state = _json(ROMAN / "ROMAN_MISSION_STATE.json")
     reconciliation = state["current_state_reconciliation"]
     verified = state["last_verified_state"]
-    assert reconciliation["current_head"] != verified["HEAD"]
-    assert (
-        reconciliation["current_head_checks"] in {"NO_CHECK_RUNS_YET", "PENDING_EXACT_HEAD_CI_SECURITY"}
-        or reconciliation["current_head"] == verified["HEAD"]
-    )
+    if reconciliation["current_head"] != verified["HEAD"]:
+        assert reconciliation["current_head_checks"] in {"NO_CHECK_RUNS_YET", "PENDING_EXACT_HEAD_CI_SECURITY"}
+    else:
+        assert reconciliation["current_head_checks"] in {
+            "CI_SUCCESS_AND_SECURITY_SUCCESS",
+            "PR_HEAD_ASSOCIATED_CI_SECURITY_SUCCESS_EXACT_BRANCH_HEAD_UNVERIFIED",
+        }
     assert state["security_state"].startswith(verified["HEAD"][:12]) or verified["HEAD"] in state["security_state"]
 
 

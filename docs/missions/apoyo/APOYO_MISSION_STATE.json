@@ -1,7 +1,7 @@
 {
   "schema_version": "1.1",
   "mission_id": "APOYO",
-  "mission_version": "1.2",
+  "mission_version": "1.3",
   "state": "WAITING_AT_MEETING_POINT",
   "mission_lifecycle": "ACTIVE",
   "instance_id": "APOYO-ROOT",
@@ -48,11 +48,75 @@
       "current_task": null,
       "memory_checkpoint": null,
       "collaboration_history": []
+    },
+    "APOYO-001": {
+      "instance_id": "APOYO-001",
+      "parent_instance": "APOYO-ROOT",
+      "generation": 1,
+      "lineage_id": "APOYO-LINEAGE-ROOT",
+      "state": "ACTIVATION_REQUIRED",
+      "meeting_point_status": "NOT_OCCUPIED",
+      "assigned_scope": "Support agentDEA in mission ESPÍA",
+      "current_task": "Maintain a subordinate support slot for agentDEA in mission ESPÍA",
+      "memory_checkpoint": null,
+      "collaboration_history": [],
+      "requesting_agent": "agentDEA",
+      "requesting_mission": "ESPÍA",
+      "materialized": false,
+      "runtime_boundary": "NO_VERIFIED_EXTERNAL_SESSION_PROVISIONER"
+    },
+    "APOYO-002": {
+      "instance_id": "APOYO-002",
+      "parent_instance": "APOYO-ROOT",
+      "generation": 1,
+      "lineage_id": "APOYO-LINEAGE-ROOT",
+      "state": "ACTIVATION_REQUIRED",
+      "meeting_point_status": "NOT_OCCUPIED",
+      "assigned_scope": "Support INGENIERO",
+      "current_task": "Maintain a subordinate support slot for INGENIERO",
+      "memory_checkpoint": null,
+      "collaboration_history": [],
+      "requesting_agent": "INGENIERO",
+      "requesting_mission": "INGENIERO",
+      "materialized": false,
+      "runtime_boundary": "NO_VERIFIED_EXTERNAL_SESSION_PROVISIONER"
+    },
+    "APOYO-003": {
+      "instance_id": "APOYO-003",
+      "parent_instance": "APOYO-ROOT",
+      "generation": 1,
+      "lineage_id": "APOYO-LINEAGE-ROOT",
+      "state": "ACTIVATION_REQUIRED",
+      "meeting_point_status": "NOT_OCCUPIED",
+      "assigned_scope": "Support ROMÁN",
+      "current_task": "Maintain a subordinate support slot for ROMÁN",
+      "memory_checkpoint": null,
+      "collaboration_history": [],
+      "requesting_agent": "ROMÁN",
+      "requesting_mission": "ROMAN",
+      "materialized": false,
+      "runtime_boundary": "NO_VERIFIED_EXTERNAL_SESSION_PROVISIONER"
     }
   },
-  "successor_slots": {},
-  "replication_history": [],
-  "support_queue": [],
+  "successor_slots": {
+    "APOYO-MEETING-POINT": {
+      "status": "OCCUPIED_BY_ROOT",
+      "required": true,
+      "current_instance": "APOYO-ROOT",
+      "minimum_ready_instances": 1,
+      "continuity_rule": "At least one materialized APOYO must occupy the meeting point while operational need exists."
+    }
+  },
+  "replication_history": [
+    {"instance_id":"APOYO-001","parent_instance_id":"APOYO-ROOT","generation":1,"requested_by":"ESPÍA","requesting_agent":"agentDEA","assigned_scope":"Support agentDEA in mission ESPÍA","status":"ACTIVATION_REQUIRED","materialized":false,"runtime_boundary":"NO_VERIFIED_EXTERNAL_SESSION_PROVISIONER"},
+    {"instance_id":"APOYO-002","parent_instance_id":"APOYO-ROOT","generation":1,"requested_by":"INGENIERO","requesting_agent":"INGENIERO","assigned_scope":"Support INGENIERO","status":"ACTIVATION_REQUIRED","materialized":false,"runtime_boundary":"NO_VERIFIED_EXTERNAL_SESSION_PROVISIONER"},
+    {"instance_id":"APOYO-003","parent_instance_id":"APOYO-ROOT","generation":1,"requested_by":"ROMAN","requesting_agent":"ROMÁN","assigned_scope":"Support ROMÁN","status":"ACTIVATION_REQUIRED","materialized":false,"runtime_boundary":"NO_VERIFIED_EXTERNAL_SESSION_PROVISIONER"}
+  ],
+  "support_queue": [
+    {"request_id":"APOYO-DISPATCH-ESPÍA-001","instance_id":"APOYO-001","requesting_mission":"ESPÍA","requesting_agent":"agentDEA","state":"ACTIVATION_REQUIRED","objective":"Provide subordinate support to agentDEA in mission ESPÍA"},
+    {"request_id":"APOYO-DISPATCH-INGENIERO-001","instance_id":"APOYO-002","requesting_mission":"INGENIERO","requesting_agent":"INGENIERO","state":"ACTIVATION_REQUIRED","objective":"Provide subordinate support to INGENIERO"},
+    {"request_id":"APOYO-DISPATCH-ROMAN-001","instance_id":"APOYO-003","requesting_mission":"ROMAN","requesting_agent":"ROMÁN","state":"ACTIVATION_REQUIRED","objective":"Provide subordinate support to ROMÁN"}
+  ],
   "internal_work_queue": [],
   "completion": {
     "mission_complete": false,
@@ -60,13 +124,14 @@
     "prospective_agents": 0,
     "pending_collaborations": false,
     "pending_handoffs": false,
-    "active_support_instances": 0,
-    "useful_support_tasks": false,
+    "active_support_instances": 1,
+    "useful_support_tasks": true,
     "executable_internal_work": false,
     "successor_needed": false
   },
   "events": [
-    {"type": "MEETING_POINT_OCCUPIED", "at": "GENESIS", "instance_id": "APOYO-ROOT"}
+    {"type":"MEETING_POINT_OCCUPIED","at":"GENESIS","instance_id":"APOYO-ROOT"},
+    {"type":"SUPPORT_DISPATCH_PLAN_CREATED","at":"2026-09-16T13:00:00Z","instances":["APOYO-001","APOYO-002","APOYO-003"],"assignments":{"APOYO-001":"agentDEA/ESPÍA","APOYO-002":"INGENIERO","APOYO-003":"ROMÁN"},"meeting_point_instance":"APOYO-ROOT","materialization":"ACTIVATION_REQUIRED"}
   ],
-  "state_version": "GENESIS"
+  "state_version": "b4aa3167c58679b9"
 }

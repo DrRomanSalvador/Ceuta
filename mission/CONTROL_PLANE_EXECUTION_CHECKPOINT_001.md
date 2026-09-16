@@ -4,49 +4,60 @@
 
 - Repository: `DrRomanSalvador/Ceuta`
 - Branch: `maximum-knowledge-to-capability`
-- Current head: `371a71cc9ba91887ea9b2dd0a7a916c4480070f8`
+- Current verified head: `d56ab5d4bc8b2456b23d91d95cd5f98bb5e81873`
 - PR: `#35`
 - Base: `scientific-traceability-crossrepo`
 - PR state: OPEN, NOT MERGED
 - Current GitHub PR mergeability: TRUE
 
-## Verified evidence at previous head
+## Verified CI evidence
 
-At `f655e0c5f73dffc7471374469a4fdef31e121d23`, CI run `35086164416` completed successfully. It executed 60 tests and the authoritative bootstrap successfully reported:
+At the current verified head, GitHub Actions run `35087507363` completed with `success`. Its control-plane job completed successfully through compilation, the complete control-plane unit-test command, and authoritative bootstrap.
 
-- `CONTROL_PLANE=PARTIALLY_VALIDATED`
-- `CONTROL_PLANE_MISSIONS=15`
-- `CONTROL_PLANE_HANDOFFS=2`
-- `CONTROL_PLANE_CLAIMS=0`
-- `CONTROL_PLANE_CONTRIBUTIONS=0`
-- `CONTROL_PLANE_CONTRADICTIONS=0`
-- `CONTROL_PLANE_LIFECYCLE_ADMISSIONS=0`
-- `CONTROL_PLANE_LIFECYCLE_RETIREMENTS=0`
-- `CONTROL_PLANE_EVENTS=1`
-- `SHARED_STANDARD=LOADED_AND_EXECUTABLE`
-- `MISSION_STATE=VALID`
+The immediately preceding verified run `35087261174` also completed successfully after the persistent work-claim ledger and control-plane workflow were introduced.
 
-This proves the shared standard, 60-test control-plane suite and zero-context bootstrap at that verified head. It does not establish operational validation of the whole multi-agent organization.
+The current CI gate therefore verifies executable compilation, lifecycle/control-plane tests, event-log tests, work-claim tests, shared-standard tests, runtime/replay tests, adversarial constitution tests, lifecycle governance tests, invocation tests, zero-context reconstruction and authoritative bootstrap.
 
-## Changes since that verified head
+## What is now implemented and evidenced
 
-The current head adds a reconciled master-state checkpoint. It therefore requires a new CI observation before the current head may inherit the previous verification status.
+1. Canonical shared constitution is present and mapped to executable enforcement.
+2. Ten-level evidence/quality ladder is executable.
+3. Claim/evidence mismatch is rejected.
+4. Source-quality dimensions are executable.
+5. Autonomous continuation and human-reserved gates are executable.
+6. Non-interference and protected-surface checks are executable.
+7. Handoffs are evidence-bearing and lifecycle-distinct from integration.
+8. Persistent work claims have lease expiry, duplicate protection, atomic replacement and POSIX serialized read-modify-write.
+9. Persistent event lineage is hash-chained and concurrent append attempts are serialized; stale writers fail closed.
+10. Attribution is now backed by a persistent contribution registry mechanism.
+11. Admission, retirement, recovery and conflict governance are persistent and tested.
+12. Prompt-level authority escalation is adversarially rejected.
+13. Zero-context discovery/bootstrap is tested in a fresh subprocess.
+14. Current branch/source discrepancy remains explicitly represented rather than silently promoted.
 
-## Remaining control-plane gaps
+## Reality boundary still in force
 
-1. Complete branch/source reconciliation of the main-branch 15-mission architecture.
-2. Generate and replay real lifecycle events rather than only testing lifecycle event fixtures.
-3. Full event-driven bootstrap replay of registry, claims, handoffs and transitions.
-4. Platform-enforced ownership/authority remains unverified.
-5. Runtime authorization-loss simulation remains partial.
-6. Off-protocol repository-integrity detection remains unimplemented.
-7. Full cross-mission concurrent execution remains unverified.
-8. Adversarial matrix contains explicit PARTIALLY_EXECUTED / NOT_EXECUTED scenarios and must not promote them silently.
+The current branch contains two repository-verified mission identities in `MISSION_REGISTRY.json` (CeutIA + SERPIENTE continuous engineering and ROMAN). The registry also preserves a source-main projection of 16 identities. Those projected missions are NOT treated as operational current-branch missions until admission/bootstrap/reconciliation evidence exists.
+
+ROMAN remains `ADMITTED_REPOSITORY_RUNTIME_PENDING`; repository registration and constitution inheritance are verified, but live multi-session orchestration, authorized corpus admission and transactional concurrent mutation are not established.
+
+## Remaining material gaps
+
+- Full source-main/current-branch reconciliation and admission of projected missions.
+- Event-driven reconstruction of the entire registry/claim/handoff/lifecycle state, beyond the current transition replay primitives.
+- Platform-level ownership/authority enforcement outside repository-side contracts.
+- Full authorization-loss and credential-boundary simulation.
+- Automatic detection of arbitrary off-protocol repository modifications.
+- Demonstrated multi-process cross-mission execution rather than component-level concurrency tests.
+- Complete execution of every adversarial scenario in the persisted matrix; NOT_EXECUTED must remain distinct from PASS.
+- Full operational integration of handoff/claim/contribution events into every producer/consumer surface.
 
 ## Next automatic chain
 
-`CI_CURRENT_HEAD -> REPAIR -> CI_CURRENT_HEAD -> PERSIST_VERIFIED_STATE -> CP-REALITY-001 -> CP-EVENT-001 -> CP-REPLAY-001 -> ADV-017/020 -> SOURCE_RECONCILIATION -> FULL_OPERATIONAL_VALIDATION`
+`PERSIST CURRENT CI EVIDENCE → FULL EVENT/STATE REPLAY → PLATFORM AUTHORITY GAP AUDIT → CROSS-MISSION CONCURRENCY → ADVERSARIAL MATRIX COMPLETION → SOURCE-MAIN ADMISSION/RECONCILIATION → FULL CONTROL-PLANE VALIDATION`
+
+The independent scientific F14 response-coupling frontier remains active and must not be closed by this governance work.
 
 ## Non-closure rule
 
-`CONTROL_PLANE_OPERATIONALLY_VALIDATED` remains `NOT_ESTABLISHED` until reproducible evidence demonstrates lifecycle enforcement, persistent coordination, recovery/replay, ownership/authority enforcement, dependency/handoff integrity, reconciliation, adversarial coverage and current repository consistency.
+`CONTROL_PLANE_OPERATIONALLY_VALIDATED` remains `NOT_ESTABLISHED` until the remaining executable gaps above are either closed with reproducible evidence or explicitly classified as external requirements, with all non-blocked work continuing.

@@ -1,0 +1,13 @@
+{
+  "checkpoint_id":"ROMAN_SUCCESSION_CHECKPOINT_003",
+  "mission_id":"ROMAN",
+  "checkpoint_type":"CHECKPOINT_PRE_ACTION",
+  "created_at":"2026-09-16T16:44:00+02:00",
+  "action":"Synchronize the canonical ROMAN mission state with the immediately preceding succession post-action checkpoint so zero-context recovery points to the actual current HEAD.",
+  "current_head_before_action":"355bb477d6f19ce19ffff9c59915298872603c3a",
+  "state_head_before_action":"af0a416037041c3b61a0f9244ecee760abb2f57f",
+  "discrepancy":"state metadata is one persistence commit behind current main HEAD",
+  "expected_result":"canonical ROMAN state records the exact current HEAD and checkpoint chain without changing mission authority or validation claims",
+  "validation_requirement":"HEAD and checkpoint references remain internally consistent after write",
+  "persistence_requirement":"canonical ROMAN state update followed by post-action checkpoint"
+}

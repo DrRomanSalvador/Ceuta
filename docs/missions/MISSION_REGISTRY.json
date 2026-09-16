@@ -7,7 +7,7 @@
     "MISSION_EVOLUTION_ENGINE": {
       "status": "ACTIVE",
       "contract": "docs/missions/EVOLUTION_ENGINE_CONTRACT.json",
-      "implementation": "backend/app/missions/evolution.py",
+      "implementation": ["backend/app/missions/evolution.py", "backend/app/missions/evolution_runtime.py", "backend/app/missions/lifecycle.py"],
       "documentation": "docs/missions/MISSION_EVOLUTION_ENGINE.md",
       "authority": ["CAN_DISCOVER", "CAN_READ", "CAN_PROPOSE", "CAN_AUTHORIZE", "CAN_VALIDATE", "CAN_INVOKE"],
       "purpose": "Admission, creation, validation, lifecycle review and retirement governance for permanent missions."

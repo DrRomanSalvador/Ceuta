@@ -72,10 +72,14 @@ class ScientificPredictionMessage:
             raise ValueError("available_at cannot precede origin_time")
         if not all(math.isfinite(value) for value in (self.probability, self.lower, self.upper, self.model_disagreement)):
             raise ValueError("prediction interval and disagreement values must be finite")
-        if not 0 <= self.probability <= 1 or not 0 <= self.model_disagreement <= 1:
-            raise ValueError("probability and disagreement must be in [0,1]")
-        if self.lower > self.upper or not self.provenance or not self.point_in_time_fingerprint:
-            raise ValueError("forecast interval, provenance and point-in-time fingerprint are required")
+        if not 0 <= self.probability <= 1 or not 0 <= self.lower <= self.upper <= 1 or not 0 <= self.model_disagreement <= 1:
+            raise ValueError("probability, interval and disagreement must be in [0,1]")
+        if not self.uncertainty or any(not math.isfinite(value) or not 0 <= value <= 1 for value in self.uncertainty.values()):
+            raise ValueError("uncertainty must be non-empty and finite in [0,1]")
+        if not self.horizon.strip() or not self.target.strip():
+            raise ValueError("horizon and target are required")
+        if not self.provenance or not self.point_in_time_fingerprint:
+            raise ValueError("forecast provenance and point-in-time fingerprint are required")
         if self.schema_version != CONTRACT_VERSION:
             raise ValueError("unsupported scientific contract version")
         if not self.model_id or not self.method_id or not self.method_version or not self.training_window or not self.reference_class:
@@ -130,8 +134,6 @@ def validate_scientific_prediction_payload(payload: dict[str, Any]) -> Scientifi
     )
     if not message.verify_integrity():
         raise ValueError("scientific prediction integrity mismatch")
-    if any(not math.isfinite(v) for v in message.uncertainty.values()):
-        raise ValueError("uncertainty contains non-finite values")
     return message
 
 

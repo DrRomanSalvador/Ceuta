@@ -1,0 +1,60 @@
+schema_version: "1.0"
+status: ACTIVE_DESIGN
+precedence:
+  - EXISTING_CAPABILITY
+  - EXISTING_MISSION_EXTENSION
+  - CROSS_MISSION_COLLABORATION
+  - TEMPORARY_TASK_FORCE
+  - NEW_MISSION
+hard_gates:
+  - capability_match
+  - scientific_compatibility
+  - authority_match
+  - required_inputs_available
+  - validation_path_available
+  - dependency_satisfaction_or_explicit_external_boundary
+selection_order:
+  - sufficient_capability
+  - evidence_backed_fit
+  - authority_fit
+  - scientific_method_fit
+  - validation_fit
+  - lower_activation_cost
+  - lower_duplication_risk
+  - fewer_unresolved_dependencies
+  - stable_mission_id
+required_activation_fields:
+  - activation_id
+  - trigger
+  - scientific_reason
+  - source_event
+  - task
+  - selected_mission
+  - selection_reason
+  - alternatives_considered
+  - dependencies
+  - expected_output
+  - acceptance_criteria
+  - activation_timestamp
+  - execution_state
+  - result
+  - validation
+  - integration
+  - downstream_tasks
+  - closure
+required_task_fields:
+  - task_id
+  - why_this_task
+  - why_now
+  - expected_value
+  - acceptance_criteria
+  - stop_condition
+prohibitions:
+  - activate_for_activity_only
+  - activate_without_provenance
+  - activate_without_authority
+  - create_new_mission_before_precedence_search
+  - use_consensus_as_truth
+  - treat_model_output_as_evidence
+  - recursively_reactivate_same_chain_without_new_information
+  - generate_tasks_without_material_scientific_reason

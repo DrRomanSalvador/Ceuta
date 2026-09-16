@@ -116,7 +116,8 @@ def test_invalid_prediction_is_abstained_before_persistence(tmp_path, monkeypatc
     assert response.status_code == 422
     connection = sqlite3.connect(database)
     try:
-        row = connection.execute("SELECT prediction_id FROM scientific_predictions WHERE prediction_id='prediction-1'").fetchone()
+        table = connection.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='scientific_predictions'").fetchone()
+        row = connection.execute("SELECT prediction_id FROM scientific_predictions WHERE prediction_id='prediction-1'").fetchone() if table else None
     finally:
         connection.close()
     assert row is None

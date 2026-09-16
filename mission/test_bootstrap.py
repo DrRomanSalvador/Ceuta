@@ -1,9 +1,21 @@
 import unittest
 
 try:
-    from .bootstrap import load_state, validate_state, validate_repository_layout
+    from .bootstrap import (
+        load_current_reconciliation,
+        load_state,
+        validate_current_reconciliation,
+        validate_repository_layout,
+        validate_state,
+    )
 except ImportError:  # direct execution: python mission/test_bootstrap.py
-    from bootstrap import load_state, validate_state, validate_repository_layout
+    from bootstrap import (
+        load_current_reconciliation,
+        load_state,
+        validate_current_reconciliation,
+        validate_repository_layout,
+        validate_state,
+    )
 
 
 class MissionBootstrapTests(unittest.TestCase):
@@ -11,6 +23,7 @@ class MissionBootstrapTests(unittest.TestCase):
         state = load_state()
         validate_state(state)
         validate_repository_layout()
+        validate_current_reconciliation(load_current_reconciliation())
 
     def test_continuity_invariants_are_present(self):
         state = load_state()
@@ -29,6 +42,12 @@ class MissionBootstrapTests(unittest.TestCase):
             state["current_state"]["PROSPECTIVE_PREDICTIVE_VALIDITY"],
             "NOT_ESTABLISHED",
         )
+
+    def test_response_coupling_remains_open(self):
+        reconciliation = load_current_reconciliation()
+        response = reconciliation["corrections"]["response_coupling"]
+        self.assertEqual(response["status"], "ACTIVE_FRONTIER")
+        self.assertEqual(response["empirical_state"], "NOT_ESTABLISHED")
 
 
 if __name__ == "__main__":

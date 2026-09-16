@@ -73,3 +73,5 @@ class CausalGraph:
     def interaction_candidates(self, variables: Iterable[str]) -> tuple[tuple[str, str], ...]:
         values = sorted(set(variables))
         return tuple((a, b) for i, a in enumerate(values) for b in values[i + 1 :])
+
+# Scientific limitation resolution: feedback is time-unrolled before DAG identification.

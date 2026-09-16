@@ -8,9 +8,10 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from .control_plane import MissionState
-from .control_plane_runtime import persist_transition, replay_projection, replay_state
+from .control_plane_runtime import persist_handoff_event, persist_transition, replay_projection, replay_state
 from .event_log import load_jsonl, validate_chain
 from .lifecycle_governance import record_conflict
+from .replay import replay
 from .work_claims import acquire
 
 
@@ -20,6 +21,15 @@ def _claim_worker(root: str, work_id: str, mission_id: str, queue) -> None:
     try:
         result=acquire(path,work_id=work_id,mission_id=mission_id,actor=mission_id,lease_id=f"L-{mission_id}",lease_expires_at=expiry,event_log=event_log)
         queue.put((mission_id,"ACQUIRED",result.get("mutation_event_id")))
+    except Exception as exc:
+        queue.put((mission_id,"REJECTED",type(exc).__name__))
+
+
+def _transition_worker(root: str, mission_id: str, queue) -> None:
+    path=Path(root)/"events.jsonl"
+    try:
+        event=persist_transition(event_log=path,mission_id=mission_id,current=MissionState.READY,target=MissionState.ACTIVE,authorized_actor=mission_id,evidence=[f"worker:{mission_id}"],timestamp=datetime.now(timezone.utc).isoformat())
+        queue.put((mission_id,"PERSISTED",event["event_id"]))
     except Exception as exc:
         queue.put((mission_id,"REJECTED",type(exc).__name__))
 
@@ -47,11 +57,26 @@ class ControlPlaneIntegrationTests(unittest.TestCase):
             self.assertEqual(len(events),1)
             validate_chain(events)
 
+    def test_two_processes_persist_distinct_mission_transitions_once(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            ctx=mp.get_context("spawn")
+            queue=ctx.Queue()
+            ps=[ctx.Process(target=_transition_worker,args=(tmp,f"MISSION-{i}",queue)) for i in ("A","B")]
+            for p in ps: p.start()
+            for p in ps: p.join(15)
+            self.assertTrue(all(p.exitcode==0 for p in ps), msg=[p.exitcode for p in ps])
+            results=[queue.get(timeout=3) for _ in ps]
+            self.assertEqual(sum(r[1]=="PERSISTED" for r in results),2)
+            events=load_jsonl(Path(tmp)/"events.jsonl")
+            self.assertEqual(len(events),2)
+            validate_chain(events)
+            self.assertEqual(replay(Path(tmp)/"events.jsonl").mission_states,{"MISSION-A":"ACTIVE","MISSION-B":"ACTIVE"})
+
     def test_event_chain_rejects_reordered_event(self):
         with tempfile.TemporaryDirectory() as tmp:
             log=Path(tmp)/"events.jsonl"
-            persist_transition(event_log=log,mission_id="MISSION-A",current=MissionState.READY,target=MissionState.ACTIVE,authorized_actor="SYSTEM",evidence=["e"],timestamp="2026-09-16T12:00:00+00:00")
-            persist_transition(event_log=log,mission_id="MISSION-A",current=MissionState.ACTIVE,target=MissionState.VALIDATION_PENDING,authorized_actor="SYSTEM",evidence=["e2"],timestamp="2026-09-16T12:01:00+00:00")
+            persist_transition(event_log=log,mission_id="MISSION-A",current=MissionState.READY,target=MissionState.ACTIVE,authorized_actor="SYSTEM",evidence=["e"],timestamp="2026-09-16T12:00:00Z")
+            persist_transition(event_log=log,mission_id="MISSION-A",current=MissionState.ACTIVE,target=MissionState.VALIDATION_PENDING,authorized_actor="SYSTEM",evidence=["e2"],timestamp="2026-09-16T12:01:00Z")
             events=load_jsonl(log); events.reverse()
             with self.assertRaises(ValueError): validate_chain(events)
 
@@ -67,9 +92,9 @@ class ControlPlaneIntegrationTests(unittest.TestCase):
     def test_stale_transition_writer_fails_closed(self):
         with tempfile.TemporaryDirectory() as tmp:
             log=Path(tmp)/"events.jsonl"
-            persist_transition(event_log=log,mission_id="MISSION-A",current=MissionState.READY,target=MissionState.ACTIVE,authorized_actor="SYSTEM",evidence=["e"],timestamp="2026-09-16T12:00:00+00:00")
+            persist_transition(event_log=log,mission_id="MISSION-A",current=MissionState.READY,target=MissionState.ACTIVE,authorized_actor="SYSTEM",evidence=["e"],timestamp="2026-09-16T12:00:00Z")
             from .event_log import append_event, make_event
-            stale=make_event(event_id="EV-STALE",event_type="MISSION_STATE_TRANSITION",mission_id="MISSION-B",actor="SYSTEM",timestamp="2026-09-16T12:00:01+00:00",payload={"from":"READY","to":"ACTIVE"})
+            stale=make_event(event_id="EV-STALE",event_type="MISSION_STATE_TRANSITION",mission_id="MISSION-B",actor="SYSTEM",timestamp="2026-09-16T12:00:01Z",payload={"from":"READY","to":"ACTIVE"})
             with self.assertRaises(ValueError): append_event(log,stale)
 
 

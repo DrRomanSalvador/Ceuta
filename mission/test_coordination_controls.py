@@ -35,10 +35,11 @@ class CoordinationControlTests(unittest.TestCase):
             self.coordinator.issue(command_type=CommandType.RESUME, target="ENGINEER-1", mission="MISSION-01", reason="resume", authority_basis=Authority.COORDINATOR.value, expected_effect="resume")
         self.assertEqual(self.store.load()["conflicts"][-1]["type"], "COORDINATION_CONFLICT")
 
-    def test_mirror_preflight_rejects_unknown_target(self):
+    def test_mirror_preflight_preserves_unknown_target_as_explicit_uncertainty(self):
         mirror = Mirror(instance_id="MIRROR-1", store=self.store)
-        with self.assertRaises(CoordinationError):
-            mirror.invoke(mirror_of="ENGINEER-2", mission="MISSION-01", target_agent="ENGINEER-2", task="T-1", problem="x", capability_required="tester", limits=[], priority="HIGH", authority=Authority.COORDINATOR.value, expected_result="x", action=MirrorAction.TEST, functional_role="tester", mission_owner="ENGINEER-2")
+        state = mirror.invoke(mirror_of="ENGINEER-2", mission="MISSION-01", target_agent="ENGINEER-2", task="T-1", problem="x", capability_required="tester", limits=[], priority="HIGH", authority=Authority.COORDINATOR.value, expected_result="x", action=MirrorAction.TEST, functional_role="tester", mission_owner="ENGINEER-2")
+        invocation = next(iter(state["mirrors"].values()))
+        self.assertEqual(invocation["target_agent"], "ENGINEER-2")
 
     def test_mirror_preflight_rejects_already_owned_task(self):
         mirror = Mirror(instance_id="MIRROR-1", store=self.store)

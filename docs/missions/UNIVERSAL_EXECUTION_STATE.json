@@ -12,7 +12,7 @@
   "runtime_enforcement": "IMPLEMENTED_REPOSITORY_RUNTIME",
   "cross_process_enforcement": "EXTERNAL_BOUNDARY",
   "live_orchestrator": "NOT_ESTABLISHED",
-  "github_branch_protection_for_new_paths": "NOT_VERIFIED",
+  "github_branch_protection_for_new_paths": "EXTERNAL_BOUNDARY",
   "ingeniero_case": {
     "status": "UNKNOWN_WITH_REPOSITORY_EVIDENCE",
     "verified_facts": [
@@ -27,12 +27,19 @@
     ],
     "classification": "UNKNOWN"
   },
-  "last_action": "Implement universal contract/runtime/tests without interrupting any unobservable external execution.",
-  "next_authorized_action": "Run repository test suite and CI; then verify external orchestrator lease/CAS/liveness/recovery capabilities before claiming cross-process enforcement.",
+  "adversarial_validation": {
+    "first_ci_run": "FAILED_1_OF_7",
+    "finding": "checkpoint persistence did not propagate checkpoint_ref into the task state, causing a recoverable process loss to classify as LOST",
+    "repair": "checkpoint now records checkpoint_ref and updated_at on the associated task before persisting the new state version",
+    "repair_commit": "a54ad7607de405bf8404480eb94d594f6c2a3c91",
+    "revalidation": "PR_53_CI_PENDING"
+  },
+  "last_action": "Repair the recovery-linkage defect found by adversarial CI and start a fresh CI validation cycle.",
+  "next_authorized_action": "Verify PR #53 CI. If repository tests are green, continue with full-suite/regression evidence; then verify external orchestrator lease/CAS/liveness/recovery and new-path protection before claiming universal live enforcement.",
   "fixed_point": false,
   "limitations": [
     "Repository code cannot prove the live state of an external INGENIERO process.",
-    "GitHub CODEOWNERS/branch rules are external enforcement and must be independently verified for the new constitutional paths.",
+    "The active PROTECTED-MAIN ruleset requires code-owner review but exposes a repository-role bypass; new universal-execution paths are not yet covered by the protected-control workflow/CODEOWNERS.",
     "A repository runtime cannot by itself guarantee that every external model/provider/session actually routes all writes through this runtime."
   ]
 }

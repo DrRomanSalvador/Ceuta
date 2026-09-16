@@ -1,0 +1,12 @@
+{
+  "mission_id":"ROMAN",
+  "status":"PARTIALLY_INTEGRATED",
+  "lifecycle":"DOCUMENTED → REGISTERED → DISCOVERABLE → INVOCABLE → EXECUTABLE → PERSISTENT → CONCURRENTLY_SAFE → HANDOFF_COMPATIBLE → VALIDATED → INTEGRATED",
+  "current_stage":"INVOCABLE_CONTRACT_ESTABLISHED",
+  "stages":{"DOCUMENTED":true,"REGISTERED":true,"DISCOVERABLE":true,"INVOCABLE":true,"EXECUTABLE":false,"PERSISTENT":false,"CONCURRENTLY_SAFE":false,"HANDOFF_COMPATIBLE":true,"VALIDATED":false,"INTEGRATED":false},
+  "evidence":["canonical registry entry","machine-readable invocation contract","persistent mission state","capability matrix","handoff contract","authority/scope definition","validation record","adversarial test definitions"],
+  "blockers":["No live external mission orchestrator/host was exposed by the repository tooling, so runtime invocation and live transactional state persistence cannot be verified from this repository integration alone."],
+  "non_blocked_work":"Repository-side contracts, state schemas, discovery metadata, handoffs, authority boundaries and adversarial invariants are persisted.",
+  "next_authorized_action":"Run the repository CI/discovery tests; then connect the canonical registry to the external multi-chat mission host and verify live invocation, leases/CAS, conflict reconciliation and recovery.",
+  "do_not_mark_complete":true
+}

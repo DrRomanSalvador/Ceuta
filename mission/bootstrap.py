@@ -62,23 +62,24 @@ def validate_current_reconciliation(r):
 
 def validate_shared_standard():
     try:
-        from .shared_standard import QualityLevel, enforce_claim_evidence, validate_autonomous_continuation
+        from .shared_standard import QualityLevel, enforce_claim_evidence, validate_autonomous_continuation, validate_attribution
     except ImportError:
-        from shared_standard import QualityLevel, enforce_claim_evidence, validate_autonomous_continuation
+        from shared_standard import QualityLevel, enforce_claim_evidence, validate_autonomous_continuation, validate_attribution
     if [x.value for x in QualityLevel] != list(range(10)): raise ValueError("Shared quality ladder is incomplete")
     enforce_claim_evidence(claim_level=QualityLevel.VERIFIED, evidence_level=QualityLevel.VERIFIED)
     if not validate_autonomous_continuation(authorized=True, scientifically_justified=True, technically_feasible=True, controlled=True, in_scope=True): raise ValueError("Autonomous continuation gate unexpectedly denies a fully authorized action")
+    validate_attribution({field:"BOOTSTRAP" for field in ("DISCOVERED_BY","PROPOSED_BY","IMPLEMENTED_BY","REVIEWED_BY","VALIDATED_BY","AUTHORIZED_BY")}, require_authorization=True)
 
 def validate_control_plane():
     try:
         from .control_plane import ControlPlaneContract,MissionState,validate_handoff,validate_waiting_policy,validate_mission_contract
         from .event_log import load_jsonl,validate_chain
-        from .shared_standard import validate_contradiction
+        from .shared_standard import validate_contradiction,validate_attribution
         from .invocation_runtime import discover
     except ImportError:
         from control_plane import ControlPlaneContract,MissionState,validate_handoff,validate_waiting_policy,validate_mission_contract
         from event_log import load_jsonl,validate_chain
-        from shared_standard import validate_contradiction
+        from shared_standard import validate_contradiction,validate_attribution
         from invocation_runtime import discover
     cp=load_json(CONTROL_PLANE_STATE_PATH); sm=load_json(STATE_MACHINE_PATH); hr=load_json(HANDOFF_REGISTRY_PATH); registry=load_json(REGISTRY_PATH); queue=load_json(QUEUE_PATH); claims=load_json(CLAIMS_PATH); contributions=load_json(CONTRIBUTION_PATH); contradictions=load_json(CONTRADICTION_PATH); lifecycle=load_json(LIFECYCLE_PATH); roman_contract=load_json(ROMAN_CONTRACT_PATH); roman_state=load_json(ROMAN_STATE_PATH)
     ControlPlaneContract().validate_distinctions()
@@ -95,8 +96,9 @@ def validate_control_plane():
     if roman.get("invocation_contract")!=str(Path("mission/ROMAN_INVOCATION_CONTRACT.json")): raise ValueError("ROMAN invocation contract reference is incorrect")
     if roman_contract.get("operating_standard_version")!="MISSION_SYSTEM_CONSTITUTION_1.0" or roman_state.get("operating_standard_version")!="MISSION_SYSTEM_CONSTITUTION_1.0": raise ValueError("ROMAN does not inherit the canonical constitution")
     if roman_state.get("status")!="ADMITTED_REPOSITORY_RUNTIME_PENDING": raise ValueError("ROMAN state is incorrectly promoted")
-    if claims.get("registry_id")!="CEUTIA_SERPIENTE_MISSION_WORK_CLAIMS" or not isinstance(claims.get("claims"),dict): raise ValueError("Invalid persistent work-claim registry")
+    if claims.get("registry_id")!="CEUTIA_SERPIENTE_MISSION_WORK_CLAIMS" or not isinstance(claims.get("claims"),dict) or not isinstance(claims.get("history",[]),list): raise ValueError("Invalid persistent work-claim registry")
     if contributions.get("registry_id")!="CEUTIA_SERPIENTE_MISSION_CONTRIBUTION_REGISTRY" or not isinstance(contributions.get("items"),list): raise ValueError("Invalid contribution registry")
+    for contribution in contributions["items"]: validate_attribution(contribution, require_authorization=True)
     if contradictions.get("registry_id")!="CEUTIA_SERPIENTE_MISSION_CONTRADICTION_REGISTRY" or not isinstance(contradictions.get("items"),list): raise ValueError("Invalid contradiction registry")
     for contradiction in contradictions["items"]: validate_contradiction(contradiction)
     if lifecycle.get("registry_id")!="CEUTIA_SERPIENTE_MISSION_LIFECYCLE_LEDGER" or any(not isinstance(lifecycle.get(k),list) for k in ("admissions","retirements","recoveries","conflicts")): raise ValueError("Invalid mission lifecycle ledger")

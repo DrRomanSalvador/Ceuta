@@ -1,0 +1,44 @@
+{
+  "checkpoint_id":"ROMAN_SUCCESSION_CHECKPOINT_001",
+  "mission_id":"ROMAN",
+  "checkpoint_type":"CHECKPOINT_PRE_ACTION",
+  "created_at":"2026-09-16T16:38:00+02:00",
+  "previous_roman_state":{
+    "reported_status":"COMPLETE",
+    "reported_implementation":"VALIDATED_INTERNAL",
+    "reported_fixed_point":true,
+    "reported_open_executable_work":0,
+    "reported_head":"b22a60854137709a13f48ecea4f54b90a8c702e8",
+    "ci_run":717,
+    "security_run":877,
+    "external_issue":52,
+    "ingeniero":"UNKNOWN_UNRESOLVED_BY_AVAILABLE_EVIDENCE"
+  },
+  "current_repository_head":"acb780bd82697370ccc99c2021f98e37ad8d86f6",
+  "current_head_delta_from_reported_closure":["ce320675d932d9619a1cf346b222b6d2fccdfc70","acb780bd82697370ccc99c2021f98e37ad8d86f6"],
+  "new_current_evidence":["canonical scientific normative standard 1.0.0 added","canonical scientific normative registry added","global autonomous work queue now records active/pending MISSION-01 and scientific engineering work","open PR #65 continues MISSION-01 replay/authority recovery validation","open PR #64 advances ESPÍA scientific normative standard on a separate branch"],
+  "critical_reconciliation":{
+    "universal_execution_control":"historical closure remains supported by persisted UNIVERSAL_EXECUTION_STATE and GREEN validation evidence",
+    "authorial_roman_mission":"not terminal; canonical ROMAN_MISSION_STATE remains ACTIVE and ROMAN_INTEGRATION_STATUS remains PARTIALLY_INTEGRATED",
+    "semantic_collision":"the historical universal execution state uses mission_id ROMAN as a control implementation identifier, while the canonical ROMAN registry identifies ROMAN as AUTHORIAL_INTELLECTUAL_FORENSIC; these must not be conflated",
+    "master_state":"global mission remains OPEN_CONTINUOUS_EXECUTION and lists ROMAN ACTIVE"
+  },
+  "first_unverified_state":"Repository-side ROMAN mission runtime/discovery/invocation/provenance/contamination/concurrency/recovery validation beyond contract definition, plus any authorized authorial corpus ingestion.",
+  "continuation_pointer":{
+    "mission":"ROMAN",
+    "phase":"SUCCESSION_RECONCILIATION",
+    "work_item":"RECONCILE_ROMAN_CANONICAL_STATE_WITH_VALIDATED_UNIVERSAL_EXECUTION_CONTROL_AND_CURRENT_GLOBAL_STATE",
+    "scientific_object":"authorial/intellectual model; no authorized source corpus currently present",
+    "engineering_object":"ROMAN mission continuity artifacts and boundary mapping; do not assume ownership of MISSION-01 implementation queue",
+    "repository":"DrRomanSalvador/Ceuta",
+    "branch":"main",
+    "HEAD":"acb780bd82697370ccc99c2021f98e37ad8d86f6",
+    "action":"Persist non-destructive succession reconciliation and exact remaining ROMAN validation boundary",
+    "subaction":"Separate universal execution-control closure from canonical ROMAN authorial mission lifecycle",
+    "expected_result":"A fresh ROMAN instance can distinguish the closed control implementation from the still-active authorial mission and can identify the first unverified state without reopening completed work",
+    "dependencies":["MISSION_REGISTRY","ROMAN_INVOCATION_CONTRACT","ROMAN_MISSION_STATE","ROMAN_INTEGRATION_STATUS","UNIVERSAL_EXECUTION_STATE","MASTER_MISSION_STATE"],
+    "validation_requirement":"repository evidence must support every promoted state; external runtime remains explicitly unverified",
+    "persistence_requirement":"append/versioned checkpoint plus canonical ROMAN state update"
+  },
+  "status_before_action":"RECOVERED_RECONCILIATION_REQUIRED"
+}

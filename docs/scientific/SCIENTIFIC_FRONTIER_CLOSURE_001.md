@@ -2,127 +2,70 @@
 
 **Mission:** `SCIENTIFIC-AUDIT-CLOSURE`
 
-**Active chain:** `CROSSREPO-PIT-BINDING-001` → `CROSSREPO-OUTCOME-ASCERTAINMENT-001` → `CROSSREPO-PROSPECTIVE-EVALUATION-001`
+**Active chain:** `CROSSREPO-PIT-BINDING-001` → `CROSSREPO-OUTCOME-ASCERTAINMENT-001` → `CROSSREPO-PROSPECTIVE-EVALUATION-001` → baseline/dependence/feedback/regime governance.
 
-**Repository snapshot audited:** CeutIA `scientific-traceability-crossrepo` at PR #30 head `cf0ba13e0e52e17f5d1cd5429954f695d3c2c487`; SERPIENTE `main` at the inspected runtime files.
+## 1. PIT semantic binding
 
-## 1. PIT semantic binding — closure at maximum supportable degree
+**Invariant:** `X_t = φ(H_t, θ_t, c_t)` where `H_t` is the exact visible information set, `φ` is a versioned derivation, `θ_t` its configuration/version, and `c_t` the source/feature visibility constraints.
 
-### Scientific question
-Does the forecast prove that the actual model input `X_t` was generated exclusively from the information set `H_t` available at the forecast origin?
+SERPIENTE `PointInTimeStore.history_at(as_of)` reconstructs visible revision-aware history and fingerprints it, but `LongitudinalForecaster.forecast(...)` still accepts `X` independently from the fingerprint. Therefore current v1.1 establishes **PIT_ATTESTATION**, not **PIT_SEMANTICALLY_VERIFIED**. The repair requires binding the actual model-input derivation to an explicit manifest and versioned derivation identity; the v1.1 contract must not be overloaded to imply this property.
 
-### Invariant
-`X_t = φ(H_t, θ_t, c_t)` where `H_t` is the exact visible information set, `φ` is a versioned derivation, `θ_t` its configuration/version, and `c_t` the source/feature visibility constraints.
+**Status:** `SCIENTIFICALLY_CLOSED_WITH_LIMITATION` for the currently inspectable architecture; **scientific claim remains NOT_ESTABLISHED** and executable repair handoff remains required.
 
-### Repository evidence
-SERPIENTE `PointInTimeStore.history_at(as_of)` filters observations by `known_at(as_of)` and `event_time <= as_of`, resolves revisions, and `fingerprint(as_of)` hashes the resulting serialized history. `LongitudinalForecaster.forecast(...)` accepts `X` independently and receives `point_in_time_fingerprint` as an opaque argument. The canonical v1.1 contract transports that fingerprint and protects the resulting payload with an integrity hash.
+## 2. Outcome ascertainment
 
-### Scientific result
-The current architecture establishes **PIT_ATTESTATION**, not **PIT_SEMANTICALLY_VERIFIED**. Because `X` is independently supplied to the forecaster, a truthful fingerprint can coexist with a feature matrix containing future information. Cryptographic integrity of the fingerprint/payload cannot identify the provenance of the actual matrix.
+The outcome persistence layer has now been upgraded from basic identity/temporal eligibility to explicit ascertainment metadata. `SCHEMA_VERSION=5` persists source identity/version, observation/availability/ascertainment times, revision identity, measurement-process identity, outcome-definition version, transformation identity, censoring, missingness, selection and intervention exposure.
 
-### Identifiability result
-Cases A, B, D, E and F can be represented by hashes/manifests if such artifacts are supplied; Case C/G cannot be rejected from the current v1.1 fingerprint alone because the producer does not bind the actual model-input derivation to `H_t`. Therefore semantic PIT validity is **NOT ESTABLISHED** under v1.1.
+The endpoint request model now requires these ascertainment identities and timezone-aware timestamps. It enforces `observation_time <= availability_time <= ascertainment_time`, rejects outcomes whose availability follows the prediction evaluation eligibility point, and refuses missing/partial/censored/selected records from binary scoring rather than imputing them.
 
-### Exact engineering handoff
-A versioned extension is required unless existing producer lineage can bind the actual `X_t`. Minimum fields: `information_set_as_of`, `observation_manifest_hash`, `feature_manifest_hash`, derivation method/version, derivation configuration hash, source/revision visibility rule, feature availability cutoff, and reconstructible input lineage. Fail closed on future feature timestamps, unavailable source/revision, missing derivation identity, manifest mismatch, unknown transformation lineage, or unreconstructible eligibility. Required adversarial tests: valid derivation accepted; alternate derivation distinguished; future-information matrix rejected; tampered matrix rejected; wrong derivation version rejected; changed source revision distinguished; same fingerprint with different model input must never receive semantic-verification status.
+**Remaining defect:** the current `prediction_id` primary key means multiple revisions of the same prediction are not yet representable as a revision history; a changed revision collides rather than silently overwriting. This is fail-closed but does not yet satisfy the stronger requirement that a revision be stored as a distinct versioned record. Competing-source relations likewise remain outside the current record model.
 
-**Status:** `SCIENTIFICALLY_CLOSED` for the *current scientific question as supportable from current architecture*, with the limitation retained and executable repair handoff required. **PIT_SEMANTICALLY_VERIFIED remains NOT ESTABLISHED.**
+**Status:** `PARTIALLY_CHARACTERIZED` → `IMPLEMENTATION_PENDING` for revision-history/source-conflict representation; basic ascertainment semantics are implemented and require runtime verification.
 
-## 2. Outcome ascertainment — scientific closure assessment
+## 3. Prospective evaluation
 
-### Scientific question
-Can a persisted observed outcome be interpreted as the outcome corresponding to the forecast target and horizon, rather than merely an observed binary value that happens to be linkable to the prediction?
+`CEUTIA-SERPIENTE-PREDICTIVE-EVAL-1` is now protocol version `1.1`. It explicitly locks the evaluation window, outcome ascertainment fields and temporal order, baseline registration/leakage rules, dependence restrictions, intervention-feedback separation and regime/distribution-shift metadata. Prospective validity remains `NOT_ESTABLISHED` until real prospective forecasts and outcomes exist.
 
-### Current verified controls
-CeutIA requires prediction/decision/action/outcome identity, exact target match, timezone-aware outcome time, prediction availability before outcome, outcome time at or after the target horizon, persistence integrity, and one-to-one outcome identity. Future outcomes are rejected. Missing outcomes are excluded rather than imputed by the predeclared protocol.
+Required prospective artifact: immutable evaluation-window manifest linking forecast registry, PIT lineage, outcome ascertainment, baseline, model/code/configuration versions and evaluation-procedure hash.
 
-### Material limitations
-The current outcome table stores `outcome_id`, `target`, `outcome_time`, `observed`, provenance and recording time, but does not separately encode: ascertainment time, outcome source/version, revision identity, measurement process, censoring state, selection mechanism, competing-outcome status, or explicit outcome-definition version. Consequently `outcome_time` is not equivalent to complete outcome ascertainment. The evaluator cannot distinguish a stable measurement from a later revised/selected observation using the persisted outcome record alone.
+**Status:** `BLOCKED_EXTERNAL` only for empirical prospective validation; protocol/instrumentation preparation continues independently.
 
-### Adversarial cases
-- Delayed ascertainment: **not distinguishable** from ordinary ascertainment when only `outcome_time` is stored.
-- Revised outcome: **not separately represented**.
-- Duplicate outcome: identity collision is protected.
-- Missing outcome: excluded; no imputation.
-- Partial observation/censoring: **not represented as a distinct state**.
-- Source disagreement: **not represented as a structured competing-source relation**.
-- Post-hoc correction: **not separately represented**.
-- Outcome available only after evaluation: temporal eligibility can reject premature records, but availability/ascertainment is not independently persisted.
-- Selection because outcome was observable: **not identified by the current schema**.
-- Intervention-affected outcome: linkage to action exists, but causal contamination is not identified by the outcome schema.
-- Outcome definition drift: **not separately versioned**.
+## 4. Baseline integrity
 
-### Exact engineering handoff: `CROSSREPO-OUTCOME-ASCERTAINMENT-001`
-Affected repository: `DrRomanSalvador/Ceuta`.
-Affected component: `backend/app/core/scientific/prediction_outcome_evaluation.py` and downstream aggregate evaluation.
-Invariant: an eligible outcome must identify not only the measured target/time but also the ascertainment process and revision state needed to establish comparability with the forecast target.
-Required fields: `outcome_definition_version`, `source_id`, `source_version`, `observation_time`, `availability_time`, `ascertainment_time`, `revision_id/version`, `measurement_process_id/version`, `censoring_status`, `missingness_status`, `selection_status`, `transformation_id/version`, and provenance/integrity identity.
-Forbidden behavior: treating `outcome_time` as proof of ascertainment completeness; imputing missing outcomes as observed; silently selecting a convenient source; using revised information to retroactively alter an earlier evaluation without recording revision semantics.
-Acceptance tests: delayed availability rejected for an evaluation time before availability; revision creates a distinct version and does not silently rewrite historical eligibility; duplicate identity rejected; missing/censored state remains unevaluated rather than imputed; conflicting sources remain distinguishable; changed outcome definition fails target comparability; post-intervention outcome is marked as intervention-exposed rather than ordinary untreated outcome.
-Scientific claim affected: **prospective predictive validity**.
+SERPIENTE contains temporal prevalence and seasonal baselines in model validation, but the cross-repository evaluation endpoint does not transport a paired predeclared baseline output. Retrospective construction from realized outcomes remains forbidden.
 
-**Status:** `REPAIR_REQUIRED` / `HANDOFF_REQUIRED`. Outcome ascertainment is **NOT ESTABLISHED** beyond basic temporal/identity eligibility.
+**Status:** `HANDOFF_REQUIRED` for cross-repository paired baseline transport; comparative predictive utility remains `NOT_ESTABLISHED`.
 
-## 3. Prospective evaluation — closure assessment
+## 5. Repeated-forecast dependence
 
-### Scientific question
-What evidence would establish `PROSPECTIVE_PREDICTIVE_VALIDITY` rather than functional or retrospective coherence?
+Repeated forecasts remain explicitly non-independent by default. The aggregate evaluator emits descriptive metrics only and does not emit unsupported confidence intervals or hypothesis tests.
 
-### Existing protocol
-`CEUTIA-SERPIENTE-PREDICTIVE-EVAL-1` is predeclared. It requires canonical v1.1 integrity, availability-before-replay, exact target/horizon matching and point-in-time fingerprint presence. It explicitly states that retrospective replay and fixtures do not establish prospective validity. Primary metrics are Brier score and log loss; aggregate output is descriptive; missing outcomes are excluded; repeated forecasts are not assumed independent; causal validity is explicitly not established.
+**Status:** `SCIENTIFICALLY_CLOSED` for the current descriptive scope; dependence-aware inference remains an explicit future requirement if inferential claims are introduced.
 
-### Scientific requirement
-Prospective validity requires a locked evaluation window in which forecasts are generated before outcomes, the prospective information set is reconstructible, target/horizon are predeclared, outcomes are prospectively ascertained with revision semantics, the evaluation procedure is frozen, and comparator/baseline rules are fixed before observing the evaluation outcomes.
+## 6. Intervention feedback and regime shift
 
-### Current limitations
-1. No real prospective outcome population is available in the repository evidence.
-2. Current endpoint has no matched baseline forecast channel transported without retrospective leakage.
-3. Repeated forecasts are evaluable descriptively but no dependence-aware inferential procedure is implemented.
-4. Distribution/regime shift and intervention feedback are monitored only partially; no prospective validation across intervention regimes is established.
-5. Calibration is computed/ reported descriptively, but prospective calibration validation requires the same prospective evaluation population.
+Forecast → decision → action → outcome remains a distinct feedback path. Intervention-exposed outcomes are persisted as such when supplied, while causal effectiveness remains separate from predictive performance. SERPIENTE's state builder contains an explicit regime classifier; this supports engineering detection but does not establish prospective regime-transfer validity.
 
-### Required prospective falsification
-A prospective evaluation must pre-register the forecast population, origin/horizon, target, model/code/configuration versions, PIT eligibility artifact, outcome ascertainment rules, baseline/comparator, scoring rules and missing/censoring policy. During the locked window, predictions must be immutable after origin. Evaluation must fail closed if a forecast uses information unavailable at origin, if the outcome was unavailable before the evaluation decision point, if target definition changed, or if model/version metadata cannot be reconstructed.
+**Status:** `SCIENTIFICALLY_CLOSED` for governance/instrumentation scope; empirical intervention/regime validity remains `NOT_ESTABLISHED`.
 
-### Baseline integrity
-The baseline must be generated at the same forecast origin using only information available at that origin. Retrospective construction from realized outcomes is forbidden. If the cross-repository contract cannot transport the baseline identity/output, comparative predictive utility remains **NOT ESTABLISHED**.
+## 7. Scientific claim governance
 
-### Repeated forecasts
-Evaluation unit is the forecast-origin/target/horizon tuple, but repeated forecasts can share observations, outcomes and rolling-window inputs. Naive standard errors, confidence intervals or hypothesis tests are forbidden until a dependence-aware method is specified and validated.
+| Claim | Scientific state | Engineering state |
+|---|---|---|
+| Cross-repository transport | VERIFIED by repository tests | VALIDATED |
+| Canonical contract integrity | VERIFIED | VALIDATED |
+| PIT history fingerprint | EMPIRICALLY SUPPORTED | IMPLEMENTED |
+| Actual X-to-H_t semantic PIT binding | NOT ESTABLISHED | HANDOFF_REQUIRED |
+| Basic outcome temporal eligibility | VERIFIED | IMPLEMENTED |
+| Outcome ascertainment metadata | PARTIALLY ESTABLISHED | IMPLEMENTED_PENDING_RUNTIME_VERIFICATION |
+| Outcome revision history | NOT ESTABLISHED | REPAIR_REQUIRED |
+| Retrospective/descriptive evaluation | VERIFIED / DESCRIPTIVE | IMPLEMENTED |
+| Prospective predictive validity | NOT ESTABLISHED | PREPARATION_CONTINUES; EMPIRICAL STEP EXTERNAL |
+| Prospective calibration validity | NOT ESTABLISHED | PREPARATION_CONTINUES |
+| Comparative utility vs baseline | NOT ESTABLISHED | HANDOFF_REQUIRED |
+| Dependence-aware inferential validity | NOT ESTABLISHED | NOT_IMPLEMENTED_BY_DESIGN |
+| Causal effectiveness | NOT ESTABLISHED | OUTSIDE_PREDICTIVE_ESTIMAND |
 
-### Intervention feedback
-A forecast that triggers a decision/action changes the data-generating process potentially through both the target state and the measurement/reporting process. Post-action outcomes therefore cannot automatically be interpreted as untreated predictive outcomes. Predictive performance and intervention effectiveness remain separate estimands. Causal effectiveness is **NOT ESTABLISHED**.
+## 8. Mission condition
 
-### Exact engineering/scientific handoff: `CROSSREPO-PROSPECTIVE-EVALUATION-001`
-Required artifact: immutable prospective evaluation-window manifest plus locked forecast registry, PIT lineage references, outcome ascertainment references, baseline references, model/code/configuration versions and evaluation procedure hash.
-Acceptance criteria: no forecast can be scored if eligibility is not reconstructible; no outcome can be scored if ascertainment/version semantics are incomplete; baseline is origin-time valid; repeated-forecast dependence is disclosed and no unsupported inferential claim is emitted; intervention-exposed outcomes are stratified or excluded from untreated predictive estimands; calibration and proper scoring are reported only for the predeclared prospective population.
-
-**Status:** `BLOCKED_EXTERNAL` for empirical prospective validity because the required real prospective outcome population does not exist in the repository/evidence available to this mission. The software can prepare the evaluation, but it cannot manufacture the missing real-world prospective outcomes.
-
-## 4. Calibration, baseline, dependence and feedback closure
-
-- **Calibration:** protocol and model-side calibration machinery exist; prospective calibration is `NOT_ESTABLISHED` until a real prospective population is observed under the locked protocol.
-- **Baseline integrity:** baseline methods exist inside SERPIENTE, but the cross-repository endpoint does not transport a paired predeclared baseline output. Comparative utility is `NOT_ESTABLISHED`.
-- **Repeated forecast dependence:** explicitly documented; descriptive evaluation is permitted, inferential claims are not.
-- **Intervention feedback:** explicitly documented as a separate estimand problem; causal effectiveness is `NOT_ESTABLISHED`.
-
-## 5. Scientific claim governance
-
-| Claim | Status |
-|---|---|
-| Cross-repository transport functions | VERIFIED by repository tests |
-| Canonical contract integrity | VERIFIED |
-| PIT fingerprint represents a point-in-time history | EMPIRICALLY SUPPORTED by producer implementation/tests |
-| Exact model-input semantic PIT binding | NOT ESTABLISHED |
-| Basic outcome temporal eligibility | VERIFIED |
-| Complete outcome ascertainment semantics | NOT ESTABLISHED |
-| Retrospective/descriptive prediction evaluation | VERIFIED / DESCRIPTIVE |
-| Prospective predictive validity | NOT ESTABLISHED |
-| Prospective calibration validity | NOT ESTABLISHED |
-| Comparative utility vs baseline | NOT ESTABLISHED |
-| Dependence-aware inferential validity | NOT ESTABLISHED |
-| Causal effectiveness | NOT ESTABLISHED |
-
-## 6. Mission stop condition
-
-The finite scientific closure chain is **not fully closed** because a genuine external blocker remains: a real prospective outcome population is absent. The repository-side scientific work is closed to the maximum supportable degree for the currently inspectable surfaces, and exact engineering handoffs are persisted for the remaining repairable defects. No stronger scientific claim is authorized.
+The mission remains `IN_PROGRESS`. The absence of a real prospective outcome population blocks only empirical prospective validity. It does not block the engineering preparation, adversarial tests, protocol locking, provenance instrumentation, baseline safeguards, dependence governance, regime monitoring or PIT repair handoff.

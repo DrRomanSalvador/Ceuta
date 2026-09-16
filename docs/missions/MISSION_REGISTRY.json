@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.3",
+  "schema_version": "1.4",
   "registry_type": "multi_mission_control_plane",
   "status": "ACTIVE",
   "constitution": {
@@ -10,6 +10,19 @@
     "version": "1.0"
   },
   "discovery_contract": "docs/missions/MISSION_INVOCATION_CONTRACT.md",
+  "active_handoffs": [
+    {
+      "handoff_id": "NOTARIO-HANDOFF-RUNTIME-001",
+      "origin_mission": "MISSION-13",
+      "origin_name": "NOTARIO",
+      "owner_mission": "MISSION-01",
+      "owner_name": "INGENIERO",
+      "status": "HANDOFF_ACTIVE",
+      "artifact": "docs/missions/handoffs/NOTARIO_RUNTIME_INTEGRATION_HANDOFF.yaml",
+      "mission_completion_impact": "BLOCKING_FOR_H1_H5_CLOSURE",
+      "automatic_activation": "NOT_ESTABLISHED"
+    }
+  ],
   "control_plane_capabilities": {
     "MISSION_EVOLUTION_ENGINE": {
       "status": "ACTIVE",

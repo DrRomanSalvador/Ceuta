@@ -143,6 +143,27 @@ def test_running_process_is_active_and_requires_reobservation() -> None:
     assert AutonomousMissionChain.observe_process(process).current_status == "RUNNING"
 
 
+def test_waiting_process_cannot_hide_independent_work() -> None:
+    process = ProcessObservation(
+        process_id="ci-673",
+        process_type="CI",
+        started_at="2026-09-16T11:00:00Z",
+        current_status="WAITING",
+        last_observed_at="2026-09-16T11:05:00Z",
+        expected_result="workflow conclusion",
+        dependencies=("commit-1",),
+        dependent_tasks=("post-ci-reaudit",),
+        independent_tasks_available=("architecture-audit",),
+        next_observation_condition="workflow conclusion or failure",
+    )
+    try:
+        process.validate()
+    except AutonomousChainError as exc:
+        assert "WAITING_WITH_INDEPENDENT_WORK" in str(exc)
+    else:
+        raise AssertionError("WAITING cannot conceal executable independent work")
+
+
 def test_work_queue_never_treats_running_as_waiting() -> None:
     queue = WorkQueue(running=("ci-672",), executable_now=())
     assert AutonomousMissionChain.queue_state(queue) == "ACTIVE"

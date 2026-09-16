@@ -8,6 +8,7 @@ import sqlite3
 import pytest
 
 from app.core.decision.persistence import SQLiteDecisionStore
+from app.core.scientific.cross_repo_contract import ScientificPredictionMessage
 from app.core.scientific.prediction_outcome_evaluation import record_prediction_outcome
 from app.core.scientific.prediction_persistence import record_prediction
 
@@ -108,3 +109,69 @@ def test_mutated_prediction_cannot_enter_outcome_evaluation(tmp_path):
             record_prediction_outcome(connection, prediction_id="integrity-prediction", decision_id="decision-integrity", action_id="action-1", outcome_id="outcome-1", target="risk", outcome_time=datetime.now(timezone.utc) + timedelta(hours=2), observed=1, provenance=("test",))
     finally:
         connection.close()
+
+
+def test_scientific_contract_rejects_invalid_probability_interval_and_uncertainty():
+    with pytest.raises(ValueError, match="\[0,1\]"):
+        ScientificPredictionMessage(
+            producer_repository="SERPIENTE",
+            producer_component="test",
+            schema_version="1.1",
+            prediction_id="contract-boundary",
+            origin_time=datetime(2026, 9, 16, 7, tzinfo=timezone.utc),
+            available_at=datetime(2026, 9, 16, 7, tzinfo=timezone.utc),
+            horizon="1h",
+            target="risk",
+            probability=0.5,
+            lower=-0.1,
+            upper=0.9,
+            uncertainty={"epistemic": 0.1},
+            model_disagreement=0.1,
+            model_id="m",
+            method_id="method",
+            method_version="1",
+            training_window="window",
+            reference_class="Ceuta",
+            ood_state="IN_DOMAIN",
+            causal_status="ABSTAIN",
+            calibration_status="CALIBRATED",
+            evidence_level="PREDICTIVE",
+            source_independence="INDEPENDENT",
+            provenance=("source",),
+            configuration_hash="c" * 64,
+            code_revision="r" * 40,
+            point_in_time_fingerprint="p" * 64,
+            integrity_hash="x",
+        )
+
+    with pytest.raises(ValueError, match="uncertainty"):
+        ScientificPredictionMessage(
+            producer_repository="SERPIENTE",
+            producer_component="test",
+            schema_version="1.1",
+            prediction_id="contract-boundary-uncertainty",
+            origin_time=datetime(2026, 9, 16, 7, tzinfo=timezone.utc),
+            available_at=datetime(2026, 9, 16, 7, tzinfo=timezone.utc),
+            horizon="1h",
+            target="risk",
+            probability=0.5,
+            lower=0.1,
+            upper=0.9,
+            uncertainty={"epistemic": 1.1},
+            model_disagreement=0.1,
+            model_id="m",
+            method_id="method",
+            method_version="1",
+            training_window="window",
+            reference_class="Ceuta",
+            ood_state="IN_DOMAIN",
+            causal_status="ABSTAIN",
+            calibration_status="CALIBRATED",
+            evidence_level="PREDICTIVE",
+            source_independence="INDEPENDENT",
+            provenance=("source",),
+            configuration_hash="c" * 64,
+            code_revision="r" * 40,
+            point_in_time_fingerprint="p" * 64,
+            integrity_hash="x",
+        )

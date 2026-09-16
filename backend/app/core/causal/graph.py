@@ -61,8 +61,14 @@ class CausalGraph:
         return cause in self.ancestors(effect)
 
     def backdoor_candidates(self, exposure: str, outcome: str) -> tuple[str, ...]:
-        parents = set(self.parents(exposure))
-        return tuple(sorted(p for p in parents if p != outcome))
+        """Return all observed ancestors of exposure that can open a backdoor path.
+
+        Immediate parents are insufficient: a confounder may reach the exposure
+        through one or more intermediate ancestors.  This conservative candidate
+        set intentionally over-includes ancestors; identification still requires
+        explicit declaration and data/design assumptions in ``CausalIdentifier``.
+        """
+        return tuple(sorted(a for a in self.ancestors(exposure) if a != outcome))
 
     def interaction_candidates(self, variables: Iterable[str]) -> tuple[tuple[str, str], ...]:
         values = sorted(set(variables))

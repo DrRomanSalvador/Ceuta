@@ -92,6 +92,11 @@ def validate_control_plane():
     if contradictions.get("registry_id")!="CEUTIA_SERPIENTE_MISSION_CONTRADICTION_REGISTRY" or not isinstance(contradictions.get("items"),list): raise ValueError("Invalid contradiction registry")
     for contradiction in contradictions["items"]: validate_contradiction(contradiction)
     if lifecycle.get("registry_id")!="CEUTIA_SERPIENTE_MISSION_LIFECYCLE_LEDGER" or any(not isinstance(lifecycle.get(k),list) for k in ("admissions","retirements","recoveries","conflicts")): raise ValueError("Invalid mission lifecycle ledger")
+    for admission in lifecycle["admissions"]:
+        if admission.get("mission_id")=="ROMAN":
+            if admission.get("status")!="ADMITTED_REPOSITORY_RUNTIME_PENDING": raise ValueError("ROMAN admission must remain runtime-pending until live validation")
+            if admission.get("authorized_by")!="MISSION-01" or not admission.get("evidence"): raise ValueError("ROMAN admission lacks owner/authority evidence")
+            if admission.get("contract",{}).get("operating_standard_version")!="MISSION_SYSTEM_CONSTITUTION_1.0": raise ValueError("ROMAN does not explicitly inherit the canonical operating standard")
     events=load_jsonl(EVENT_LOG_PATH); last_hash=validate_chain(events)
     return {"mission_count":len(cp["missions"]),"handoff_count":len(hr["items"]),"queue_count":len(queue["items"]),"claim_count":len(claims["claims"]),"contribution_count":len(contributions["items"]),"contradiction_count":len(contradictions["items"]),"lifecycle_admissions":len(lifecycle["admissions"]),"lifecycle_retirements":len(lifecycle["retirements"]),"event_count":len(events),"event_head":last_hash,"status":cp["status"]}
 

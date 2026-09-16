@@ -4,7 +4,7 @@
   "mission_name": "FOUNDER",
   "mission_type": "ADMITTED_FROM_EVOLUTION_ENGINE",
   "purpose": "Operate founder-level venture and commercial decision intelligence without replacing scientific evidence, engineering execution, or control-plane authority.",
-  "scope": ["founder-level opportunity evaluation", "commercial evidence integration", "decision recording", "venture state governance", "strategic coordination"],
+  "scope": ["founder-level opportunity evaluation", "commercial evidence integration", "decision recording", "venture lifecycle governance", "strategic coordination"],
   "non_scope": ["scientific evidence generation", "general engineering execution", "global mission orchestration", "unauthorized external commercial or legal action"],
   "inputs": ["TASK_PACKAGE", "EVIDENCE_REFS", "STATE_VERSION"],
   "outputs": ["RESULT", "EVIDENCE", "STATE_DELTA", "VALIDATION"],
@@ -15,7 +15,7 @@
   "read_permissions": ["MISSION_REGISTRY", "UNIVERSAL_EXECUTION_CONTRACT", "MISSION_EVOLUTION_ENGINE", "canonical persistence", "canonical handoff machinery", "provenance controls"],
   "write_permissions": ["mission:FOUNDER:state"],
   "validation_role": "Validate only through declared validation plan.",
-  "handoff_in": ["TASK_PACKAGE", "CLAIM", "HANDOFF", "EVIDENCE", "STATE"],
+  "handoff_in": ["TASK_PACKAGE", "CLAIM", "EVIDENCE", "STATE"],
   "handoff_out": ["RESULT", "EVIDENCE", "STATE_DELTA", "VALIDATION"],
   "dependencies": ["MISSION_REGISTRY", "UNIVERSAL_EXECUTION_CONTRACT", "MISSION_EVOLUTION_ENGINE", "canonical persistence", "canonical handoff machinery", "provenance controls"],
   "state_location": "docs/missions/founder/MISSION_STATE.json",
@@ -24,7 +24,7 @@
   "operations": ["DISCOVER", "INVOKE", "EXECUTE", "VALIDATE", "HANDOFF", "PERSIST", "REVIEW", "RETIRE"],
   "bootstrap": "DISCOVER → LOAD CONTRACT → CHECK AUTHORITY → CHECK INPUTS → INVOKE",
   "security_requirements": ["FOUNDER cannot publish external commercial claims or perform external actions without explicit authority.", "Fail closed on undeclared authority or writes."],
-  "adversarial_tests": ["contract/registry discoverability", "mission non-redundancy", "zero-context recovery", "interruption/recovery", "authority boundaries", "lifecycle transition enforcement", "evidence independence", "external-claims gate", "stale data handling", "replay consistency", "corrupted-state rejection", "handoff lifecycle"],
+  "adversarial_tests": ["contract generation matches MissionEvolutionEngine", "registration is discoverable from canonical Mission Registry", "mission non-redundancy gates pass", "universal execution invariants are inherited", "zero-context discovery/reconstruction passes", "interruption/recovery and stale-version rejection pass", "authority escalation is rejected", "opportunity lifecycle forbidden transitions are rejected", "evidence self-validation is rejected", "external claim promotion without evidence/authority is rejected", "staleness and revenue-quality distinctions are enforced", "handoff lifecycle remains auditable", "full CI passes"],
   "completion_criteria": ["All declared integration and validation tests pass."],
   "retirement_criteria": ["Preserve complete state and evidence history.", "Mark the mission retired/superseded through the canonical lifecycle.", "Do not delete historical decisions or evidence."]
 }

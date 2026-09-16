@@ -1,0 +1,7 @@
+{
+  "schema_version":"1.0.0",
+  "registry_id":"CEUTIA_MISSION_RESPONSE_COUPLING_LEDGER",
+  "status":"ACTIVE",
+  "records":[],
+  "rule":"Response execution and effectiveness are distinct from predictive validity. Causal effectiveness remains fail-closed unless the required identification, counterfactual and outcome evidence are present."
+}

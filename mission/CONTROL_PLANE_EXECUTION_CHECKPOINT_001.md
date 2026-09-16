@@ -1,36 +1,52 @@
 # Control Plane Execution Checkpoint 001
 
-## Verified repository state
+## Current repository state
 
 - Repository: `DrRomanSalvador/Ceuta`
 - Branch: `maximum-knowledge-to-capability`
+- Current head: `371a71cc9ba91887ea9b2dd0a7a916c4480070f8`
 - PR: `#35`
-- Current head: `f5e25ad823dd2c2294a859d48f3916dd33da5f76`
 - Base: `scientific-traceability-crossrepo`
 - PR state: OPEN, NOT MERGED
-- PR mergeability: currently reported as false; no merge action authorized by this checkpoint.
+- Current GitHub PR mergeability: TRUE
 
-## Completed in this execution chain
+## Verified evidence at previous head
 
-1. Verified current PR/head against GitHub rather than relying on chat state.
-2. Verified executable control-plane primitives and handoff validation currently present on the branch.
-3. Added zero-context replay test: `mission/test_zero_context_replay.py`.
-4. Added persistent work-claim/lease ledger: `mission/work_claims.py`.
-5. Added persistent work-claim adversarial tests: `mission/test_work_claims.py`.
-6. Added dedicated control-plane CI workflow: `.github/workflows/control-plane-validation.yml`.
-7. Extended that workflow to test lifecycle, event-log, persistent-claim and zero-context reconstruction, followed by authoritative bootstrap.
-8. Recorded the evidence checkpoint in PR #35.
+At `f655e0c5f73dffc7471374469a4fdef31e121d23`, CI run `35086164416` completed successfully. It executed 60 tests and the authoritative bootstrap successfully reported:
 
-## Evidence status
+- `CONTROL_PLANE=PARTIALLY_VALIDATED`
+- `CONTROL_PLANE_MISSIONS=15`
+- `CONTROL_PLANE_HANDOFFS=2`
+- `CONTROL_PLANE_CLAIMS=0`
+- `CONTROL_PLANE_CONTRIBUTIONS=0`
+- `CONTROL_PLANE_CONTRADICTIONS=0`
+- `CONTROL_PLANE_LIFECYCLE_ADMISSIONS=0`
+- `CONTROL_PLANE_LIFECYCLE_RETIREMENTS=0`
+- `CONTROL_PLANE_EVENTS=1`
+- `SHARED_STANDARD=LOADED_AND_EXECUTABLE`
+- `MISSION_STATE=VALID`
 
-- CI for the new head has not yet produced an observable workflow run through the available GitHub read interface.
-- Therefore `CONTROL_PLANE_OPERATIONALLY_VALIDATED` remains `NOT_ESTABLISHED`.
-- Existing branch/source discrepancy concerning the 15-mission architecture remains frozen as a reconciliation issue; it has not been silently promoted to truth.
+This proves the shared standard, 60-test control-plane suite and zero-context bootstrap at that verified head. It does not establish operational validation of the whole multi-agent organization.
 
-## Next automatic work chain
+## Changes since that verified head
 
-`OBSERVE CI -> REPAIR FAILURES -> RE-RUN/OBSERVE -> PERSIST VERIFIED RESULT -> INTEGRATE EVENT/CLAIM LIFECYCLE -> ADMISSION/RETIREMENT/CONFLICT WORKFLOWS -> 20 ADVERSARIAL SCENARIOS -> SOURCE/BRANCH RECONCILIATION -> FULL CONTROL-PLANE VALIDATION -> ONLY THEN CONSIDER OPERATIONAL VALIDATION`
+The current head adds a reconciled master-state checkpoint. It therefore requires a new CI observation before the current head may inherit the previous verification status.
+
+## Remaining control-plane gaps
+
+1. Complete branch/source reconciliation of the main-branch 15-mission architecture.
+2. Generate and replay real lifecycle events rather than only testing lifecycle event fixtures.
+3. Full event-driven bootstrap replay of registry, claims, handoffs and transitions.
+4. Platform-enforced ownership/authority remains unverified.
+5. Runtime authorization-loss simulation remains partial.
+6. Off-protocol repository-integrity detection remains unimplemented.
+7. Full cross-mission concurrent execution remains unverified.
+8. Adversarial matrix contains explicit PARTIALLY_EXECUTED / NOT_EXECUTED scenarios and must not promote them silently.
+
+## Next automatic chain
+
+`CI_CURRENT_HEAD -> REPAIR -> CI_CURRENT_HEAD -> PERSIST_VERIFIED_STATE -> CP-REALITY-001 -> CP-EVENT-001 -> CP-REPLAY-001 -> ADV-017/020 -> SOURCE_RECONCILIATION -> FULL_OPERATIONAL_VALIDATION`
 
 ## Non-closure rule
 
-A green workflow alone does not close the control-plane mission. Operational closure additionally requires reproducible lifecycle enforcement, persistent coordination, recovery/replay, ownership/authority enforcement, dependency/handoff integrity, reconciliation, adversarial coverage, and current repository evidence.
+`CONTROL_PLANE_OPERATIONALLY_VALIDATED` remains `NOT_ESTABLISHED` until reproducible evidence demonstrates lifecycle enforcement, persistent coordination, recovery/replay, ownership/authority enforcement, dependency/handoff integrity, reconciliation, adversarial coverage and current repository consistency.

@@ -1,0 +1,28 @@
+{
+  "mission_id":"FOUNDER",
+  "status":"VALIDATION_PENDING",
+  "criteria":{
+    "canonical_identity":true,
+    "canonical_contract":true,
+    "registry_entry":true,
+    "state_schema_reconciled":true,
+    "persistence":true,
+    "bootstrap":true,
+    "recovery":true,
+    "zero_context":true,
+    "authority_boundaries":true,
+    "mission_non_redundancy":true,
+    "lifecycle_transitions":true,
+    "handoffs":true,
+    "validation_hooks":true,
+    "adversarial_tests":true,
+    "required_ci":"PENDING",
+    "canonical_runtime_invocation":"PENDING",
+    "state_persist_and_recover":"PENDING",
+    "retirement_without_history_corruption":true,
+    "duplicate_infrastructure_absent":true
+  },
+  "terminal_gate":"READY_FOR_INVOCATION requires every criterion true and required CI GREEN.",
+  "external_boundaries":["live external mission orchestrator","external process crash/restart","distributed multi-host leases/CAS","administrative protection/bypass boundary"],
+  "current_next_action":"Complete current PR CI, then reconcile readiness and persisted state."
+}

@@ -17,8 +17,8 @@ This document is the authoritative working state for the finite scientific-limit
 | SL-05 | Counterfactual/intervention evidence | PARTIALLY_RESOLVED | Prediction, decision, warning/action and outcome lineage can be represented and the causal estimand can be predeclared. Synthetic/replay interventions are methodological tests only. | Real intervention assignment/exposure/outcome data or a justified experimental/quasi-experimental design. |
 | SL-06 | Real-world response effectiveness | PARTIALLY_RESOLVED | Response provenance can be specified: warning, receipt, decision, action, delay, execution, capacity constraint and outcome. | Real operational response and outcome observations. |
 | SL-07 | Causal validity | PARTIALLY_RESOLVED | Explicit estimand/assumption/evidence contracts and identification gates can prevent association from being silently promoted to causation. | Identifiable design plus empirical data satisfying consistency, positivity, confounding/interference and transport assumptions as applicable. |
-| SL-08 | Calibrated predictive uncertainty | PARTIALLY_RESOLVED | Probability-domain checks, Brier/log-loss, calibration-in-the-large, calibration slope/intercepts, intervals, discrimination and dependence-aware validation primitives are available. | Calibration and uncertainty performance on appropriately held-out/prospective data from the target population/regimes. |
-| SL-09 | Validated causal propagation | PARTIALLY_RESOLVED | Causal status can be separated from descriptive cross-domain propagation; unsupported causal claims can be blocked. | Empirical causal evidence validating specific propagation mechanisms in the relevant population and regime. |
+| SL-08 | Calibrated predictive uncertainty | PARTIALLY_RESOLVED | Probability-domain checks, Brier/log-loss, calibration-in-the-large, calibration slope/intercepts, intervals, discrimination and dependence-aware validation primitives are available. The final SERPIENTE ensemble probability is now itself calibrated on the temporally separated calibration split. | Calibration and uncertainty performance on appropriately held-out/prospective data from the target population/regimes. |
+| SL-09 | Validated causal propagation | PARTIALLY_RESOLVED | Causal status can be separated from descriptive cross-domain propagation; unsupported causal claims can be blocked. Temporal feedback is now explicitly distinguished from instantaneous cyclic causality. | Empirical causal evidence validating specific propagation mechanisms in the relevant population and regime. |
 
 ## Concrete closure criteria
 
@@ -60,7 +60,7 @@ Scientific remainder: effectiveness requires real-world intervention/outcome obs
 
 Question: Is a causal claim identifiable under a declared causal design rather than inferred from association or graph connectivity?
 
-Closure test: unaddressed ancestral backdoor candidates or missing core identification assumptions block causal identification. Negative controls are explicit falsification/diagnostic tests when declared, but their absence is not by itself a universal logical blocker to internal identification. A claim of transportability is separately gated from internal identification. Descriptive propagation is not emitted as causal propagation without causal evidence.
+Closure test: unaddressed ancestral backdoor candidates or missing core identification assumptions block causal identification. Negative controls are explicit falsification/diagnostic tests when declared, but their absence is not by itself a universal logical blocker to internal identification. A claim of transportability is separately gated from internal identification. Descriptive propagation is not emitted as causal propagation without causal evidence. Feedback cycles are accepted only when the complete cycle is explicitly lagged.
 
 Scientific remainder: identification assumptions, falsification diagnostics and empirical support remain study-specific.
 
@@ -74,12 +74,13 @@ Scientific remainder: prospective calibration and uncertainty transport are empi
 
 ## Traceability amendments
 
-- `SL-01/SL-02`: `limitation_controls.py` adds deterministic PIT manifests, dependency eligibility, feature fingerprints and fail-closed rejection of outcome/future-derived dependencies.
-- `SL-03`: the same module adds immutable baseline identities with training/feature cutoffs; retrospective mutation of a baseline identity is rejected.
+- `SL-01/SL-02`: SERPIENTE now binds the actual forecast feature matrix to its point-in-time fingerprint at the producer runtime boundary, including separate fingerprints for multi-horizon matrices. CeutIA additionally provides deterministic PIT manifests, dependency eligibility and fail-closed rejection of outcome/future-derived dependencies.
+- `SL-03`: immutable baseline identities with training/feature cutoffs are available in the resolution controls; retrospective mutation of a baseline identity is rejected.
 - `SL-04`: `cluster_bootstrap_mean` and aggregate prediction evaluation now report uncertainty at a declared dependence unit rather than assuming row independence.
-- `SL-08`: `binary_calibration` reports Brier score, log loss, calibration gap and ECE while explicitly retaining `PROSPECTIVE_VALIDITY_STATUS=NOT_ESTABLISHED`.
-- `SL-07`: causal identification logic now explicitly separates internal identification from falsification diagnostics and transportability. Negative controls are not treated as universal identification prerequisites.
-- Corresponding adversarial tests cover future dependencies, revision identity, immutable baselines, clustered resampling, calibration status, missing negative controls and unaddressed backdoor candidates.
+- `SL-08`: `binary_calibration` reports Brier score, log loss, calibration gap and ECE while explicitly retaining `PROSPECTIVE_VALIDITY_STATUS=NOT_ESTABLISHED`; SERPIENTE now calibrates the final ensemble probability itself rather than averaging a calibrated model with an uncalibrated model.
+- `SL-09`: causal identification logic separates internal identification from falsification diagnostics and transportability; temporal feedback cycles require positive lags on every edge in the cycle.
+- Second-order temporal dynamics: SERPIENTE longitudinal trend, acceleration and volatility calculations are now normalized by elapsed time rather than observation count, preventing irregular sampling from changing the physical meaning of the derivative-like features.
+- Corresponding adversarial tests cover future dependencies, revision identity, immutable baselines, clustered resampling, calibration status, final-ensemble calibration, missing negative controls, unaddressed backdoor candidates, lagged feedback and irregular sampling.
 - Engineering closure remains independent from the scientific claim of prospective predictive or causal validity.
 
 ## Second-order review state
@@ -91,7 +92,7 @@ The resolution work has surfaced four material second-order boundaries that rema
 3. Calibration diagnostics can be computed correctly on held-out/replay data, but calibration transport to future regimes and populations remains empirical.
 4. Causal identification gates can prevent unsupported causal promotion, but identification assumptions and empirical causal support remain study-specific.
 
-No second-order finding currently reopens a closed engineering surface.
+The previously identified irregular-sampling derivative problem and final-ensemble calibration problem have been resolved at the implementation level and are now regression-tested. No second-order finding currently reopens a closed engineering surface.
 
 ## Current engineering-scientific boundary
 

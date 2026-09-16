@@ -1,109 +1,25 @@
 {
-  "schema_version": "1.0.0",
-  "mission_id": "CEUTIA_SERPIENTE_CONTINUOUS_SCIENTIFIC_ENGINEERING",
-  "mission_version": "continuous-1.0",
-  "system_identity": {"ceutia":"DrRomanSalvador/Ceuta","serpiente":"DrRomanSalvador/SERPIENTE"},
-  "repository_identity": {
-    "ceutia_repository":"DrRomanSalvador/Ceuta",
-    "ceutia_branch":"maximum-knowledge-to-capability",
-    "current_head":"3074e15e2519ec0ccadd017bba8c72e480f160c",
-    "last_verified_head":"3074e15e2519ec0ccadd017bba8c72e480f160c",
-    "serpiente_branch":"main",
-    "serpiente_last_persisted_reference":"03cd2b3678a56e1b23480cf69113d0bdd97fc7f8"
-  },
-  "status": {
-    "global_status":"ACTIVE",
-    "engineering_status":"AUDITED_FOUNDATION_COMPLETE",
-    "scientific_status":"ACTIVE_WITH_EXTERNAL_VALIDATION_LIMITATIONS",
-    "security_status":"DOCUMENTED_CONTROLS_PRESENT_CURRENT_ENFORCEMENT_REQUIRES_RECONCILIATION",
-    "validation_status":"PROSPECTIVE_PREDICTIVE_VALIDITY_NOT_ESTABLISHED",
-    "operational_status":"ACTIVE_FRONTIER_RESPONSE_COUPLING",
-    "legacy_status":"INCOMPLETE",
-    "zero_context_bootstrap_status":"NOT_YET_VERIFIED"
-  },
-  "current_objectives":[
-    "Preserve the single continuous mission across sessions.",
-    "Make critical operational/scientific knowledge reconstructible without conversation history.",
-    "Continue implementable scientific engineering rather than stopping at finite audit closure.",
-    "Resolve the active response-coupling frontier after inspecting existing warning/decision/action persistence.",
-    "Detect and reconcile stale or conflicting state before claiming verification."
-  ],
-  "completed_work":[
-    "Finite engineering audit surfaces completed and persisted.",
-    "Scientific limitation resolution matrix persisted.",
-    "Second-order scientific extraction persisted.",
-    "Persistent mission identity, bootstrap, reconciliation state and scientific mission memory created.",
-    "Continuous mission semantics and WAITING != IDLE != DONE rule established.",
-    "Zero-context legacy contract, master state, mission registry and autonomous work queue persisted."
-  ],
-  "verified_work":[
-    "Current CeutIA branch HEAD 3074e15e2519ec0ccadd017bba8c72e480f160c verified from repository state after legacy artifacts were persisted.",
-    "PR #35 remains open and unmerged; its earlier head was 4611fbcefa78dd63a1cbcb00dd0dea6685672348 before the subsequent branch commits.",
-    "Mission persistence artifacts are present in the mission directory."
-  ],
-  "unverified_work":[
-    "Complete zero-context reconstruction success.",
-    "Complete registry of the claimed 15 missions.",
-    "Complete attribution and cross-mission handoff graph.",
-    "Current live runtime state of all deployed components.",
-    "Current CI state beyond explicitly fetched workflow evidence.",
-    "Complete current security enforcement state outside repository-visible controls."
-  ],
-  "known_limitations":[
-    "Prospective target-population predictive validity is not established.",
-    "Hidden upstream future-derived processing cannot be disproved without complete production lineage.",
-    "Real-world intervention and response effectiveness require external outcome data.",
-    "Causal validity and causal propagation require empirical study-specific evidence.",
-    "Complete real-time acquisition of all relevant Ceuta sources is not established."
-  ],
-  "active_blockers":[],
-  "external_dependencies":[
-    "Prospective observations and target-population outcomes.",
-    "Real intervention/response exposure and outcome ascertainment.",
-    "Complete production source/acquisition lineage where repository evidence cannot establish it."
-  ],
-  "pending_work":["LEGACY-001","F14-001"],
-  "next_authorized_action":{
-    "action_id":"LEGACY-001",
-    "action":"Continue repository discovery and reconciliation to establish the authoritative mission registry, attribution graph and active handoffs; do not infer missing missions from conversation memory.",
-    "objective":"Reduce critical context loss until zero-context reconstruction is actually demonstrated.",
-    "owner":"INGENIERO_CEUTIA",
-    "surface":"mission/* plus discoverable governance/scientific/architecture artifacts",
-    "dependency":"None for repository-visible discovery; external-only facts must remain UNKNOWN or EXTERNAL_DEPENDENCY.",
-    "completion":"All critical bootstrap questions have repository-backed answers or explicit UNKNOWN/EXTERNAL_DEPENDENCY records, with no untracked blocker, handoff, owner or next action.",
-    "verification":"Repository-only zero-context reconstruction test plus bootstrap validator and Git/PR/CI reconciliation.",
-    "next_action":"F14-001 response-coupling audit after legacy gaps are sufficiently controlled."
-  },
-  "mission_owners":[
-    {"owner_id":"OWNER","role":"Human authority / final authorization","status":"REQUIRES_REPOSITORY_RECONCILIATION"},
-    {"owner_id":"INGENIERO_CEUTIA","role":"Continuous scientific engineering agent","status":"ACTIVE"}
-  ],
-  "surface_owners":{
-    "ceutia_epistemic_layer":"INGENIERO_CEUTIA",
-    "serpiente_dynamic_layer":"SERPIENTE_COMPONENT_OWNER_NOT_RECONSTRUCTED_HERE",
-    "human_authority":"OWNER",
-    "security_control_plane":"GOVERNANCE_OWNER_REQUIRES_CURRENT_RECONCILIATION"
-  },
-  "handoffs":[],
-  "dependencies":{
-    "internal":["mission/CEUTIA_SERPIENTE_MISSION_STATE.json","mission/SCIENTIFIC_MISSION_MEMORY.json","mission/MISSION_BOOTSTRAP.md","mission/MISSION_REGISTRY.json","mission/AUTONOMOUS_WORK_QUEUE.json","mission/LEGACY_RECONSTRUCTION_AUDIT_001.md"],
-    "external":["prospective validation data","real intervention/outcome data","complete production acquisition lineage"]
-  },
-  "recent_changes":[
-    "Persistent scientific mission memory added.",
-    "Bootstrap expanded into a zero-context recovery contract.",
-    "Master state, mission registry, autonomous queue and legacy audit added.",
-    "Legacy status deliberately remains INCOMPLETE pending zero-context proof."
-  ],
-  "failed_attempts":[{"evidence":"35070241485","status":"FAILED","meaning":"Historical PIT workflow failure; retained as negative evidence and not treated as validation."}],
-  "recovery_state":{
-    "recoverable":true,
-    "source_of_truth_order":["canonical mission state","mission master state","bootstrap contract","current Git state","executable code/tests","current scientific documents","historical snapshots/chat-derived material"],
-    "safe_failure_rule":"If critical state is missing, malformed, stale or contradictory, do not promote status; mark the affected field UNKNOWN/STALE_STATE/CONFLICTING and require reconciliation."
-  },
-  "bootstrap_version":"legacy-zero-context-1.0",
-  "state_version":"1.0.0",
-  "last_reconciliation":"2026-09-16",
-  "integrity_status":"PERSISTED; ZERO_CONTEXT_SUCCESS_NOT_YET_ESTABLISHED",
-  "freshness_status":"CURRENT_CEUTIA_HEAD_RECORDED; PR/CI/RUNTIME/SERPiente CURRENT STATE REQUIRES RECONCILIATION"
+  "schema_version":"1.1.0",
+  "mission_id":"CEUTIA_SERPIENTE_CONTINUOUS_SCIENTIFIC_ENGINEERING",
+  "mission_version":"continuous-1.0",
+  "system_identity":{"ceutia":"DrRomanSalvador/Ceuta","serpiente":"DrRomanSalvador/SERPIENTE"},
+  "repository_identity":{"ceutia_repository":"DrRomanSalvador/Ceuta","ceutia_branch":"maximum-knowledge-to-capability","last_reconciled_head":"f6286429564e0bc5485c9b3713ff75819d76629c","last_verified_head":"f6286429564e0bc5485c9b3713ff75819d76629c","serpiente_branch":"main","serpiente_last_persisted_reference":"03cd2b3678a56e1b23480cf69113d0bdd97fc7f8"},
+  "status":{"global_status":"ACTIVE","engineering_status":"AUDITED_FOUNDATION_COMPLETE","scientific_status":"ACTIVE_WITH_EXTERNAL_VALIDATION_LIMITATIONS","security_status":"DOCUMENTED_CONTROLS_PRESENT_CURRENT_ENFORCEMENT_REQUIRES_RECONCILIATION","validation_status":"PROSPECTIVE_PREDICTIVE_VALIDITY_NOT_ESTABLISHED","operational_status":"ACTIVE_CONTROL_PLANE_REENGINEERING","control_plane_status":"PARTIALLY_VALIDATED","legacy_status":"INCOMPLETE","zero_context_bootstrap_status":"NOT_YET_VERIFIED"},
+  "current_objectives":["Reconstruct and enforce a real multi-mission control plane.","Preserve the single continuous CeutIA + SERPIENTE scientific mission.","Prevent state claims from outrunning evidence.","Keep blocked work lines waiting while non-blocked work continues.","Demonstrate coordination, ownership, handoff, reconciliation and recovery rather than merely documenting them."],
+  "completed_work":["Finite engineering audit surfaces completed.","Scientific limitation resolution persisted.","Persistent scientific mission memory persisted.","Zero-context legacy artifacts persisted.","Executable control-plane primitives implemented.","Explicit mission/global state machine persisted.","Structured handoff registry persisted.","15-mission source projection persisted with branch reconciliation status."],
+  "verified_work":["Branch head f6286429564e0bc5485c9b3713ff75819d76629c was reconciled before this state update.","PR #35 is open and unmerged.","Control-plane tests are persisted but their CI result for the current head is not yet available."],
+  "unverified_work":["Full control-plane CI validation.","Persistent append-only event/audit log.","Automated bootstrap replay using control-plane engine.","Full dependency graph persistence and reconciliation.","Platform-enforced ownership/authority.","Full cross-mission operational execution.","Zero-context operational replay proof."],
+  "known_limitations":["Prospective predictive validity is not established.","Real-world response effectiveness requires external data.","Complete production acquisition lineage is not established.","Main branch contains a 15-mission architecture whose exact migration/currentness on this feature branch remains a reconciliation item."],
+  "active_blockers":[{"blocker_id":"CP-REGISTRY-001","description":"Main-branch 15-mission architecture is evidenced, but the same canonical docs are not present at identical paths on the feature branch.","unblocks_when":"Canonical cross-branch source policy or migration is persisted and validated.","status":"REQUIRES_RECONCILIATION"},{"blocker_id":"CP-SECURITY-001","description":"Security issue #38 contains human-decision-required identity/protected-core boundaries.","unblocks_when":"Required human decisions and repository/platform evidence are available.","status":"EXTERNAL_DEPENDENCY"}],
+  "external_dependencies":["Prospective observations and outcomes","Real intervention/response exposure","Complete production acquisition lineage","Human decisions required by security issue #38"],
+  "pending_work":["CP-REALITY-001","CP-EVENT-001","CP-REPLAY-001","F14-001"],
+  "next_authorized_action":{"action_id":"CP-REALITY-001","action":"Reconcile the executable control-plane state against current branch Git/PR/CI and the main-branch 15-mission source evidence, then persist the resulting canonical source-of-truth decision.","objective":"Eliminate control-plane state ambiguity before further lifecycle integration.","owner":"MISSION-01 / CHAT-1","surface":"mission/control-plane state and registry reconciliation","dependency":"None for repository inspection; security human decisions remain external-only.","completion":"Current branch and source-main mission architecture have an explicit reconciled relationship; no mission is claimed operational solely from stale documentation.","verification":"Git ref/commit inspection + registry validation + CI/status inspection + persisted reconciliation record.","next_action":"CP-EVENT-001 persistent event/audit lineage."},
+  "mission_owners":[{"owner_id":"MISSION-01","role":"Technical architecture and control-plane implementation","status":"ACTIVE"},{"owner_id":"MISSION-02","role":"Scientific synthesis/requirements","status":"SOURCE_MAIN_ACTIVE_REQUIRES_BRANCH_RECONCILIATION"},{"owner_id":"HUMAN_AUTHORITY","role":"Human-only authorization","status":"REQUIRES_HUMAN_EVIDENCE"}],
+  "surface_owners":{"technical_control_plane":"MISSION-01","scientific_requirements":"MISSION-02","evidence_governance":"MISSION-13_SOURCE_MAIN","security_control_plane":"MISSION-15_SOURCE_MAIN","human_authority":"HUMAN_AUTHORITY"},
+  "handoffs":["HF-037-001","HF-038-001"],
+  "dependencies":{"internal":["mission/MISSION_CONTROL_PLANE_STATE.json","mission/MISSION_STATE_MACHINE.json","mission/MISSION_HANDOFF_REGISTRY.json","mission/control_plane.py","mission/bootstrap.py"],"external":["prospective validation","intervention outcomes","security human decisions"]},
+  "recent_changes":["Executable multi-mission control-plane primitives added.","Bootstrap now validates control-plane state.","15-mission source projection and branch discrepancy persisted.","Master state corrected from an earlier inaccurate branch-head claim."],
+  "failed_attempts":[{"evidence":"35070241485","status":"FAILED","meaning":"Historical PIT workflow failure retained as negative evidence."}],
+  "recovery_state":{"recoverable":true,"safe_failure_rule":"Malformed, stale or contradictory state is not promoted; preserve evidence and create reconciliation work."},
+  "bootstrap_version":"legacy-zero-context-1.1","state_version":"1.1.0","last_reconciliation":"2026-09-16","integrity_status":"PERSISTED; CONTROL_PLANE_OPERATIONALLY_VALIDATED_NOT_ESTABLISHED","freshness_status":"RECONCILED_AT_F628; THIS_STATE_UPDATE_CREATES_A_NEW_COMMIT_AND_REQUIRES_NEXT_BOOTSTRAP_RECONCILIATION"
 }

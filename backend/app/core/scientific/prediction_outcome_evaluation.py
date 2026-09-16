@@ -26,15 +26,7 @@ def ensure_prediction_outcome_schema(connection: sqlite3.Connection) -> None:
         transformation_id TEXT NOT NULL, censoring_status TEXT NOT NULL, missingness_status TEXT NOT NULL,
         selection_status TEXT NOT NULL, intervention_exposure_id TEXT)""")
     columns = {row[1] for row in connection.execute("PRAGMA table_info(scientific_prediction_outcomes)")}
-    migrations = {
-        "source_id": "TEXT NOT NULL DEFAULT ''", "source_version": "TEXT NOT NULL DEFAULT ''",
-        "observation_time": "TEXT NOT NULL DEFAULT ''", "availability_time": "TEXT NOT NULL DEFAULT ''",
-        "ascertainment_time": "TEXT NOT NULL DEFAULT ''", "revision_id": "TEXT NOT NULL DEFAULT ''",
-        "measurement_process_id": "TEXT NOT NULL DEFAULT ''", "outcome_definition_version": "TEXT NOT NULL DEFAULT ''",
-        "transformation_id": "TEXT NOT NULL DEFAULT ''", "censoring_status": "TEXT NOT NULL DEFAULT 'UNKNOWN'",
-        "missingness_status": "TEXT NOT NULL DEFAULT 'UNKNOWN'", "selection_status": "TEXT NOT NULL DEFAULT 'UNKNOWN'",
-        "intervention_exposure_id": "TEXT",
-    }
+    migrations = {"source_id": "TEXT NOT NULL DEFAULT ''", "source_version": "TEXT NOT NULL DEFAULT ''", "observation_time": "TEXT NOT NULL DEFAULT ''", "availability_time": "TEXT NOT NULL DEFAULT ''", "ascertainment_time": "TEXT NOT NULL DEFAULT ''", "revision_id": "TEXT NOT NULL DEFAULT ''", "measurement_process_id": "TEXT NOT NULL DEFAULT ''", "outcome_definition_version": "TEXT NOT NULL DEFAULT ''", "transformation_id": "TEXT NOT NULL DEFAULT ''", "censoring_status": "TEXT NOT NULL DEFAULT 'UNKNOWN'", "missingness_status": "TEXT NOT NULL DEFAULT 'UNKNOWN'", "selection_status": "TEXT NOT NULL DEFAULT 'UNKNOWN'", "intervention_exposure_id": "TEXT"}
     for name, definition in migrations.items():
         if columns and name not in columns:
             connection.execute(f"ALTER TABLE scientific_prediction_outcomes ADD COLUMN {name} {definition}")
@@ -78,12 +70,10 @@ def record_prediction_outcome(connection: sqlite3.Connection, *, prediction_id: 
                               provenance: tuple[str, ...], source_id: str, source_version: str,
                               observation_time: datetime, availability_time: datetime, ascertainment_time: datetime,
                               revision_id: str, measurement_process_id: str, outcome_definition_version: str,
-                              transformation_id: str, censoring_status: str = "NONE",
-                              missingness_status: str = "OBSERVED", selection_status: str = "NONE",
-                              intervention_exposure_id: str | None = None) -> dict[str, Any]:
+                              transformation_id: str, censoring_status: str = "NONE", missingness_status: str = "OBSERVED",
+                              selection_status: str = "NONE", intervention_exposure_id: str | None = None) -> dict[str, Any]:
     """Link one persisted prediction to a fully ascertained point-in-time observed binary outcome."""
-    required = (prediction_id, decision_id, action_id, outcome_id, target, source_id, source_version,
-                revision_id, measurement_process_id, outcome_definition_version, transformation_id)
+    required = (prediction_id, decision_id, action_id, outcome_id, target, source_id, source_version, revision_id, measurement_process_id, outcome_definition_version, transformation_id)
     if any(not value for value in required) or not provenance:
         raise ValueError("prediction outcome identity, provenance and ascertainment identity are required")
     if observed not in (0, 1):
@@ -96,8 +86,8 @@ def record_prediction_outcome(connection: sqlite3.Connection, *, prediction_id: 
     ascertainment_time = _parse_aware(ascertainment_time, "ascertainment_time")
     if observation_time > availability_time or availability_time > ascertainment_time:
         raise ValueError("outcome observation, availability and ascertainment times must be ordered")
-    if missingness_status != "OBSERVED":
-        raise ValueError("non-observed outcomes are not eligible for binary scoring")
+    if missingness_status != "OBSERVED" or censoring_status != "NONE" or selection_status != "NONE":
+        raise ValueError("non-observed, censored, or selected outcomes are not eligible for binary scoring")
 
     ensure_prediction_outcome_schema(connection)
     connection.execute("BEGIN IMMEDIATE")
@@ -132,11 +122,7 @@ def record_prediction_outcome(connection: sqlite3.Connection, *, prediction_id: 
         brier_error = float((probability - observed) ** 2)
         log_loss_error = _log_loss(probability, observed)
         canonical_provenance = tuple(dict.fromkeys(str(item) for item in provenance))
-        values = (decision_id, action_id, outcome_id, target, outcome_time.isoformat(), observed, probability,
-                  brier_error, log_loss_error, json.dumps(canonical_provenance, sort_keys=True, separators=(",", ":")),
-                  source_id, source_version, observation_time.isoformat(), availability_time.isoformat(),
-                  ascertainment_time.isoformat(), revision_id, measurement_process_id, outcome_definition_version,
-                  transformation_id, censoring_status, missingness_status, selection_status, intervention_exposure_id)
+        values = (decision_id, action_id, outcome_id, target, outcome_time.isoformat(), observed, probability, brier_error, log_loss_error, json.dumps(canonical_provenance, sort_keys=True, separators=(",", ":")), source_id, source_version, observation_time.isoformat(), availability_time.isoformat(), ascertainment_time.isoformat(), revision_id, measurement_process_id, outcome_definition_version, transformation_id, censoring_status, missingness_status, selection_status, intervention_exposure_id)
         row = connection.execute("SELECT decision_id, action_id, outcome_id, target, outcome_time, observed, predicted_probability, brier_error, log_loss_error, provenance_json, source_id, source_version, observation_time, availability_time, ascertainment_time, revision_id, measurement_process_id, outcome_definition_version, transformation_id, censoring_status, missingness_status, selection_status, intervention_exposure_id FROM scientific_prediction_outcomes WHERE prediction_id=?", (prediction_id,)).fetchone()
         if row is not None:
             if row != values:

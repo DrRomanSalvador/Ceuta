@@ -1,5 +1,5 @@
 {
-  "schema_version": "2.1",
+  "schema_version": "2.2",
   "mission_state_type": "scientific_multi_mission_overlay",
   "parent_mission": "CEUTIA-SERPIENTE-SCIENTIFIC-MACHINE-001",
   "status": "OPEN_CONTINUOUS_EXECUTION",
@@ -9,6 +9,7 @@
   "bootstrap_contracts": "docs/missions/MISSION_BOOTSTRAPS.md",
   "mission_registry": "docs/missions/MISSION_REGISTRY.json",
   "invocation_contract": "docs/missions/MISSION_INVOCATION_CONTRACT.md",
+  "mission_evolution_engine": "docs/missions/EVOLUTION_ENGINE_CONTRACT.json",
   "cybersecurity_mission": "docs/missions/MISSION_15_CIBERSEGURIDAD.md",
   "coverage_matrix": "docs/missions/MISSION_COVERAGE_MATRIX.md",
   "collaboration_graph": "docs/missions/MISSION_COLLABORATION_GRAPH.md",
@@ -46,9 +47,10 @@
   "non_interference_protocol": "DETECT → DOCUMENT → ATTRIBUTE → HANDOFF → OWNER ACTION → VERIFY → PERSIST",
   "failure_protocol": "FAIL → PRESERVE STATE → RECORD FAILURE → CLASSIFY → HANDOFF → RECOVER → VERIFY → PERSIST",
   "emergency_protocol": "DETECT → PRESERVE EVIDENCE → RECORD INCIDENT → NOTIFY OWNER/CUSTODIAN → MINIMAL CONTAINMENT → TRANSFER CONTROL → RECOVERY VERIFICATION → POST-INCIDENT REVIEW",
-  "new_mission_admission": "Distinct method + differentiated interfaces + recurring blind spot + independent failure mode + authority boundary + measurable value + no adequate fusion alternative.",
+  "new_mission_admission": "MISSION_EVOLUTION_ENGINE: ACTION_X → audit all missions → extension → collaboration → temporary task force → six mandatory gates → CAN_AUTHORIZE → contract/prompt/registration artifacts → zero-context validation → lifecycle review.",
   "retirement_policy": "Retirement preserves state, provenance, contributions and historical outputs; it is not deletion.",
+  "mission_evolution_status": "ACTIVE; permanent control-plane admission and lifecycle capability registered, tested in repository unit tests, with live distributed orchestration and transactional persistence intentionally unclaimed.",
   "roman_integration_status": "PARTIALLY_INTEGRATED; repository-side registration, discovery contract, state, authority and handoff artifacts established; live external orchestration and concurrent transactional persistence not yet verified.",
-  "next_architecture_action": "Execute repository mission-registry tests; then validate ROMAN through the external mission host with live discovery, invocation, leases/CAS, conflict reconciliation and recovery. ESPÍA continues scientific frontier work independently.",
+  "next_architecture_action": "Exercise the Mission Evolution Engine against real ACTION_X cases and then validate ROMAN through the external mission host with live discovery, invocation, leases/CAS, conflict reconciliation and recovery. ESPÍA continues scientific frontier work independently.",
   "global_completion": false
 }

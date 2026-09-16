@@ -96,6 +96,8 @@ cases:
     payload:
       benchmark_id: cb-001
       capability_id: scientific-falsification
+      capability_definition: "Can a material hypothesis be exposed to a declared falsifying observation and retain the result?"
+      invariant_refs: [INV-FALSIFICATION-RESULT-PERSISTED]
       reference_revision: rev-a
       observed_revision: rev-b
       test_results:

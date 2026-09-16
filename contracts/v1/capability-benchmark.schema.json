@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ceutia/contracts/v1/capability-benchmark.schema.json",
+  "title": "Longitudinal Capability Benchmark Result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["benchmark_id", "capability_id", "reference_revision", "observed_revision", "test_results", "regression", "impact", "revalidation_required"],
+  "properties": {
+    "benchmark_id": {"type": "string", "minLength": 1},
+    "capability_id": {"type": "string", "minLength": 1},
+    "reference_revision": {"type": "string", "minLength": 1},
+    "observed_revision": {"type": "string", "minLength": 1},
+    "test_results": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/test"}},
+    "regression": {"type": "boolean"},
+    "impact": {"enum": ["NONE", "LOW", "MATERIAL", "CRITICAL"]},
+    "revalidation_required": {"type": "boolean"}
+  },
+  "$defs": {
+    "test": {
+      "type": "object", "additionalProperties": false,
+      "required": ["test_id", "expected_behavior", "observed_behavior", "pass", "evidence_refs"],
+      "properties": {
+        "test_id": {"type": "string", "minLength": 1},
+        "expected_behavior": {"type": "string", "minLength": 1},
+        "observed_behavior": {"type": "string", "minLength": 1},
+        "threshold": {"type": ["number", "string"]},
+        "observed_value": {"type": ["number", "string", "null"]},
+        "pass": {"type": "boolean"},
+        "evidence_refs": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}
+      }
+    }
+  }
+}

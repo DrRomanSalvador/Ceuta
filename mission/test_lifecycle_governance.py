@@ -2,6 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from .event_log import load_jsonl, validate_chain
 from .lifecycle_governance import OPERATING_STANDARD_VERSION, admit, load_ledger, record_conflict, recover, retire
 
 
@@ -51,6 +52,18 @@ class LifecycleGovernanceTests(unittest.TestCase):
             record=record_conflict(path,conflict_id="C1",claim_a="A",claim_b="B",category="factual",owner="MISSION-02",evidence_a=["ea"],evidence_b=["eb"])
             self.assertEqual(record["status"],"OPEN")
             self.assertEqual(len(load_ledger(path)["conflicts"]),1)
+
+    def test_all_lifecycle_mutations_can_be_event_backed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path=Path(tmp)/"ledger.json"; events=Path(tmp)/"events.jsonl"
+            path.write_text('{"admissions":[],"retirements":[],"recoveries":[],"conflicts":[]}',encoding="utf-8")
+            admission=admit(path,self.contract(),authorized_by="HUMAN_AUTHORITY",evidence=["review"],event_log=events,timestamp="2026-09-16T12:00:00Z")
+            retirement=retire(path,mission_id="MISSION-99",owner="MISSION-99",authorized_by="HUMAN_AUTHORITY",evidence=["e"],reason="superseded",event_log=events,timestamp="2026-09-16T12:01:00Z")
+            recovery=recover(path,mission_id="MISSION-99",trigger="checkpoint-loss",evidence=["event-chain"],restored_state="ACTIVE",event_log=events,timestamp="2026-09-16T12:02:00Z")
+            conflict=record_conflict(path,conflict_id="C1",claim_a="A",claim_b="B",category="factual",owner="MISSION-02",evidence_a=["ea"],evidence_b=["eb"],event_log=events,actor="MISSION-02",timestamp="2026-09-16T12:03:00Z")
+            self.assertTrue(all(record.get("mutation_event_id") for record in (admission,retirement,recovery,conflict)))
+            self.assertEqual(len(load_jsonl(events)),4)
+            validate_chain(load_jsonl(events))
 
 
 if __name__ == "__main__":

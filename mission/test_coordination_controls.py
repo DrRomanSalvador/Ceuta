@@ -21,7 +21,9 @@ class CoordinationControlTests(unittest.TestCase):
         self.assertEqual(state["recovery"][-1]["type"], "PAUSE_WITHOUT_CHECKPOINT_RISK")
 
     def test_standby_and_resume_preserve_recovery_semantics(self):
-        self.coordinator.checkpoint_then_pause(target="ENGINEER-1", mission="MISSION-01", checkpoint_id="CP-1")
+        state = self.coordinator.checkpoint_then_pause(target="ENGINEER-1", mission="MISSION-01", checkpoint_id="CP-1")
+        pause_order = next(reversed(state["commands"]))
+        state = self.coordinator.record_execution(pause_order, result="paused", success=True)
         state = self.coordinator.standby(target="ENGINEER-1", mission="MISSION-01", checkpoint_id="CP-1")
         self.assertEqual(state["standby"]["ENGINEER-1"]["checkpoint_id"], "CP-1")
         state = self.coordinator.resume(target="ENGINEER-1", mission="MISSION-01")

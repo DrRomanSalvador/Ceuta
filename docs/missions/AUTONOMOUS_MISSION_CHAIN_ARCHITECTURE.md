@@ -68,15 +68,25 @@ A validated result is converted into one or more **scientific consequences**. Co
 
 Task creation requires `WHY_THIS_TASK`, `WHY_NOW`, `EXPECTED_VALUE`, `ACCEPTANCE_CRITERIA`, and `STOP_CONDITION`.
 
-## 7. Coherence gate
+## 7. Asynchronous continuity and live work
+
+A running process is active work, not passive waiting. Each asynchronous activity is represented by a `ProcessObservation` containing process identity/type, start and last-observed timestamps, current status, expected result, dependencies, dependent tasks, independent work available, and the next observation condition.
+
+The explicit work queue has the disjoint buckets:
+
+`executable_now | running | blocked | delegated | external | completed | cancelled`.
+
+`RUNNING` therefore keeps the mission active and obliges independent work discovery/execution and subsequent re-observation. `WAITING` is valid only when no executable, running, blocked or delegated internal work remains. A CI workflow, handoff, replay, subprocess, validation or migration must never by itself terminate a mission execution iteration.
+
+## 8. Coherence gate
 
 Before integration, NOTARIO evaluates whether the result is compatible with the global scientific specification and classifies it as:
 
 `COMPATIBLE | EXTENDS | MODIFIES | CONTRADICTS | REFUTES | INCONCLUSIVE`.
 
-The gate additionally records uncertainty/debt, dependency changes, capability delta and regression obligations. A local success cannot bypass this gate.
+The gate additionally records uncertainty/debt, dependency changes, capability delta and regression obligations. A local success cannot bypass this gate. Material modification, contradiction or refutation requires an explicit revalidation path before it can change the global state.
 
-## 8. Global regression
+## 9. Global regression
 
 Integration is not complete until impacted prior capabilities and scientific invariants are rechecked. The impact graph/revalidation obligations determine scope; a full system-wide rerun is not required when a smaller evidence-backed regression set is sufficient.
 
@@ -90,20 +100,20 @@ A regression may be:
 - performance/complexity;
 - cross-mission coherence.
 
-## 9. Circuit breakers
+## 10. Circuit breakers
 
 The chain must fail closed on provenance loss, state corruption, authority conflict, critical contradiction, unsafe recursion, task explosion, repeated circular activation, integrity failure or global degradation. The breaker persists the reason and resumable recovery state.
 
-## 10. Fixed point
+## 11. Fixed point
 
-The chain reaches a local/global fixed point only when the fixed-point specification is satisfied and no executable, non-redundant, material work remains.
+The executable fixed-point predicate requires all of the following to be zero: executable open work, unprocessed derived work, unintegrated completed work, unreconciled state, unverified internal repairs, untested executable changes, unfollowed active handoffs, active internal processes, unresolved critical contradictions, unprocessed high-value discoveries, required integration, repairable regression, and material capability gaps.
 
-This is a property of the current state of knowledge and infrastructure, not a claim that science is complete.
+Only after this predicate and the global regression audit pass may the system enter `FIXED_POINT`/`QUIESCENT_READY`. An external property may remain explicitly recorded without preventing closure of locally exhausted work. This is a property of the current state of knowledge and infrastructure, not a claim that science is complete.
 
-## 11. Human authority
+## 12. Human authority
 
 Humans retain authority for constitutional changes, privileged access, irreversible actions, protected mission changes, and explicitly designated critical scientific decisions. Ordinary routing, validation scheduling, persistence and continuation are autonomous once authorized.
 
-## 12. Anti-sprawl rule
+## 13. Anti-sprawl rule
 
 A mission is not activated because it exists. A task is not created because a capability exists. A new mission is not admitted while existing capability, extension, collaboration or temporary task force can satisfy the requirement. Retirement uses the existing lifecycle governance rather than a new lifecycle.

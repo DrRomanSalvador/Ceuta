@@ -72,58 +72,64 @@ def record_prediction_outcome(connection: sqlite3.Connection, *, prediction_id: 
         raise ValueError("observed outcome must be 0 or 1")
 
     ensure_prediction_outcome_schema(connection)
-    prediction = connection.execute(
-        "SELECT decision_id, available_at, payload_json, payload_fingerprint FROM scientific_predictions WHERE prediction_id=?",
-        (prediction_id,),
-    ).fetchone()
-    if prediction is None:
-        raise KeyError("prediction_id not found")
-    stored_decision_id, available_at_raw, payload_raw, stored_fingerprint = prediction
-    if stored_decision_id != decision_id:
-        raise ValueError("prediction does not belong to decision_id")
-    payload = json.loads(payload_raw)
-    if _prediction_fingerprint(payload) != str(stored_fingerprint):
-        raise RuntimeError("prediction persistence integrity mismatch")
-    if "probability" not in payload or not math.isfinite(float(payload["probability"])) or not 0.0 <= float(payload["probability"]) <= 1.0:
-        raise ValueError("persisted prediction probability is outside [0,1]")
-    if str(payload["target"]) != target:
-        raise ValueError("outcome target does not match prediction target")
-    available_at = datetime.fromisoformat(str(available_at_raw))
-    if available_at.tzinfo is None or available_at.utcoffset() is None:
-        raise RuntimeError("persisted prediction availability timestamp is not timezone-aware")
-    origin_time = datetime.fromisoformat(str(payload["origin_time"]))
-    if origin_time.tzinfo is None or origin_time.utcoffset() is None:
-        raise RuntimeError("persisted prediction origin timestamp is not timezone-aware")
-    normalized_outcome_time = outcome_time.astimezone(timezone.utc)
-    if normalized_outcome_time > datetime.now(timezone.utc):
-        raise ValueError("outcome cannot be in the future")
-    if normalized_outcome_time < available_at.astimezone(timezone.utc):
-        raise ValueError("outcome cannot precede prediction availability")
-    expected_target_time = origin_time.astimezone(timezone.utc) + _horizon_delta(str(payload["horizon"]))
-    if normalized_outcome_time < expected_target_time:
-        raise ValueError("outcome precedes prediction target time; prospective outcome is not yet eligible")
+    connection.execute("BEGIN IMMEDIATE")
+    try:
+        prediction = connection.execute(
+            "SELECT decision_id, available_at, payload_json, payload_fingerprint FROM scientific_predictions WHERE prediction_id=?",
+            (prediction_id,),
+        ).fetchone()
+        if prediction is None:
+            raise KeyError("prediction_id not found")
+        stored_decision_id, available_at_raw, payload_raw, stored_fingerprint = prediction
+        if stored_decision_id != decision_id:
+            raise ValueError("prediction does not belong to decision_id")
+        payload = json.loads(payload_raw)
+        if _prediction_fingerprint(payload) != str(stored_fingerprint):
+            raise RuntimeError("prediction persistence integrity mismatch")
+        if "probability" not in payload or not math.isfinite(float(payload["probability"])) or not 0.0 <= float(payload["probability"]) <= 1.0:
+            raise ValueError("persisted prediction probability is outside [0,1]")
+        if str(payload["target"]) != target:
+            raise ValueError("outcome target does not match prediction target")
+        available_at = datetime.fromisoformat(str(available_at_raw))
+        if available_at.tzinfo is None or available_at.utcoffset() is None:
+            raise RuntimeError("persisted prediction availability timestamp is not timezone-aware")
+        origin_time = datetime.fromisoformat(str(payload["origin_time"]))
+        if origin_time.tzinfo is None or origin_time.utcoffset() is None:
+            raise RuntimeError("persisted prediction origin timestamp is not timezone-aware")
+        normalized_outcome_time = outcome_time.astimezone(timezone.utc)
+        if normalized_outcome_time > datetime.now(timezone.utc):
+            raise ValueError("outcome cannot be in the future")
+        if normalized_outcome_time < available_at.astimezone(timezone.utc):
+            raise ValueError("outcome cannot precede prediction availability")
+        expected_target_time = origin_time.astimezone(timezone.utc) + _horizon_delta(str(payload["horizon"]))
+        if normalized_outcome_time < expected_target_time:
+            raise ValueError("outcome precedes prediction target time; prospective outcome is not yet eligible")
 
-    probability = float(payload["probability"])
-    brier_error = float((probability - observed) ** 2)
-    log_loss_error = _log_loss(probability, observed)
-    canonical_provenance = tuple(dict.fromkeys(str(item) for item in provenance))
-    row = connection.execute(
-        "SELECT decision_id, action_id, outcome_id, target, outcome_time, observed, predicted_probability, brier_error, log_loss_error, provenance_json FROM scientific_prediction_outcomes WHERE prediction_id=?",
-        (prediction_id,),
-    ).fetchone()
-    values = (decision_id, action_id, outcome_id, target, normalized_outcome_time.isoformat(), observed, probability, brier_error, log_loss_error, json.dumps(canonical_provenance, sort_keys=True, separators=(",", ":")))
-    if row is not None:
-        if row != values:
-            raise RuntimeError("prediction outcome identity collision: existing outcome differs")
+        probability = float(payload["probability"])
+        brier_error = float((probability - observed) ** 2)
+        log_loss_error = _log_loss(probability, observed)
+        canonical_provenance = tuple(dict.fromkeys(str(item) for item in provenance))
+        row = connection.execute(
+            "SELECT decision_id, action_id, outcome_id, target, outcome_time, observed, predicted_probability, brier_error, log_loss_error, provenance_json FROM scientific_prediction_outcomes WHERE prediction_id=?",
+            (prediction_id,),
+        ).fetchone()
+        values = (decision_id, action_id, outcome_id, target, normalized_outcome_time.isoformat(), observed, probability, brier_error, log_loss_error, json.dumps(canonical_provenance, sort_keys=True, separators=(",", ":")))
+        if row is not None:
+            if row != values:
+                raise RuntimeError("prediction outcome identity collision: existing outcome differs")
+            connection.commit()
+            return {"prediction_id": prediction_id, "decision_id": decision_id, "action_id": action_id, "outcome_id": outcome_id, "target": target, "observed": observed, "predicted_probability": probability, "brier_error": brier_error, "log_loss_error": log_loss_error, "outcome_time": normalized_outcome_time.isoformat(), "provenance": canonical_provenance}
+
+        existing_outcome = connection.execute("SELECT prediction_id FROM scientific_prediction_outcomes WHERE outcome_id=?", (outcome_id,)).fetchone()
+        if existing_outcome is not None and existing_outcome[0] != prediction_id:
+            raise RuntimeError("outcome identity collision: outcome_id is already linked to another prediction")
+        recorded_at = datetime.now(timezone.utc).isoformat()
+        connection.execute("INSERT INTO scientific_prediction_outcomes(prediction_id,decision_id,action_id,outcome_id,target,outcome_time,observed,predicted_probability,brier_error,log_loss_error,provenance_json,recorded_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)", (prediction_id, *values, recorded_at))
+        connection.commit()
         return {"prediction_id": prediction_id, "decision_id": decision_id, "action_id": action_id, "outcome_id": outcome_id, "target": target, "observed": observed, "predicted_probability": probability, "brier_error": brier_error, "log_loss_error": log_loss_error, "outcome_time": normalized_outcome_time.isoformat(), "provenance": canonical_provenance}
-
-    existing_outcome = connection.execute("SELECT prediction_id FROM scientific_prediction_outcomes WHERE outcome_id=?", (outcome_id,)).fetchone()
-    if existing_outcome is not None and existing_outcome[0] != prediction_id:
-        raise RuntimeError("outcome identity collision: outcome_id is already linked to another prediction")
-    recorded_at = datetime.now(timezone.utc).isoformat()
-    connection.execute("INSERT INTO scientific_prediction_outcomes(prediction_id,decision_id,action_id,outcome_id,target,outcome_time,observed,predicted_probability,brier_error,log_loss_error,provenance_json,recorded_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)", (prediction_id, *values, recorded_at))
-    connection.commit()
-    return {"prediction_id": prediction_id, "decision_id": decision_id, "action_id": action_id, "outcome_id": outcome_id, "target": target, "observed": observed, "predicted_probability": probability, "brier_error": brier_error, "log_loss_error": log_loss_error, "outcome_time": normalized_outcome_time.isoformat(), "provenance": canonical_provenance}
+    except Exception:
+        connection.rollback()
+        raise
 
 
 def get_prediction_outcome(connection: sqlite3.Connection, prediction_id: str) -> dict[str, Any] | None:

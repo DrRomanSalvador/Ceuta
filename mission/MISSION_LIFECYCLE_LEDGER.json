@@ -1,0 +1,10 @@
+{
+  "schema_version": "1.0.0",
+  "registry_id": "CEUTIA_SERPIENTE_MISSION_LIFECYCLE_LEDGER",
+  "status": "ACTIVE",
+  "admissions": [],
+  "retirements": [],
+  "recoveries": [],
+  "conflicts": [],
+  "rule": "Admission, retirement, recovery and conflict decisions are persistent state transitions and cannot be inferred from labels or conversation."
+}

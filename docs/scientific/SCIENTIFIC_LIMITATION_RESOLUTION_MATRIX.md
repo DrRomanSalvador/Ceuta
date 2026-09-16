@@ -60,9 +60,9 @@ Scientific remainder: effectiveness requires real-world intervention/outcome obs
 
 Question: Is a causal claim identifiable under a declared causal design rather than inferred from association or graph connectivity?
 
-Closure test: unaddressed ancestral backdoor candidates, missing assumptions or missing falsification controls block causal identification. Descriptive propagation is not emitted as causal propagation without causal evidence.
+Closure test: unaddressed ancestral backdoor candidates or missing core identification assumptions block causal identification. Negative controls are explicit falsification/diagnostic tests when declared, but their absence is not by itself a universal logical blocker to internal identification. A claim of transportability is separately gated from internal identification. Descriptive propagation is not emitted as causal propagation without causal evidence.
 
-Scientific remainder: identification assumptions and empirical support remain study-specific.
+Scientific remainder: identification assumptions, falsification diagnostics and empirical support remain study-specific.
 
 ### SL-08 — uncertainty
 
@@ -71,6 +71,12 @@ Question: Does uncertainty have a defined statistical interpretation and valid e
 Closure test: invalid probabilities fail; calibration uses proper scoring and calibration parameters; dependence-aware uncertainty is used for repeated/clustered observations; degenerate calibration is handled explicitly rather than silently treated as calibrated.
 
 Scientific remainder: prospective calibration and uncertainty transport are empirical claims.
+
+## Traceability amendments
+
+- `SL-07`: causal identification logic now explicitly separates internal identification from falsification diagnostics and transportability. Negative controls are not treated as universal identification prerequisites.
+- The corresponding adversarial tests verify that missing negative controls do not silently block an otherwise internally identified estimand, while an unaddressed backdoor candidate still blocks identification.
+- Engineering closure remains independent from the scientific claim of prospective causal validity.
 
 ## Current engineering-scientific boundary
 

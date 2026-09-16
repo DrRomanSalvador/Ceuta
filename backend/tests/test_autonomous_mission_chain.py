@@ -1,3 +1,5 @@
+from dataclasses import replace
+
 from backend.app.missions.autonomous_chain import (
     AutonomousChainError,
     AutonomousMissionChain,
@@ -136,9 +138,7 @@ def test_full_fixed_point_includes_processes_contradictions_and_discovery() -> N
         unfollowed_active_handoff=0,
     )
     assert AutonomousMissionChain.fixed_point_state(closed)
-    assert not AutonomousMissionChain.fixed_point_state(
-        FixedPointState(**{**closed.__dict__, "active_internal_processes": 1})
-    )
+    assert not AutonomousMissionChain.fixed_point_state(replace(closed, active_internal_processes=1))
 
 
 def test_fixed_point_legacy_arguments_remain_compatible() -> None:

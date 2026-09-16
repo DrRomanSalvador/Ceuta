@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ceutia/contracts/v1/disagreement-lifecycle.schema.json",
+  "title": "Scientific Disagreement Lifecycle",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["disagreement_id", "type", "position_refs", "shared_premise_refs", "status", "history", "minority_preserved"],
+  "properties": {
+    "disagreement_id": {"type": "string", "minLength": 1},
+    "type": {"enum": ["FACTUAL", "METHODOLOGICAL", "STATISTICAL", "EPISTEMOLOGICAL", "SEMANTIC", "TEMPORAL", "CAUSAL", "MODEL_BASED", "SOURCE_BASED", "STRATEGIC", "IMPLEMENTATION", "UNCERTAINTY"]},
+    "position_refs": {"type": "array", "minItems": 2, "items": {"type": "string", "minLength": 1}},
+    "shared_premise_refs": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "assumption_refs": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "discriminative_evidence_refs": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "voi_reference": {"type": ["string", "null"]},
+    "status": {"enum": ["OPEN", "TESTING", "RESOLVED", "MAINTAINED", "BLOCKED"]},
+    "minority_preserved": {"const": true},
+    "history": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/event"}}
+  },
+  "$defs": {
+    "event": {
+      "type": "object", "additionalProperties": false,
+      "required": ["event_id", "at", "action", "actor_ref"],
+      "properties": {
+        "event_id": {"type": "string", "minLength": 1},
+        "at": {"type": "string", "format": "date-time"},
+        "action": {"type": "string", "minLength": 1},
+        "actor_ref": {"type": "string", "minLength": 1},
+        "evidence_refs": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      }
+    }
+  }
+}

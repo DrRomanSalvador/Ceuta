@@ -1,0 +1,33 @@
+name: CeutIA Control Plane Validation
+
+on:
+  push:
+    branches: [maximum-knowledge-to-capability, scientific-traceability-crossrepo, main]
+  pull_request:
+    branches: [scientific-traceability-crossrepo, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ceutia-control-plane-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  control-plane:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile control-plane sources
+        run: python -m compileall -q mission
+      - name: Run control-plane unit tests
+        run: python -m unittest mission.test_control_plane mission.test_event_log
+      - name: Run zero-context reconstruction
+        run: python -m pytest mission/test_zero_context_replay.py -q
+      - name: Run authoritative bootstrap
+        run: python -m mission.bootstrap

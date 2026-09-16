@@ -1,65 +1,55 @@
 # Control Plane Execution Checkpoint 001
 
-## Current repository state
+## Recovery checkpoint
+
+`RECOVERY_REASON = SESSION_FREEZE`
+
+The interface freeze was treated as loss of conversational visibility, not loss of mission state. Repository, branch, PR, CI and persisted queue evidence were independently reconciled before resumption.
 
 - Repository: `DrRomanSalvador/Ceuta`
 - Branch: `maximum-knowledge-to-capability`
-- Current branch head after explicit ref reconciliation: `8cab79fe289e129df1bfe941cb07f9276722641b`
-- Last fully verified control-plane head: `25442e28d7012d6a6d15827221ac64719225a680`
+- Current branch HEAD: `5ae2e60edd567ffc5fc68b5d4188922b6a48862b`
+- Parent of current HEAD: `8cab79fe289e129df1bfe941cb07f9276722641b`
 - Current PR: `#47`
-- Previous PR: `#35` closed after its head reference became stale during branch reconciliation
-- Base: `scientific-traceability-crossrepo`
-- Current PR head: `8cab79fe289e129df1bfe941cb07f9276722641b`
+- PR state: OPEN, UNMERGED
+- PR head: `5ae2e60edd567ffc5fc68b5d4188922b6a48862b`
+- PR base: `scientific-traceability-crossrepo` at `0d28b856f7c1647ff7b8ecb9a2efcb8bc2658064`
+- Last fully verified control-plane head: `25442e28d7012d6a6d15827221ac64719225a680`
 
-## Verified CI evidence
+## CI reconciliation
 
-GitHub Actions run `35088306380` completed with `success` on `25442e28...`. This remains the latest fully verified control-plane head.
+Run `35089226853` / workflow run number `178` is COMPLETED/FAILURE on older commit `c0909ca3bbc226f34bb83a7cf734491192dabbca`. Its failing unit-test step is historical evidence and is not duplicated merely because the session froze.
 
-Run `35089226853` completed with `failure` on the then-current branch head `c0909ca3...`. The failure was localized to the control-plane test step and led to two repairs: the multi-process fixture was corrected to use a queue from the same `spawn` multiprocessing context, and `persist_transition` was restored to backward-compatible mission identity inference while retaining explicit mission identity for new callers.
+Current exact HEAD `5ae2e60...` has zero check-runs at recovery time. Therefore the exact current head is UNVERIFIED, not pending and not failed.
 
-The repaired commits were initially created as valid Git objects but were not advancing the protected branch ref through the contents API. This was detected by an independent branch-ref audit. The complete repaired chain was then explicitly reconciled onto `maximum-knowledge-to-capability` at `8cab79fe...` using a force-ref update. The stale PR #35 was closed and a new PR #47 was created against the same base. No code was lost; the dangling commits are now reachable from the branch head.
+NOTARIO was independently checked. Commit `59cd92ac385a0a3a4ca25b58888385eae1acafbd` has CI run `35090539491`, workflow run number `691`, COMPLETED/SUCCESS. PR `#48` remains anomalously reported by the API as OPEN while also exposing `merge_commit_sha=c193f0d3...`; this is classified as an integration-state inconsistency and is not conflated with the control-plane PR.
 
-The current head is NOT yet CI-verified. No validation claim is promoted from the failed run.
+## Queue reconciliation
 
-## Implemented and evidenced since the last verified head
+The persisted `mission/AUTONOMOUS_WORK_QUEUE.json` identifies the active frontier as:
 
-1. Lifecycle admission, retirement, recovery and contradiction mutations support canonical event backing with persisted `mutation_event_id` identities.
-2. Work-claim acquisition/release support canonical event backing while retaining serialized lease protection.
-3. State-transition and handoff event producers use the atomic `append_payload` event API.
-4. State transitions carry explicit mission identity while preserving the established caller API.
-5. Deterministic replay exposes projections for admission, retirement, recovery, contradiction, contribution, work-claim and handoff event classes.
-6. A real multi-process integration fixture exercises concurrent claims, event-chain integrity, stale writers, reordering and deterministic replay.
-7. An event-backed handoff lifecycle runtime exercises CREATED → VALIDATION_PENDING → READY → ACCEPTED → IMPLEMENTING → IMPLEMENTED → VERIFIED → INTEGRATED and rejects illegal jumps.
-8. `.github/CODEOWNERS` now covers `/mission/*`, `/docs/missions/*` and workflow files.
-9. `MISSION_AUTHORITY_SURFACE_MATRIX.json` explicitly classifies system-enforceable, human-authority and external-infrastructure boundaries.
-10. SERPIENTE contains a response-coupling contract and persistent runtime ledger linking alert → decision → action → outcome with ordering, identity, provenance and duplicate/collision controls.
-11. SERPIENTE runtime exposes `record_response()` and the runtime test suite exercises the response ledger.
+1. exact-head CI verification for the repaired control-plane chain;
+2. replay/event-backed producer verification;
+3. authority/concurrency/adversarial verification;
+4. scientific response-coupling verification in SERPIENTE.
 
-## Reality boundary
+No queue item was reset solely because of the freeze. Items previously marked implemented-pending-verification remain so until exact evidence exists.
 
-The current branch contains two repository-verified mission identities in `MISSION_REGISTRY.json` (CeutIA + SERPIENTE continuous engineering and ROMAN). The registry preserves a source-main projection of 16 identities. Projected missions are not promoted to operational current-branch missions without their own admission/bootstrap evidence.
+## Recovery classification
 
-ROMAN remains `ADMITTED_REPOSITORY_RUNTIME_PENDING`. Repository registration and inheritance of `MISSION_SYSTEM_CONSTITUTION_1.0` are verified; live multi-session orchestration, authorized corpus admission and transactional distributed mutation are not established.
+- Last confirmed control-plane implementation: `8cab79fe...`
+- Subsequent checkpoint persistence: `5ae2e60...`
+- Interrupted action: CI observation on the reconciled branch head
+- Classification: `STARTED_NOT_OBSERVABLE` for exact-head CI; no evidence exists that a run was executing or lost.
+- Recovery frontier: obtain/observe exact-head CI, then reconcile PR mergeability and downstream integration state.
 
-The source-main multi-mission architecture is independently evidenced in `docs/missions/MASTER_MISSION_STATE.json` and `docs/missions/MISSION_REGISTRY.json`. This is a reconciled evidence boundary, not an operational admission of those missions on this branch.
+## External boundaries
 
-## Current material gaps
-
-- CI must execute against the reconciled branch head `8cab79fe...` and verify the repaired suite.
-- Full replay remains projection-oriented: all major mutable producer classes now have event APIs, but universal transactional event-sourcing of every materialized JSON state file is not yet demonstrated.
-- Platform root authority remains bypass-capable and is therefore a human/platform authority boundary, not a repository-verifiable non-bypassable property.
-- Live multi-provider mission invocation is not available through the current repository connector surface.
-- End-to-end adversarial behavior across an actual distributed multi-agent host remains distinct from deterministic repository fixtures.
-- Source-main missions remain source projections until legitimate branch-local admission/bootstrap artifacts exist.
-
-## External boundaries already isolated
-
-1. `HUMAN_AUTHORITY_BOUNDARY`: configured GitHub/platform bypass authority cannot be made non-bypassable by repository code alone.
-2. `EXTERNAL_MULTI_AGENT_HOST`: the available connector surface does not expose a live Mission Evolution Engine capable of spawning and coordinating independent external agents.
-3. `PROSPECTIVE_REAL_WORLD_EVIDENCE`: predictive/response effectiveness requires future real-world data and outcomes.
-
-These boundaries do not authorize omission of internally reproducible tests.
+`HUMAN_AUTHORITY_BOUNDARY` remains platform-level and bypass-capable.
+`EXTERNAL_MULTI_AGENT_HOST` remains unavailable through the current repository connector surface.
+`PROSPECTIVE_REAL_WORLD_EVIDENCE` remains genuinely external for prospective predictive/response effectiveness.
+These boundaries do not suppress internally reproducible validation.
 
 ## Non-closure rule
 
-`CONTROL_PLANE_OPERATIONALLY_VALIDATED` remains `NOT_ESTABLISHED` until the reconciled branch head is CI-green and all currently executable material gaps are closed or reduced to precisely typed external boundaries. The mission continues autonomously.
+`CONTROL_PLANE_OPERATIONALLY_VALIDATED = NOT_ESTABLISHED` until the current head is verified and all executable material gaps are closed or reduced to exact external boundaries.

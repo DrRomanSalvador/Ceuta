@@ -16,6 +16,15 @@ class ReplayTests(unittest.TestCase):
             self.assertEqual(state.missions["ROMAN"]["status"],"ADMITTED_REPOSITORY_RUNTIME_PENDING")
             self.assertEqual(state.last_event_id,"EV-0002")
 
+    def test_replay_reconstructs_migrated_handoff(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path=Path(tmp)/"events.jsonl"
+            append_payload(path,event_type="CONTROL_PLANE_GENESIS",mission_id="MISSION-01",actor="MISSION-01",timestamp="2026-09-16T00:00:00Z",payload={})
+            append_payload(path,event_type="HANDOFF_STATE_MIGRATION",mission_id="MISSION-01",actor="MISSION-01",timestamp="2026-09-16T11:30:00Z",payload={"handoff_id":"HF-1","status":"ACCEPTED","legacy_state_preserved":True})
+            state=replay(path)
+            self.assertEqual(state.handoffs["HF-1"]["status"],"ACCEPTED")
+            self.assertEqual(state.handoffs["HF-1"]["event_id"],"EV-0002")
+
     def test_replay_rejects_unknown_event_type(self):
         with tempfile.TemporaryDirectory() as tmp:
             path=Path(tmp)/"events.jsonl"

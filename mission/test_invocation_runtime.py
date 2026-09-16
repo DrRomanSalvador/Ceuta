@@ -39,6 +39,14 @@ class InvocationRuntimeTests(unittest.TestCase):
         with self.assertRaises(PermissionError):
             authorize_invocation(mission=mission,envelope=validate_request(request))
 
+    def test_authorization_loss_blocks_runtime_invocation(self):
+        mission={**self.registry()["missions"][0],"current_status":"SUSPENDED"}
+        with self.assertRaises(PermissionError):
+            authorize_invocation(mission=mission,envelope=validate_request(self.request()))
+        mission["current_status"]="BLOCKED"
+        with self.assertRaises(PermissionError):
+            authorize_invocation(mission=mission,envelope=validate_request(self.request()))
+
     def test_stale_writer_fails_closed(self):
         with self.assertRaises(RuntimeError):
             compare_and_swap(current_state_version="v2",base_state_version="v1",state_delta={"x":1})

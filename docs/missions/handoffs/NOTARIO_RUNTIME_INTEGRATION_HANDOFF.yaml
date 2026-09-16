@@ -1,0 +1,178 @@
+schema_version: "1.0"
+handoff_id: "NOTARIO-HANDOFF-RUNTIME-001"
+origin_mission: "MISSION-13"
+origin_name: "NOTARIO"
+owner_mission: "MISSION-01"
+owner_name: "INGENIERO"
+status: "HANDOFF_ACTIVE"
+created_at: "2026-09-16T11:10:00Z"
+completion_policy: "HANDOFF_IS_NOT_CLOSURE"
+
+objective:
+  statement: >-
+    Integrate the five NOTARIO second-order epistemic capabilities into the existing
+    runtime/persistence surfaces without creating duplicate provenance, hypothesis,
+    disagreement, VoI, benchmark, claim, or mission architectures.
+  required_capabilities:
+    - "H1 knowledge-impact traversal and revalidation propagation"
+    - "H2 executable discovery funnel with evidence/falsification gating"
+    - "H3 persistent typed disagreement lifecycle with minority preservation"
+    - "H4 executable longitudinal capability-regression benchmark"
+    - "H5 scientific/epistemic debt linked to claims, capabilities, evidence and validation"
+
+current_state:
+  branch: "mission-13-notario-execution"
+  head_commit: "ff49dc55c4903d6e0d3a9002e5b61e55a5ae62e8"
+  pull_request: 46
+  mission_status: "IN_PROGRESS"
+  h1: "SPECIFIED"
+  h2: "SPECIFIED"
+  h3: "SPECIFIED"
+  h4: "SPECIFIED"
+  h5: "SPECIFIED"
+  contracts_created: true
+  contract_vectors_created: true
+  external_research_performed: true
+  runtime_integration_verified: false
+  post_integration_reaudit: false
+  closure_allowed: false
+
+artifacts:
+  contracts:
+    - "contracts/v1/knowledge-impact-graph.schema.json"
+    - "contracts/v1/discovery-candidate.schema.json"
+    - "contracts/v1/disagreement-lifecycle.schema.json"
+    - "contracts/v1/capability-benchmark.schema.json"
+    - "contracts/v1/scientific-epistemic-debt.schema.json"
+  test_vectors:
+    - "tests/contracts/second_order_execution_vectors.yaml"
+  state:
+    - "docs/missions/SECOND_ORDER_EXECUTION_STATE.yaml"
+  prior_audit:
+    - "docs/missions/SECOND_ORDER_SYSTEM_QUALITY_AUDIT.md"
+    - "docs/missions/SECOND_ORDER_SYSTEM_QUALITY_MATRIX.yaml"
+
+existing_primitives_to_reuse:
+  provenance:
+    - "backend/app/core/epistemology_p0/sources/independence.py"
+    - "backend/app/core/evidence/dependence_graph.py"
+  hypotheses_and_falsification:
+    - "backend/app/core/epistemology_p0/advanced/hypotheses.py"
+    - "backend/app/core/epistemology_p0/advanced/claims.py"
+    - "backend/app/core/science/falsification.py"
+    - "backend/app/core/causal/falsification.py"
+  disagreement:
+    - "backend/app/core/evidence/conflicts.py"
+    - "backend/app/core/evidence/conflict_resolution.py"
+    - "backend/app/core/decision/control_plane.py"
+  voi:
+    - "backend/app/core/decision/value_of_information.py"
+    - "backend/app/core/decision/voi_contract.py"
+  learning_and_lineage:
+    - "backend/app/core/system/closed_loop.py"
+    - "backend/app/core/decision/counterfactual_engine.py"
+    - "backend/app/core/decision/feedback.py"
+  regression_and_temporal_controls:
+    - "backend/app/core/calibration/drift.py"
+    - "backend/app/core/runtime/change_points.py"
+    - "backend/app/core/knowledge/versioning.py"
+  governance_and_observability:
+    - "backend/app/core/governance/incident_ledger.py"
+    - "backend/app/core/adversarial_validation.py"
+    - "backend/app/core/governance/validation.py"
+    - "backend/app/core/runtime/observability.py"
+    - "backend/app/core/runtime/self_monitoring.py"
+
+acceptance:
+  H1:
+    executable_requirements:
+      - "Register real entities and typed relationships using existing provenance/lineage primitives."
+      - "Persist relationships and reconstruct temporal/provenance history."
+      - "Traverse upstream mutation to downstream claims/models/predictions/decisions/actions/outcomes."
+      - "Emit explicit revalidation obligations with required validation level and blocking status."
+      - "Pass positive and negative traversal tests with reproducible evidence."
+  H2:
+    executable_requirements:
+      - "Execute SIGNAL/ANOMALY -> CANDIDATE -> QUESTION -> HYPOTHESIS -> FALSIFICATION -> EVIDENCE -> STATUS."
+      - "Preserve rejection, inconclusive results, rival hypotheses and insufficient evidence."
+      - "Prevent model-generated hypotheses from becoming evidence by construction."
+      - "Permit promotion only through declared evidence/falsification gates."
+      - "Persist traceability and regression-test the lifecycle."
+  H3:
+    executable_requirements:
+      - "Execute typed disagreement through competing positions, assumptions, evidence, discriminative test and VoI/test."
+      - "Preserve minority position and full history when resolved or maintained."
+      - "Represent error, uncertainty, evidence conflict, model disagreement, ontology disagreement, assumption disagreement and data conflict distinctly."
+      - "Provide negative tests against consensus collapse and history loss."
+  H4:
+    executable_requirements:
+      - "Execute CAPABILITY -> BASELINE -> CURRENT -> DIFFERENCE -> REGRESSION -> IMPACT -> REVALIDATION."
+      - "Detect at least one real seeded degradation, not merely serialize regression=true."
+      - "Distinguish software-test pass from scientific capability preservation."
+      - "Cover technical, statistical, epistemic, calibration, coverage, provenance and temporal-integrity regression dimensions where applicable."
+      - "Persist reproducible benchmark evidence."
+  H5:
+    executable_requirements:
+      - "Create debt from material scientific/epistemic weakness and link it to affected claims/capabilities/evidence/validation."
+      - "Track impact, ageing, priority, repayment, validation and closure."
+      - "Answer which weakened knowledge supports which capability and downstream consequence if debt persists."
+      - "Prevent closure while mandatory validation remains outstanding."
+      - "Pass negative tests against debt invisibility/orphaning."
+
+non_goals:
+  - "Do not create a second provenance system."
+  - "Do not create a second hypothesis engine."
+  - "Do not create a second disagreement engine."
+  - "Do not create a second VoI engine."
+  - "Do not create a second claims system."
+  - "Do not create a second benchmark framework if an existing framework can be extended."
+  - "Do not treat schemas, YAML, PR descriptions or documentation as runtime evidence."
+  - "Do not promote generated model output to scientific evidence."
+  - "Do not collapse disagreement into consensus automatically."
+
+required_return_evidence:
+  - "commit_sha_or_runtime_revision"
+  - "executed_test_commands_and_results"
+  - "runtime_execution_trace_for_H1_H5"
+  - "persistence_evidence"
+  - "positive_and_negative_test_evidence"
+  - "known_limitations_and_unresolved_failures"
+  - "downstream_impact_report"
+  - "revalidation_obligations_created"
+
+known_ci_blockers:
+  status: "OPEN"
+  run_number: 661
+  run_id: 35087848624
+  failures:
+    - id: "CI-001"
+      file: "backend/tests/test_mission_registry.py"
+      test: "test_evolution_engine_is_registered_as_control_plane_capability"
+      observed: "registry implementation is a list of implementation paths while test expects a scalar path"
+      required_action: "Reconcile test and canonical registry contract without weakening registry semantics."
+    - id: "CI-002"
+      file: "backend/tests/test_serpiente_prediction_consumer.py"
+      test: "test_serpiente_prediction_is_consumed_by_epistemic_decision_gate"
+      observed: "runtime external_evidence_refs uses serpiente:<prediction_id> while test expects serpiente:prediction:<prediction_id>"
+      required_action: "Reconcile canonical prediction identity/reference semantics and preserve provenance consistency."
+  result: "581 passed, 2 failed"
+
+invocation:
+  registry: "docs/missions/MISSION_REGISTRY.json"
+  universal_contract: "docs/missions/MISSION_INVOCATION_CONTRACT.md"
+  current_host_capability: "NOT_ESTABLISHED"
+  automatic_activation: false
+  reason: >-
+    The repository defines discovery/invocation envelopes and explicitly requires an
+    external host/orchestrator for true multi-process invocation and transactional live
+    persistence. No evidence currently establishes that this host can autonomously
+    activate INGENIERO from this mission context. Do not simulate activation.
+  next_control_plane_action: "Persist handoff, keep NOTARIO active, observe for returned evidence, then VERIFY -> FALSIFY -> REVALIDATE."
+
+notario_responsibility_after_handoff:
+  - "Remain epistemic owner of acceptance criteria and evidence review."
+  - "Do not accept implementation merely because CI passes."
+  - "Trace runtime behavior against H1-H5 acceptance requirements."
+  - "Falsify integration for false positives, false negatives, silent failures, stale claims, orphaned provenance, broken lineage, temporal errors, hidden coupling, duplicate representations, contradictory states, Goodhart effects, false consensus and false discovery."
+  - "Perform recursive re-audit after material integration."
+  - "Open derived gaps into ACTIVE_WORK rather than hiding them as future work when they are necessary for validity."

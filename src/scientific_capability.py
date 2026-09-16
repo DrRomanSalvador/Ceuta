@@ -2,8 +2,9 @@
 
 These objects operationalize scientific gates without claiming scientific
 validation. They enforce temporal eligibility, observation/denominator
-semantics, identifiability state, baseline comparisons, and probabilistic
-forecast metrics on explicit inputs.
+semantics, identifiability state, baseline comparisons, probabilistic
+forecast metrics, observation-process transformations, and decision utility
+on explicit inputs.
 """
 
 from __future__ import annotations
@@ -124,6 +125,36 @@ class ObservationProcess(BaseModel):
     change_reason: str | None = None
     known_administrative_change: bool = False
 
+    def observation_probability(self) -> float | None:
+        factors = (
+            self.detection_probability,
+            self.reporting_fraction,
+            self.coverage_fraction,
+        )
+        if any(value is None for value in factors):
+            return None
+        result = 1.0
+        for value in factors:
+            result *= value  # type: ignore[operator]
+        return result
+
+    def expected_observed_events(self, latent_events: float) -> float:
+        if latent_events < 0:
+            raise ValueError("latent_events cannot be negative")
+        probability = self.observation_probability()
+        if probability is None:
+            raise ValueError("observation probability is not identified")
+        return latent_events * probability
+
+    def infer_latent_events(self, observed_events: float) -> float | None:
+        """Invert the observation process only when its detection probability is known."""
+        if observed_events < 0:
+            raise ValueError("observed_events cannot be negative")
+        probability = self.observation_probability()
+        if probability is None or probability <= 0:
+            return None
+        return observed_events / probability
+
 
 class IdentifiabilityAssessment(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -192,6 +223,58 @@ class ProbabilisticForecast:
             raise ValueError("std must be positive")
         if self.probability_positive is not None and not 0 <= self.probability_positive <= 1:
             raise ValueError("probability_positive must be in [0, 1]")
+
+
+@dataclass(frozen=True)
+class DecisionOutcome:
+    """Recorded decision/outcome pair for utility evaluation."""
+
+    action_id: str
+    predicted_probability: float
+    outcome: int
+    intervention_cost: float = 0.0
+    false_positive_cost: float = 0.0
+    false_negative_cost: float = 0.0
+    delay_cost: float = 0.0
+
+    def __post_init__(self) -> None:
+        if not 0 <= self.predicted_probability <= 1:
+            raise ValueError("predicted_probability must be in [0, 1]")
+        if self.outcome not in (0, 1):
+            raise ValueError("outcome must be binary")
+        if min(
+            self.intervention_cost,
+            self.false_positive_cost,
+            self.false_negative_cost,
+            self.delay_cost,
+        ) < 0:
+            raise ValueError("decision costs cannot be negative")
+
+    def realized_loss(self, action_taken: bool) -> float:
+        loss = self.intervention_cost if action_taken else 0.0
+        if action_taken and self.outcome == 0:
+            loss += self.false_positive_cost
+        if not action_taken and self.outcome == 1:
+            loss += self.false_negative_cost
+        return loss + self.delay_cost
+
+
+def expected_binary_loss(
+    probability: float,
+    *,
+    action_cost: float,
+    false_positive_cost: float,
+    false_negative_cost: float,
+    delay_cost: float = 0.0,
+) -> tuple[float, float]:
+    """Return expected loss for no-action and action; caller chooses the action."""
+    if not 0 <= probability <= 1:
+        raise ValueError("probability must be in [0, 1]")
+    if min(action_cost, false_positive_cost, false_negative_cost, delay_cost) < 0:
+        raise ValueError("costs cannot be negative")
+    no_action = probability * false_negative_cost + delay_cost
+    action = action_cost + (1 - probability) * false_positive_cost + delay_cost
+    return no_action, action
 
 
 def brier_score(probabilities: Sequence[float], outcomes: Sequence[int]) -> float:

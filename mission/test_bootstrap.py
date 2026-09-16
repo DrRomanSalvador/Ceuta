@@ -1,15 +1,16 @@
 import unittest
 
 try:
-    from .bootstrap import load_state, validate_state
+    from .bootstrap import load_state, validate_state, validate_repository_layout
 except ImportError:  # direct execution: python mission/test_bootstrap.py
-    from bootstrap import load_state, validate_state
+    from bootstrap import load_state, validate_state, validate_repository_layout
 
 
 class MissionBootstrapTests(unittest.TestCase):
     def test_persistent_state_is_valid(self):
         state = load_state()
         validate_state(state)
+        validate_repository_layout()
 
     def test_continuity_invariants_are_present(self):
         state = load_state()

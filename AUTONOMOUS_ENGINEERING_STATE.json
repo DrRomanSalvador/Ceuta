@@ -1,7 +1,46 @@
 {
   "session": "ESPÍA",
-  "updated_at": "2026-09-16T07:56:00Z",
+  "updated_at": "2026-09-16T08:29:00Z",
   "authoritative_repositories": ["DrRomanSalvador/Ceuta", "DrRomanSalvador/SERPIENTE"],
+  "master_program": {
+    "MISSION_ID": "CEUTIA-SERPIENTE-SCIENTIFIC-MACHINE-001",
+    "STATUS": "OPEN_CONTINUOUS_EXECUTION",
+    "OBJECTIVE": "Transform the integrated CeutIA + SERPIENTE architecture into an operational, testable, scientifically defensible territorial scientific machine; audit the complete chain from real-world observation through acquisition, temporal/spatial semantics, state, dynamics, interaction, forecasting, uncertainty, early warning, decision and prospective evaluation.",
+    "SYSTEM_CHAIN": ["REAL_WORLD", "DATA_GENERATING_PROCESS", "VERIFIED_OBSERVATION", "AUTOMATED_ACQUISITION", "TEMPORAL_SPATIAL_SEMANTICS", "PROVENANCE_VERSIONING", "EVIDENCE", "EVENT", "SIGNAL", "LONGITUDINAL_STATE", "LATENT_STATE", "TRAJECTORY", "CHANGE_REGIME", "INTERACTION", "MULTISYSTEM_STATE", "NOWCAST", "FORECAST", "UNCERTAINTY", "RISK", "EARLY_WARNING", "DECISION", "INTERVENTION_OR_NO_ACTION", "OUTCOME", "EVALUATION", "SCIENTIFIC_LEARNING"],
+    "OPERATING_RULE": "Architecture, documentation, registry entries and unit tests are not sufficient evidence of operational capability. Each capability must be traced to executable runtime behaviour, validation and explicit external/prospective dependencies.",
+    "CURRENT_FRONTIER": "Acquisition/process integrity and real-source operationalization are now the highest-centrality open layer after PIT binding and basic interaction evaluation. SERPIENTE has a generic poller and verified source catalog, but source-process health/schema-drift detection was not previously explicit.",
+    "ACTIVE_IMPLEMENTATION": {
+      "REPOSITORY": "DrRomanSalvador/SERPIENTE",
+      "PR": 9,
+      "BRANCH": "scientific-source-observation-health-v1",
+      "HEAD": "1ea2379b7550e09fac57eba4039ac923b354d47f",
+      "STATUS": "PR_OPEN_CI_RUNNING",
+      "CAPABILITY": "source-process health, content/schema fingerprints, publisher-version change detection, fail-closed schema drift before mapping",
+      "LIMITATION": "This closes source-process monitoring, not source-specific adapter completeness, continuous availability, or predictive validity."
+    },
+    "SCIENTIFIC_SURFACES": {
+      "observation": "PARTIALLY_IMPLEMENTED",
+      "automated_acquisition": "PARTIALLY_IMPLEMENTED",
+      "temporal_epistemology": "PARTIALLY_IMPLEMENTED_REVALIDATION_REQUIRED",
+      "longitudinal_state": "IMPLEMENTED_WITH_HEURISTIC_REGIME_SCREENING",
+      "latent_state": "NOT_ESTABLISHED",
+      "change_detection": "PARTIALLY_IMPLEMENTED",
+      "individual_forecasting": "IMPLEMENTED_RUNTIME_VALIDATED",
+      "interaction": "IMPLEMENTED_REPRESENTATION_AND_INCREMENTAL_EVALUATOR",
+      "dynamic_coupling": "NOT_ESTABLISHED",
+      "multisystem_state": "NOT_ESTABLISHED",
+      "spatial_dynamics": "NOT_ESTABLISHED",
+      "multiscale_dynamics": "NOT_ESTABLISHED",
+      "uncertainty_propagation": "PARTIALLY_IMPLEMENTED_COMPONENT_LEVEL",
+      "regime_change": "PARTIALLY_IMPLEMENTED",
+      "cascade_propagation": "REPRESENTED_NOT_PREDICTIVELY_VALIDATED",
+      "early_warning": "PARTIALLY_IMPLEMENTED_HEURISTIC_ALERTING_NOT_OPERATIONALLY_VALIDATED",
+      "decision_science": "IMPLEMENTED_GOVERNANCE_LAYER_BUT_PREDICTION_TO_DECISION_UTILITY_REMAINS_INCOMPLETE",
+      "prospective_evaluation": "INFRASTRUCTURE_IMPLEMENTED_REAL_WORLD_EVIDENCE_PENDING"
+    },
+    "BIBLIOGRAPHY_POLICY": "Treat accumulated bibliography as a source of scientific constraints and engineering requirements; distinguish verified literature, conceptual constraints, inferred requirements, implementation requirements, local empirical results and prospective validation. Never upgrade literature support into local validity.",
+    "MASTER_COMPLETION": false
+  },
   "missions": [
     {
       "MISSION_ID": "SERPIENTE-PIT-001",
@@ -26,20 +65,18 @@
       "MISSION_ID": "SERPIENTE-SOURCE-CATALOG-001",
       "PARENT_MISSION": "SCIENTIFIC-AUDIT-CLOSURE",
       "PRIORITY": "P1",
-      "STATUS": "IMPLEMENTATION_PENDING_CI",
+      "STATUS": "MERGED",
       "DESCRIPTION": "Persist verified acquisition contracts for authoritative Ceuta-relevant sources with explicit cadence, latency, revision and temporal semantics.",
       "DEPENDENCIES": [],
       "BLOCKERS": [],
       "FILES": ["backend/app/source_catalog.py", "backend/tests/test_source_catalog.py"],
       "REPOSITORY": "DrRomanSalvador/SERPIENTE",
       "CREATED_AT": "2026-09-16T07:54:37Z",
-      "STARTED_AT": "2026-09-16T07:54:37Z",
-      "LAST_PROGRESS": "PR #7 opened from the post-PIT main branch. Catalog covers verified AEMET OpenData, INE Ceuta mortality/demography datasets and ECDC surveillance data, explicitly distinguishing continuous, periodic and non-real-time/request-bound sources.",
-      "LAST_VERIFIED": "2026-09-16T07:56:00Z",
-      "COMMIT_SHA": "e7e405a0fa4c1d51d4207dc60adc5fc65a945e22",
-      "TEST_STATUS": "CI_PENDING",
-      "VALIDATION_STATUS": "IMPLEMENTED_VALIDATION_PENDING",
-      "NEXT_ACTION": "Validate PR #7; if green, merge. Then extend source acquisition to additional authoritative Ceuta domains only where actual machine-readable access and temporal semantics are verified."
+      "LAST_VERIFIED": "2026-09-16T08:13:51Z",
+      "COMMIT_SHA": "f3277b6852b107db8597ca7dbc76bd22004dd248",
+      "TEST_STATUS": "PR_MERGED",
+      "VALIDATION_STATUS": "CATALOG_VALIDATED_NOT_CONTINUOUS_ACQUISITION",
+      "NEXT_ACTION": "Extend source acquisition only where actual machine-readable access and temporal semantics are verified."
     },
     {
       "MISSION_ID": "SERPIENTE-PERSIST-001",
@@ -58,7 +95,7 @@
       "COMMIT_SHA": "277fdbe4505ec071b6ceed8a5fc958a261fa0455",
       "TEST_STATUS": "REVALIDATION_REQUIRED",
       "VALIDATION_STATUS": "REQUIRES_REVALIDATION",
-      "NEXT_ACTION": "Run the current main validation after PIT integration and then audit PostgreSQL concurrency/transaction semantics and canonical serialization parity."
+      "NEXT_ACTION": "Run current main validation after PIT integration and then audit PostgreSQL concurrency/transaction semantics and canonical serialization parity."
     },
     {
       "MISSION_ID": "CEUTIA-TEMPORAL-001",
@@ -97,6 +134,23 @@
       "TEST_STATUS": "CROSSREPO_REVALIDATION_REQUIRED",
       "VALIDATION_STATUS": "IMPLEMENTED_UNVERIFIED",
       "NEXT_ACTION": "Trace prediction identity, canonical hash, PIT fingerprint, model/method identity and outcome linkage through the real CeutIA decision lifecycle; preserve prediction as an output/event with its own lineage."
+    },
+    {
+      "MISSION_ID": "SERPIENTE-SOURCE-HEALTH-001",
+      "PARENT_MISSION": "CEUTIA-SERPIENTE-SCIENTIFIC-MACHINE-001",
+      "PRIORITY": "P0",
+      "STATUS": "PR_OPEN_CI_RUNNING",
+      "DESCRIPTION": "Make source-process integrity operational: detect publisher-version changes, content/schema drift and source failures before observation mapping can silently change scientific meaning.",
+      "DEPENDENCIES": [],
+      "FILES": ["backend/app/source_health.py", "backend/app/polling.py", "backend/tests/test_source_health.py"],
+      "REPOSITORY": "DrRomanSalvador/SERPIENTE",
+      "CREATED_AT": "2026-09-16T08:27:54Z",
+      "BRANCH": "scientific-source-observation-health-v1",
+      "PR": 9,
+      "HEAD_SHA": "1ea2379b7550e09fac57eba4039ac923b354d47f",
+      "LAST_PROGRESS": "Implemented source/content/schema fingerprints, publisher-version change detection, explicit FAILED/BLOCKED_SCHEMA states and fail-closed mapper execution on schema drift. Runtime validation is running in GitHub Actions.",
+      "VALIDATION_STATUS": "PENDING_CI",
+      "NEXT_ACTION": "Verify CI. If green, merge; then implement source-specific adapters only for verified machine-readable official endpoints, preserving availability, publication, revision and denominator semantics."
     }
   ]
 }

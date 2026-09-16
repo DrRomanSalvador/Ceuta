@@ -45,8 +45,15 @@ class VOIInputs:
 
     @property
     def identifiable(self) -> bool:
-        values = (self.utility_definition, self.research_cost, self.delay_cost, self.risk_cost)
-        return bool(self.decision_id and self.uncertainty_target and all(value is not None for value in values) and all(isfinite(float(value)) for value in values if value is not None)) and self.prior_identifiability is not Identifiability.NOT_IDENTIFIABLE
+        costs = (self.research_cost, self.delay_cost, self.risk_cost)
+        costs_valid = all(value is not None and isfinite(float(value)) for value in costs)
+        return bool(
+            self.decision_id
+            and self.uncertainty_target
+            and self.utility_definition
+            and costs_valid
+            and self.prior_identifiability is not Identifiability.NOT_IDENTIFIABLE
+        )
 
     @property
     def status(self) -> str:

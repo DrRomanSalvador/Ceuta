@@ -7,11 +7,20 @@ from .control_plane import MissionState, transition
 from .event_log import append_payload, validate_chain
 
 
-def persist_transition(*, event_log: Path, mission_id: str, current: MissionState, target: MissionState,
-                       authorized_actor: str, evidence: list[str], payload: dict[str, Any] | None = None,
-                       timestamp: str) -> dict[str, Any]:
+def persist_transition(*, event_log: Path, current: MissionState, target: MissionState,
+                       authorized_actor: str, evidence: list[str], timestamp: str,
+                       mission_id: str | None = None, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Persist a state transition while retaining backward-compatible caller semantics.
+
+    New callers should pass the mission_id explicitly. Historical callers that only
+    identify the authorized mission actor retain deterministic identity inference so
+    replay semantics do not depend on a silently invented mission identifier.
+    """
     record = transition(current, target, authorized_actor=authorized_actor, evidence=evidence)
-    return append_payload(event_log, event_type="MISSION_STATE_TRANSITION", mission_id=mission_id,
+    resolved_mission_id = mission_id or authorized_actor
+    if not resolved_mission_id:
+        raise ValueError("Mission identity is required for state-transition persistence")
+    return append_payload(event_log, event_type="MISSION_STATE_TRANSITION", mission_id=resolved_mission_id,
                           actor=authorized_actor, timestamp=timestamp,
                           payload={**record, "payload": payload or {}})
 

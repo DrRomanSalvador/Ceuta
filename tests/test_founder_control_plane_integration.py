@@ -2,6 +2,8 @@
 import json
 from pathlib import Path
 
+from app.missions.founder_domain import DECISION_OUTCOMES
+
 ROOT = Path(__file__).resolve().parents[1]
 REGISTRY = ROOT / "docs/missions/MISSION_REGISTRY.json"
 CONTRACT = ROOT / "docs/missions/founder/INVOCATION_CONTRACT.json"
@@ -37,20 +39,17 @@ def test_founder_artifacts_are_canonical_and_self_consistent():
 
 
 def test_founder_non_redundancy_boundaries_are_explicit():
-    contract = _load(CONTRACT)
-    non_scope = set(contract["non_scope"])
+    non_scope = set(_load(CONTRACT)["non_scope"])
     assert "scientific evidence generation" in non_scope
     assert "general engineering execution" in non_scope
     assert "global mission orchestration" in non_scope
 
 
 def test_founder_decision_abstention_and_commercial_boundaries_are_machine_readable():
-    proposal = _load(PROPOSAL)
-    assert proposal["mission_id"] == "FOUNDER"
-    assert "ABSTAIN_FROM_DECISION" in "".join(proposal["validation_plan"])
+    assert {"NO_DECISION_YET", "DECISION_REJECTED", "DECISION_DEFERRED", "ABSTAIN_FROM_DECISION", "DECISION_EXECUTED"}.issubset(DECISION_OUTCOMES)
     contract = _load(CONTRACT)
-    assert "Generated output is not evidence." in contract["limitations"]
     assert contract["operations"] == ["DISCOVER", "INVOKE", "EXECUTE", "VALIDATE", "HANDOFF", "PERSIST", "REVIEW", "RETIRE"]
+    assert "Generated output is not evidence." in contract["limitations"]
 
 
 def test_founder_is_discoverable_from_canonical_registry():
@@ -58,8 +57,7 @@ def test_founder_is_discoverable_from_canonical_registry():
 
 
 def test_founder_readiness_state_cannot_claim_ready_before_runtime_validation():
-    state = _load(STATE)
-    assert state["readiness"] != "READY_FOR_INVOCATION"
+    assert _load(STATE)["readiness"] != "READY_FOR_INVOCATION"
 
 
 def test_founder_external_claim_and_evidence_boundaries():

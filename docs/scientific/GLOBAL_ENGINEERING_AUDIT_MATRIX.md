@@ -4,49 +4,58 @@ Audit mission: complete the remaining finite deep engineering audit of CeutIA + 
 
 Current audit checkpoint: 2026-09-16T07:27Z
 CeutIA branch: `scientific-traceability-crossrepo`
-CeutIA HEAD: `070c23806fc5367cf3cc1a0319bf6961844fcafd`
+CeutIA current HEAD at checkpoint: `9da8002cb6f43b601de679bae878a00f9e8757a9`
 SERPIENTE branch: `main`
-SERPIENTE HEAD: `8a4edcbd2a457569269f1afaafa7a057ddd7c236`
+SERPIENTE current HEAD: `8a4edcbd2a457569269f1afaafa7a057ddd7c236`
 
-This matrix records audit evidence, not predictive validity. `AUDIT_CLOSED` is assigned only after inspection, finding classification, repair where required, regression, consumer verification and integration evidence.
+`AUDIT_CLOSED` is assigned only after inspection, finding classification, repair, regression, consumer verification and integration evidence.
 
-| Surface | Inspected | Defects/findings | Repairs | Regression evidence | Consumer verification | Status |
-|---|---|---|---|---|---|---|
-| Persistence / historical integrity | SQLite decision store, scientific prediction persistence, outcome evaluation, SERPIENTE PostgreSQL persistence | SQLite migration atomicity and persisted-prediction integrity were repaired; outcome delivery required deterministic identity semantics | Atomic migration execution; prediction fingerprint verification; PostgreSQL one-outcome uniqueness | Migration rollback, payload mutation, concurrent delivery tests; PostgreSQL retry tests | Cross-repository decision path and persistence consumers inspected | IN_PROGRESS pending final stabilized CI |
-| Concurrency / transactions / migrations | SQLite transaction boundaries, prediction/outcome identity paths, runtime ledger, PostgreSQL outcome persistence | SELECT→INSERT races; transaction helpers could commit caller transactions; runtime ledger append could fork under concurrency; PostgreSQL outcome retry comparison was insufficiently strict | Serialized SQLite prediction delivery; caller-transaction preservation; `BEGIN IMMEDIATE` runtime ledger append; PostgreSQL `ON CONFLICT DO NOTHING` plus exact comparison; unique outcome index | 32 concurrent prediction deliveries; 16 concurrent outcome deliveries; 32 concurrent runtime-ledger appends; PostgreSQL identical/conflicting retry tests | Runtime persistence consumers inspected | IN_PROGRESS pending stabilized CI |
-| Provenance / traceability / hashes | Contract, prediction persistence, outcome evaluator, runtime ledger, transport | Upstream payload mutation could bypass downstream scoring; runtime ledger chain needed serialized append | Fingerprint re-verification; hash-chain append serialization | Mutation regression; ledger integrity/concurrency regression | `/decision/evaluate`, replay, outcome evaluation and runtime ledger consumers inspected | IN_PROGRESS pending stabilized CI |
-| Temporal semantics / leakage | Contract timestamps, replay, outcome horizon/ascertainment ordering, SERPIENTE temporal split | No new executable boundary defect identified; arbitrary future-derived feature leakage remains a data-lineage limitation; actual PIT feature binding remains open handoff | No unsupported redesign; explicit limitation documented in SERPIENTE boundary document | Existing replay/horizon/leakage tests | Cross-repo consumer and replay paths inspected | PARTIALLY_AUDITED |
-| Mathematical / numerical | Cross-repo probability/interval/uncertainty domains; SERPIENTE binary target, Brier/log-loss, forecast construction | Invalid interval/uncertainty domains and non-binary targets were previously accepted | Domain guards in canonical contract and binary target validation | Numerical boundary and binary-target regressions | Canonical consumer validates constrained message | IN_PROGRESS pending stabilized CI |
-| Registry / epistemology / consumers | Scientific method registry, runtime assessment, final epistemic controller, decision lifecycle | Registry integrity is verified on read, but runtime method identity is not universally resolved through the registry; no bypass in the canonical decision path was identified | No unsafe shortcut introduced; registry limitation remains explicitly classified | Existing registry tamper tests and runtime governance tests | Canonical decision endpoint invokes final epistemic controller and runtime governance | PARTIALLY_AUDITED |
-| SERPIENTE / dynamics / separation | SERPIENTE runtime, forecast contracts, CeutIA boundary, transport, longitudinal forecaster | Legacy `ceutia_boundary.py` still exposes a v1.0 envelope incompatible with canonical CeutIA v1.1; it is not used by the canonical `/decision/evaluate` path. Forecast PIT fingerprint is not yet semantic binding of actual X_t. | Canonical path remains v1.1; stale implementation-boundary documentation reconciled; binary target and numerical guards repaired | Producer runtime and cross-repo suites; boundary remains explicitly documented as non-canonical | CeutIA consumer validates canonical contract/transport; legacy envelope is not accepted by that consumer | IN_PROGRESS pending stabilized CI |
-| Runtime / integration / failure modes | CeutIA `/decision/evaluate`, readiness/configuration, transport replay, SERPIENTE runtime API and PostgreSQL persistence | Partial persistence on rejected decision is intentional history preservation; transaction helper semantics hardened; PostgreSQL outcome race hardened | Caller transaction preservation; deterministic retry semantics; explicit stale-boundary documentation | Cross-repo endpoint/adversarial suites plus new persistence/ledger tests | Actual endpoint and runtime persistence consumers inspected | IN_PROGRESS pending stabilized CI |
-| Adversarial / regression | Existing adversarial suites plus persistence, integrity, numerical, concurrency and transaction regressions | Material findings converted into targeted regressions | Added targeted regressions and exact collision checks | Latest runs are pending after final audit commits | Consumer-level adversarial paths inspected | IN_PROGRESS |
-| Final CI / closure documentation | Workflow definitions, exact branch heads, audit state | Final stabilized state not yet green on current final commits | Matrix checkpoint and stale boundary documentation updated | CeutIA run `35068262871` and SERPIENTE run `35068137401` are in progress/pending at checkpoint | Final verification pending | IN_PROGRESS |
+| Surface | Status |
+|---|---|
+| Persistence / historical integrity | IN_PROGRESS |
+| Concurrency / transactions / migrations | IN_PROGRESS |
+| Provenance / traceability / hashes | IN_PROGRESS |
+| Temporal semantics / leakage | PARTIALLY_AUDITED |
+| Mathematical / numerical correctness | IN_PROGRESS |
+| Registry / epistemology / consumers | PARTIALLY_AUDITED |
+| SERPIENTE dynamics / CeutIA-SERPIENTE separation | IN_PROGRESS |
+| Runtime / integration / failure modes | IN_PROGRESS |
+| Adversarial / regression coverage | IN_PROGRESS |
+| Final CI / repository reconciliation / closure documentation | IN_PROGRESS |
 
-## Checkpoint evidence
+## Latest verified failure and repair cycle
 
-- CeutIA run `34939453793`: 36 passed, 1 failed. The failure was a pre-persistence rejection test that queried `scientific_predictions` when the table did not exist. The test was corrected.
-- CeutIA run `35066839771`: completed successfully on pre-checkpoint stabilized code before later transaction/ledger repairs.
-- CeutIA run `35068104913`: superseded by later transaction-preservation commits.
-- CeutIA run `35068262871`: current CeutIA validation for HEAD `070c238...`; in progress at this checkpoint.
-- SERPIENTE run `34938571671`: runtime, PostgreSQL persistence integration, security, dependency audit, Compose validation and image build completed successfully; 43 passed, 2 skipped in the general suite and 2 passed in PostgreSQL integration.
-- SERPIENTE run `35068117868`: superseded/cancelled after the subsequent producer test commit.
-- SERPIENTE run `35068137401`: current validation for the producer test commit `eabb2c...`; in progress at this checkpoint.
+CeutIA run `35068310978` on merge ref containing HEAD `e07f3d...` executed the complete scientific traceability suite: 43 passed and 7 failed. All seven failures were localized.
 
-## Scientific status
+1. Runtime-ledger concurrency test: the append operation serialized correctly, but verification ordered rows by `created_at`, which can differ from actual insertion order under concurrency. Repair: hash-chain verification now follows SQLite insertion order (`rowid`).
+2. Prediction-outcome persistence: the INSERT argument order placed `recorded_at` after the ascertainment fields although the schema places it before them. Repair: corrected value ordering.
+3. Existing outcome evaluator tests were stale relative to the new mandatory ascertainment contract. Repair: fixtures now supply the complete immutable ascertainment identity and structured status fields.
+4. Target-time regression fixture used a fixed historical date that could precede the dynamically generated prediction availability time. Repair: test now derives the boundary from current origin time.
+5. Ascertainment-before-availability regression fixture violated observation/availability ordering before reaching the intended predicate. Repair: fixture now preserves ordering and isolates prediction-availability failure.
+6. Product outcome endpoint fixture omitted mandatory ascertainment fields introduced by the outcome contract. Repair: product test now sends the complete contract.
+7. All repaired files are present on the current branch head `9da8002...` and must be certified by the next stabilized CI run.
+
+## SERPIENTE evidence
+
+SERPIENTE run `35068137401` on producer code commit `eabb2c08...` completed successfully: compile, runtime tests, PostgreSQL persistence integration, security checks, dependency audit, Compose validation and runtime image build all succeeded. The subsequent SERPIENTE HEAD `8a4edcbd...` is documentation-only relative to that tested runtime code, so the runtime evidence remains applicable to the implementation commit.
+
+The producer still contains a legacy `ceutia_boundary.py` v1.0 envelope that is explicitly non-canonical and not accepted by CeutIA's canonical v1.1 consumer. This remains an architectural boundary finding, not a silent production fallback.
+
+## Scientific limitations retained
+
+`PROSPECTIVE_PREDICTIVE_VALIDITY = NOT_ESTABLISHED`.
+
+Point-in-time feature semantic binding, arbitrary future-derived feature leakage, prospective baseline integrity, repeated-forecast dependence, and empirical response effectiveness remain scientific/engineering limitations or handoffs and are not converted into claims of predictive validity.
+
+## Current deterministic frontier
+
+1. Certify the current CeutIA HEAD with a clean scientific traceability suite.
+2. If failures remain, repair and rerun; do not classify CI failure as a blocker.
+3. Reconcile registry consumer enforcement and canonical producer-consumer boundary.
+4. Execute the final adversarial suite on the actual final repository state.
+5. Reconcile matrix, autonomous state, exact commits and final CI evidence.
+6. Only then assign `AUDIT_COMPLETE`.
 
 `GLOBAL_ENGINEERING_AUDIT = IN_PROGRESS`
-
 `FUNCTIONAL_SCIENTIFIC_GOVERNANCE = IMPLEMENTED / UNDER AUDIT`
-
 `PROSPECTIVE_PREDICTIVE_VALIDITY = NOT_ESTABLISHED`
-
-The audit does not treat software tests, calibration code, or historical CI success as evidence of prospective real-world predictive validity.
-
-## Current frontier
-
-1. Inspect current CeutIA/SERPIENTE CI outcomes on the latest repository heads.
-2. Complete registry-consumer verification and canonical-vs-legacy boundary verification.
-3. Execute/verify final cross-repository adversarial paths, including retries, replay, restart and numerical/temporal boundaries.
-4. Reconcile final repository state, audit matrix and persistent autonomous state.
-5. Only after all surfaces have consumer and integration evidence may `AUDIT_COMPLETE` be assigned.

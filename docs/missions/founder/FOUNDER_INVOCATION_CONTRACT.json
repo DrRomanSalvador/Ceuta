@@ -1,0 +1,19 @@
+{
+  "schema_version":"1.0",
+  "mission_id":"FOUNDER",
+  "mission_name":"FOUNDER",
+  "version":"1.0.0",
+  "mission_class":"AUTHORIAL_INTELLECTUAL_AND_VENTURE_CONTROL",
+  "purpose":"Operate the founder-level venture and commercial decision intelligence layer while preserving evidence independence, authority boundaries, lifecycle discipline and auditable continuity.",
+  "responsibility":"Founder-level opportunity evaluation, decision recording, commercial evidence integration and strategic coordination.",
+  "non_responsibilities":["scientific evidence generation owned by ESPÍA","general engineering execution owned by INGENIERO","global mission orchestration owned by the control plane","authorization of protected infrastructure without explicit authority"],
+  "authority":{"cognitive_autonomy":true,"operational_authority":"INHERITED_AND_EXPLICIT_ONLY","forbidden_without_explicit_authority":["external_customer_contact","capital_commitment","contract_signature","production_change","legal_status_change","security_policy_change","external_claim_publication","protected_control_plane_mutation"]},
+  "dependencies":["MISSION_REGISTRY","UNIVERSAL_EXECUTION_CONTRACT","MISSION_EVOLUTION_ENGINE","canonical persistence/checkpoint/recovery machinery","canonical handoff machinery","provenance controls"],
+  "execution_invariants":{"required":true,"inherits_universal_execution_contract":true},
+  "state_model":{"opportunity_states":["DISCOVERED","SCREENED","HYPOTHESIS","VALIDATING","COMMERCIAL_SIGNAL","SELLABLE","REPEATABLE","ECONOMICALLY_VIABLE","SCALABLE","DEFENSIBLE","CATEGORY_CREATING"],"terminal_or_alternative_states":["ABANDONED","PAUSED","SUPERSEDED","SPUN_OUT","LICENSED","ACQUIRED","PARTNERED"],"decision_outcomes":["NO_DECISION_YET","DECISION_REJECTED","DECISION_DEFERRED","ABSTAIN_FROM_DECISION","DECISION_EXECUTED"]},
+  "evidence_model":{"allowed_types":["EXTERNAL_EVIDENCE","INTERNAL_ANALYSIS","FOUNDER_GENERATED_HYPOTHESIS","FOUNDER_GENERATED_FORECAST","CUSTOMER_ASSERTION","CUSTOMER_BEHAVIOUR","TRANSACTIONAL_EVIDENCE","THIRD_PARTY_EVIDENCE","SYSTEM_OUTPUT"],"generated_output_is_independent_evidence":false,"internal_analysis_is_market_fact":false},
+  "commercial_invariants":["PAID_PILOT_IS_NOT_REPEATABLE","REVENUE_IS_NOT_ECONOMICALLY_VIABLE","SCALABLE_IS_NOT_DEFENSIBLE","DEFENSIBLE_IS_NOT_CATEGORY_CREATING","PAYMENT_IS_NOT_CUSTOMER_ACCEPTANCE","PAYMENT_IS_NOT_REPEATABILITY","REPEATABILITY_IS_NOT_RENEWAL"],
+  "persistence":{"canonical":true,"versioned":true,"provenance_required":true,"replayable":true,"recoverable":true,"auditability":true},
+  "handoff_lifecycle":["DRAFT","SENT","ACK","ACCEPT","REJECT","RESULT","VERIFIED"],
+  "readiness":"READY_FOR_INVOCATION_ONLY_AFTER_CANONICAL_REGISTRATION_AND_RUNTIME_VALIDATION"
+}

@@ -1,4 +1,6 @@
+import json
 import unittest
+from pathlib import Path
 
 from .invocation_runtime import authorize_invocation, compare_and_swap, discover, fresh_chat_discovery, validate_request, validate_response
 
@@ -9,6 +11,15 @@ class InvocationRuntimeTests(unittest.TestCase):
 
     def request(self):
         return {"mission_id":"ROMAN","operation":"DISCOVER","request_id":"R1","session_id":"S1","requested_at":"2026-09-16T10:00:00Z","authority_context":{"CAN_INVOKE":True,"CAN_READ":True},"input_refs":[],"expected_output_type":"DISCOVERY","base_state_version":"v1"}
+
+    def test_current_branch_registry_discovers_roman(self):
+        root=Path(__file__).resolve().parent
+        registry=json.loads((root/"MISSION_REGISTRY.json").read_text(encoding="utf-8"))
+        mission=discover(registry,mission_id="ROMAN")
+        self.assertEqual(mission["current_status"],"ADMITTED_REPOSITORY_RUNTIME_PENDING")
+        self.assertEqual(mission["invocation_contract"],"mission/ROMAN_INVOCATION_CONTRACT.json")
+        self.assertTrue((root/"ROMAN_INVOCATION_CONTRACT.json").exists())
+        self.assertTrue((root/"ROMAN_MISSION_STATE.json").exists())
 
     def test_zero_context_discovery_is_read_only_and_identity_bound(self):
         result=fresh_chat_discovery(self.registry(),"ROMAN")

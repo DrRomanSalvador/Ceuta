@@ -48,12 +48,7 @@ def _horizon_delta(horizon: str) -> timedelta:
     value = horizon.strip().upper()
     iso = re.fullmatch(r"P(?:(?P<days>\d+(?:\.\d+)?)D)?(?:T(?:(?P<hours>\d+(?:\.\d+)?)H)?(?:(?P<minutes>\d+(?:\.\d+)?)M)?(?:(?P<seconds>\d+(?:\.\d+)?)S)?)?", value)
     if iso and any(iso.group(name) is not None for name in ("days", "hours", "minutes", "seconds")):
-        return timedelta(
-            days=float(iso.group("days") or 0),
-            hours=float(iso.group("hours") or 0),
-            minutes=float(iso.group("minutes") or 0),
-            seconds=float(iso.group("seconds") or 0),
-        )
+        return timedelta(days=float(iso.group("days") or 0), hours=float(iso.group("hours") or 0), minutes=float(iso.group("minutes") or 0), seconds=float(iso.group("seconds") or 0))
     compact = re.fullmatch(r"(?P<value>\d+(?:\.\d+)?)(?P<unit>[SMHD])", value)
     if compact:
         amount = float(compact.group("value"))
@@ -61,18 +56,13 @@ def _horizon_delta(horizon: str) -> timedelta:
     raise ValueError(f"unsupported prediction horizon for outcome alignment: {horizon}")
 
 
-def record_prediction_outcome(
-    connection: sqlite3.Connection,
-    *,
-    prediction_id: str,
-    decision_id: str,
-    action_id: str,
-    outcome_id: str,
-    target: str,
-    outcome_time: datetime,
-    observed: int,
-    provenance: tuple[str, ...],
-) -> dict[str, Any]:
+def _prediction_fingerprint(payload: dict[str, Any]) -> str:
+    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False)
+    from hashlib import sha256
+    return sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def record_prediction_outcome(connection: sqlite3.Connection, *, prediction_id: str, decision_id: str, action_id: str, outcome_id: str, target: str, outcome_time: datetime, observed: int, provenance: tuple[str, ...]) -> dict[str, Any]:
     """Link one persisted prediction to its point-in-time observed binary outcome."""
     if not prediction_id or not decision_id or not action_id or not outcome_id or not target or not provenance:
         raise ValueError("prediction outcome identity and provenance are required")
@@ -83,15 +73,19 @@ def record_prediction_outcome(
 
     ensure_prediction_outcome_schema(connection)
     prediction = connection.execute(
-        "SELECT decision_id, available_at, payload_json FROM scientific_predictions WHERE prediction_id=?",
+        "SELECT decision_id, available_at, payload_json, payload_fingerprint FROM scientific_predictions WHERE prediction_id=?",
         (prediction_id,),
     ).fetchone()
     if prediction is None:
         raise KeyError("prediction_id not found")
-    stored_decision_id, available_at_raw, payload_raw = prediction
+    stored_decision_id, available_at_raw, payload_raw, stored_fingerprint = prediction
     if stored_decision_id != decision_id:
         raise ValueError("prediction does not belong to decision_id")
     payload = json.loads(payload_raw)
+    if _prediction_fingerprint(payload) != str(stored_fingerprint):
+        raise RuntimeError("prediction persistence integrity mismatch")
+    if "probability" not in payload or not math.isfinite(float(payload["probability"])) or not 0.0 <= float(payload["probability"]) <= 1.0:
+        raise ValueError("persisted prediction probability is outside [0,1]")
     if str(payload["target"]) != target:
         raise ValueError("outcome target does not match prediction target")
     available_at = datetime.fromisoformat(str(available_at_raw))
@@ -114,88 +108,30 @@ def record_prediction_outcome(
     log_loss_error = _log_loss(probability, observed)
     canonical_provenance = tuple(dict.fromkeys(str(item) for item in provenance))
     row = connection.execute(
-        "SELECT decision_id, action_id, outcome_id, target, outcome_time, observed, predicted_probability, brier_error, log_loss_error, provenance_json "
-        "FROM scientific_prediction_outcomes WHERE prediction_id=?",
+        "SELECT decision_id, action_id, outcome_id, target, outcome_time, observed, predicted_probability, brier_error, log_loss_error, provenance_json FROM scientific_prediction_outcomes WHERE prediction_id=?",
         (prediction_id,),
     ).fetchone()
-    values = (
-        decision_id,
-        action_id,
-        outcome_id,
-        target,
-        normalized_outcome_time.isoformat(),
-        observed,
-        probability,
-        brier_error,
-        log_loss_error,
-        json.dumps(canonical_provenance, sort_keys=True, separators=(",", ":")),
-    )
+    values = (decision_id, action_id, outcome_id, target, normalized_outcome_time.isoformat(), observed, probability, brier_error, log_loss_error, json.dumps(canonical_provenance, sort_keys=True, separators=(",", ":")))
     if row is not None:
         if row != values:
             raise RuntimeError("prediction outcome identity collision: existing outcome differs")
-        return {
-            "prediction_id": prediction_id,
-            "decision_id": decision_id,
-            "action_id": action_id,
-            "outcome_id": outcome_id,
-            "target": target,
-            "observed": observed,
-            "predicted_probability": probability,
-            "brier_error": brier_error,
-            "log_loss_error": log_loss_error,
-            "outcome_time": normalized_outcome_time.isoformat(),
-            "provenance": canonical_provenance,
-        }
+        return {"prediction_id": prediction_id, "decision_id": decision_id, "action_id": action_id, "outcome_id": outcome_id, "target": target, "observed": observed, "predicted_probability": probability, "brier_error": brier_error, "log_loss_error": log_loss_error, "outcome_time": normalized_outcome_time.isoformat(), "provenance": canonical_provenance}
 
-    existing_outcome = connection.execute(
-        "SELECT prediction_id FROM scientific_prediction_outcomes WHERE outcome_id=?",
-        (outcome_id,),
-    ).fetchone()
+    existing_outcome = connection.execute("SELECT prediction_id FROM scientific_prediction_outcomes WHERE outcome_id=?", (outcome_id,)).fetchone()
     if existing_outcome is not None and existing_outcome[0] != prediction_id:
         raise RuntimeError("outcome identity collision: outcome_id is already linked to another prediction")
     recorded_at = datetime.now(timezone.utc).isoformat()
-    connection.execute(
-        "INSERT INTO scientific_prediction_outcomes(prediction_id,decision_id,action_id,outcome_id,target,outcome_time,observed,predicted_probability,brier_error,log_loss_error,provenance_json,recorded_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
-        (prediction_id, *values, recorded_at),
-    )
+    connection.execute("INSERT INTO scientific_prediction_outcomes(prediction_id,decision_id,action_id,outcome_id,target,outcome_time,observed,predicted_probability,brier_error,log_loss_error,provenance_json,recorded_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)", (prediction_id, *values, recorded_at))
     connection.commit()
-    return {
-        "prediction_id": prediction_id,
-        "decision_id": decision_id,
-        "action_id": action_id,
-        "outcome_id": outcome_id,
-        "target": target,
-        "observed": observed,
-        "predicted_probability": probability,
-        "brier_error": brier_error,
-        "log_loss_error": log_loss_error,
-        "outcome_time": normalized_outcome_time.isoformat(),
-        "provenance": canonical_provenance,
-    }
+    return {"prediction_id": prediction_id, "decision_id": decision_id, "action_id": action_id, "outcome_id": outcome_id, "target": target, "observed": observed, "predicted_probability": probability, "brier_error": brier_error, "log_loss_error": log_loss_error, "outcome_time": normalized_outcome_time.isoformat(), "provenance": canonical_provenance}
 
 
 def get_prediction_outcome(connection: sqlite3.Connection, prediction_id: str) -> dict[str, Any] | None:
     ensure_prediction_outcome_schema(connection)
-    row = connection.execute(
-        "SELECT prediction_id, decision_id, action_id, outcome_id, target, outcome_time, observed, predicted_probability, brier_error, log_loss_error, provenance_json, recorded_at FROM scientific_prediction_outcomes WHERE prediction_id=?",
-        (prediction_id,),
-    ).fetchone()
+    row = connection.execute("SELECT prediction_id, decision_id, action_id, outcome_id, target, outcome_time, observed, predicted_probability, brier_error, log_loss_error, provenance_json, recorded_at FROM scientific_prediction_outcomes WHERE prediction_id=?", (prediction_id,)).fetchone()
     if row is None:
         return None
-    return {
-        "prediction_id": row[0],
-        "decision_id": row[1],
-        "action_id": row[2],
-        "outcome_id": row[3],
-        "target": row[4],
-        "outcome_time": row[5],
-        "observed": row[6],
-        "predicted_probability": row[7],
-        "brier_error": row[8],
-        "log_loss_error": row[9],
-        "provenance": tuple(json.loads(row[10])),
-        "recorded_at": row[11],
-    }
+    return {"prediction_id": row[0], "decision_id": row[1], "action_id": row[2], "outcome_id": row[3], "target": row[4], "outcome_time": row[5], "observed": row[6], "predicted_probability": row[7], "brier_error": row[8], "log_loss_error": row[9], "provenance": tuple(json.loads(row[10])), "recorded_at": row[11]}
 
 
 __all__ = ["SCHEMA_VERSION", "ensure_prediction_outcome_schema", "get_prediction_outcome", "record_prediction_outcome"]

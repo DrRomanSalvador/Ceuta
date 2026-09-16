@@ -3,6 +3,7 @@ import unittest
 from pathlib import Path
 
 from .event_log import load_jsonl, validate_chain
+from .replay import replay
 from .response_ledger import append_response, validate_response_record
 
 
@@ -24,6 +25,14 @@ class ResponseLedgerTests(unittest.TestCase):
             self.assertEqual(result["mutation_event_id"],"EV-0001")
             self.assertEqual(len(load_jsonl(events)),1)
             validate_chain(load_jsonl(events))
+
+    def test_replay_reconstructs_response(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            ledger=Path(tmp)/"responses.json"; events=Path(tmp)/"events.jsonl"
+            append_response(ledger,events,base_record(),actor="MISSION-01",timestamp="2026-09-16T12:11:00Z")
+            state=replay(events)
+            self.assertEqual(state.responses["R1"]["execution_status"],"EXECUTED")
+            self.assertEqual(state.responses["R1"]["event_id"],"EV-0001")
 
     def test_warning_without_response_is_valid(self):
         record=base_record(); record.update({"response_id":"R2","decision_identity":None,"decision_time":None,"action_identity":None,"execution_time":None,"response_delay":None,"implementation_failure":"not initiated","outcome_ascertainment_identity":None,"execution_status":"NO_RESPONSE","causal_status":"NOT_ASSESSED"})

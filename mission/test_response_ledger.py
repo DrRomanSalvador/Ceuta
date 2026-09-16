@@ -14,8 +14,9 @@ def base_record():
         "execution_time":"2026-09-16T12:10:00Z","responsible_actor":"ORG-1","response_eligibility":{"eligible":True,"window":"PT1H"},
         "intended_mechanism":"reduce declared outcome risk","response_delay":600,"intervention_exposure_intensity":{"level":1},
         "implementation_failure":None,"resource_capacity_constraints":[],"outcome_ascertainment_identity":"OUT-1",
-        "response_horizon":"PT24H","counterfactual_causal_status":"INSUFFICIENT","execution_status":"EXECUTED","causal_status":"IDENTIFICATION_INSUFFICIENT"
+        "response_horizon":"PT24H","counterfactual_causal_status":"INSUFFICIENT","execution_status":"EXECUTED","causal_status":"IDENTIFICATION_INSUFFICIENT","causal_method":None
     }
+
 
 class ResponseLedgerTests(unittest.TestCase):
     def test_persists_event_backed_response(self):
@@ -44,6 +45,14 @@ class ResponseLedgerTests(unittest.TestCase):
 
     def test_causal_support_fails_closed_without_identification(self):
         record=base_record(); record.update({"response_id":"R4","causal_status":"IDENTIFICATION_SUPPORTED","counterfactual_causal_status":"INSUFFICIENT"})
+        with self.assertRaises(ValueError): validate_response_record(record)
+
+    def test_causal_support_requires_declared_method(self):
+        record=base_record(); record.update({"response_id":"R4b","causal_status":"IDENTIFICATION_SUPPORTED","counterfactual_causal_status":"SUPPORTED","causal_method":None})
+        with self.assertRaises(ValueError): validate_response_record(record)
+
+    def test_not_executed_requires_failure_reason(self):
+        record=base_record(); record.update({"response_id":"R4c","execution_status":"NOT_EXECUTED","action_identity":None,"execution_time":None,"response_delay":None,"implementation_failure":None})
         with self.assertRaises(ValueError): validate_response_record(record)
 
     def test_delayed_response_requires_execution_evidence(self):

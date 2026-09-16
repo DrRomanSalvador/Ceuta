@@ -3,38 +3,35 @@
 ## Authoritative branch state
 
 - Branch: `maximum-knowledge-to-capability`
-- HEAD at checkpoint creation: `e2324c10df295ed96e0135a5ba8c2ca0dd56962b`
-- PR: #65 remains open.
+- Current branch frontier at this recovery update: `b66267b0dd2e9cb1d16ea4a449147179164bab58`.
+- PR #65 remains open.
 - No merge or scientific-validation promotion is claimed.
 
-## Executed changes
+## Executed and repaired
 
-1. Materialized-state CAS was made canonical event-backed; legacy unlogged CAS invocation is no longer part of the callable contract.
-2. Materialized-state recovery was added from canonical `MATERIALIZED_STATE_CAS` events with contiguous revision enforcement.
-3. Materialized-state tests now cover concurrency, stale writers, missing event identity, interrupted projection persistence, corrupted event chains, revision jumps and malformed state.
-4. A repository-wide executable CAS call-site audit was added and wired into CI; direct CAS call sites must provide `event_log`, `actor` and `timestamp`.
-5. The systemic susceptibility formula syntax defect found by CI was repaired and regression-tested.
-6. The risk calculator was reconciled with the canonical `EvidenceContract`; UNKNOWN/UNVERIFIED evidence can no longer be silently treated as verified risk input.
-7. Runtime `requests` was declared in `pyproject.toml` and CI now installs declared runtime dependencies before control-plane tests.
-8. Event-log appends now call `fsync` before returning; a durability regression test was added.
-9. Lifecycle mutations (admission, retirement, recovery, contradiction) now require canonical event lineage.
-10. Work-claim acquisition/release now require canonical event lineage.
-11. Contribution registry mutations now require mission identity and canonical event lineage.
-12. CI concurrency was changed to cancel obsolete branch runs so validation targets the latest executable frontier rather than accumulating stale queued runs.
+1. Materialized-state CAS is canonical event-backed and legacy unlogged invocation is removed from the callable contract.
+2. Materialized-state recovery reconstructs contiguous revisions from `MATERIALIZED_STATE_CAS` events.
+3. CAS retry after interrupted projection persistence now reconciles the canonical event stream before allocating a new event, preventing duplicate mutation events.
+4. CAS tests cover concurrency, stale writers, missing actor/timestamp, interrupted persistence, retry idempotency, corruption and revision divergence.
+5. Repository-wide CAS static audit is executable in CI and distinguishes intentional negative contract tests from actual legacy writers.
+6. The previously discovered malformed `ceuta_completo.py` syntax defect was repaired into a valid legacy compatibility module rather than hiding it from compilation.
+7. Response coupling and response ledger now require explicit implementation-failure evidence for `NOT_EXECUTED` and an explicit causal-method declaration for supported causal identification.
+8. Response-ledger tests now cover those fail-closed contracts.
+9. CI execution exposed four concrete test/import failures. The lifecycle integration writer call was repaired to provide actor/timestamp, and CI now exports `PYTHONPATH=backend` so backend package imports resolve under unittest.
+10. Control-plane integration test coverage was restored after the contract repair rather than being reduced to a smaller replacement.
 
-## Verification state
+## CI evidence
 
-- GitHub Actions has been observed executing the branch workflow and previously exposed concrete defects that were repaired in subsequent commits.
-- The latest post-repair HEAD still requires final current-HEAD CI execution; no green result is asserted here.
-- Local clone/test execution remains unavailable because the local environment cannot resolve/connect to GitHub.
+- A branch CI run executed compileall and CAS audit successfully and reached the unit-test suite.
+- That run executed 123 tests and failed with four errors: one stale lifecycle test call missing actor/timestamp and three backend-import failures (`ModuleNotFoundError: app`). These defects were repaired afterward.
+- A new CI run is queued for the current workflow frontier after the repairs; its result must not be inherited from the earlier failing run.
 
-## Open internal verification frontier
+## Remaining execution frontier
 
-- Current-head CI execution and any resulting repair loop.
-- Re-audit of all event-backed writers after lifecycle/work-claim/contribution migrations.
-- Reconcile replay and bootstrap against the newly mandatory writer contracts.
-- Continue adversarial, recovery, concurrency and authority checks where applicable.
-- Reconcile the autonomous queue with the actual branch evidence.
+- Verify the repaired current-head CI run through completion and repair any new failures.
+- Re-audit all event-backed writers and replay consumers after the latest changes.
+- Continue authority, adversarial, recovery and concurrency closure where applicable.
+- Reconcile the autonomous queue with authoritative branch evidence.
 
 `INTERNAL_WORK_EXHAUSTED = FALSE`
 

@@ -64,7 +64,7 @@ class CoordinationStore:
    s=self.load(); v=s["state_version"]
    if expected_version is not None and expected_version!=v: raise StaleStateError(f"expected coordination version {expected_version}, observed {v}")
    n=copy.deepcopy(s); mutation(n); n["schema_version"]="1.2.0"; n["state_version"]=v+1; n["updated_at"]=now(); self.write(n)
-   append_payload(self.event_path,event_type=event_type,mission_id=mission_id,actor=actor,timestamp=n["updated_at"],payload={"state_version":n["state_version"],"state":event_type})
+   append_payload(self.event_path,event_type=event_type,mission_id=mission_id,actor=actor,timestamp=n["updated_at"],payload={"state_version":n["state_version"],"state":event_type,"coordination_state":n})
    return n
 class Coordinator:
  IDENTITY="COORDINATOR"; COMMANDS=frozenset(CommandType)

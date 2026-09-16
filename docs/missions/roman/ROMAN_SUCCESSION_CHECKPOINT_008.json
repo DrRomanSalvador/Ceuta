@@ -1,0 +1,24 @@
+{
+  "checkpoint_id":"ROMAN_SUCCESSION_CHECKPOINT_008",
+  "mission_id":"ROMAN",
+  "phase":"SUCCESSION_CONTINUITY_PROOF_RE_RECOVERY",
+  "work_id":"ROMAN-SUCCESSION-004",
+  "action":"Perform zero-context re-recovery of checkpoint 007 after successor persistence and verify that the persisted continuation boundary remains reconstructable without conversational context.",
+  "state_before":"ACTIVE; checkpoint 007 and certificate 001 recorded partial continuity proof pending re-recovery.",
+  "state_after":"ACTIVE; checkpoint 007 was re-read from the live repository in zero-context mode, its mission identity, inherited-action record, validation boundary and next action were reconstructed, and the continuity proof advanced to VERIFIED_FOR_REPOSITORY_SUCCESSION.",
+  "evidence":[
+    "Checkpoint 007 was recovered directly from the live repository without using conversational narrative as state authority.",
+    "Recovered checkpoint identifies mission_id ROMAN and phase SUCCESSION_CONTINUITY_AND_PROVENANCE_SWEEP.",
+    "Recovered checkpoint records inherited_action_executed=true and persisted=true.",
+    "Recovered checkpoint preserves last_verified_state at 044db70307924db210db823fe8d1b008c54d5fb7 and does not promote later persistence commits to verified CI state.",
+    "Recovered checkpoint preserves explicit external boundaries and repository-native next work."
+  ],
+  "continuity_proof":{"recovered":true,"reconciled":true,"inherited_action_executed":true,"persisted":true,"re_recovered":true,"status":"VERIFIED_FOR_REPOSITORY_SUCCESSION"},
+  "last_verified_state":{"commit":"044db70307924db210db823fe8d1b008c54d5fb7","ci":"SUCCESS","security":"SUCCESS","scope":"repository-side runtime, security and succession evidence"},
+  "current_state":{"commit":"bf2502050a79d043ef5db82331b6c91e13f41e95","branch":"mission/roman-runtime-validation","status":"ACTIVE","ci_status":"NOT_YET_VERIFIED_FOR_THIS_LATER_PERSISTENCE_HEAD"},
+  "open_unknown":["repository-native provenance/contamination runtime attack harness beyond current source-boundary checks","CI/security on later persistence commits","live external multi-session orchestration","distributed multi-host concurrency/lease semantics","real external process crash/restart","authorized ROMAN source corpus"],
+  "next_action":"Persist the completed repository succession proof in a successor certificate, then execute the strongest repository-native provenance/contamination regression available; do not infer CI status for later persistence commits from the earlier green HEAD.",
+  "continuation_pointer":"docs/missions/roman/ROMAN_SUCCESSION_CHECKPOINT_008.json",
+  "repository":"DrRomanSalvador/Ceuta",
+  "created_at":"2026-09-16T17:45:00+02:00"
+}

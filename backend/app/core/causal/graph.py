@@ -58,11 +58,13 @@ class CausalGraph:
     def would_create_cycle(self, cause: str, effect: str, *, candidate_lag: float | None = None) -> bool:
         if cause == effect:
             return True
-        # A contemporaneous cycle is forbidden. A dynamic feedback cycle is
-        # representable only when the candidate edge and every edge on the
-        # return path have strictly positive lags, corresponding to a
-        # time-unrolled DAG rather than an instantaneous cyclic graph.
-        stack: list[tuple[str, bool]] = [(cause, candidate_lag is not None and candidate_lag > 0)]
+        candidate_is_lagged = candidate_lag is not None and candidate_lag > 0
+        # Search existing paths from the proposed effect back to the proposed
+        # cause. A cycle is invalid when any such return path contains a
+        # contemporaneous/unlagged edge. A cycle composed entirely of positive
+        # lags is a temporal feedback loop and can be represented by a
+        # time-unrolled DAG.
+        stack: list[tuple[str, bool]] = [(effect, candidate_is_lagged)]
         visited: set[tuple[str, bool]] = set()
         while stack:
             node, all_lagged = stack.pop()
@@ -70,14 +72,14 @@ class CausalGraph:
             if state in visited:
                 continue
             visited.add(state)
-            if node == effect:
+            if node == cause:
                 if not all_lagged:
                     return True
                 continue
             for child in self.children(node):
                 edge = self._edges[(node, child)]
-                edge_lagged = edge.lag is not None and edge.lag > 0
-                stack.append((child, all_lagged and edge_lagged))
+                edge_is_lagged = edge.lag is not None and edge.lag > 0
+                stack.append((child, all_lagged and edge_is_lagged))
         return False
 
     def backdoor_candidates(self, exposure: str, outcome: str) -> tuple[str, ...]:

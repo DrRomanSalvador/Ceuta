@@ -1,0 +1,19 @@
+{
+  "proposal_id":"FOUNDER-ADMISSION-001",
+  "mission_id":"FOUNDER",
+  "mission_name":"FOUNDER",
+  "version":"1.0.0",
+  "mission_class":"AUTHORIAL_INTELLECTUAL_AND_VENTURE_CONTROL",
+  "contract_ref":"docs/missions/founder/FOUNDER_INVOCATION_CONTRACT.json",
+  "state_ref":"docs/missions/founder/FOUNDER_STATE.json",
+  "prompt_ref":"docs/missions/roman/FOUNDER_PROMPT.md",
+  "source_commit":"f06a414a015fd14053b6837c67383ba0b0f823ef",
+  "rationale":"Distinct founder-level venture/commercial decision responsibility; inherits canonical execution, persistence, authority, lifecycle, handoff and recovery infrastructure.",
+  "non_redundancy_claim":"FOUNDER owns founder-level opportunity/decision/commercial intelligence; ESPÍA owns scientific evidence; INGENIERO owns engineering execution; control plane owns global orchestration.",
+  "requested_admission":"REGISTER",
+  "execution_invariants_required":true,
+  "authority":"INHERITED_AND_EXPLICIT_ONLY",
+  "dependencies":["MISSION_REGISTRY","MISSION_EVOLUTION_ENGINE","UNIVERSAL_EXECUTION_CONTRACT","canonical persistence","canonical handoff machinery"],
+  "admission_evidence_required":["contract validation","non-redundancy validation","authority validation","registry admission","runtime discovery","zero-context recovery","interruption/recovery","adversarial validation","CI"],
+  "status":"PENDING_ENGINE_VALIDATION"
+}

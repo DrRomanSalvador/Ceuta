@@ -1,0 +1,59 @@
+schema_version: "1.0"
+constitution_ref: docs/missions/CONSTITUTION_MANIFEST.yaml
+states:
+  - NOT_STARTED
+  - ACTIVE
+  - WAITING
+  - BLOCKED
+  - DONE
+  - ABORTED
+  - SUPERSEDED
+  - MERGED
+  - RETIRED
+transitions:
+  NOT_STARTED: [ACTIVE, ABORTED]
+  ACTIVE: [WAITING, BLOCKED, DONE, ABORTED, SUPERSEDED, MERGED, RETIRED]
+  WAITING: [ACTIVE, BLOCKED, ABORTED, SUPERSEDED, MERGED, RETIRED]
+  BLOCKED: [ACTIVE, WAITING, ABORTED, SUPERSEDED, MERGED, RETIRED]
+  DONE: [ACTIVE, SUPERSEDED, MERGED, RETIRED]
+  ABORTED: [ACTIVE, SUPERSEDED, MERGED, RETIRED]
+  SUPERSEDED: [RETIRED]
+  MERGED: [RETIRED]
+  RETIRED: []
+invariants:
+  WAITING:
+    - blocker_or_unlock_condition_required: true
+    - productive_wait_plan_required: true
+    - non_blocked_work_must_be_considered: true
+    - automatic_retry_condition_required: true
+  BLOCKED:
+    - blocker_required: true
+    - blocker_owner_or_resolution_path_required: true
+    - unrelated_authorized_work_must_continue: true
+  DONE:
+    - outputs_complete: true
+    - success_criteria_satisfied: true
+    - required_validation_executed: true
+    - mandatory_handoffs_closed_or_transferred: true
+    - state_persisted: true
+    - provenance_preserved: true
+    - limitations_recorded: true
+    - downstream_verification_addressed: true
+  ABORTED:
+    - reason_required: true
+    - history_preserved: true
+  SUPERSEDED:
+    - successor_reference_required: true
+    - history_preserved: true
+  MERGED:
+    - destination_reference_required: true
+    - history_preserved: true
+  RETIRED:
+    - reason_required: true
+    - historical_artifacts_preserved: true
+    - provenance_preserved: true
+  all_states:
+    - transitions_are_append_only_in_history: true
+    - no_transition_may_delete_prior_state: true
+    - current_state_must_be_reconstructible_without_chat: true
+    - state_must_reference_constitution_version: true

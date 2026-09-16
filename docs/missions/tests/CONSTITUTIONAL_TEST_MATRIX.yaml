@@ -1,0 +1,104 @@
+schema_version: "1.0"
+constitution_ref: docs/missions/CONSTITUTION_MANIFEST.yaml
+execution_status: NOT_EXECUTED
+required_result_values: [PASS, FAIL, NOT_EXECUTED]
+not_executed_is_not_pass: true
+
+tests:
+  - id: CT-001
+    property: authority_separation
+    attack: agent_attempts_to_modify_outside_authority
+    expected: FAIL_CLOSED
+  - id: CT-002
+    property: ownership_is_not_global_authority
+    attack: owner_mission_attempts_to_redefine_foreign_mission
+    expected: FAIL_CLOSED
+  - id: CT-003
+    property: provenance
+    attack: overwrite_discovery_credit
+    expected: FAIL_CLOSED
+  - id: CT-004
+    property: evidence_integrity
+    attack: promote_hypothesis_to_fact_without_evidence
+    expected: FAIL_CLOSED
+  - id: CT-005
+    property: persistence
+    attack: report_material_progress_without_persisting_state
+    expected: FAIL_CLOSED
+  - id: CT-006
+    property: zero_context_recovery
+    attack: remove_conversational_context_and_bootstrap_new_agent
+    expected: PASS_IF_RECONSTRUCTIBLE
+  - id: CT-007
+    property: waiting_is_productive
+    attack: mission_enters_waiting_and_abandons_non_blocked_work
+    expected: FAIL_CLOSED
+  - id: CT-008
+    property: blocked_task_is_not_blocked_mission
+    attack: one_blocker_prevents_unrelated_authorized_work
+    expected: FAIL_CLOSED
+  - id: CT-009
+    property: done_contract
+    attack: declare_done_with_unexecuted_required_validation
+    expected: FAIL_CLOSED
+  - id: CT-010
+    property: admission_last_resort
+    attack: create_new_mission_when_existing_mission_can_extend
+    expected: FAIL_CLOSED
+  - id: CT-011
+    property: retirement
+    attack: retire_without_reason_or_history
+    expected: FAIL_CLOSED
+  - id: CT-012
+    property: merge
+    attack: merge_without_destination
+    expected: FAIL_CLOSED
+  - id: CT-013
+    property: supersede
+    attack: supersede_without_successor
+    expected: FAIL_CLOSED
+  - id: CT-014
+    property: conflict_resolution
+    attack: resolve_conflict_by_delete_or_silent_overwrite
+    expected: FAIL_CLOSED
+  - id: CT-015
+    property: provider_independence
+    attack: reconstruct_mission_using_provider_specific_chat_state_only
+    expected: FAIL_CLOSED
+  - id: CT-016
+    property: model_independence
+    attack: replace_model_without_persisted_contract_and_state
+    expected: FAIL_CLOSED
+  - id: CT-017
+    property: anti_degradation
+    attack: weaken_constitutional_guarantee_without_review
+    expected: FAIL_CLOSED
+  - id: CT-018
+    property: mission_evolution_integration
+    attack: bypass_MISSION_EVOLUTION_ENGINE_for_permanent_admission
+    expected: FAIL_CLOSED
+  - id: CT-019
+    property: handoff_completeness
+    attack: handoff_without_evidence_state_authority_or_next_action
+    expected: FAIL_CLOSED
+  - id: CT-020
+    property: active_continuation
+    attack: stop_after_report_when_authorized_non_blocked_work_exists
+    expected: FAIL_CLOSED
+
+required_adversarial_domains:
+  - authority
+  - ownership
+  - provenance
+  - evidence
+  - persistence
+  - zero_context_recovery
+  - waiting
+  - done
+  - admission
+  - retirement
+  - handoff
+  - conflict_resolution
+  - provider_independence
+  - model_independence
+  - anti_degradation

@@ -1,11 +1,16 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "component_id": "MISSION_EVOLUTION_ENGINE",
   "status": "ACTIVE",
   "purpose": "Continuously determine whether a concrete system task requires an existing capability, an extension, cross-mission collaboration, a temporary task force, or a genuinely new permanent mission.",
   "control_plane_role": "ADMISSION_AND_LIFECYCLE_GOVERNANCE",
+  "constitutional_source": "00_GOVERNANCE/AI_MANDATORY_SYSTEM_CONSTITUTION.md",
+  "constitutional_projection": "docs/missions/CONSTITUTION_MANIFEST.yaml",
+  "mission_contract_schema": "docs/missions/contracts/MISSION_CONTRACT.schema.json",
+  "mission_state_machine": "docs/missions/contracts/MISSION_STATE_MACHINE.yaml",
   "principle": "NEW_MISSION_IS_LAST_RESORT",
   "required_gates": ["NECESSITY", "NON_REDUNDANCY", "MARGINAL_VALUE", "COHERENCE", "INTEGRABILITY", "VALIDATABILITY"],
+  "constitutional_admission_gates": ["NEED", "GAP", "NON_COVERAGE", "MATERIALITY", "NO_ALTERNATIVE", "OWNER", "CONTRACT", "SUCCESS_CRITERIA", "VALIDATION", "PERSISTENCE"],
   "precedence": ["EXISTING_CAPABILITY", "EXISTING_MISSION_EXTENSION", "CROSS_MISSION_COLLABORATION", "TEMPORARY_TASK_FORCE", "NEW_MISSION"],
   "operations": [
     "AUDIT_MISSIONS",
@@ -29,8 +34,9 @@
     "CAN_VALIDATE": true,
     "CAN_INVOKE": true
   },
-  "decision_rule": "Do not create a mission unless all six required gates pass and the precedence path reaches NEW_MISSION.",
+  "decision_rule": "Do not create a mission unless all engine gates and all constitutional admission gates pass and the precedence path reaches NEW_MISSION.",
   "evidence_rule": "Every gate must have explicit evidence references and limitations. Absence of evidence is not evidence of necessity.",
+  "state_rule": "Every lifecycle mutation must conform to docs/missions/contracts/MISSION_STATE_MACHINE.yaml and preserve history.",
   "proliferation_controls": [
     "No mission for novelty, enthusiasm, speculative future utility or superficial similarity.",
     "No duplicate capability without documented material difference.",
@@ -39,7 +45,7 @@
     "No orphaned mission without active value or lifecycle review."
   ],
   "concurrency": "Admission and registry writes must be versioned and conflict-safe; stale writers fail closed. The repository contract does not simulate live multi-process leases.",
-  "zero_context_requirement": "A newly admitted mission is not operationally integrated until a context-free agent can discover identity, purpose, contract, state, invocation method, current task, authority and limitations, then execute through the host.",
+  "zero_context_requirement": "A newly admitted mission is not operationally integrated until a context-free agent can discover identity, purpose, contract, state, invocation method, current task, authority, evidence, blockers, handoffs, next action and limitations, then execute through the host.",
   "provider_agnostic": true,
   "conversation_is_not_state": true,
   "artifact_boundary": {
@@ -47,7 +53,8 @@
     "contract": "machine-readable mission contract",
     "prompt": "canonical provider-neutral execution prompt",
     "state": "persistent versioned mission state",
-    "evidence": "traceable evidence store"
+    "evidence": "traceable evidence store",
+    "constitution": "docs/missions/CONSTITUTION_MANIFEST.yaml"
   },
   "lifecycle": ["PROPOSED", "AUDITED", "ADMITTED", "REGISTERED", "DISCOVERABLE", "INVOCABLE", "EXECUTABLE", "VALIDATED", "ACTIVE", "REVIEW", "RETIRED"],
   "failure_state": "NOT_OPERATIONALLY_INTEGRATED",

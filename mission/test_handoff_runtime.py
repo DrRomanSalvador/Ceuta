@@ -1,3 +1,4 @@
+import json
 import multiprocessing as mp
 import tempfile
 import unittest
@@ -63,5 +64,4 @@ class HandoffRuntimeTests(unittest.TestCase):
             validate_chain(persisted_events)
 
 
-if __name__ == "__main__":
-    unittest.main()
+if __name__ == "__main__": unittest.main()

@@ -8,7 +8,7 @@ A fresh instance must be able to reconstruct the mission from repository state a
 
 The recovery sequence is:
 
-`IDENTITY → MASTER STATE → CLAIMS/EVIDENCE → REQUIREMENTS → CAPABILITIES → VALIDATION → NEGATIVE KNOWLEDGE → GAPS → HANDOFFS → CURRENT REPOSITORY HEADS → VERIFY → NEXT ACTION`
+`IDENTITY → MASTER STATE → CLAIMS/EVIDENCE → REQUIREMENTS → CAPABILITIES → VALIDATION → NEGATIVE KNOWLEDGE → GAPS → HANDOFFS → STATE DELTAS → CURRENT REPOSITORY HEADS → VERIFY → NEXT ACTION`
 
 ## Canonical artifacts
 
@@ -21,7 +21,8 @@ The recovery sequence is:
 7. `mission/NEGATIVE_KNOWLEDGE_REGISTRY.json` — explicit unknowns, non-identifiability, failed validation and refutations.
 8. `mission/SCIENTIFIC_HANDOFF_REGISTRY.json` — engineering-facing requirements and scientific acceptance criteria.
 9. `mission/SCIENTIFIC_ADVERSARIAL_TEST_MATRIX.json` — mandatory falsification/adversarial scenarios.
-10. `backend/app/core/scientific/continuity.py` — executable loader/validator for the hereditary state.
+10. `mission/SCIENTIFIC_STATE_DELTAS.json` — explicit scientific history; substantive state changes are appended as deltas rather than silently rewritten.
+11. `backend/app/core/scientific/continuity.py` — executable loader/validator for the hereditary state.
 
 ## Fresh-instance rules
 

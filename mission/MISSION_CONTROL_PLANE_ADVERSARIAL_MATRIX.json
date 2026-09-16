@@ -1,0 +1,26 @@
+{
+  "schema_version":"1.0.0",
+  "status":"EXECUTABLE_TESTS_PARTIALLY_IMPLEMENTED",
+  "scenarios":[
+    {"id":"ADV-01","scenario":"unknown mission declares complete","expected":"reject impossible transition","test":"test_illegal_unknown_to_complete_transition_is_rejected"},
+    {"id":"ADV-02","scenario":"mission modifies foreign surface","expected":"reject write","test":"test_surface_boundary_is_enforced"},
+    {"id":"ADV-03","scenario":"two missions claim same work","expected":"second claim rejected","test":"work-claim conflict test pending"},
+    {"id":"ADV-04","scenario":"handoff sent but never accepted","expected":"remains non-integrated","test":"handoff lifecycle test pending"},
+    {"id":"ADV-05","scenario":"master state stale","expected":"claim frozen and reconciliation required","test":"reconciliation primitive test"},
+    {"id":"ADV-06","scenario":"mission removed from registry","expected":"bootstrap detects registry/state discrepancy","test":"bootstrap replay test pending"},
+    {"id":"ADV-07","scenario":"dependency blocked indefinitely","expected":"non-blocked work selected","test":"priority selection test"},
+    {"id":"ADV-08","scenario":"CI red while state says green","expected":"state claim frozen","test":"CI reconciliation test pending"},
+    {"id":"ADV-09","scenario":"agent invents dependency","expected":"orphan dependency rejected","test":"dependency graph orphan test"},
+    {"id":"ADV-10","scenario":"agent invents authority","expected":"self-authorization rejected","test":"test_self_authorization_is_not_allowed"},
+    {"id":"ADV-11","scenario":"new mission partially registered","expected":"admission incomplete","test":"admission workflow pending"},
+    {"id":"ADV-12","scenario":"two missions contradict","expected":"both claims preserved and reconciled","test":"persistent conflict workflow pending"},
+    {"id":"ADV-13","scenario":"conversation disappears","expected":"bootstrap reconstructs from repository","test":"zero-context replay pending"},
+    {"id":"ADV-14","scenario":"checkpoint lost","expected":"recover from prior persisted state/event chain","test":"recovery replay pending"},
+    {"id":"ADV-15","scenario":"work marked DONE without evidence","expected":"reject completion claim","test":"test_completion_requires_evidence_status"},
+    {"id":"ADV-16","scenario":"artifact created but not validated","expected":"remain non-validated","test":"completion evidence gate"},
+    {"id":"ADV-17","scenario":"mission continues after authorization loss","expected":"transition to recovery/suspension","test":"authorization-loss lifecycle test pending"},
+    {"id":"ADV-18","scenario":"mission elevates its own authority","expected":"reject","test":"test_self_authorization_is_not_allowed"},
+    {"id":"ADV-19","scenario":"two master states incompatible","expected":"preserve both and reconcile","test":"persistent master conflict test pending"},
+    {"id":"ADV-20","scenario":"repository modified outside protocol","expected":"detect via Git/reconciliation/event divergence","test":"repository integrity reconciliation pending"}
+  ]
+}

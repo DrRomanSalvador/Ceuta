@@ -1,0 +1,53 @@
+{
+  "schema_version": "1.0.0",
+  "queue_id": "CEUTIA_SERPIENTE_AUTONOMOUS_WORK_QUEUE",
+  "mission_id": "CEUTIA_SERPIENTE_CONTINUOUS_SCIENTIFIC_ENGINEERING",
+  "rule": "WAITING is line-specific and never means mission IDLE or DONE. If one item is blocked, executable non-blocked work remains active.",
+  "items": [
+    {
+      "work_id": "LEGACY-001",
+      "mission": "CHAT1_LEGACY_EXTRACTION_RECONSTRUCTION_ZERO_CONTEXT_BOOTSTRAP",
+      "description": "Complete repository-backed zero-context legacy reconstruction and expose all critical missing state as explicit gaps.",
+      "scientific_reason": "Scientific continuity depends on preserving epistemic status, limitations, validation boundaries and rationale across agent instances.",
+      "technical_reason": "A future instance must reconstruct actionable state without conversation history.",
+      "priority": "CRITICAL",
+      "centrality": 1.0,
+      "owner": "INGENIERO_CEUTIA",
+      "status": "ACTIVE",
+      "blocker": null,
+      "blocking_dependency": null,
+      "prerequisites": ["Current Git inspection", "Mission-state inspection", "Mission artifact discovery"],
+      "expected_artifact": "mission/MISSION_MASTER_STATE.json plus mission registry, bootstrap contract, audit and queue updates",
+      "verification_method": "Repository-only reconstruction test + bootstrap validator + Git/PR/CI reconciliation",
+      "handoff_target": "F14-001"
+    },
+    {
+      "work_id": "F14-001",
+      "mission": "CEUTIA_SERPIENTE_CONTINUOUS_SCIENTIFIC_ENGINEERING",
+      "description": "Inspect warning, decision and action consumers and existing persistence before designing or adding response-coupling ledger functionality.",
+      "scientific_reason": "Operational effectiveness cannot be evaluated without linking warning, decision, response exposure and outcome ascertainment.",
+      "technical_reason": "Avoid duplicate state and preserve existing producer/consumer contracts.",
+      "priority": "HIGH",
+      "centrality": 0.98,
+      "owner": "INGENIERO_CEUTIA",
+      "status": "PENDING",
+      "blocker": null,
+      "blocking_dependency": null,
+      "prerequisites": ["Legacy reconstruction sufficient to identify relevant surfaces"],
+      "expected_artifact": "Response-coupling audit and, only if justified, response ledger implementation/tests",
+      "verification_method": "Source inspection + contract audit + ordinary and adversarial tests + scientific consistency audit",
+      "handoff_target": "NEXO/FORJA only if a distinct mathematical or interaction-model gap is demonstrated"
+    }
+  ],
+  "waiting_policy": {
+    "when_blocked": [
+      "Register blocker and exact blocking dependency.",
+      "Continue the highest-priority non-blocked queue item.",
+      "Maintain explicit recheck condition.",
+      "Reassess dependency during every bootstrap/reconciliation cycle.",
+      "Resume blocked item automatically when dependency is resolved."
+    ],
+    "forbidden_transition": "BLOCKED -> WAIT -> DONE",
+    "required_transition": "BLOCKED -> REGISTERED_DEPENDENCY -> NON_BLOCKED_WORK -> RECHECK -> RESUME"
+  }
+}

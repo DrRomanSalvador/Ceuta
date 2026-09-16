@@ -1,6 +1,9 @@
 """
 Calculadora de Riesgo Existencial
-Fórmulas matemáticas trazables con intervalos de confianza
+Fórmulas matemáticas trazables con intervalos de confianza.
+
+The legacy score remains backward compatible, but rate-like quantities are
+now explicitly tied to a dynamic denominator when supplied.
 """
 
 from __future__ import annotations
@@ -18,6 +21,7 @@ from backend.app.core.p0_contracts import EvidenceContract
 from backend.app.core.epistemology_p0.epistemology.states import EpistemicStatus
 
 from .config import SystemConfig
+from .scientific_capability import DynamicDenominator
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +40,8 @@ class RiskResult:
     calculation_timestamp: str
     data_sources: List[str]
     audit_hash: str
+    event_rate: float | None = None
+    denominator_id: str | None = None
 
     def to_dict(self) -> Dict:
         return {
@@ -49,6 +55,8 @@ class RiskResult:
             "calculation_timestamp": self.calculation_timestamp,
             "data_sources": self.data_sources,
             "audit_hash": self.audit_hash,
+            "event_rate": self.event_rate,
+            "denominator_id": self.denominator_id,
         }
 
 
@@ -70,10 +78,27 @@ class RiskCalculator:
         self.config = config or SystemConfig()
         self.thresholds = self.config.THRESHOLDS
 
-    def calculate_risk(self, evidence_data: List[EvidenceContract]) -> RiskResult:
-        """Calculate risk only from epistemically admissible evidence records."""
+    def calculate_risk(
+        self,
+        evidence_data: List[EvidenceContract],
+        *,
+        event_count: float | None = None,
+        denominator: DynamicDenominator | None = None,
+    ) -> RiskResult:
+        """Calculate risk and, when requested, a denominator-bound event rate.
+
+        ``event_count`` and ``denominator`` must be supplied together. This
+        prevents a rate-like risk input from being inferred from a numerator
+        alone. The rate is descriptive and is not itself a causal or predictive
+        risk estimate.
+        """
         if not evidence_data:
             raise ValueError("Risk calculation requires at least one evidence record")
+        if (event_count is None) != (denominator is None):
+            raise ValueError("event_count and denominator must be supplied together")
+        if event_count is not None and denominator is not None and event_count < 0:
+            raise ValueError("event_count cannot be negative")
+
         inadmissible = [
             evidence.evidence_id
             for evidence in evidence_data
@@ -96,8 +121,12 @@ class RiskCalculator:
             "awareness_level": normalized.get("awareness_level", 0.5),
             "international_cooperation": normalized.get("international_cooperation", 0.5),
         }
+        event_rate = denominator.rate(event_count) if denominator is not None and event_count is not None else None
 
-        audit_content = f"{risk_score}{ci_low}{ci_high}{self._dict_to_str(component_scores)}"
+        audit_content = (
+            f"{risk_score}{ci_low}{ci_high}{self._dict_to_str(component_scores)}"
+            f"{event_rate}{denominator.denominator_id if denominator else None}"
+        )
         audit_hash = hashlib.sha256(audit_content.encode()).hexdigest()[:16]
 
         result = RiskResult(
@@ -111,6 +140,8 @@ class RiskCalculator:
             calculation_timestamp=datetime.now(UTC).isoformat(),
             data_sources=[evidence.source_id for evidence in evidence_data],
             audit_hash=audit_hash,
+            event_rate=round(event_rate, 8) if event_rate is not None else None,
+            denominator_id=denominator.denominator_id if denominator is not None else None,
         )
         logger.info("Riesgo calculado: %.4f (nivel: %s)", result.risk_score, result.alert_level)
         return result

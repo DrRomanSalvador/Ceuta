@@ -1,17 +1,8 @@
 """Evidence-bounded early-warning governance.
 
-This module turns four scientifically distinct concerns into auditable state:
-
-* credibility loss from false alarms (cry-wolf / preparedness decay),
-* critical-slowing-down diagnostics with explicit data sufficiency limits,
-* prediction-market observations as benchmark/ensemble evidence rather than
-  causal explanations, and
-* vulnerability/root-cause context so hazard probability is not mistaken for
-  social risk.
-
-None of these signals is treated as proof of a tipping point, misconduct, or
-causal effect. The assessment is deliberately fail-closed when the required
-measurement contract is not satisfied.
+CSD is a supporting resilience diagnostic, not a standalone release gate.
+Cry-wolf credibility, vulnerability and intervention-aware outcome evidence
+remain separate mechanisms with explicit uncertainty and provenance.
 """
 from __future__ import annotations
 
@@ -25,7 +16,6 @@ from statistics import fmean, pvariance
 from typing import Sequence
 
 
-
 def _canonical(value: object) -> str:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), default=str, allow_nan=False)
 
@@ -36,12 +26,6 @@ def _digest(value: object) -> str:
 
 @dataclass(frozen=True, slots=True)
 class CryWolfPolicy:
-    """Asymmetric credibility policy.
-
-    The asymmetry is a configurable governance assumption, not an empirical
-    constant. It must be validated prospectively for the deployed population.
-    """
-
     false_alarm_penalty: float = 2.0
     correct_warning_reward: float = 1.0
     missed_warning_penalty: float = 1.0
@@ -99,8 +83,6 @@ class CredibilityState:
 
 
 class CryWolfTracker:
-    """Durable credibility state derived from settled warning outcomes."""
-
     POLICY_VERSION = "cry-wolf-v1"
 
     def __init__(self, policy: CryWolfPolicy | None = None, *, storage_path: str | None = None) -> None:
@@ -108,8 +90,7 @@ class CryWolfTracker:
         self.storage_path = storage_path
         self._outcomes: dict[str, WarningOutcome] = {}
         if storage_path:
-            self._init_db()
-            self._load_db()
+            self._init_db(); self._load_db()
 
     def _db(self) -> sqlite3.Connection:
         if not self.storage_path:
@@ -139,11 +120,9 @@ class CryWolfTracker:
         correct = sum(x.correct_warning for x in xs)
         missed = sum(x.missed_warning for x in xs)
         n = len(xs)
-        # Bounded credibility/preparedness state.  The weights are intentionally
-        # not presented as universal behavioral constants.
         total = self.policy.correct_warning_reward * correct + self.policy.false_alarm_penalty * false_alarms + self.policy.missed_warning_penalty * missed
-        trust = (self.policy.correct_warning_reward * correct + 0.5 * self.policy.false_alarm_penalty * 0 + 1.0) / (total + 1.0)
-        preparedness = (self.policy.correct_warning_reward * correct + 1.0) / (self.policy.correct_warning_reward * correct + self.policy.false_alarm_penalty * false_alarms + self.policy.missed_warning_penalty * missed + 1.0)
+        trust = (self.policy.correct_warning_reward * correct + 1.0) / (total + 1.0)
+        preparedness = (self.policy.correct_warning_reward * correct + 1.0) / (total + 1.0)
         return CredibilityState(n, false_alarms, correct, missed, min(1.0, trust), min(1.0, preparedness), self.POLICY_VERSION)
 
     def disposition(self) -> str:
@@ -172,11 +151,7 @@ class CriticalSlowingDownSignal:
 
 
 class CriticalSlowingDown:
-    """Conservative variance/autocorrelation diagnostic.
-
-    This estimates a statistical signature; it does not infer a tipping point
-    without a domain-specific dynamical model and confounder controls.
-    """
+    """Statistical resilience diagnostic, never a standalone tipping-point gate."""
 
     def __init__(self, *, minimum_observations: int = 30) -> None:
         if minimum_observations < 3:
@@ -191,7 +166,7 @@ class CriticalSlowingDown:
         if n < 2:
             raise ValueError("at least two observations are required")
         mean = fmean(xs)
-        variance = pvariance(xs) if n > 1 else 0.0
+        variance = pvariance(xs)
         denom = sum((x - mean) ** 2 for x in xs)
         lag1 = sum((xs[i] - mean) * (xs[i - 1] - mean) for i in range(1, n)) / denom if denom > 0 else 0.0
         sufficient = n >= self.minimum_observations
@@ -258,7 +233,7 @@ class EarlyWarningAssessment:
 
 
 class EarlyWarningGovernance:
-    """Combines the four constraints without turning them into false certainty."""
+    """Combines distinct mechanisms without treating CSD as standalone authority."""
 
     def __init__(self, tracker: CryWolfTracker, *, storage_path: str | None = None) -> None:
         self.tracker = tracker
@@ -292,7 +267,9 @@ class EarlyWarningGovernance:
             reasons.append("no_usable_prediction_market_benchmark")
         if vulnerability.vulnerability_score > 0.5:
             reasons.append("high_vulnerability_requires_targeted_response_design")
-        alert_allowed = cry_disposition == "release" and slowing.usable_as_supporting_signal and vulnerability.vulnerability_score <= 0.8
+        # CSD is supporting evidence. Its absence lowers evidential strength but
+        # does not itself veto a warning supported by other validated mechanisms.
+        alert_allowed = cry_disposition == "release" and vulnerability.vulnerability_score <= 0.8
         fingerprint = _digest({"cry": cry, "slowing": slowing, "markets": markets, "vulnerability": vulnerability})
         assessment = EarlyWarningAssessment(_digest((fingerprint, now.isoformat())), cry, cry_disposition, slowing, tuple(markets), vulnerability, alert_allowed, tuple(reasons), now, fingerprint)
         if self.storage_path:
@@ -302,8 +279,4 @@ class EarlyWarningGovernance:
         return assessment
 
 
-__all__ = [
-    "CryWolfPolicy", "WarningOutcome", "CredibilityState", "CryWolfTracker",
-    "CriticalSlowingDownSignal", "CriticalSlowingDown", "PredictionMarketObservation",
-    "VulnerabilityProfile", "EarlyWarningAssessment", "EarlyWarningGovernance",
-]
+__all__ = ["CryWolfPolicy", "WarningOutcome", "CredibilityState", "CryWolfTracker", "CriticalSlowingDownSignal", "CriticalSlowingDown", "PredictionMarketObservation", "VulnerabilityProfile", "EarlyWarningAssessment", "EarlyWarningGovernance"]

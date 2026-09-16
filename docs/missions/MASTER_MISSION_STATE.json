@@ -1,10 +1,13 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "2.0",
   "mission_state_type": "scientific_multi_mission_overlay",
   "parent_mission": "CEUTIA-SERPIENTE-SCIENTIFIC-MACHINE-001",
   "status": "OPEN_CONTINUOUS_EXECUTION",
   "architecture": "docs/missions/SCIENTIFIC_MISSION_ARCHITECTURE.md",
+  "audit": "docs/missions/MISSION_ARCHITECTURE_AUDIT.md",
+  "governance": "docs/missions/MISSION_GOVERNANCE_PROTOCOLS.md",
   "bootstrap_contracts": "docs/missions/MISSION_BOOTSTRAPS.md",
+  "cybersecurity_mission": "docs/missions/MISSION_15_CIBERSEGURIDAD.md",
   "coverage_matrix": "docs/missions/MISSION_COVERAGE_MATRIX.md",
   "collaboration_graph": "docs/missions/MISSION_COLLABORATION_GRAPH.md",
   "technical_master_state": "AUTONOMOUS_ENGINEERING_STATE.json",
@@ -12,7 +15,8 @@
   "scientific_custodian": "MISSION-02 / ESPIA",
   "evidence_custodian": "MISSION-13 / NOTARIO",
   "adversarial_custodian": "MISSION-04 / GROK",
-  "mission_count": 14,
+  "security_custodian": "MISSION-15 / CIBERSEGURIDAD",
+  "mission_count": 15,
   "missions": [
     {"id":"MISSION-01","name":"INGENIERO","status":"ACTIVE","owner":"CHAT-1"},
     {"id":"MISSION-02","name":"ESPIA","status":"ACTIVE","owner":"ESPÍA"},
@@ -27,11 +31,20 @@
     {"id":"MISSION-11","name":"MÉDICO","status":"DEFINED"},
     {"id":"MISSION-12","name":"ESTRATEGA","status":"DEFINED"},
     {"id":"MISSION-13","name":"NOTARIO","status":"DEFINED"},
-    {"id":"MISSION-14","name":"ABISMO","status":"DEFINED"}
+    {"id":"MISSION-14","name":"ABISMO","status":"DEFINED"},
+    {"id":"MISSION-15","name":"CIBERSEGURIDAD","status":"DEFINED","owner":"Defensive security mission when activated"}
   ],
   "current_scientific_frontier": "Acquisition/process integrity and real-source operationalization, followed by point-in-time longitudinal closure, dynamic coupling, multisystem state, uncertainty propagation, scientifically validated early warning and prospective evaluation.",
+  "architecture_audit_status": "AUDITED_WITH_CORRECTIONS",
   "knowledge_policy": "Only evidence-assessed findings enter shared state. Hypotheses, assumptions and local results remain explicitly typed. Technical implementation status is read from the technical master state rather than duplicated here.",
   "reconciliation_rule": "If mission state conflicts with technical master state or another mission state, preserve both records, flag the discrepancy and resolve explicitly; never silently overwrite history.",
-  "next_architecture_action": "Instantiate mission-specific state files only when a mission is activated for substantive work; do not create empty parallel memories for inactive missions.",
+  "security_policy": "Least privilege; data is not instruction; external systems are outside mission authority; defensive testing only within authorized scope; emergency containment is minimal, reversible where possible and fully attributed.",
+  "attribution_policy": "Record DISCOVERED_BY, PROPOSED_BY, IMPLEMENTED_BY, REVIEWED_BY and VALIDATED_BY independently.",
+  "non_interference_protocol": "DETECT → DOCUMENT → ATTRIBUTE → HANDOFF → OWNER ACTION → VERIFY → PERSIST",
+  "failure_protocol": "FAIL → PRESERVE STATE → RECORD FAILURE → CLASSIFY → HANDOFF → RECOVER → VERIFY → PERSIST",
+  "emergency_protocol": "DETECT → PRESERVE EVIDENCE → RECORD INCIDENT → NOTIFY OWNER/CUSTODIAN → MINIMAL CONTAINMENT → TRANSFER CONTROL → RECOVERY VERIFICATION → POST-INCIDENT REVIEW",
+  "new_mission_admission": "Distinct method + differentiated interfaces + recurring blind spot + independent failure mode + authority boundary + measurable value + no adequate fusion alternative.",
+  "retirement_policy": "Retirement preserves state, provenance, contributions and historical outputs; it is not deletion.",
+  "next_architecture_action": "Hand executable governance enforcement, permission boundaries, bootstrap replay tests and security fixtures to Mission 01; ESPÍA continues scientific frontier work and audits implementation against the governance contract.",
   "global_completion": false
 }

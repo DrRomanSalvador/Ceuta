@@ -15,6 +15,7 @@ _ALLOWED_SELECTION = {"NONE", "OBSERVABLE_ONLY", "SELECTED", "UNKNOWN"}
 
 
 def ensure_prediction_outcome_schema(connection: sqlite3.Connection) -> None:
+    owns_transaction = not connection.in_transaction
     connection.execute("""CREATE TABLE IF NOT EXISTS scientific_prediction_outcomes (
         prediction_id TEXT PRIMARY KEY, decision_id TEXT NOT NULL, action_id TEXT NOT NULL,
         outcome_id TEXT NOT NULL UNIQUE, target TEXT NOT NULL, outcome_time TEXT NOT NULL,
@@ -33,7 +34,8 @@ def ensure_prediction_outcome_schema(connection: sqlite3.Connection) -> None:
     if columns and "action_id" not in columns:
         connection.execute("ALTER TABLE scientific_prediction_outcomes ADD COLUMN action_id TEXT NOT NULL DEFAULT ''")
     connection.execute("CREATE INDEX IF NOT EXISTS idx_prediction_outcomes_decision ON scientific_prediction_outcomes(decision_id, outcome_time)")
-    connection.commit()
+    if owns_transaction:
+        connection.commit()
 
 
 def _log_loss(probability: float, observed: int) -> float:
@@ -72,7 +74,6 @@ def record_prediction_outcome(connection: sqlite3.Connection, *, prediction_id: 
                               revision_id: str, measurement_process_id: str, outcome_definition_version: str,
                               transformation_id: str, censoring_status: str = "NONE", missingness_status: str = "OBSERVED",
                               selection_status: str = "NONE", intervention_exposure_id: str | None = None) -> dict[str, Any]:
-    """Link one persisted prediction to a fully ascertained point-in-time observed binary outcome."""
     required = (prediction_id, decision_id, action_id, outcome_id, target, source_id, source_version, revision_id, measurement_process_id, outcome_definition_version, transformation_id)
     if any(not value for value in required) or not provenance:
         raise ValueError("prediction outcome identity, provenance and ascertainment identity are required")
@@ -89,8 +90,10 @@ def record_prediction_outcome(connection: sqlite3.Connection, *, prediction_id: 
     if missingness_status != "OBSERVED" or censoring_status != "NONE" or selection_status != "NONE":
         raise ValueError("non-observed, censored, or selected outcomes are not eligible for binary scoring")
 
+    owns_transaction = not connection.in_transaction
     ensure_prediction_outcome_schema(connection)
-    connection.execute("BEGIN IMMEDIATE")
+    if owns_transaction:
+        connection.execute("BEGIN IMMEDIATE")
     try:
         prediction = connection.execute("SELECT decision_id, available_at, payload_json, payload_fingerprint FROM scientific_predictions WHERE prediction_id=?", (prediction_id,)).fetchone()
         if prediction is None:
@@ -127,17 +130,20 @@ def record_prediction_outcome(connection: sqlite3.Connection, *, prediction_id: 
         if row is not None:
             if row != values:
                 raise RuntimeError("prediction outcome identity collision: existing outcome differs")
-            connection.commit()
+            if owns_transaction:
+                connection.commit()
             return get_prediction_outcome(connection, prediction_id) or {}
         existing_outcome = connection.execute("SELECT prediction_id FROM scientific_prediction_outcomes WHERE outcome_id=?", (outcome_id,)).fetchone()
         if existing_outcome is not None and existing_outcome[0] != prediction_id:
             raise RuntimeError("outcome identity collision: outcome_id is already linked to another prediction")
         recorded_at = datetime.now(timezone.utc).isoformat()
         connection.execute("INSERT INTO scientific_prediction_outcomes(prediction_id,decision_id,action_id,outcome_id,target,outcome_time,observed,predicted_probability,brier_error,log_loss_error,provenance_json,recorded_at,source_id,source_version,observation_time,availability_time,ascertainment_time,revision_id,measurement_process_id,outcome_definition_version,transformation_id,censoring_status,missingness_status,selection_status,intervention_exposure_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", (prediction_id, *values, recorded_at))
-        connection.commit()
+        if owns_transaction:
+            connection.commit()
         return get_prediction_outcome(connection, prediction_id) or {}
     except Exception:
-        connection.rollback()
+        if owns_transaction:
+            connection.rollback()
         raise
 
 

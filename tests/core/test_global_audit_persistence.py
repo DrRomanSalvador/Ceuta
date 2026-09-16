@@ -96,6 +96,50 @@ def test_concurrent_conflicting_prediction_identity_is_rejected(tmp_path):
         conflicting.close()
 
 
+def test_concurrent_identical_outcome_delivery_is_idempotent(tmp_path):
+    database = tmp_path / "outcome-concurrent.sqlite"
+    now = datetime.now(timezone.utc)
+    payload = _prediction("outcome-concurrent-prediction")
+    payload["origin_time"] = (now - timedelta(hours=2)).isoformat()
+    payload["available_at"] = (now - timedelta(hours=1, minutes=30)).isoformat()
+
+    connection = sqlite3.connect(database, timeout=10.0)
+    try:
+        record_prediction(connection, payload, decision_id="decision-outcome-concurrent")
+    finally:
+        connection.close()
+
+    outcome_time = now - timedelta(minutes=10)
+
+    def deliver() -> dict[str, object]:
+        connection = sqlite3.connect(database, timeout=10.0)
+        try:
+            return record_prediction_outcome(
+                connection,
+                prediction_id="outcome-concurrent-prediction",
+                decision_id="decision-outcome-concurrent",
+                action_id="action-concurrent",
+                outcome_id="outcome-concurrent",
+                target="risk",
+                outcome_time=outcome_time,
+                observed=1,
+                provenance=("test",),
+            )
+        finally:
+            connection.close()
+
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        results = list(executor.map(lambda _: deliver(), range(16)))
+
+    assert len(results) == 16
+    assert {result["outcome_id"] for result in results} == {"outcome-concurrent"}
+    connection = sqlite3.connect(database)
+    try:
+        assert connection.execute("SELECT COUNT(*) FROM scientific_prediction_outcomes").fetchone() == (1,)
+    finally:
+        connection.close()
+
+
 def test_mutated_prediction_cannot_enter_outcome_evaluation(tmp_path):
     database = tmp_path / "prediction-integrity.sqlite"
     connection = sqlite3.connect(database, timeout=10.0)

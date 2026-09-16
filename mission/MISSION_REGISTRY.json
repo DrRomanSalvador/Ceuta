@@ -1,10 +1,12 @@
 {
-  "schema_version": "1.0.0",
+  "schema_version": "1.1.0",
   "registry_id": "CEUTIA_SERPIENTE_MISSION_REGISTRY",
-  "source_of_truth": "repository-discovered mission artifacts; conversation-only mission names are not accepted as established facts",
-  "discovery_status": "INCOMPLETE",
+  "source_of_truth": "repository-discovered mission artifacts plus explicitly typed cross-branch source projections; conversation-only mission names are never accepted as established facts",
+  "discovery_status": "SOURCE_PROJECTION_REQUIRES_BRANCH_RECONCILIATION",
   "claimed_mission_count_from_current_instruction": 15,
+  "source_main_evidenced_mission_count": 16,
   "repository_verified_mission_count": 1,
+  "operational_mission_count_on_current_branch": 1,
   "missions": [
     {
       "mission_id": "CEUTIA_SERPIENTE_CONTINUOUS_SCIENTIFIC_ENGINEERING",
@@ -21,16 +23,34 @@
       "state_location": ["mission/CEUTIA_SERPIENTE_MISSION_STATE.json", "mission/MISSION_MASTER_STATE.json", "mission/SCIENTIFIC_MISSION_MEMORY.json"],
       "current_status": "ACTIVE",
       "known_limitations": ["prospective validity not established", "complete real-time acquisition not established", "response effectiveness external"],
-      "next_work": "LEGACY-001 then F14-001"
+      "next_work": "CP-REALITY-001"
     }
   ],
+  "source_main_projection": [
+    {"mission_id":"MISSION-01","mission_name":"INGENIERO","source_status":"ACTIVE"},
+    {"mission_id":"MISSION-02","mission_name":"ESPÍA","source_status":"ACTIVE"},
+    {"mission_id":"MISSION-03","mission_name":"BIBLIOTECARIO","source_status":"AVAILABLE"},
+    {"mission_id":"MISSION-04","mission_name":"GROK","source_status":"AVAILABLE"},
+    {"mission_id":"MISSION-05","mission_name":"FORJA","source_status":"DEFINED"},
+    {"mission_id":"MISSION-06","mission_name":"CRONOS","source_status":"DEFINED"},
+    {"mission_id":"MISSION-07","mission_name":"ATLAS","source_status":"DEFINED"},
+    {"mission_id":"MISSION-08","mission_name":"NEXO","source_status":"DEFINED"},
+    {"mission_id":"MISSION-09","mission_name":"ORÁCULO","source_status":"DEFINED"},
+    {"mission_id":"MISSION-10","mission_name":"CENTINELA","source_status":"DEFINED"},
+    {"mission_id":"MISSION-11","mission_name":"MÉDICO","source_status":"DEFINED"},
+    {"mission_id":"MISSION-12","mission_name":"ESTRATEGA","source_status":"DEFINED"},
+    {"mission_id":"MISSION-13","mission_name":"NOTARIO","source_status":"DEFINED"},
+    {"mission_id":"MISSION-14","mission_name":"ABISMO","source_status":"DEFINED"},
+    {"mission_id":"MISSION-15","mission_name":"CIBERSEGURIDAD","source_status":"ACTIVE"},
+    {"mission_id":"ROMAN","mission_name":"ROMÁN","source_status":"ACTIVE_SOURCE_MAIN; REGISTERED_DISCOVERABLE_INVOCABLE_EXECUTION_VALIDATION_PENDING"}
+  ],
   "missing_missions": {
-    "status": "UNKNOWN",
-    "reason": "The current repository discovery did not establish the claimed total of 15 missions. No mission may be invented from conversation memory.",
-    "required_action": "Discover authoritative mission registry/mission artifacts across the repository and connected repositories; add each mission only with repository-backed evidence.",
+    "status": "RECONCILED_SOURCE_PROJECTION_PENDING_CURRENT_BRANCH_MIGRATION",
+    "reason": "Main branch now establishes 16 mission identities, but the current branch does not yet contain the canonical docs/missions registry tree. Source projection is therefore explicit but not promoted to current operational reality.",
+    "required_action": "Reconcile the source-main architecture into the current control-plane registry, preserving source/current distinctions and applying formal admission to any mission not already operationally registered.",
     "blocking": false
   },
   "future_mission_contract": {
-    "required_fields": ["mission_id", "mission_name", "purpose", "scope", "authority", "non_scope", "owner_surfaces", "inputs", "outputs", "dependencies", "handoff_protocol", "state_location", "current_status", "known_limitations", "next_work"]
+    "required_fields": ["mission_id", "mission_name", "purpose", "scope", "authority", "non_scope", "owner_surfaces", "inputs", "outputs", "dependencies", "handoff_protocol", "state_location", "current_status", "known_limitations", "next_work", "operating_standard_version", "recovery_policy", "retirement_conditions"]
   }
 }

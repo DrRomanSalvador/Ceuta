@@ -193,19 +193,34 @@ class MissionEvolutionEngine:
     @staticmethod
     def generate_contract(proposal: MissionAdmissionProposal) -> dict[str, Any]:
         return {
-            "mission_id": proposal.proposed_mission_id, "mission_name": proposal.proposed_mission_id,
-            "mission_type": "ADMITTED_FROM_EVOLUTION_ENGINE", "purpose": proposal.problem_statement,
-            "scope": list(proposal.proposed_scope), "non_scope": list(proposal.non_scope), "inputs": [], "outputs": [],
-            "capabilities": list(proposal.required_capability), "limitations": ["Must remain within the approved proposal scope."],
+            "schema_version": "1.0",
+            "mission_id": proposal.proposed_mission_id,
+            "mission_name": proposal.proposed_mission_id,
+            "mission_type": "ADMITTED_FROM_EVOLUTION_ENGINE",
+            "purpose": proposal.problem_statement,
+            "scope": list(proposal.proposed_scope),
+            "non_scope": list(proposal.non_scope),
+            "inputs": ["TASK_PACKAGE", "EVIDENCE_REFS", "STATE_VERSION"],
+            "outputs": ["RESULT", "EVIDENCE", "STATE_DELTA", "VALIDATION"],
+            "capabilities": list(proposal.required_capability),
+            "limitations": ["Must remain within the approved proposal scope.", "Generated output is not evidence."],
             "owner": proposal.proposed_mission_id,
             "authority": {"CAN_DISCOVER": True, "CAN_INVOKE": True, "CAN_READ": True, "CAN_PROPOSE": True, "CAN_MODIFY": False, "CAN_VALIDATE": False, "CAN_AUTHORIZE": False},
-            "read_permissions": [], "write_permissions": [], "validation_role": "Validate only through declared validation plan.",
-            "handoff_in": [], "handoff_out": [], "dependencies": list(proposal.dependencies),
+            "read_permissions": list(proposal.dependencies),
+            "write_permissions": [f"mission:{proposal.proposed_mission_id}:state"],
+            "validation_role": "Validate only through declared validation plan.",
+            "handoff_in": ["TASK_PACKAGE", "CLAIM", "EVIDENCE", "STATE"],
+            "handoff_out": ["RESULT", "EVIDENCE", "STATE_DELTA", "VALIDATION"],
+            "dependencies": list(proposal.dependencies),
             "state_location": f"docs/missions/{proposal.proposed_mission_id.lower()}/MISSION_STATE.json",
             "evidence_location": f"docs/missions/{proposal.proposed_mission_id.lower()}/EVIDENCE.json",
             "invocation_contract": f"docs/missions/{proposal.proposed_mission_id.lower()}/INVOCATION_CONTRACT.json",
-            "security_requirements": [proposal.security_implications], "adversarial_tests": list(proposal.validation_plan),
-            "completion_criteria": ["All declared integration and validation tests pass."], "retirement_criteria": list(proposal.retirement_plan),
+            "operations": ["DISCOVER", "INVOKE", "EXECUTE", "VALIDATE", "HANDOFF", "PERSIST", "REVIEW", "RETIRE"],
+            "bootstrap": "DISCOVER → LOAD CONTRACT → CHECK AUTHORITY → CHECK INPUTS → INVOKE",
+            "security_requirements": [proposal.security_implications, "Fail closed on undeclared authority or writes."],
+            "adversarial_tests": list(proposal.validation_plan),
+            "completion_criteria": ["All declared integration and validation tests pass."],
+            "retirement_criteria": list(proposal.retirement_plan),
         }
 
     @staticmethod
@@ -216,9 +231,10 @@ class MissionEvolutionEngine:
             "mission_type": contract["mission_type"], "purpose": proposal.problem_statement,
             "scope": list(proposal.proposed_scope), "non_scope": list(proposal.non_scope),
             "status": "ADMITTED_PENDING_VALIDATION", "contract": contract["invocation_contract"],
-            "invocation_contract": contract["invocation_contract"], "state_location": contract["state_location"],
-            "evidence_location": contract["evidence_location"], "adversarial_tests": contract["adversarial_tests"],
-            "completion_criteria": contract["completion_criteria"], "retirement_criteria": contract["retirement_criteria"],
+            "invocation_contract": contract["invocation_contract"], "bootstrap": contract["bootstrap"],
+            "state_location": contract["state_location"], "evidence_location": contract["evidence_location"],
+            "adversarial_tests": contract["adversarial_tests"], "completion_criteria": contract["completion_criteria"],
+            "retirement_criteria": contract["retirement_criteria"], "operations": contract["operations"],
         }
 
     @staticmethod
@@ -263,10 +279,10 @@ Exchange TASK, CLAIM, HANDOFF, EVIDENCE, STATE, RESULT and VALIDATION objects; d
 {p.security_implications}
 
 ## MISSION STATE
-Persistent state is the source of operational continuity; conversational context is not.
+Persistent state is the source of operational continuity; conversational context is not. Current task and state version must be discoverable from persistent state.
 
 ## MISSION BOOTSTRAP
-DISCOVER → LOAD CONTRACT → CHECK AUTHORITY → CHECK INPUTS → EXECUTE → VALIDATE → PERSIST DELTA → HANDOFF/CONTINUE.
+DISCOVER → LOAD CONTRACT → CHECK AUTHORITY → CHECK INPUTS → INVOKE → EXECUTE → VALIDATE → PERSIST → HANDOFF/CONTINUE.
 
 ## MISSION EXECUTION LOOP
 Observe → execute declared capability → record evidence → produce result → validate → persist versioned delta → reconcile conflicts → continue or hand off.

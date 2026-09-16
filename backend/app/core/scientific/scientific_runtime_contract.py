@@ -21,7 +21,7 @@ def _canonical(value: object) -> str:
 
 
 def _digest(value: object) -> str:
-    return sha256(_canonical(value).encode("utf-8")).hexdigest()
+    return sha256(_canonical(value).encode()).hexdigest()
 
 
 class RuntimeState(StrEnum):
@@ -66,9 +66,7 @@ class FeatureSupport:
     review_margin: float = 0.05
 
     def __post_init__(self) -> None:
-        if not self.feature.strip() or not all(math.isfinite(v) for v in (
-            self.observed_min, self.observed_max, self.deployment_value, self.review_margin
-        )):
+        if not self.feature.strip() or not all(math.isfinite(v) for v in (self.observed_min, self.observed_max, self.deployment_value, self.review_margin)):
             raise ValueError("feature support values must be finite")
         if self.observed_max <= self.observed_min:
             raise ValueError("observed support must have positive width")
@@ -291,13 +289,19 @@ class ScientificRuntimeLedger:
     def append(self, assessment: ScientificRuntimeAssessment) -> None:
         payload = _canonical(asdict(assessment))
         created_at = assessment.created_at or datetime.now(timezone.utc).isoformat()
-        with sqlite3.connect(self.storage_path) as db:
-            if db.execute("SELECT 1 FROM scientific_runtime_assessments WHERE assessment_id=?", (assessment.assessment_id,)).fetchone():
-                raise ValueError("scientific runtime assessment already exists")
-            previous = db.execute("SELECT assessment_hash FROM scientific_runtime_assessments ORDER BY created_at DESC, assessment_id DESC LIMIT 1").fetchone()
-            previous_hash = previous[0] if previous else ""
-            digest = _digest({"payload": payload, "previous_hash": previous_hash})
-            db.execute("INSERT INTO scientific_runtime_assessments (assessment_id,decision_id,payload,assessment_hash,previous_hash,created_at) VALUES(?,?,?,?,?,?)", (assessment.assessment_id, assessment.decision_id, payload, digest, previous_hash, created_at))
+        with sqlite3.connect(self.storage_path, timeout=10.0) as db:
+            db.execute("BEGIN IMMEDIATE")
+            try:
+                if db.execute("SELECT 1 FROM scientific_runtime_assessments WHERE assessment_id=?", (assessment.assessment_id,)).fetchone():
+                    raise ValueError("scientific runtime assessment already exists")
+                previous = db.execute("SELECT assessment_hash FROM scientific_runtime_assessments ORDER BY created_at DESC, assessment_id DESC LIMIT 1").fetchone()
+                previous_hash = previous[0] if previous else ""
+                digest = _digest({"payload": payload, "previous_hash": previous_hash})
+                db.execute("INSERT INTO scientific_runtime_assessments (assessment_id,decision_id,payload,assessment_hash,previous_hash,created_at) VALUES(?,?,?,?,?,?)", (assessment.assessment_id, assessment.decision_id, payload, digest, previous_hash, created_at))
+                db.commit()
+            except Exception:
+                db.rollback()
+                raise
 
     def verify_integrity(self) -> bool:
         with sqlite3.connect(self.storage_path) as db:

@@ -64,7 +64,7 @@ def _final_epistemic_assessment(payload,evidence):
     provenance_refs=tuple(ref for item in evidence for ref in item.provenance_refs)
     if prediction is not None: provenance_refs=tuple(dict.fromkeys(provenance_refs + tuple(prediction.provenance) + (f"serpiente:prediction:{prediction.prediction_id}",)))
     external_evidence_refs=tuple(item.evidence_id for item in evidence)
-    if prediction is not None: external_evidence_refs=tuple(dict.fromkeys(external_evidence_refs + (f"serpiente:{prediction.prediction_id}",)))
+    if prediction is not None: external_evidence_refs=tuple(dict.fromkeys(external_evidence_refs + (f"serpiente:prediction:{prediction.prediction_id}",)))
     independent_refs=tuple(item.evidence_id for item in evidence if item.assessment.independent_origin)
     global_doubt=(not evidence or not independent_refs or any(item.assessment.disposition is not EvidenceDisposition.ACCEPT for item in evidence) or any(item.assessment.contradiction_weight>0.5 for item in evidence))
     condition=FalsificationCondition(condition_id=f"{payload.decision_id}:evidence-integrity",target_id=payload.decision_id,expected_observation="cited evidence and any SERPIENTE forecast remain temporally valid, provenance-complete and decision-eligible",falsifying_observation="material contradiction, provenance failure, temporal invalidity or future SERPIENTE prediction is detected",independent_evidence_refs=independent_refs,assumptions=("bitemporal validity is enforced before decision execution","SERPIENTE forecasts are predictive rather than causal"),testable=bool(independent_refs))
@@ -112,16 +112,4 @@ async def evaluate_decision(payload:DecisionRequest,request:Request):
         return {"decision_id":result.decision_id,"disposition":result.disposition.value,"recommendation":{"option_id":result.recommendation.option_id,"score":result.recommendation.score,"expected_utility":result.recommendation.expected_utility,"expected_harm":result.recommendation.expected_harm,"maximum_regret":result.recommendation.maximum_regret,"reasons":result.recommendation.reasons},"control_reason":result.control_reason,"audit_event_id":result.audit_event_id,"epistemic_gate_event_id":gate_event.event_id,"serpiente_prediction_id":payload.serpiente_prediction.prediction_id if payload.serpiente_prediction else None,"lineage_fingerprint":result.lineage.semantic_fingerprint(),"uncertainty":result.uncertainty.value,"degraded_reasons":result.degraded_reasons}
     finally: store.close()
 @app.get("/version",tags=["system"],summary="Application version")
-async def version(): return {"service":APP_NAME,"version":APP_VERSION}
-@app.get("/diagnostics",tags=["system"],summary="Minimal non-sensitive runtime diagnostics")
-async def diagnostics():
-    state=_readiness(); return {"service":APP_NAME,"version":APP_VERSION,"application":STATUS_RUNNING,"liveness":STATUS_HEALTHY,"readiness":STATUS_READY if state.ready else STATUS_NOT_READY,"runtime":{"host_configured":bool(RUNTIME_CONFIG.host),"port_configured":MIN_PORT<=RUNTIME_CONFIG.port<=MAX_PORT,"code_revision_configured":bool(RUNTIME_CONFIG.code_revision),"decision_persistence_configured":bool(RUNTIME_CONFIG.decision_db),"decision_api_key_configured":bool(os.getenv("CEUTIA_DECISION_API_KEY",""))}}
-@app.get("/diagnostics/config",tags=["system"],summary="Non-sensitive runtime configuration validation")
-async def diagnostics_config():
-    state=_readiness(); return {"status":"valid" if state.ready else "incomplete","host_configured":bool(RUNTIME_CONFIG.host),"port_valid":MIN_PORT<=RUNTIME_CONFIG.port<=MAX_PORT,"code_revision_configured":bool(RUNTIME_CONFIG.code_revision),"decision_persistence_configured":bool(RUNTIME_CONFIG.decision_db),"decision_api_key_configured":bool(os.getenv("CEUTIA_DECISION_API_KEY",""))}
-@app.exception_handler(Exception)
-async def unhandled_exception_handler(request:Request,exc:Exception):
-    LOGGER.exception("Unhandled exception: method=%s path=%s",request.method,request.url.path,exc_info=exc); return JSONResponse(status_code=500,content={"error":"internal_server_error","service":APP_NAME,"version":APP_VERSION})
-def main():
-    import uvicorn; uvicorn.run("app.main:app",host=RUNTIME_CONFIG.host,port=RUNTIME_CONFIG.port)
-if __name__=="__main__": main()
+async def version(): return {"version":APP_VERSION}

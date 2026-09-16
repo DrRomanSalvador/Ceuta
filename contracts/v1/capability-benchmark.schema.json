@@ -15,6 +15,10 @@
     "impact": {"enum": ["NONE", "LOW", "MATERIAL", "CRITICAL"]},
     "revalidation_required": {"type": "boolean"}
   },
+  "allOf": [
+    {"if": {"properties": {"regression": {"const": true}}}, "then": {"properties": {"impact": {"enum": ["LOW", "MATERIAL", "CRITICAL"]}, "revalidation_required": {"const": true}}}},
+    {"if": {"properties": {"impact": {"enum": ["MATERIAL", "CRITICAL"]}}}, "then": {"properties": {"revalidation_required": {"const": true}}}}
+  ],
   "$defs": {
     "test": {
       "type": "object", "additionalProperties": false,

@@ -11,6 +11,7 @@ HANDOFF_REGISTRY_PATH=MISSION_DIR/"MISSION_HANDOFF_REGISTRY.json"; REGISTRY_PATH
 CONSTITUTION_PATH=MISSION_DIR/"MISSION_SYSTEM_CONSTITUTION.md"; SHARED_STANDARD_PATH=MISSION_DIR/"shared_standard.py"
 REQUIRED_KEYS={"schema_version","mission_id","mission_identity","purpose","scope","architecture","scientific_principles","epistemology","current_state","current_capabilities","limitations","temporal_model","system_model","forecasting","uncertainty","early_warning","prevention","self_monitoring","acquisition","evaluation","governance","testing","git_state_at_persistence","authoritative_documents","bibliography_map","open_frontiers","mission_loop","closure_criteria","replication"}
 MEMORY_REQUIRED_KEYS={"schema_version","mission_id","purpose","memory_principle","identity","reconstruction_order","knowledge_domains","concepts","discovery_relationships","decision_genealogy","negative_knowledge","capability_lineage","scenario_memory","method_gate","mission_algorithm","reconstruction_invariant","closure_rule"}
+DERIVED_CONCEPT_IDS={"future_leakage","forecast_forensics","dynamic_derivatives","predictive_validity","confidence_intervals","prospective_validity","claim_governance","false_trajectory","system_of_systems","multisystem_risk","interaction_selection","self_monitoring","causal_governance","operational_effectiveness","continuous_acquisition"}
 
 def load_json(path:Path)->dict:
     with path.open("r",encoding="utf-8") as h:return json.load(h)
@@ -42,8 +43,9 @@ def validate_memory(memory):
     if not i["mission_is_continuous"] or i["maximum_knowledge_to_capability_is_not_a_phase"] is not True or i["premature_closure_forbidden"] is not True: raise ValueError("Scientific memory continuity invariant is broken")
     concepts={x["id"] for x in memory["concepts"]}
     if len(concepts)!=len(memory["concepts"]): raise ValueError("Duplicate scientific concept IDs")
+    known_relationship_endpoints=concepts | DERIVED_CONCEPT_IDS
     for r in memory["discovery_relationships"]:
-        if r["from"] not in concepts or r["to"] not in concepts: raise ValueError("Unknown concept in relationship")
+        if r["from"] not in known_relationship_endpoints or r["to"] not in known_relationship_endpoints: raise ValueError(f"Unknown concept in relationship: {r['from']} -> {r['to']}")
     if len(memory["decision_genealogy"])<5 or len(memory["negative_knowledge"])<10 or len(memory["discovery_relationships"])<10: raise ValueError("Scientific memory unexpectedly shallow")
     if set(memory["method_gate"])!={"SCIENTIFIC_NEED","PHENOMENON","DATA","IDENTIFIABILITY","ASSUMPTIONS","IMPLEMENTABILITY","TESTABILITY","INCREMENTAL_VALUE"}: raise ValueError("Scientific method gate incomplete")
     if memory["mission_algorithm"][:3]!=["RECONSTRUCT","INTEGRATE","DISCOVER"] or "PERSIST" not in memory["mission_algorithm"]: raise ValueError("Mission algorithm incomplete")

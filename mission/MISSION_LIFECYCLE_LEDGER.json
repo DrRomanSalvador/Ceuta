@@ -30,6 +30,7 @@
       },
       "runtime_validation_status": "PENDING",
       "operational_status": "NOT_ESTABLISHED",
+      "mutation_event_id": "EV-0002",
       "rule": "Repository admission does not grant live runtime execution. Generated output is never promoted to source evidence."
     }
   ],

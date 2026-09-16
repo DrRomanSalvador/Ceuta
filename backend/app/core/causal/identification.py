@@ -20,6 +20,20 @@ class CausalIdentifier:
             blockers.append("negative_controls_missing")
         if hypothesis.exposure not in graph.ancestors(hypothesis.outcome):
             blockers.append("no_directed_exposure_to_outcome_path")
+        if not hypothesis.population:
+            blockers.append("target_population_not_declared")
+        if not hypothesis.time_zero:
+            blockers.append("time_zero_not_declared")
+        if not hypothesis.consistency_declared:
+            blockers.append("consistency_not_declared")
+        if not hypothesis.positivity_declared:
+            blockers.append("positivity_not_declared")
+        if not hypothesis.interference_addressed:
+            blockers.append("interference_not_addressed")
+        if not hypothesis.time_varying_confounding_addressed:
+            blockers.append("time_varying_confounding_not_addressed")
+        if not hypothesis.transportability_addressed:
+            blockers.append("transportability_not_addressed")
 
         identified = not blockers
         return IdentificationAssessment(

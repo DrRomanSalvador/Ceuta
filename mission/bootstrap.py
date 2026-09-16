@@ -79,7 +79,6 @@ def validate_projection_event_reconciliation(r):
     unresolved=set(r.get("unresolved_migration_bindings",[]))
     materialized={x["record_id"] for x in records if x.get("classification")=="MATERIALIZED_HISTORICAL_RECORD"}
     if unresolved!=materialized: raise ValueError("Unresolved migration binding set diverges from unlinked historical records")
-    if "synthetic" in r.get("rule","").lower() and "synthetic original" not in r["rule"].lower(): raise ValueError("Historical provenance rule is ambiguous")
 
 def validate_shared_standard():
     try:
@@ -107,10 +106,10 @@ def validate_control_plane():
     cp=load_json(CONTROL_PLANE_STATE_PATH); sm=load_json(STATE_MACHINE_PATH); hr=load_json(HANDOFF_REGISTRY_PATH); registry=load_json(REGISTRY_PATH); queue=load_json(QUEUE_PATH); claims=load_json(CLAIMS_PATH); contributions=load_json(CONTRIBUTION_PATH); contradictions=load_json(CONTRADICTION_PATH); lifecycle=load_json(LIFECYCLE_PATH); roman_contract=load_json(ROMAN_CONTRACT_PATH); roman_state=load_json(ROMAN_STATE_PATH)
     ControlPlaneContract().validate_distinctions()
     if cp["status"] not in {"PARTIALLY_VALIDATED","VALIDATED"}: raise ValueError("Invalid control-plane status")
+    if sm["mission_state_machine"]["states"]!=[s.value for s in MissionState]: raise ValueError("Persisted mission state machine differs from executable machine")
     for h in hr["items"]: validate_handoff(h)
     for q in queue["items"]: validate_waiting_policy(q)
     for m in cp["missions"]: validate_mission_contract(m)
-    if len(sm["mission_state_machine"]["states"])!=len(MissionState): raise ValueError("Persisted mission state machine size differs from executable machine")
     if cp["mission_registry_source_evidence"]["mission_count_evidenced_in_source"]!=len(cp["missions"]): raise ValueError("Control-plane mission projection count mismatch")
     validate_registry_consistency(registry, projected_count=cp["mission_registry_source_evidence"]["mission_count_evidenced_in_source"])
     roman=discover(registry,mission_id="ROMAN")

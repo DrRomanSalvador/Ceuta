@@ -1,4 +1,65 @@
-"""Core CEUTIA capability modules."""
+from .audit import (
+    AuditChain,
+    AuditEvent,
+    canonical_json,
+    sha256_text,
+)
+
+from .epistemic import (
+    EpistemicEngine,
+    EpistemicEvaluation,
+    EpistemicState,
+    EvidenceItem,
+    ProbabilityStatus,
+    RiskEvaluation,
+    calculate_risk,
+)
+
+from .final_epistemic_control import (
+    ClosedLoopEvaluation,
+    CounterfactualStatus,
+    EpistemicContract,
+    EpistemicIntegrityEngine,
+    EpistemicIntegrityStatus,
+    EpistemicSelfCritique,
+    EpistemicSelfModel,
+    EpistemicTransformation,
+    FinalEpistemicAssessment,
+    FinalEpistemicController,
+    FalsifiabilityStatus,
+    FalsificationCondition,
+    OntologySignal,
+    OntologyStatus,
+    ProspectiveEvaluationProtocol,
+    ProspectiveEvaluationResult,
+    RealityAnchorAssessment,
+    SystemValidity,
+)
+
+from .policy import (
+    DataClass,
+    PolicyDecision,
+    PolicyEngine,
+    PolicyFinding,
+    PolicyRequest,
+    PolicyResult,
+    Purpose,
+    RiskTier,
+    SensitiveAttribute,
+)
+
+from .review import (
+    ReviewGate,
+    ReviewLevel,
+    can_publish,
+    review_gate,
+)
+
+from .semantic_contract import (
+    MissingDataPolicy,
+    SemanticClassification,
+    SemanticContract,
+)
 
 from .actionability import (
     ActionabilityAssessment,
@@ -6,16 +67,60 @@ from .actionability import (
     ActionabilityOption,
     ActionabilityStatus,
     ActionabilityTrace,
-    ProbabilityStatus,
+    ProbabilityStatus as ActionabilityProbabilityStatus,
     validate_actionability_chain,
 )
 
 __all__ = [
+    "AuditChain",
+    "AuditEvent",
+    "canonical_json",
+    "sha256_text",
+    "EpistemicEngine",
+    "EpistemicEvaluation",
+    "EpistemicState",
+    "EvidenceItem",
+    "ProbabilityStatus",
+    "RiskEvaluation",
+    "calculate_risk",
+    "ClosedLoopEvaluation",
+    "CounterfactualStatus",
+    "EpistemicContract",
+    "EpistemicIntegrityEngine",
+    "EpistemicIntegrityStatus",
+    "EpistemicSelfCritique",
+    "EpistemicSelfModel",
+    "EpistemicTransformation",
+    "FinalEpistemicAssessment",
+    "FinalEpistemicController",
+    "FalsifiabilityStatus",
+    "FalsificationCondition",
+    "OntologySignal",
+    "OntologyStatus",
+    "ProspectiveEvaluationProtocol",
+    "ProspectiveEvaluationResult",
+    "RealityAnchorAssessment",
+    "SystemValidity",
+    "MissingDataPolicy",
+    "PolicyDecision",
+    "PolicyEngine",
+    "PolicyFinding",
+    "PolicyRequest",
+    "PolicyResult",
+    "Purpose",
+    "ReviewGate",
+    "ReviewLevel",
+    "RiskTier",
+    "SemanticClassification",
+    "SemanticContract",
+    "SensitiveAttribute",
+    "can_publish",
+    "review_gate",
     "ActionabilityAssessment",
     "ActionabilityClient",
     "ActionabilityOption",
     "ActionabilityStatus",
     "ActionabilityTrace",
-    "ProbabilityStatus",
+    "ActionabilityProbabilityStatus",
     "validate_actionability_chain",
 ]

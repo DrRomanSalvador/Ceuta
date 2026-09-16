@@ -182,8 +182,28 @@ class ActionabilityAssessment:
             if value is not None and (value.tzinfo is None or value.utcoffset() is None):
                 raise ValueError(f"{name} must be timezone-aware")
 
-    def can_claim_actionability(self) -> bool:
-        return self.status is not ActionabilityStatus.NON_ACTIONABLE
+    def is_valid_at(self, at: datetime) -> bool:
+        """Return whether this assessment is temporally valid at ``at``.
+
+        Expiry is a semantic validity boundary. A stale assessment must not
+        remain claimable merely because its stored maturity status is high.
+        """
+        if at.tzinfo is None or at.utcoffset() is None:
+            raise ValueError("at must be timezone-aware")
+        if at < self.created_at:
+            return False
+        return self.expiry is None or at < self.expiry
+
+    def can_claim_actionability(self, at: datetime | None = None) -> bool:
+        """Return whether actionability may currently be claimed.
+
+        Without ``at``, this preserves the structural maturity check. Callers
+        making a current claim should provide an evaluation time so expiry is
+        enforced explicitly.
+        """
+        if self.status is ActionabilityStatus.NON_ACTIONABLE:
+            return False
+        return at is None or self.is_valid_at(at)
 
     def requires_human_authority(self) -> bool:
         return self.decision_authority is not None

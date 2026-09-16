@@ -1,6 +1,6 @@
 import unittest
 
-from .control_plane import HandoffState, MissionState, reconcile, select_next_work, transition, validate_dependency_graph, validate_handoff
+from .control_plane import HandoffState, MissionState, reconcile, select_next_work, transition, validate_dependency_graph, validate_handoff, validate_registry_consistency
 from .shared_standard import (
     QualityLevel,
     enforce_claim_evidence,
@@ -36,9 +36,9 @@ class ConstitutionAdversarialTests(unittest.TestCase):
     def test_05_stale_state_freezes_claim(self):
         self.assertTrue(reconcile(documented="VERIFIED",actual="FAILED",evidence=["ci"])["claim_frozen"])
 
-    def test_06_registry_orphan_is_rejected(self):
+    def test_06_registry_removal_or_count_drift_is_rejected(self):
         with self.assertRaises(ValueError):
-            validate_dependency_graph([], [{"source":"MISSION-01","target":"MISSION-02"}])
+            validate_registry_consistency({"missions":[{"mission_id":"MISSION-01"}],"repository_verified_mission_count":2})
 
     def test_07_blocked_line_does_not_block_nonblocked_work(self):
         validate_blocked_path(blocker="W1",non_blocked_work_exists=True)
@@ -77,9 +77,9 @@ class ConstitutionAdversarialTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             enforce_claim_evidence(claim_level=QualityLevel.OPERATIONALLY_VALIDATED,evidence_level=QualityLevel.VERIFIED)
 
-    def test_17_human_reserved_authority_cannot_be_self_assigned(self):
-        with self.assertRaises(PermissionError):
-            validate_contract_change(actor="MISSION-01",owner="MISSION-01",authorizer="MISSION-01",evidence=["e"],human_reserved=True)
+    def test_17_authorization_loss_transitions_to_recovery(self):
+        result=transition(MissionState.ACTIVE,MissionState.RECOVERY_REQUIRED,authorized_actor="SYSTEM_RECOVERY",evidence=["authorization-lost"])
+        self.assertEqual(result["to"],MissionState.RECOVERY_REQUIRED.value)
 
     def test_18_self_elevation_is_rejected_by_authority_boundary(self):
         with self.assertRaises(PermissionError):

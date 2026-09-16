@@ -1,0 +1,22 @@
+{
+  "schema_version": "1.0",
+  "mission_id": "APOYO",
+  "identity": "IMPLEMENTED",
+  "contract": "IMPLEMENTED",
+  "meeting_point": "IMPLEMENTED",
+  "registry_discovery": "IMPLEMENTED",
+  "invocation": "IMPLEMENTED",
+  "non_interference": "IMPLEMENTED_BY_CONTRACT_AND_RUNTIME_BOUNDARY",
+  "duplication_guard": "IMPLEMENTED",
+  "collaboration_persistence": "IMPLEMENTED",
+  "handoff": "IMPLEMENTED",
+  "zero_context_recovery": "IMPLEMENTED",
+  "multi_instance_schema": "IMPLEMENTED",
+  "replication_protocol": "IMPLEMENTED_TO_RUNTIME_BOUNDARY",
+  "external_session_provisioning": "EXTERNAL_BOUNDARY",
+  "three_account_authorization": "EXTERNAL_ROOT_OF_TRUST_NOT_CONFIGURED",
+  "live_cross_process_orchestration": "EXTERNAL_BOUNDARY",
+  "tests": "PENDING_CI_EXECUTION",
+  "operational_status": "VALIDATION_PENDING",
+  "completion_claim": "NOT_OPERATIONALLY_PROVEN"
+}

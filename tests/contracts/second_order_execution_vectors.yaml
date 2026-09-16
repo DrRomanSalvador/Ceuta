@@ -7,6 +7,7 @@ cases:
     expect_valid: true
     payload:
       candidate_id: dc-001
+      trigger_type: ANOMALY
       observations: [obs-001]
       scientific_question: "Why did the observed signal deviate from baseline?"
       hypothesis_ids: [hyp-001, hyp-002]
@@ -18,6 +19,7 @@ cases:
     expect_valid: false
     payload:
       candidate_id: dc-002
+      trigger_type: DISCREPANCY
       observations: [obs-002]
       scientific_question: "Does the anomaly represent a reproducible effect?"
       hypothesis_ids: [hyp-003]
@@ -31,6 +33,7 @@ cases:
       disagreement_id: dg-001
       type: MODEL_BASED
       position_refs: [model-a:position, model-b:position]
+      source_refs: [source-a, source-b]
       shared_premise_refs: [claim-1]
       assumption_refs: [assumption-1]
       discriminative_evidence_refs: [experiment-1]
@@ -49,6 +52,7 @@ cases:
       disagreement_id: dg-002
       type: FACTUAL
       position_refs: [a, b]
+      source_refs: [source-a]
       status: RESOLVED
       minority_preserved: false
       history:

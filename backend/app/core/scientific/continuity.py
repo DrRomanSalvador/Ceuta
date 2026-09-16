@@ -16,7 +16,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-
 REQUIRED_ARTIFACTS = (
     "docs/agents/ESPIA_IDENTITY.md",
     "docs/agents/ESPIA_RECOVERY.md",
@@ -31,61 +30,32 @@ REQUIRED_ARTIFACTS = (
 )
 
 REQUIRED_MASTER_KEYS = (
-    "schema_version",
-    "state_id",
-    "agent",
-    "mission",
-    "role",
-    "engineering_boundary",
-    "current_question",
-    "unit_of_work",
-    "unit_of_evidence",
-    "unit_of_failure",
-    "unit_of_progress",
-    "unit_of_memory",
-    "evidence_ladder",
-    "epistemic_states",
-    "scientific_surfaces",
-    "global_status_axes",
-    "negative_knowledge",
-    "mandatory_failure_modes",
-    "current_frontier",
-    "next_executable_action",
-    "recovery_sources",
-    "repository_heads_at_reconciliation",
-    "last_reconciled_at",
+    "schema_version", "state_id", "agent", "mission", "role",
+    "engineering_boundary", "current_question", "unit_of_work",
+    "unit_of_evidence", "unit_of_failure", "unit_of_progress", "unit_of_memory",
+    "evidence_ladder", "epistemic_states", "scientific_surfaces",
+    "global_status_axes", "negative_knowledge", "mandatory_failure_modes",
+    "current_frontier", "next_executable_action", "recovery_sources",
+    "repository_heads_at_reconciliation", "last_reconciled_at",
 )
 
 REQUIRED_NEGATIVE_CATEGORIES = (
-    "what_we_know",
-    "what_we_do_not_know",
-    "what_we_cannot_identify",
-    "what_we_cannot_predict",
-    "what_we_have_failed_to_validate",
-    "what_requires_new_data",
+    "what_we_know", "what_we_do_not_know", "what_we_cannot_identify",
+    "what_we_cannot_predict", "what_we_have_failed_to_validate", "what_requires_new_data",
 )
 
 ALLOWED_CAPABILITY_STATUSES = {
-    "NOT_CONSIDERED",
-    "DISCOVERED",
-    "RESEARCH_REQUIRED",
-    "SPECIFIED",
-    "IMPLEMENTED",
-    "TESTED",
-    "VALIDATED_RETROSPECTIVELY",
-    "VALIDATED_TEMPORALLY",
-    "VALIDATED_PROSPECTIVELY",
-    "OPERATIONALLY_VALIDATED",
-    "NOT_JUSTIFIED",
-    "NOT_FEASIBLE",
-    "EXTERNAL_DATA_REQUIRED",
-    "SUPERSEDED",
+    "NOT_CONSIDERED", "DISCOVERED", "RESEARCH_REQUIRED", "SPECIFIED", "IMPLEMENTED",
+    "TESTED", "VALIDATED_RETROSPECTIVELY", "VALIDATED_TEMPORALLY",
+    "VALIDATED_PROSPECTIVELY", "OPERATIONALLY_VALIDATED", "NOT_JUSTIFIED",
+    "NOT_FEASIBLE", "EXTERNAL_DATA_REQUIRED", "SUPERSEDED",
 }
 
 
 @dataclass(frozen=True)
 class ContinuityReport:
     ok: bool
+    reconciliation_required: bool
     missing_artifacts: tuple[str, ...]
     structural_errors: tuple[str, ...]
     git_head: str | None
@@ -95,6 +65,7 @@ class ContinuityReport:
     def as_dict(self) -> dict[str, Any]:
         return {
             "ok": self.ok,
+            "reconciliation_required": self.reconciliation_required,
             "missing_artifacts": list(self.missing_artifacts),
             "structural_errors": list(self.structural_errors),
             "git_head": self.git_head,
@@ -122,12 +93,8 @@ def _load_json(path: Path) -> dict[str, Any]:
 def _git_head(root: Path) -> str | None:
     try:
         result = subprocess.run(
-            ["git", "rev-parse", "HEAD"],
-            cwd=root,
-            check=True,
-            capture_output=True,
-            text=True,
-            timeout=5,
+            ["git", "rev-parse", "HEAD"], cwd=root, check=True,
+            capture_output=True, text=True, timeout=5,
         )
     except (OSError, subprocess.SubprocessError):
         return None
@@ -135,24 +102,24 @@ def _git_head(root: Path) -> str | None:
 
 
 def validate_continuity(root: Path | None = None) -> ContinuityReport:
-    """Validate hereditary scientific continuity without asserting scientific truth."""
+    """Validate continuity structure without asserting scientific truth."""
     repo = repository_root(root)
     missing = tuple(path for path in REQUIRED_ARTIFACTS if not (repo / path).is_file())
     errors: list[str] = []
 
     master: dict[str, Any] = {}
-    if not (repo / "mission/SCIENTIFIC_MASTER_STATE.json").is_file():
+    master_path = repo / "mission/SCIENTIFIC_MASTER_STATE.json"
+    if not master_path.is_file():
         errors.append("master_state_missing")
     else:
         try:
-            master = _load_json(repo / "mission/SCIENTIFIC_MASTER_STATE.json")
+            master = _load_json(master_path)
         except (OSError, ValueError, json.JSONDecodeError) as exc:
             errors.append(f"master_state_invalid:{exc}")
 
     for key in REQUIRED_MASTER_KEYS:
         if key not in master:
             errors.append(f"master_state_missing_key:{key}")
-
     if master.get("agent") != "ESPÍA":
         errors.append("master_state_agent_mismatch")
     if not master.get("current_question"):
@@ -191,15 +158,14 @@ def validate_continuity(root: Path | None = None) -> ContinuityReport:
         ceutia_head = master.get("repository_heads_at_reconciliation", {}).get("DrRomanSalvador/Ceuta", {})
         persisted_head = ceutia_head.get("sha") if isinstance(ceutia_head, dict) else None
     head_match = None if git_head is None or persisted_head is None else git_head == persisted_head
+    reconciliation_required = head_match is False
 
-    if head_match is False:
-        # A mismatch is not itself a failure: the state is a snapshot and may
-        # legitimately precede the current checkout. It is a mandatory
-        # reconciliation signal, not evidence that the scientific state is false.
-        errors.append("repository_head_differs_from_persisted_snapshot_reconciliation_required")
-
+    # A changed HEAD is expected after a state update or a merge. It is a
+    # reconciliation signal, not structural corruption. The fresh instance
+    # must surface it before relying on implementation-status assertions.
     return ContinuityReport(
         ok=not missing and not errors,
+        reconciliation_required=reconciliation_required,
         missing_artifacts=missing,
         structural_errors=tuple(errors),
         git_head=git_head,
@@ -214,7 +180,7 @@ def recover(root: Path | None = None) -> dict[str, Any]:
     report = validate_continuity(repo)
     master = _load_json(repo / "mission/SCIENTIFIC_MASTER_STATE.json")
     return {
-        "recovery_status": "READY" if report.ok else "RECONCILIATION_REQUIRED",
+        "recovery_status": "READY" if report.ok and not report.reconciliation_required else "RECONCILIATION_REQUIRED",
         "agent": master.get("agent"),
         "mission": master.get("mission"),
         "role": master.get("role"),

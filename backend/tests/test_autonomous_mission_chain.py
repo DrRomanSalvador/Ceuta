@@ -8,6 +8,7 @@ from backend.app.missions.autonomous_chain import (
     FixedPointState,
     MissionCandidate,
     ProcessObservation,
+    ScientificWorkEvent,
     TaskCandidate,
     WorkQueue,
 )
@@ -24,6 +25,43 @@ def _task(task_id: str = "task-1") -> TaskCandidate:
         capability_required=("SCIENTIFIC_ADVERSARIAL",),
         source_event_refs=("event-1",),
     )
+
+
+def test_scientific_work_event_is_provenance_gated() -> None:
+    event = ScientificWorkEvent(
+        event_id="event-1",
+        event_type="SCIENTIFIC_CONSEQUENCE",
+        source_refs=("result-1",),
+        scientific_reason="A result changes the downstream validation obligation.",
+        affected_refs=("claim-1",),
+        capability_implications=("SCIENTIFIC_ADVERSARIAL",),
+        validation_status="VALIDATED",
+        provenance_refs=("prov-1",),
+        state_version="state-1",
+        emitted_at="2026-09-16T11:00:00Z",
+    )
+    assert AutonomousMissionChain.emit_scientific_event(event) == event
+
+
+def test_scientific_work_event_without_provenance_fails_closed() -> None:
+    event = ScientificWorkEvent(
+        event_id="event-2",
+        event_type="SCIENTIFIC_CONSEQUENCE",
+        source_refs=("result-2",),
+        scientific_reason="derived",
+        affected_refs=(),
+        capability_implications=(),
+        validation_status="VALIDATED",
+        provenance_refs=(),
+        state_version="state-1",
+        emitted_at="2026-09-16T11:00:00Z",
+    )
+    try:
+        AutonomousMissionChain.emit_scientific_event(event)
+    except AutonomousChainError as exc:
+        assert "SCIENTIFIC_EVENT_INVALID" in str(exc)
+    else:
+        raise AssertionError("scientific trigger without provenance must fail")
 
 
 def test_existing_capability_selection_is_deterministic() -> None:

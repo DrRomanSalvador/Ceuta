@@ -15,6 +15,11 @@ def _graph() -> SemanticGraph:
         ("e2", NodeKind.EVIDENCE),
         ("h1", NodeKind.HYPOTHESIS),
         ("h2", NodeKind.HYPOTHESIS),
+        ("v1", NodeKind.VARIABLE),
+        ("p1", NodeKind.CLAIM),
+        ("proc1", NodeKind.ENTITY),
+        ("proc2", NodeKind.ENTITY),
+        ("i1", NodeKind.EVENT),
     ):
         graph.add_node(kind, node_id, node_id)
     return graph
@@ -29,6 +34,13 @@ def test_required_relation_types_exist_separately_from_epistemic_states():
         EdgeKind.SOURCE_DEPENDENCY,
         EdgeKind.CAUSAL_HYPOTHESIS,
         EdgeKind.CAUSALITY_SUPPORTED,
+        EdgeKind.OBSERVES,
+        EdgeKind.PREDICTS,
+        EdgeKind.REPORTED_BY,
+        EdgeKind.ACQUIRED_BY,
+        EdgeKind.REVISED_BY,
+        EdgeKind.INTERVENED_ON_BY,
+        EdgeKind.FEEDS_BACK_TO,
     }.issubset(set(EdgeKind))
 
 
@@ -37,6 +49,71 @@ def test_association_does_not_imply_causality():
     edge = graph.add_edge(EdgeKind.ASSOCIATION, "e1", "e2")
     assert edge.kind is EdgeKind.ASSOCIATION
     assert not any(item.kind is EdgeKind.CAUSALITY_SUPPORTED for item in graph.edges.values())
+
+
+def test_predictive_relation_matches_canonical_forecast_time_semantics():
+    graph = _graph()
+    edge = graph.add_edge(
+        EdgeKind.PREDICTS,
+        "e1",
+        "p1",
+        properties={
+            "prediction_id": "pred-1",
+            "origin_time": datetime(2026, 9, 15, 8, 0, tzinfo=UTC),
+            "horizon": "30d",
+        },
+    )
+    assert edge.kind is EdgeKind.PREDICTS
+    assert not any(item.kind in {EdgeKind.CAUSAL_HYPOTHESIS, EdgeKind.CAUSALITY_SUPPORTED} for item in graph.edges.values())
+
+
+def test_predicts_rejects_embedded_causality_claim():
+    graph = _graph()
+    with pytest.raises(ValueError, match="causality claim"):
+        graph.add_edge(
+            EdgeKind.PREDICTS,
+            "e1",
+            "p1",
+            properties={
+                "prediction_id": "pred-1",
+                "origin_time": datetime(2026, 9, 15, 8, 0, tzinfo=UTC),
+                "horizon": "30d",
+                "causality_claim": True,
+            },
+        )
+
+
+def test_observation_reporting_acquisition_revision_and_intervention_require_identity():
+    graph = _graph()
+    with pytest.raises(ValueError, match="observation_id"):
+        graph.add_edge(EdgeKind.OBSERVES, "proc1", "e1")
+    with pytest.raises(ValueError, match="reporting_process_id"):
+        graph.add_edge(EdgeKind.REPORTED_BY, "e1", "proc1")
+    with pytest.raises(ValueError, match="acquisition_process_id"):
+        graph.add_edge(EdgeKind.ACQUIRED_BY, "e1", "proc1")
+    with pytest.raises(ValueError, match="revision_id"):
+        graph.add_edge(EdgeKind.REVISED_BY, "e1", "e2")
+    with pytest.raises(ValueError, match="intervention_id"):
+        graph.add_edge(EdgeKind.INTERVENED_ON_BY, "e1", "i1")
+
+
+def test_dependency_and_feedback_edges_remain_noncausal_labels():
+    graph = _graph()
+    dependency = graph.add_edge(
+        EdgeKind.DEPENDS_ON,
+        "e1",
+        "v1",
+        properties={"semantic_status": "computational_dependency"},
+    )
+    feedback = graph.add_edge(
+        EdgeKind.FEEDS_BACK_TO,
+        "p1",
+        "e1",
+        properties={"lag": "one_cycle", "mechanism": "intervention_changes_observation_process"},
+    )
+    assert dependency.kind is EdgeKind.DEPENDS_ON
+    assert feedback.kind is EdgeKind.FEEDS_BACK_TO
+    assert all(edge.kind is not EdgeKind.CAUSALITY_SUPPORTED for edge in graph.edges.values())
 
 
 def test_temporal_precedence_requires_ordered_times():

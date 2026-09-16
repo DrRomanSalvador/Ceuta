@@ -28,10 +28,13 @@ class ReplayTests(unittest.TestCase):
         root=Path(__file__).resolve().parents[1]
         event_path=root/"mission"/"MISSION_EVENT_LOG.jsonl"
         state_path=root/"mission"/"ROMAN_MISSION_STATE.json"
+        lifecycle_path=root/"mission"/"MISSION_LIFECYCLE_LEDGER.json"
         state=replay(event_path)
         roman=json.loads(state_path.read_text(encoding="utf-8"))
+        lifecycle=json.loads(lifecycle_path.read_text(encoding="utf-8"))
         self.assertEqual(state.missions["ROMAN"]["status"],roman["status"])
         self.assertEqual(state.last_event_id,"EV-0002")
+        self.assertEqual(lifecycle["admissions"][0]["mutation_event_id"],state.last_event_id)
 
     def test_replay_normalizes_wrapped_claim_and_handoff_payloads(self):
         with tempfile.TemporaryDirectory() as tmp:

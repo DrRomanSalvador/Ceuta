@@ -6,26 +6,11 @@
   "universal_execution_contract": "docs/missions/UNIVERSAL_EXECUTION_CONTRACT.json",
   "universal_execution_inheritance": "MANDATORY_FOR_ALL_MISSIONS",
   "control_plane_capabilities": {
-    "MISSION_EVOLUTION_ENGINE": {
-      "status": "ACTIVE",
-      "contract": "docs/missions/EVOLUTION_ENGINE_CONTRACT.json",
-      "implementation": ["backend/app/missions/evolution.py", "backend/app/missions/evolution_runtime.py", "backend/app/missions/lifecycle.py"],
-      "documentation": "docs/missions/MISSION_EVOLUTION_ENGINE.md",
-      "authority": ["CAN_DISCOVER", "CAN_READ", "CAN_PROPOSE", "CAN_AUTHORIZE", "CAN_VALIDATE", "CAN_INVOKE"],
-      "purpose": "Admission, creation, validation, lifecycle review and retirement governance for permanent missions."
-    },
-    "UNIVERSAL_EXECUTION_CONTROL": {
-      "status": "ACTIVE_REPOSITORY_RUNTIME",
-      "constitution": "docs/missions/UNIVERSAL_EXECUTION_CONSTITUTION.md",
-      "contract": "docs/missions/UNIVERSAL_EXECUTION_CONTRACT.json",
-      "implementation": "backend/app/missions/execution.py",
-      "tests": "tests/test_universal_mission_execution.py",
-      "authority": "Execution-control invariant only; does not grant mission authority.",
-      "purpose": "Universal coherence gates, incremental persistence, checkpoints, task-state semantics, liveness classification, CAS recovery and fixed-point controls."
-    }
+    "MISSION_EVOLUTION_ENGINE": {"status":"ACTIVE","contract":"docs/missions/EVOLUTION_ENGINE_CONTRACT.json","implementation":["backend/app/missions/evolution.py","backend/app/missions/evolution_runtime.py","backend/app/missions/lifecycle.py"],"documentation":"docs/missions/MISSION_EVOLUTION_ENGINE.md","authority":["CAN_DISCOVER","CAN_READ","CAN_PROPOSE","CAN_AUTHORIZE","CAN_VALIDATE","CAN_INVOKE"],"purpose":"Admission, creation, validation, lifecycle review and retirement governance for permanent missions."},
+    "UNIVERSAL_EXECUTION_CONTROL": {"status":"ACTIVE_REPOSITORY_RUNTIME","constitution":"docs/missions/UNIVERSAL_EXECUTION_CONSTITUTION.md","contract":"docs/missions/UNIVERSAL_EXECUTION_CONTRACT.json","implementation":"backend/app/missions/execution.py","tests":"tests/test_universal_mission_execution.py","authority":"Execution-control invariant only; does not grant mission authority.","purpose":"Universal coherence gates, incremental persistence, checkpoints, task-state semantics, liveness classification, CAS recovery and fixed-point controls."}
   },
-  "architecture_amendments": ["docs/missions/ROMAN_ARCHITECTURE_INTEGRATION.md", "docs/missions/UNIVERSAL_EXECUTION_CONSTITUTION.md"],
-  "missions": [
+  "architecture_amendments":["docs/missions/ROMAN_ARCHITECTURE_INTEGRATION.md","docs/missions/UNIVERSAL_EXECUTION_CONSTITUTION.md"],
+  "missions":[
     {"mission_id":"MISSION-01","canonical_name":"INGENIERO","mission_type":"ENGINEERING_SYSTEMS_INTEGRATION","status":"ACTIVE","contract":"docs/missions/MISSION_BOOTSTRAPS.md#mission-01--ingeniero"},
     {"mission_id":"MISSION-02","canonical_name":"ESPÍA","mission_type":"SCIENTIFIC_INTEGRATION","status":"ACTIVE","contract":"docs/missions/MISSION_BOOTSTRAPS.md#mission-02--espía"},
     {"mission_id":"MISSION-03","canonical_name":"BIBLIOTECARIO","mission_type":"EVIDENCE_RETRIEVAL","status":"AVAILABLE","contract":"docs/missions/MISSION_BOOTSTRAPS.md#mission-03--bibliotecario"},
@@ -41,34 +26,7 @@
     {"mission_id":"MISSION-13","canonical_name":"NOTARIO","mission_type":"EPISTEMOLOGY_PROVENANCE","status":"DEFINED","contract":"docs/missions/MISSION_BOOTSTRAPS.md#mission-13--notario"},
     {"mission_id":"MISSION-14","canonical_name":"ABISMO","mission_type":"EXTREMES_TAIL_RISK","status":"DEFINED","contract":"docs/missions/MISSION_BOOTSTRAPS.md#mission-14--abismo"},
     {"mission_id":"MISSION-15","canonical_name":"CIBERSEGURIDAD","mission_type":"SECURITY_GOVERNANCE","status":"ACTIVE","contract":"docs/security/CYBERSECURITY_MISSION_CONTRACT.md"},
-    {
-      "mission_id":"ROMAN","canonical_name":"ROMÁN","mission_type":"AUTHORIAL_INTELLECTUAL_FORENSIC",
-      "purpose":"Reconstruct, audit, model and preserve the observed authorial voice, intellectual architecture, scientific reasoning, systems thinking, narrative architecture, evolution and distinctive patterns of Román Iglesias Salvador using only authorized traceable evidence.",
-      "scope":["authorial forensics","intellectual architecture","scientific reasoning analysis","systems thinking analysis","style analysis","narrative analysis","metaphor analysis","rhetorical analysis","evolution analysis","contradiction analysis","authenticity analysis","anti-style analysis","generation support"],
-      "non_scope":["global system personality","psychological diagnosis or speculation","invented biography","untraceable memory as fact","political spokesperson role","substitution for the human author","treating generated text as authentic source"],
-      "owner":"ROMÁN mission domain; control-plane coordination remains with the common mission governance layer",
-      "authority":"Analyze and maintain the authorial/intellectual model within evidence and provenance constraints; cannot alter another mission identity or promote inference to fact.",
-      "status":"ACTIVE",
-      "inputs":"docs/missions/roman/ROMAN_INVOCATION_CONTRACT.json","outputs":"docs/missions/roman/ROMAN_HANDOFF_CONTRACT.json",
-      "dependencies":["common mission registry","evidence/provenance controls","mission authority model"],"optional_dependencies":["BIBLIOTECARIO","ESPÍA","FORJA","GROK","NOTARIO"],
-      "handoffs_in":["BIBLIOTECARIO","ESPÍA","FORJA","GROK","NOTARIO"],"handoffs_out":["ESPÍA","FORJA","GROK","INGENIERO","NOTARIO"],
-      "invocation_contract":"docs/missions/roman/ROMAN_INVOCATION_CONTRACT.json","bootstrap":"docs/missions/roman/ROMAN_BOOTSTRAP.md","state_location":"docs/missions/roman/ROMAN_MISSION_STATE.json","evidence_location":"docs/missions/roman/ROMAN_SOURCE_CORPUS.json","validation_location":"docs/missions/roman/ROMAN_VALIDATION_RESULTS.json","adversarial_tests":"docs/missions/roman/ROMAN_ADVERSARIAL_TESTS.json","current_state":"REGISTERED_DISCOVERABLE_INVOCABLE_EXECUTION_VALIDATION_PENDING","next_authorized_action":"Run the canonical discovery/invocation tests and validate the state/provenance/concurrency controls against an external multi-session orchestrator.","completion_criteria":"docs/missions/roman/ROMAN_INTEGRATION_STATUS.json"
-    },
-    {
-      "mission_id":"FOUNDER","canonical_name":"FOUNDER","mission_type":"ADMITTED_FROM_EVOLUTION_ENGINE",
-      "purpose":"Operate founder-level venture and commercial decision intelligence without replacing scientific evidence, engineering execution, or control-plane authority.",
-      "scope":["founder-level opportunity evaluation","commercial evidence integration","decision recording","venture state governance","strategic coordination"],
-      "non_scope":["scientific evidence generation","general engineering execution","global mission orchestration","unauthorized external commercial or legal action"],
-      "status":"ADMITTED_PENDING_VALIDATION",
-      "contract":"docs/missions/founder/INVOCATION_CONTRACT.json",
-      "invocation_contract":"docs/missions/founder/INVOCATION_CONTRACT.json",
-      "bootstrap":"DISCOVER → LOAD CONTRACT → CHECK AUTHORITY → CHECK INPUTS → INVOKE",
-      "state_location":"docs/missions/founder/MISSION_STATE.json",
-      "evidence_location":"docs/missions/founder/EVIDENCE.json",
-      "adversarial_tests":["contract/registry discoverability","mission non-redundancy","zero-context recovery","interruption/recovery","authority boundaries","lifecycle transition enforcement","evidence independence","external-claims gate","stale data handling","replay consistency","corrupted-state rejection","handoff lifecycle"],
-      "completion_criteria":["All declared integration and validation tests pass."],
-      "retirement_criteria":["Preserve complete state and evidence history.","Mark the mission retired/superseded through the canonical lifecycle.","Do not delete historical decisions or evidence."],
-      "operations":["DISCOVER","INVOKE","EXECUTE","VALIDATE","HANDOFF","PERSIST","REVIEW","RETIRE"]
-    }
+    {"mission_id":"ROMAN","canonical_name":"ROMÁN","mission_type":"AUTHORIAL_INTELLECTUAL_FORENSIC","purpose":"Reconstruct, audit, model and preserve the observed authorial voice, intellectual architecture, scientific reasoning, systems thinking, narrative architecture, evolution and distinctive patterns of Román Iglesias Salvador using only authorized traceable evidence.","scope":["authorial forensics","intellectual architecture","scientific reasoning analysis","systems thinking analysis","style analysis","narrative analysis","metaphor analysis","rhetorical analysis","evolution analysis","contradiction analysis","authenticity analysis","anti-style analysis","generation support"],"non_scope":["global system personality","psychological diagnosis or speculation","invented biography","untraceable memory as fact","political spokesperson role","substitution for the human author","treating generated text as authentic source"],"owner":"ROMÁN mission domain; control-plane coordination remains with the common mission governance layer","authority":"Analyze and maintain the authorial/intellectual model within evidence and provenance constraints; cannot alter another mission identity or promote inference to fact.","status":"ACTIVE","inputs":"docs/missions/roman/ROMAN_INVOCATION_CONTRACT.json","outputs":"docs/missions/roman/ROMAN_HANDOFF_CONTRACT.json","dependencies":["common mission registry","evidence/provenance controls","mission authority model"],"optional_dependencies":["BIBLIOTECARIO","ESPÍA","FORJA","GROK","NOTARIO"],"handoffs_in":["BIBLIOTECARIO","ESPÍA","FORJA","GROK","NOTARIO"],"handoffs_out":["ESPÍA","FORJA","GROK","INGENIERO","NOTARIO"],"invocation_contract":"docs/missions/roman/ROMAN_INVOCATION_CONTRACT.json","bootstrap":"docs/missions/roman/ROMAN_BOOTSTRAP.md","state_location":"docs/missions/roman/ROMAN_MISSION_STATE.json","evidence_location":"docs/missions/roman/ROMAN_SOURCE_CORPUS.json","validation_location":"docs/missions/roman/ROMAN_VALIDATION_RESULTS.json","adversarial_tests":"docs/missions/roman/ROMAN_ADVERSARIAL_TESTS.json","current_state":"REGISTERED_DISCOVERABLE_INVOCABLE_EXECUTION_VALIDATION_PENDING","next_authorized_action":"Run the canonical discovery/invocation tests and validate the state/provenance/concurrency controls against an external multi-session orchestrator.","completion_criteria":"docs/missions/roman/ROMAN_INTEGRATION_STATUS.json"},
+    {"mission_id":"FOUNDER","canonical_name":"FOUNDER","mission_type":"ADMITTED_FROM_EVOLUTION_ENGINE","purpose":"Operate founder-level venture and commercial decision intelligence without replacing scientific evidence, engineering execution, or control-plane authority.","scope":["founder-level opportunity evaluation","commercial evidence integration","decision recording","venture lifecycle governance","strategic coordination"],"non_scope":["scientific evidence generation","general engineering execution","global mission orchestration","unauthorized external commercial or legal action"],"status":"ADMITTED_PENDING_VALIDATION","contract":"docs/missions/founder/INVOCATION_CONTRACT.json","invocation_contract":"docs/missions/founder/INVOCATION_CONTRACT.json","bootstrap":"DISCOVER → LOAD CONTRACT → CHECK AUTHORITY → CHECK INPUTS → INVOKE","state_location":"docs/missions/founder/MISSION_STATE.json","evidence_location":"docs/missions/founder/EVIDENCE.json","adversarial_tests":["contract generation matches MissionEvolutionEngine","registration is discoverable from canonical Mission Registry","mission non-redundancy gates pass","universal execution invariants are inherited","zero-context discovery/reconstruction passes","interruption/recovery and stale-version rejection pass","authority escalation is rejected","opportunity lifecycle forbidden transitions are rejected","evidence self-validation is rejected","external claim promotion without evidence/authority is rejected","staleness and revenue-quality distinctions are enforced","handoff lifecycle remains auditable","full CI passes"],"completion_criteria":["All declared integration and validation tests pass."],"retirement_criteria":["Preserve complete state and evidence history.","Mark the mission retired/superseded through the canonical lifecycle.","Do not delete historical decisions or evidence."],"operations":["DISCOVER","INVOKE","EXECUTE","VALIDATE","HANDOFF","PERSIST","REVIEW","RETIRE"]}
   ]
 }

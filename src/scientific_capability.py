@@ -3,8 +3,8 @@
 These objects operationalize scientific gates without claiming scientific
 validation. They enforce temporal eligibility, observation/denominator
 semantics, identifiability state, baseline comparisons, probabilistic
-forecast metrics, observation-process transformations, and decision utility
-on explicit inputs.
+forecast metrics, observation-process transformations, decision utility, and
+simple rolling-origin baseline evaluation on explicit inputs.
 """
 
 from __future__ import annotations
@@ -275,6 +275,36 @@ def expected_binary_loss(
     no_action = probability * false_negative_cost + delay_cost
     action = action_cost + (1 - probability) * false_positive_cost + delay_cost
     return no_action, action
+
+
+def persistence_forecast(history: Sequence[float], horizon: int = 1) -> list[float]:
+    """Naive persistence baseline: every horizon step equals the last observation."""
+    if not history:
+        raise ValueError("history cannot be empty")
+    if horizon < 1:
+        raise ValueError("horizon must be positive")
+    return [float(history[-1])] * horizon
+
+
+def rolling_origin_persistence(series: Sequence[float], min_history: int = 2) -> tuple[list[float], list[float]]:
+    """Generate one-step persistence forecasts without future-information leakage."""
+    if min_history < 1:
+        raise ValueError("min_history must be positive")
+    if len(series) <= min_history:
+        raise ValueError("series must contain more observations than min_history")
+    forecasts: list[float] = []
+    outcomes: list[float] = []
+    for origin in range(min_history, len(series)):
+        forecasts.append(float(series[origin - 1]))
+        outcomes.append(float(series[origin]))
+    return forecasts, outcomes
+
+
+def mean_absolute_error(predictions: Sequence[float], observations: Sequence[float]) -> float:
+    _validate_equal_lengths(predictions, observations)
+    if not predictions:
+        raise ValueError("at least one prediction is required")
+    return sum(abs(p - y) for p, y in zip(predictions, observations)) / len(predictions)
 
 
 def brier_score(probabilities: Sequence[float], outcomes: Sequence[int]) -> float:

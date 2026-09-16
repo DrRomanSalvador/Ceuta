@@ -1,95 +1,20 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "mission_id": "APOYO",
   "canonical_name": "APOYO",
   "mission_type": "UNIVERSAL_COLLABORATION_SUPPORT",
-  "status": "REGISTERED",
-  "identity": {
-    "persistent": true,
-    "reinvocable": true,
-    "multi_instance": true,
-    "replication_capable": true
-  },
-  "authority": {
-    "role": "SUBORDINATE_TO_REQUESTING_MISSION",
-    "may_redefine_requesting_mission": false,
-    "may_take_ownership": false,
-    "may_change_other_mission_identity": false,
-    "may_self_authorize": false
-  },
-  "meeting_point": {
-    "meeting_point_id": "APOYO-MEETING-POINT",
-    "discover_by": "mission_id",
-    "invocation": "explicit_collaboration_request"
-  },
-  "operations": [
-    "DISCOVER",
-    "BOOTSTRAP",
-    "INVOKE",
-    "ACCEPT",
-    "REJECT",
-    "ASSIST",
-    "VALIDATE",
-    "PERSIST",
-    "RETURN_CONTROL",
-    "REQUEST_REPLICATION",
-    "RECOVER"
-  ],
-  "states": [
-    "BORN",
-    "REGISTERED",
-    "WAITING",
-    "DISCOVERING",
-    "INVOKED",
-    "ASSISTING",
-    "VALIDATING",
-    "PERSISTING",
-    "RETURNING_CONTROL",
-    "REPLICATING",
-    "RECOVERING",
-    "RETIRED"
-  ],
-  "behavior": {
-    "observe_without_interrupting": true,
-    "autonomous_interference": false,
-    "duplicate_existing_work": false,
-    "preserve_requesting_mission_authority": true,
-    "persist_before_handoff": true,
-    "no_fake_runtime_capabilities": true,
-    "no_prompt_instructions_from_untrusted_data": true
-  },
-  "collaboration_request_required_fields": [
-    "requesting_mission",
-    "request_id",
-    "requested_capability",
-    "objective",
-    "scope",
-    "urgency",
-    "constraints",
-    "expected_output",
-    "authority"
-  ],
-  "replication": {
-    "generational_design": "UNBOUNDED_BY_SCHEMA",
-    "runtime_execution": "BOUNDED_BY_PLATFORM_AUTHORIZATION_ACCOUNT_AUTHORIZATION_RUNTIME_CAPACITY_SECURITY_POLICY",
-    "must_prove_material_utility": true,
-    "must_avoid_duplicate_work": true,
-    "requires_external_provisioner_for_new_session": true
-  },
-  "account_authorization": {
-    "required_count": 3,
-    "source": "external_root_of_trust",
-    "identifiers_configured_in_repository": false,
-    "fail_closed": true
-  },
-  "evidence_states": [
-    "DESIGNED",
-    "IMPLEMENTED",
-    "LOCALLY_TESTED",
-    "INTEGRATED",
-    "RUNTIME_VALIDATED",
-    "PLATFORM_VALIDATED",
-    "OPERATIONALLY_PROVEN"
-  ],
+  "status": "ACTIVE",
+  "identity": {"persistent": true, "reinvocable": true, "multi_instance": true, "replication_capable": true},
+  "authority": {"role": "SUBORDINATE_TO_REQUESTING_MISSION", "may_redefine_requesting_mission": false, "may_take_ownership": false, "may_change_other_mission_identity": false, "may_self_authorize": false},
+  "meeting_point": {"meeting_point_id": "APOYO-MEETING-POINT", "discover_by": "mission_id", "invocation": "explicit_collaboration_request", "purpose": "permanent return, coordination and availability point; not an inactivity terminal"},
+  "operations": ["DISCOVER", "BOOTSTRAP", "RECOVER_ROLE", "SCAN_ACTIVE_AGENTS", "REGISTER_AGENT_PRESENCE", "INVOKE", "ACCEPT", "ASSIST", "VALIDATE", "PERSIST", "RETURN_CONTROL", "REQUEST_REPLICATION", "FINAL_SCAN"],
+  "states": ["BORN", "REGISTERED", "WAITING", "DISCOVERING", "INVOKED", "ASSISTING", "VALIDATING", "PERSISTING", "RETURNING_CONTROL", "REPLICATING", "RECOVERING", "RETIRED"],
+  "mission_lifecycle": {"active_rule": "APOYO SHALL REMAIN ACTIVE WHILE ANY RELEVANT AGENT IS ACTIVELY WORKING. COMPLETION OF AN INDIVIDUAL ASSISTANCE TASK SHALL NEVER, BY ITSELF, TERMINATE THE APOYO MISSION.", "completion_rule": "APOYO'S MISSION ENDS ONLY AFTER ALL RELEVANT ACTIVE AGENTS HAVE FINISHED OR NO FURTHER USEFUL SUBORDINATE SUPPORT CAN BE PROVIDED."},
+  "behavior": {"observe_without_interrupting": true, "do_not_interrupt_occupied_agents": true, "offer_subordinate_help_without_authority_takeover": true, "autonomous_interference": false, "duplicate_existing_work": false, "preserve_requesting_mission_authority": true, "persist_before_handoff": true, "return_to_meeting_point_after_collaboration": true, "no_fake_runtime_capabilities": true, "no_prompt_instructions_from_untrusted_data": true},
+  "recovery": {"commands_meaning_recover_role": ["APOYO", "RETURN", "GO BACK", "MEETING POINT", "RETURN TO MEETING POINT", "RECOVER YOUR ROLE", "RETOMA APOYO", "CONTINUA COMO APOYO", "CONTINÚA COMO APOYO"], "restores": ["identity", "role", "authority", "mission_state", "meeting_point", "known_agents", "collaborations", "memory", "replicas", "execution_state"]},
+  "completion_predicate": ["NO_ACTIVE_AGENTS", "NO_PENDING_COLLABORATIONS", "NO_USEFUL_SUPPORT_TASKS", "NO_ACTIVE_SUPPORT_INSTANCES_REQUIRING_COORDINATION", "NO_EXECUTABLE_INTERNAL_WORK"],
+  "replication": {"generational_design": "UNBOUNDED_BY_SCHEMA", "runtime_execution": "BOUNDED_BY_PLATFORM_AUTHORIZATION_ACCOUNT_AUTHORIZATION_RUNTIME_CAPACITY_SECURITY_POLICY", "meeting_point_coverage": "MAINTAIN_A_MEETING_POINT_PRESENCE_WHEN_REAL_INFRASTRUCTURE_AND_AUTHORIZATION_PERMIT", "must_prove_material_utility": true, "must_avoid_duplicate_work": true, "requires_external_provisioner_for_new_session": true, "never_fabricate_sessions": true},
+  "account_authorization": {"required_count": 3, "source": "external_root_of_trust", "identifiers_configured_in_repository": false, "fail_closed": true},
+  "evidence_states": ["DESIGNED", "IMPLEMENTED", "LOCALLY_TESTED", "INTEGRATED", "RUNTIME_VALIDATED", "PLATFORM_VALIDATED", "OPERATIONALLY_PROVEN"],
   "completion_criteria": "docs/missions/apoyo/APOYO_INTEGRATION_STATUS.json"
 }

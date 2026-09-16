@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0.0",
+  "registry_id": "CEUTIA_SERPIENTE_MISSION_REGISTRY",
+  "source_of_truth": "repository-discovered mission artifacts; conversation-only mission names are not accepted as established facts",
+  "discovery_status": "INCOMPLETE",
+  "claimed_mission_count_from_current_instruction": 15,
+  "repository_verified_mission_count": 1,
+  "missions": [
+    {
+      "mission_id": "CEUTIA_SERPIENTE_CONTINUOUS_SCIENTIFIC_ENGINEERING",
+      "mission_name": "CeutIA + SERPIENTE Continuous Scientific Engineering",
+      "purpose": "Build, audit, integrate and continuously extend the scientifically governed CeutIA + SERPIENTE system.",
+      "scope": ["evidence", "provenance", "acquisition", "temporal information", "dynamics", "prediction", "uncertainty", "causality", "interactions", "early warning", "prevention", "self-monitoring"],
+      "authority": "mission/CEUTIA_SERPIENTE_MISSION_STATE.json and current repository evidence",
+      "non_scope": ["promoting implementation to scientific validation without evidence"],
+      "owner_surfaces": ["CeutIA mission state", "scientific engineering surfaces"],
+      "inputs": ["repository state", "scientific evidence", "tests", "CI", "external data where available"],
+      "outputs": ["implemented capabilities", "tests", "scientific state", "persistent mission memory", "handoffs"],
+      "dependencies": ["SERPIENTE cross-repository contract", "external prospective evidence for validation claims"],
+      "handoff_protocol": "Persisted handoff records and cross-repository contracts.",
+      "state_location": ["mission/CEUTIA_SERPIENTE_MISSION_STATE.json", "mission/MISSION_MASTER_STATE.json", "mission/SCIENTIFIC_MISSION_MEMORY.json"],
+      "current_status": "ACTIVE",
+      "known_limitations": ["prospective validity not established", "complete real-time acquisition not established", "response effectiveness external"],
+      "next_work": "LEGACY-001 then F14-001"
+    }
+  ],
+  "missing_missions": {
+    "status": "UNKNOWN",
+    "reason": "The current repository discovery did not establish the claimed total of 15 missions. No mission may be invented from conversation memory.",
+    "required_action": "Discover authoritative mission registry/mission artifacts across the repository and connected repositories; add each mission only with repository-backed evidence.",
+    "blocking": false
+  },
+  "future_mission_contract": {
+    "required_fields": ["mission_id", "mission_name", "purpose", "scope", "authority", "non_scope", "owner_surfaces", "inputs", "outputs", "dependencies", "handoff_protocol", "state_location", "current_status", "known_limitations", "next_work"]
+  }
+}

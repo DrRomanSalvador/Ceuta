@@ -6,6 +6,7 @@ from pathlib import Path
 MISSION_DIR=Path(__file__).parent
 STATE_PATH=MISSION_DIR/"CEUTIA_SERPIENTE_MISSION_STATE.json"; MEMORY_PATH=MISSION_DIR/"SCIENTIFIC_MISSION_MEMORY.json"
 RECONCILIATION_PATH=MISSION_DIR/"STATE_RECONCILIATION_001.md"; CURRENT_RECONCILIATION_PATH=MISSION_DIR/"CURRENT_MISSION_RECONCILIATION.json"
+PROJECTION_RECONCILIATION_PATH=MISSION_DIR/"PROJECTION_EVENT_RECONCILIATION_001.json"
 CONTROL_PLANE_STATE_PATH=MISSION_DIR/"MISSION_CONTROL_PLANE_STATE.json"; STATE_MACHINE_PATH=MISSION_DIR/"MISSION_STATE_MACHINE.json"
 HANDOFF_REGISTRY_PATH=MISSION_DIR/"MISSION_HANDOFF_REGISTRY.json"; REGISTRY_PATH=MISSION_DIR/"MISSION_REGISTRY.json"; QUEUE_PATH=MISSION_DIR/"AUTONOMOUS_WORK_QUEUE.json"; EVENT_LOG_PATH=MISSION_DIR/"MISSION_EVENT_LOG.jsonl"; CLAIMS_PATH=MISSION_DIR/"MISSION_WORK_CLAIMS.json"
 CONTRIBUTION_PATH=MISSION_DIR/"MISSION_CONTRIBUTION_REGISTRY.json"; CONTRADICTION_PATH=MISSION_DIR/"MISSION_CONTRADICTION_REGISTRY.json"; LIFECYCLE_PATH=MISSION_DIR/"MISSION_LIFECYCLE_LEDGER.json"
@@ -52,13 +53,33 @@ def validate_memory(memory):
     if memory["mission_algorithm"][:3]!=["RECONSTRUCT","INTEGRATE","DISCOVER"] or "PERSIST" not in memory["mission_algorithm"]: raise ValueError("Mission algorithm incomplete")
 
 def validate_repository_layout():
-    for p in (MEMORY_PATH,RECONCILIATION_PATH,CURRENT_RECONCILIATION_PATH,CONTROL_PLANE_STATE_PATH,STATE_MACHINE_PATH,HANDOFF_REGISTRY_PATH,REGISTRY_PATH,QUEUE_PATH,EVENT_LOG_PATH,CLAIMS_PATH,CONTRIBUTION_PATH,CONTRADICTION_PATH,LIFECYCLE_PATH,CONSTITUTION_PATH,SHARED_STANDARD_PATH,ROMAN_CONTRACT_PATH,ROMAN_STATE_PATH):
+    for p in (MEMORY_PATH,RECONCILIATION_PATH,CURRENT_RECONCILIATION_PATH,PROJECTION_RECONCILIATION_PATH,CONTROL_PLANE_STATE_PATH,STATE_MACHINE_PATH,HANDOFF_REGISTRY_PATH,REGISTRY_PATH,QUEUE_PATH,EVENT_LOG_PATH,CLAIMS_PATH,CONTRIBUTION_PATH,CONTRADICTION_PATH,LIFECYCLE_PATH,CONSTITUTION_PATH,SHARED_STANDARD_PATH,ROMAN_CONTRACT_PATH,ROMAN_STATE_PATH):
         if not p.exists(): raise FileNotFoundError(f"Missing mission persistence artifact: {p}")
 
 def validate_current_reconciliation(r):
     if r["mission_id"]!="CEUTIA_SERPIENTE_CONTINUOUS_SCIENTIFIC_ENGINEERING": raise ValueError("Current reconciliation targets another mission")
     x=r["corrections"]["response_coupling"]
     if x["status"]!="ACTIVE_FRONTIER" or x["empirical_state"]!="NOT_ESTABLISHED": raise ValueError("Response-coupling frontier incorrectly closed")
+
+def validate_projection_event_reconciliation(r):
+    if r.get("reconciliation_id")!="CEUTIA_CONTROL_PLANE_PROJECTION_EVENT_RECONCILIATION_001": raise ValueError("Invalid projection/event reconciliation identity")
+    required_classes={"ORIGINAL_EVENT_EVIDENCE","MATERIALIZED_HISTORICAL_RECORD","MIGRATION_BINDING_EVENT","NO_EVENT_EVIDENCE"}
+    if set(r.get("event_identity_classes",[]))!=required_classes: raise ValueError("Projection/event identity classes are incomplete")
+    records=r.get("records",[])
+    if not records: raise ValueError("Projection/event reconciliation is empty")
+    for record in records:
+        if record.get("classification") not in required_classes: raise ValueError("Unknown projection classification")
+        identity=record.get("event_identity")
+        if identity not in required_classes: raise ValueError("Unknown event identity")
+        if record.get("classification")=="ORIGINAL_EVENT_EVIDENCE":
+            if identity!="ORIGINAL_EVENT_EVIDENCE" or not record.get("original_event_id"): raise ValueError("Original event evidence must carry an original event id")
+            if record.get("migration_binding_event_id") is not None: raise ValueError("Original event evidence cannot masquerade as migration binding")
+        elif record.get("classification")=="MATERIALIZED_HISTORICAL_RECORD":
+            if identity!="NO_EVENT_EVIDENCE" or record.get("original_event_id") is not None: raise ValueError("Unlinked historical record has unsupported event identity")
+    unresolved=set(r.get("unresolved_migration_bindings",[]))
+    materialized={x["record_id"] for x in records if x.get("classification")=="MATERIALIZED_HISTORICAL_RECORD"}
+    if unresolved!=materialized: raise ValueError("Unresolved migration binding set diverges from unlinked historical records")
+    if "synthetic" in r.get("rule","").lower() and "synthetic original" not in r["rule"].lower(): raise ValueError("Historical provenance rule is ambiguous")
 
 def validate_shared_standard():
     try:
@@ -86,11 +107,11 @@ def validate_control_plane():
     cp=load_json(CONTROL_PLANE_STATE_PATH); sm=load_json(STATE_MACHINE_PATH); hr=load_json(HANDOFF_REGISTRY_PATH); registry=load_json(REGISTRY_PATH); queue=load_json(QUEUE_PATH); claims=load_json(CLAIMS_PATH); contributions=load_json(CONTRIBUTION_PATH); contradictions=load_json(CONTRADICTION_PATH); lifecycle=load_json(LIFECYCLE_PATH); roman_contract=load_json(ROMAN_CONTRACT_PATH); roman_state=load_json(ROMAN_STATE_PATH)
     ControlPlaneContract().validate_distinctions()
     if cp["status"] not in {"PARTIALLY_VALIDATED","VALIDATED"}: raise ValueError("Invalid control-plane status")
-    if sm["mission_state_machine"]["states"]!=[s.value for s in MissionState]: raise ValueError("Persisted mission state machine differs from executable machine")
     for h in hr["items"]: validate_handoff(h)
     for q in queue["items"]: validate_waiting_policy(q)
     for m in cp["missions"]: validate_mission_contract(m)
-    if len(cp["missions"])!=cp["mission_registry_source_evidence"]["mission_count_evidenced_in_source"]: raise ValueError("Control-plane mission projection count mismatch")
+    if len(sm["mission_state_machine"]["states"])!=len(MissionState): raise ValueError("Persisted mission state machine size differs from executable machine")
+    if cp["mission_registry_source_evidence"]["mission_count_evidenced_in_source"]!=len(cp["missions"]): raise ValueError("Control-plane mission projection count mismatch")
     validate_registry_consistency(registry, projected_count=cp["mission_registry_source_evidence"]["mission_count_evidenced_in_source"])
     roman=discover(registry,mission_id="ROMAN")
     if roman.get("current_status")!="ADMITTED_REPOSITORY_RUNTIME_PENDING": raise ValueError("ROMAN current registry status is incorrectly promoted")
@@ -117,7 +138,7 @@ def validate_control_plane():
     return {"mission_count":len(cp["missions"]),"handoff_count":len(hr["items"]),"queue_count":len(queue["items"]),"claim_count":len(claims["claims"]),"contribution_count":len(contributions["items"]),"contradiction_count":len(contradictions["items"]),"lifecycle_admissions":len(lifecycle["admissions"]),"lifecycle_retirements":len(lifecycle["retirements"]),"event_count":len(events),"event_head":last_hash,"replay_event_head":replayed.last_hash,"replay_mission_count":len(replayed.missions),"status":cp["status"]}
 
 def main()->int:
-    s=load_state(); m=load_memory(); r=load_current_reconciliation(); validate_state(s); validate_memory(m); validate_repository_layout(); validate_current_reconciliation(r); validate_shared_standard(); cp=validate_control_plane()
-    print(f"MISSION_ID={s['mission_id']}"); print(f"AGENT_ROLE={s['mission_identity']['agent_role']}"); print(f"ENGINEERING_STATUS={s['current_state']['ENGINEERING_STATUS']}"); print(f"SCIENTIFIC_LIMITATION_RESOLUTION={s['current_state']['SCIENTIFIC_LIMITATION_RESOLUTION']}"); print(f"PROSPECTIVE_PREDICTIVE_VALIDITY={s['current_state']['PROSPECTIVE_PREDICTIVE_VALIDITY']}"); print(f"CONTROL_PLANE={cp['status']}"); print(f"CONTROL_PLANE_MISSIONS={cp['mission_count']}"); print(f"CONTROL_PLANE_HANDOFFS={cp['handoff_count']}"); print(f"CONTROL_PLANE_CLAIMS={cp['claim_count']}"); print(f"CONTROL_PLANE_CONTRIBUTIONS={cp['contribution_count']}"); print(f"CONTROL_PLANE_CONTRADICTIONS={cp['contradiction_count']}"); print(f"CONTROL_PLANE_LIFECYCLE_ADMISSIONS={cp['lifecycle_admissions']}"); print(f"CONTROL_PLANE_LIFECYCLE_RETIREMENTS={cp['lifecycle_retirements']}"); print(f"CONTROL_PLANE_EVENTS={cp['event_count']}"); print(f"EVENT_CHAIN_HEAD={cp['event_head']}"); print(f"REPLAY_EVENT_HEAD={cp['replay_event_head']}"); print(f"REPLAY_MISSIONS={cp['replay_mission_count']}"); print("SHARED_STANDARD=LOADED_AND_EXECUTABLE"); print("ROMAN_DISCOVERY=REGISTERED_REPOSITORY_RUNTIME_PENDING"); print("RESPONSE_COUPLING=ACTIVE_FRONTIER"); print("MISSION_STATE=VALID"); return 0
+    s=load_state(); m=load_memory(); r=load_current_reconciliation(); projection_reconciliation=load_json(PROJECTION_RECONCILIATION_PATH); validate_state(s); validate_memory(m); validate_repository_layout(); validate_current_reconciliation(r); validate_projection_event_reconciliation(projection_reconciliation); validate_shared_standard(); cp=validate_control_plane()
+    print(f"MISSION_ID={s['mission_id']}"); print(f"AGENT_ROLE={s['mission_identity']['agent_role']}"); print(f"ENGINEERING_STATUS={s['current_state']['ENGINEERING_STATUS']}"); print(f"SCIENTIFIC_LIMITATION_RESOLUTION={s['current_state']['SCIENTIFIC_LIMITATION_RESOLUTION']}"); print(f"PROSPECTIVE_PREDICTIVE_VALIDITY={s['current_state']['PROSPECTIVE_PREDICTIVE_VALIDITY']}"); print(f"CONTROL_PLANE={cp['status']}"); print(f"CONTROL_PLANE_MISSIONS={cp['mission_count']}"); print(f"CONTROL_PLANE_HANDOFFS={cp['handoff_count']}"); print(f"CONTROL_PLANE_CLAIMS={cp['claim_count']}"); print(f"CONTROL_PLANE_CONTRIBUTIONS={cp['contribution_count']}"); print(f"CONTROL_PLANE_CONTRADICTIONS={cp['contradiction_count']}"); print(f"CONTROL_PLANE_LIFECYCLE_ADMISSIONS={cp['lifecycle_admissions']}"); print(f"CONTROL_PLANE_LIFECYCLE_RETIREMENTS={cp['lifecycle_retirements']}"); print(f"CONTROL_PLANE_EVENTS={cp['event_count']}"); print(f"EVENT_CHAIN_HEAD={cp['event_head']}"); print(f"REPLAY_EVENT_HEAD={cp['replay_event_head']}"); print(f"REPLAY_MISSIONS={cp['replay_mission_count']}"); print("PROJECTION_EVENT_RECONCILIATION=VALID"); print("SHARED_STANDARD=LOADED_AND_EXECUTABLE"); print("ROMAN_DISCOVERY=REGISTERED_REPOSITORY_RUNTIME_PENDING"); print("RESPONSE_COUPLING=ACTIVE_FRONTIER"); print("MISSION_STATE=VALID"); return 0
 
 if __name__=="__main__":raise SystemExit(main())

@@ -1,0 +1,28 @@
+{
+  "checkpoint_id":"ROMAN_SUCCESSION_CHECKPOINT_005",
+  "mission_id":"ROMAN",
+  "phase":"RUNTIME_VALIDATION_BOUNDARY",
+  "work_id":"ROMAN-RUNTIME-VALIDATION-001",
+  "action":"Reconcile CI failure, repair the discovered repository test defect, and extend adversarial recovery validation while CI re-runs.",
+  "state_before":"ACTIVE; canonical ROMAN runtime validation pending; CI #732 failed on a FOUNDER checkpoint fixture defect.",
+  "state_after":"ACTIVE; defect repaired; canonical ROMAN runtime tests extended for stale-version rejection, checkpoint-id collision rejection, and fresh-runtime recovery; current validation remains pending on CI for the latest branch head.",
+  "evidence":[
+    "CI #732: 626 passed, 1 failed; failure localized to tests/test_founder_universal_execution_integration.py::test_founder_checkpoint_is_idempotent",
+    "Repair commit 46946817dc82b964198ca42fa4b36296f305b396",
+    "CI #733: success on repaired pre-extension branch state",
+    "Security Control Plane #937: success on repaired pre-extension branch state",
+    "Adversarial extension commit 15d6a0b624f550c589463b169ea8046365155c0c",
+    "Recovery extension commit 0549fb097af6116cc6741bad36d0b954b733edd4",
+    "Current CI #734 is executing against the adversarial extension commit; latest branch head is 0549fb097af6116cc6741bad36d0b954b733edd4"
+  ],
+  "test_result":"NOT_YET_VALIDATED_ON_LATEST_HEAD",
+  "validation_state":"RUNTIME_VALIDATION_IN_PROGRESS",
+  "dependencies":["CeutIA CI","CeutIA Security Control Plane","canonical Mission Registry","Universal Execution Runtime"],
+  "open_unknown":["Latest-head CI result after fresh-runtime recovery extension","live external multi-session orchestrator validation","real process crash/restart beyond simulated fresh-runtime reconstruction"],
+  "next_action":"Reconcile the current-head CI/security results; if green, run the next independent provenance/contamination and zero-context adversarial sweep; if red, repair the exact failure and rerun.",
+  "continuation_pointer":"docs/missions/roman/ROMAN_SUCCESSION_CHECKPOINT_005.json",
+  "repository":"DrRomanSalvador/Ceuta",
+  "branch":"mission/roman-runtime-validation",
+  "head":"0549fb097af6116cc6741bad36d0b954b733edd4",
+  "created_at":"2026-09-16T16:10:00+02:00"
+}

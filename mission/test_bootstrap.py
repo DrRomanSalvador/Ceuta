@@ -1,6 +1,9 @@
 import unittest
 
-from bootstrap import load_state, validate_state
+try:
+    from .bootstrap import load_state, validate_state
+except ImportError:  # direct execution: python mission/test_bootstrap.py
+    from bootstrap import load_state, validate_state
 
 
 class MissionBootstrapTests(unittest.TestCase):

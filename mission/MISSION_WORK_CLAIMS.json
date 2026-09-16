@@ -1,0 +1,9 @@
+{
+  "schema_version": "1.2.0",
+  "registry_id": "CEUTIA_SERPIENTE_MISSION_WORK_CLAIMS",
+  "status": "ACTIVE",
+  "claims": {},
+  "history": [],
+  "concurrency_policy": "POSIX advisory file lock + atomic replace for read-modify-write operations; lease expiry permits reclamation and historical preservation",
+  "rule": "An active unexpired claim prevents duplicate execution; expired or released claims remain in history. Claim ownership never grants authority outside the mission contract."
+}

@@ -1,0 +1,8 @@
+{
+  "schema_version": "1.0.0",
+  "registry_id": "CEUTIA_SERPIENTE_MISSION_CONTRIBUTION_REGISTRY",
+  "status": "ACTIVE",
+  "required_attribution": ["DISCOVERED_BY","PROPOSED_BY","IMPLEMENTED_BY","REVIEWED_BY","VALIDATED_BY","AUTHORIZED_BY"],
+  "items": [],
+  "rule": "Later modification does not erase prior contribution. Attribution is evidence-bearing state, not conversational credit."
+}

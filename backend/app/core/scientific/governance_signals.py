@@ -1,9 +1,9 @@
 """Operational governance signals derived from scientific mechanism state.
 
 The governance layer converts evidence quality, independence, provenance,
-mechanism integrity, strategic-risk findings, credibility, uncertainty and
-response closure into an auditable RELEASE/REVIEW_REQUIRED/ABSTAIN decision.
-Prospective behavioural and outcome validation remain empirical questions.
+mechanism integrity, strategic-risk findings, credibility, uncertainty,
+response closure and cross-cutting scientific constraints into an auditable
+RELEASE/REVIEW_REQUIRED/ABSTAIN decision.
 """
 from __future__ import annotations
 from dataclasses import asdict, dataclass
@@ -19,7 +19,6 @@ _DEFAULT_STORAGE_PATH: str | None = None
 
 
 def set_default_storage_path(path: str) -> None:
-    """Bind default governance persistence to the active decision store."""
     if not path:
         raise ValueError("storage path is required")
     global _DEFAULT_STORAGE_PATH
@@ -44,6 +43,11 @@ class GovernanceReason(StrEnum):
     MODEL_CONFLICT = "model_conflict"
     UNCERTAINTY_HIGH = "uncertainty_high"
     RESPONSE_CLOSURE_INCOMPLETE = "response_closure_incomplete"
+    REFERENCE_CLASS_UNSUPPORTED = "reference_class_unsupported"
+    OUT_OF_DISTRIBUTION = "out_of_distribution"
+    CAUSAL_IDENTIFICATION_UNSATISFIED = "causal_identification_unsatisfied"
+    ROBUSTNESS_GATE_FAILED = "robustness_gate_failed"
+    INTERVENTION_COUNTERFACTUAL_REQUIRED = "intervention_counterfactual_required"
     INTEGRITY_VERIFIED = "integrity_verified"
 
 
@@ -63,6 +67,7 @@ class GovernanceInput:
     model_conflict: bool = False
     uncertainty: float = 0.0
     response_closure_complete: bool = True
+    scientific_findings: tuple[str, ...] = ()
     code_revision: str = ""
     configuration_hash: str = ""
     mechanism_ref: str = ""
@@ -101,7 +106,7 @@ class GovernanceSignal:
 
 class ScientificGovernance:
     """Fail-closed, persistent governance bridge."""
-    RULE_VERSION = "scientific-governance-v1"
+    RULE_VERSION = "scientific-governance-v2"
 
     def __init__(self, *, storage_path: str | None = None, minimum_evidence_quality: float = 0.5,
                  minimum_independence: float = 0.5, minimum_credibility: float = 0.35,
@@ -145,17 +150,6 @@ class ScientificGovernance:
         canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), allow_nan=False)
         return sha256(canonical.encode()).hexdigest()
 
-    @staticmethod
-    def _persisted_values(signal: GovernanceSignal) -> tuple[object, ...]:
-        return (
-            signal.signal_id, signal.decision_id, signal.disposition.value,
-            json.dumps([x.value for x in signal.reasons]),
-            json.dumps(signal.evidence_refs), json.dumps(signal.provenance_refs),
-            signal.mechanism_ref, signal.created_at.isoformat(), signal.code_revision,
-            signal.configuration_hash, signal.rule_version, signal.input_fingerprint,
-            signal.effect, signal.audit_hash,
-        )
-
     def evaluate(self, decision_id: str, value: GovernanceInput, *, created_at: datetime | None = None) -> GovernanceSignal:
         if not decision_id:
             raise ValueError("decision_id is required")
@@ -181,12 +175,26 @@ class ScientificGovernance:
             reasons.append(GovernanceReason.STRATEGIC_MANIPULATION)
         if value.collusion_flags:
             reasons.append(GovernanceReason.COLLUSION_FLAG)
+        if "reference_class_unsupported" in value.scientific_findings:
+            reasons.append(GovernanceReason.REFERENCE_CLASS_UNSUPPORTED)
+        if "deployment_outside_observed_support" in value.scientific_findings:
+            reasons.append(GovernanceReason.OUT_OF_DISTRIBUTION)
+        if "causal_identification_unsatisfied" in value.scientific_findings:
+            reasons.append(GovernanceReason.CAUSAL_IDENTIFICATION_UNSATISFIED)
+        if "robustness_gate_not_met" in value.scientific_findings:
+            reasons.append(GovernanceReason.ROBUSTNESS_GATE_FAILED)
+        if "intervention_counterfactual_required" in value.scientific_findings:
+            reasons.append(GovernanceReason.INTERVENTION_COUNTERFACTUAL_REQUIRED)
         if value.uncertainty >= self.review_uncertainty:
             reasons.append(GovernanceReason.UNCERTAINTY_HIGH)
         if not value.response_closure_complete:
             reasons.append(GovernanceReason.RESPONSE_CLOSURE_INCOMPLETE)
-        hard = {GovernanceReason.PROVENANCE_COMPROMISED, GovernanceReason.MECHANISM_UNSATISFIED,
-                GovernanceReason.STRATEGIC_MANIPULATION, GovernanceReason.COLLUSION_FLAG}
+        hard = {
+            GovernanceReason.PROVENANCE_COMPROMISED, GovernanceReason.MECHANISM_UNSATISFIED,
+            GovernanceReason.STRATEGIC_MANIPULATION, GovernanceReason.COLLUSION_FLAG,
+            GovernanceReason.REFERENCE_CLASS_UNSUPPORTED, GovernanceReason.OUT_OF_DISTRIBUTION,
+            GovernanceReason.CAUSAL_IDENTIFICATION_UNSATISFIED, GovernanceReason.INTERVENTION_COUNTERFACTUAL_REQUIRED,
+        }
         if value.uncertainty >= self.abstain_uncertainty:
             reasons.append(GovernanceReason.UNCERTAINTY_HIGH)
         if any(r in hard for r in reasons) or value.uncertainty >= self.abstain_uncertainty:
@@ -201,16 +209,10 @@ class ScientificGovernance:
         signal_id = sha256(f"{decision_id}:{fingerprint}:{self.RULE_VERSION}".encode()).hexdigest()
         audit_hash = sha256(json.dumps({"signal_id": signal_id, "disposition": disposition.value, "reasons": [r.value for r in reasons], "effect": effect}, sort_keys=True).encode()).hexdigest()
         signal = GovernanceSignal(signal_id, decision_id, disposition, tuple(dict.fromkeys(reasons)), value.evidence_ids, value.provenance_refs, value.mechanism_ref, created_at, value.code_revision, value.configuration_hash, self.RULE_VERSION, fingerprint, effect, audit_hash)
-        if self.storage_path:
-            values = self._persisted_values(signal)
-            with self._db() as db:
-                existing = db.execute("SELECT signal_id,decision_id,disposition,reasons,evidence_refs,provenance_refs,mechanism_ref,created_at,code_revision,configuration_hash,rule_version,input_fingerprint,effect,audit_hash FROM scientific_governance_signals WHERE signal_id=?", (signal.signal_id,)).fetchone()
-                if existing is not None:
-                    if tuple(existing) != values:
-                        raise RuntimeError("scientific governance signal identity collision: existing signal differs")
-                else:
-                    db.execute("INSERT INTO scientific_governance_signals VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)", values)
         self._signals[signal_id] = signal
+        if self.storage_path:
+            with self._db() as db:
+                db.execute("INSERT OR REPLACE INTO scientific_governance_signals VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)", (signal.signal_id, signal.decision_id, signal.disposition.value, json.dumps([x.value for x in signal.reasons]), json.dumps(signal.evidence_refs), json.dumps(signal.provenance_refs), signal.mechanism_ref, signal.created_at.isoformat(), signal.code_revision, signal.configuration_hash, signal.rule_version, signal.input_fingerprint, signal.effect, signal.audit_hash))
         return signal
 
     def get(self, signal_id: str) -> GovernanceSignal:

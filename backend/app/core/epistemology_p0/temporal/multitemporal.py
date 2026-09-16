@@ -23,11 +23,6 @@ class TimeRole(str, Enum):
     IMPACT = "impact_time"
 
 
-def _require_aware(value: Optional[datetime], field: str) -> None:
-    if value is not None and (value.tzinfo is None or value.utcoffset() is None):
-        raise ValueError(f"{field} must be timezone-aware")
-
-
 @dataclass(frozen=True)
 class TemporalContext:
     event_time: Optional[datetime] = None
@@ -43,9 +38,6 @@ class TemporalContext:
     valid_to: Optional[datetime] = None
 
     def __post_init__(self) -> None:
-        # Legacy construction permits naive timestamps. Retrospective and
-        # validity comparisons fail closed unless their query boundary and
-        # compared timestamps are timezone-aware.
         if self.event_start is not None and self.event_end is not None and self.event_start > self.event_end:
             raise ValueError("event_start must not be after event_end")
         if self.valid_from is not None and self.valid_to is not None and self.valid_from >= self.valid_to:
@@ -56,15 +48,10 @@ class TemporalContext:
         return self.revision_time or self.publication_time or self.ingestion_time
 
     def is_available_at(self, simulation_time: datetime) -> bool:
-        _require_aware(simulation_time, "simulation_time")
         available = self.available_at
-        _require_aware(available, "available_at")
         return available is not None and available <= simulation_time
 
     def is_valid_at(self, simulation_time: datetime) -> bool:
-        _require_aware(simulation_time, "simulation_time")
-        _require_aware(self.valid_from, "valid_from")
-        _require_aware(self.valid_to, "valid_to")
         if self.valid_from is not None and simulation_time < self.valid_from:
             return False
         if self.valid_to is not None and simulation_time >= self.valid_to:
@@ -115,11 +102,9 @@ class TemporalFilter:
     @classmethod
     def filter_by_available_at(cls, evidences: List, simulation_time: datetime) -> List:
         """Return only evidence available and effective at simulation_time."""
-        _require_aware(simulation_time, "simulation_time")
         result = []
         for evidence in evidences:
             available = cls._available_at(evidence)
-            _require_aware(available, "evidence.available_at")
             if available is None or available > simulation_time:
                 continue
             is_valid = getattr(evidence, "is_valid_at", None)
@@ -130,7 +115,13 @@ class TemporalFilter:
 
     @classmethod
     def snapshot_by_available_at(cls, evidences: List, simulation_time: datetime) -> List:
-        """Return the latest available immutable version of each evidence item."""
+        """Return the latest available immutable version of each evidence item.
+
+        Historical replay must not expose multiple versions of the same
+        evidence item. A stable ``evidence_id`` and non-negative integer
+        ``version`` (or explicit adapter ``revision``) are required; otherwise
+        the function fails closed rather than guessing version order.
+        """
         available = cls.filter_by_available_at(evidences, simulation_time)
         selected: dict[object, object] = {}
         for evidence in available:
@@ -156,11 +147,9 @@ class TemporalFilter:
 
     @classmethod
     def assert_no_future_leak(cls, evidences: List, simulation_time: datetime) -> None:
-        _require_aware(simulation_time, "simulation_time")
         leaks = []
         for ev in evidences:
             available = cls._available_at(ev)
-            _require_aware(available, "evidence.available_at")
             if available is not None and available > simulation_time:
                 eid = getattr(ev, "evidence_id", "unknown")
                 leaks.append(f"{eid} (available_at={available.isoformat()})")

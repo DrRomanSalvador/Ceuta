@@ -1,8 +1,7 @@
 """Adapter from early-warning diagnostics to CeutIA scientific governance.
 
-The adapter deliberately requires the caller to supply the underlying evidence
-quality and provenance contract. Early-warning diagnostics modify release
-eligibility; they do not manufacture evidence quality or causal identification.
+CSD contributes supporting uncertainty; it does not become a standalone
+mechanism gate. Cry-wolf credibility and evidence/provenance remain explicit.
 """
 from __future__ import annotations
 
@@ -26,15 +25,13 @@ class EarlyWarningGovernanceAdapter:
         evidence_quality: float,
         independent_evidence_ratio: float,
         contradiction_ratio: float,
-        mechanism_ref: str = "scientific:early-warning-v1",
+        mechanism_ref: str = "scientific:early-warning-v2",
     ) -> GovernanceInput:
         if not evidence_ids or not provenance_refs:
             raise ValueError("early-warning governance requires evidence and provenance")
-        # Insufficient CSD data is treated as uncertainty, not as evidence that
-        # a tipping point exists. Cry-wolf abstention is a hard mechanism gate.
-        uncertainty = 0.95 if "critical_slowing_down_insufficient_data" in assessment.reasons else 0.0
+        uncertainty = 0.6 if "critical_slowing_down_insufficient_data" in assessment.reasons else 0.0
         if "critical_slowing_down_confounders_present" in assessment.reasons:
-            uncertainty = max(uncertainty, 0.8)
+            uncertainty = max(uncertainty, 0.75)
         mechanism_satisfied = assessment.cry_wolf_disposition != "abstain" and assessment.alert_allowed
         return GovernanceInput(
             evidence_ids=evidence_ids,
@@ -47,6 +44,10 @@ class EarlyWarningGovernanceAdapter:
             mechanism_integrity_valid=True,
             uncertainty=uncertainty,
             response_closure_complete=True,
+            scientific_findings=tuple(
+                finding for finding in assessment.reasons
+                if finding in {"critical_slowing_down_insufficient_data", "critical_slowing_down_confounders_present"}
+            ),
             code_revision=self.code_revision,
             configuration_hash=self.configuration_hash,
             mechanism_ref=mechanism_ref,

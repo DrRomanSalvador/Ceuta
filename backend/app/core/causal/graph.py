@@ -24,7 +24,7 @@ class CausalGraph:
 
     def add(self, edge: CausalEdge) -> None:
         if self.would_create_cycle(edge.cause, edge.effect):
-            raise ValueError("Causal graph must remain acyclic; represent feedback as a lagged edge")
+            raise ValueError("Causal graph must remain acyclic; represent temporal feedback with time-indexed variables")
         self._edges[(edge.cause, edge.effect)] = edge
 
     def parents(self, node: str) -> tuple[str, ...]:
@@ -58,12 +58,22 @@ class CausalGraph:
     def would_create_cycle(self, cause: str, effect: str) -> bool:
         if cause == effect:
             return True
-        return cause in self.ancestors(effect)
+        # Adding cause -> effect closes a cycle exactly when an existing path
+        # already connects effect -> ... -> cause.
+        return effect in self.ancestors(cause)
 
     def backdoor_candidates(self, exposure: str, outcome: str) -> tuple[str, ...]:
-        parents = set(self.parents(exposure))
-        return tuple(sorted(p for p in parents if p != outcome))
+        """Return all observed ancestors of exposure that can open a backdoor path.
+
+        Immediate parents are insufficient: a confounder may reach the exposure
+        through one or more intermediate ancestors. This conservative candidate
+        set intentionally over-includes ancestors; identification still requires
+        explicit declaration and data/design assumptions in ``CausalIdentifier``.
+        """
+        return tuple(sorted(a for a in self.ancestors(exposure) if a != outcome))
 
     def interaction_candidates(self, variables: Iterable[str]) -> tuple[tuple[str, str], ...]:
         values = sorted(set(variables))
         return tuple((a, b) for i, a in enumerate(values) for b in values[i + 1 :])
+
+# Scientific limitation resolution: feedback is time-unrolled before DAG identification.

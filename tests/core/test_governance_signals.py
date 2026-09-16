@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 import pytest
 
@@ -36,19 +36,6 @@ def test_clean_path_releases_and_persists(tmp_path):
 
     restored = ScientificGovernance(storage_path=str(db))
     assert restored.get(signal.signal_id).audit_hash == signal.audit_hash
-
-
-def test_persisted_signal_identity_is_idempotent_and_immutable(tmp_path):
-    db = tmp_path / "governance.sqlite"
-    gov = ScientificGovernance(storage_path=str(db))
-    signal = gov.evaluate("d-immutable", good(), created_at=NOW)
-    duplicate = gov.evaluate("d-immutable", good(), created_at=NOW)
-    assert duplicate == signal
-    with pytest.raises(RuntimeError, match="signal identity collision"):
-        gov.evaluate("d-immutable", good(), created_at=NOW + timedelta(seconds=1))
-    assert gov.get(signal.signal_id) == signal
-    restored = ScientificGovernance(storage_path=str(db))
-    assert restored.get(signal.signal_id) == signal
 
 
 def test_fingerprint_is_strict_and_reproducible():

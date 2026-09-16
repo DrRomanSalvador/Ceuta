@@ -11,7 +11,13 @@ from .control_plane import DecisionAuditEvent, DecisionOutcome, HumanDecisionRev
 from .lineage import DecisionLineage
 from ..evidence.citation_trace import CitationTrace, CitationTraceRegistry
 from ..evidence.conflict_resolution import EvidenceResolution
-from ..evidence.source_registry import ClaimEvidenceLink, SourceRecord, SourceRegistry, SourceRole, SourceVerification
+from ..evidence.source_registry import (
+    ClaimEvidenceLink,
+    SourceRecord,
+    SourceRegistry,
+    SourceRole,
+    SourceVerification,
+)
 from ..scientific.governance_signals import set_default_storage_path
 
 
@@ -34,7 +40,8 @@ class SQLiteDecisionStore:
             kwargs["default"] = default
         return json.dumps(value, **kwargs)
 
-    def _execute_schema_script(self, script: str) -> None:
+    def _execute_migration_script(self, script: str) -> None:
+        """Execute migration DDL statement-by-statement so the outer transaction remains atomic."""
         for statement in script.split(";"):
             statement = statement.strip()
             if statement:
@@ -49,33 +56,41 @@ class SQLiteDecisionStore:
         self.connection.execute("BEGIN IMMEDIATE")
         try:
             if current < 1:
-                self._execute_schema_script("""CREATE TABLE IF NOT EXISTS decision_audit (event_id TEXT PRIMARY KEY, decision_id TEXT NOT NULL, event_type TEXT NOT NULL, payload_json TEXT NOT NULL, previous_hash TEXT NOT NULL, event_hash TEXT NOT NULL UNIQUE, timestamp TEXT NOT NULL);
+                self._execute_migration_script(
+                    """CREATE TABLE IF NOT EXISTS decision_audit (event_id TEXT PRIMARY KEY, decision_id TEXT NOT NULL, event_type TEXT NOT NULL, payload_json TEXT NOT NULL, previous_hash TEXT NOT NULL, event_hash TEXT NOT NULL UNIQUE, timestamp TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS idx_decision_audit_decision ON decision_audit(decision_id, timestamp);
 CREATE TABLE IF NOT EXISTS decision_reviews (review_id TEXT PRIMARY KEY, decision_id TEXT NOT NULL, payload_json TEXT NOT NULL, timestamp TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS decision_outcomes (decision_id TEXT NOT NULL, option_id TEXT NOT NULL, outcome_at TEXT NOT NULL, payload_json TEXT NOT NULL, PRIMARY KEY(decision_id, option_id, outcome_at));
 CREATE INDEX IF NOT EXISTS idx_decision_outcomes_decision ON decision_outcomes(decision_id, outcome_at);
-CREATE TABLE IF NOT EXISTS decision_cycles (system_id TEXT NOT NULL, as_of TEXT NOT NULL, decision_id TEXT, option_id TEXT, disposition TEXT, lineage_json TEXT NOT NULL, stages_json TEXT NOT NULL, PRIMARY KEY(system_id, as_of));""")
+CREATE TABLE IF NOT EXISTS decision_cycles (system_id TEXT NOT NULL, as_of TEXT NOT NULL, decision_id TEXT, option_id TEXT, disposition TEXT, lineage_json TEXT NOT NULL, stages_json TEXT NOT NULL, PRIMARY KEY(system_id, as_of));"""
+                )
                 if row is None:
                     self.connection.execute("INSERT INTO ceutia_schema_version(version) VALUES (1)")
                 else:
                     self.connection.execute("UPDATE ceutia_schema_version SET version=1")
                 current = 1
             if current < 2:
-                self._execute_schema_script("""CREATE TABLE IF NOT EXISTS decision_lineage (decision_id TEXT PRIMARY KEY, semantic_fingerprint TEXT NOT NULL, execution_fingerprint TEXT NOT NULL, payload_json TEXT NOT NULL);
-CREATE INDEX IF NOT EXISTS idx_decision_lineage_semantic ON decision_lineage(semantic_fingerprint);""")
+                self._execute_migration_script(
+                    """CREATE TABLE IF NOT EXISTS decision_lineage (decision_id TEXT PRIMARY KEY, semantic_fingerprint TEXT NOT NULL, execution_fingerprint TEXT NOT NULL, payload_json TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS idx_decision_lineage_semantic ON decision_lineage(semantic_fingerprint);"""
+                )
                 self.connection.execute("UPDATE ceutia_schema_version SET version=2")
                 current = 2
             if current < 3:
-                self._execute_schema_script("""CREATE TABLE IF NOT EXISTS decision_conflict_resolutions (conflict_id TEXT PRIMARY KEY, decision_id TEXT NOT NULL, disposition TEXT NOT NULL, selected_refs_json TEXT NOT NULL, rationale TEXT NOT NULL, policy_version TEXT NOT NULL);
-CREATE INDEX IF NOT EXISTS idx_conflict_resolutions_decision ON decision_conflict_resolutions(decision_id);""")
+                self._execute_migration_script(
+                    """CREATE TABLE IF NOT EXISTS decision_conflict_resolutions (conflict_id TEXT PRIMARY KEY, decision_id TEXT NOT NULL, disposition TEXT NOT NULL, selected_refs_json TEXT NOT NULL, rationale TEXT NOT NULL, policy_version TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS idx_conflict_resolutions_decision ON decision_conflict_resolutions(decision_id);"""
+                )
                 self.connection.execute("UPDATE ceutia_schema_version SET version=3")
                 current = 3
             if current < 4:
-                self._execute_schema_script("""CREATE TABLE IF NOT EXISTS evidence_sources (source_id TEXT PRIMARY KEY, payload_json TEXT NOT NULL);
+                self._execute_migration_script(
+                    """CREATE TABLE IF NOT EXISTS evidence_sources (source_id TEXT PRIMARY KEY, payload_json TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS claim_evidence_links (claim_id TEXT NOT NULL, source_id TEXT NOT NULL, relation TEXT NOT NULL, excerpt_ref TEXT, supports_claim INTEGER NOT NULL, PRIMARY KEY(claim_id, source_id, relation));
 CREATE INDEX IF NOT EXISTS idx_claim_evidence_links_claim ON claim_evidence_links(claim_id);
 CREATE TABLE IF NOT EXISTS citation_traces (claim_id TEXT NOT NULL, source_id TEXT NOT NULL, locator TEXT NOT NULL, captured_text_hash TEXT NOT NULL, captured_at TEXT NOT NULL, PRIMARY KEY(claim_id, source_id, locator, captured_text_hash));
-CREATE INDEX IF NOT EXISTS idx_citation_traces_claim ON citation_traces(claim_id);""")
+CREATE INDEX IF NOT EXISTS idx_citation_traces_claim ON citation_traces(claim_id);"""
+                )
                 self.connection.execute("UPDATE ceutia_schema_version SET version=4")
             self.connection.commit()
         except Exception:
@@ -110,11 +125,6 @@ CREATE INDEX IF NOT EXISTS idx_citation_traces_claim ON citation_traces(claim_id
 
     def record_review(self, review: HumanDecisionReview) -> None:
         payload = self._json(asdict(review))
-        existing = self.connection.execute("SELECT payload_json FROM decision_reviews WHERE review_id=?", (review.review_id,)).fetchone()
-        if existing is not None:
-            if existing[0] != payload:
-                raise RuntimeError("decision review identity collision: existing review differs")
-            return
         self.connection.execute("INSERT INTO decision_reviews(review_id,decision_id,payload_json,timestamp) VALUES(?,?,?,?)", (review.review_id, review.decision_id, payload, review.timestamp))
         self.connection.commit()
 

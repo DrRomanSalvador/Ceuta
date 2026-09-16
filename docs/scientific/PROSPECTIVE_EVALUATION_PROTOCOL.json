@@ -1,0 +1,76 @@
+{
+  "protocol_id": "CEUTIA-SERPIENTE-PREDICTIVE-EVAL-1",
+  "version": "1.1",
+  "status": "predeclared_protocol",
+  "purpose": "Evaluate prospective binary SERPIENTE predictions against point-in-time eligible observed outcomes without temporal leakage, while preserving ascertainment, baseline, regime and intervention metadata.",
+  "forecast_eligibility": {
+    "canonical_contract_version": "1.1",
+    "required_contract_hash": "672dfa6b60d2e8c0854a024e83acf6b23eed44f2cd3293708aee533d7a9dc1f0",
+    "required_integrity": true,
+    "required_availability_before_replay": true,
+    "required_calibration_metadata": true,
+    "required_ood_metadata": true,
+    "required_point_in_time_fingerprint": true,
+    "semantic_pit_extension_required_for_validation": ["information_set_as_of", "observation_manifest_hash", "feature_manifest_hash", "derivation_method_version", "derivation_configuration_hash", "source_revision_visibility_rule", "feature_availability_cutoff"]
+  },
+  "temporal_rules": {
+    "forecast_origin": "origin_time",
+    "forecast_availability": "available_at",
+    "outcome_eligibility": "outcome_time >= origin_time + horizon and outcome_time >= available_at",
+    "future_outcome_rejected": true,
+    "timezone_required": true,
+    "information_set_rule": "The evaluation system may only treat a forecast as eligible when its persisted availability timestamp is at or before the evaluation reference time. Point-in-time fingerprint provenance remains a producer responsibility and is not inferred from the prediction timestamp alone."
+  },
+  "population": {
+    "reference_population": "prediction.reference_class",
+    "target": "exact target match required",
+    "horizon": "exact horizon match required",
+    "domain": "producer-declared reference class and OOD state",
+    "evaluation_window": "must be registered before outcome inspection with immutable start/end and protocol version",
+    "subgroup_analysis": "not established until a scientifically justified subgroup schema and adequate sample size exist"
+  },
+  "outcome_ascertainment": {
+    "required_fields": ["source_id", "source_version", "observation_time", "availability_time", "ascertainment_time", "revision_id", "measurement_process_id", "outcome_definition_version", "transformation_id", "censoring_status", "missingness_status", "selection_status"],
+    "temporal_order": "observation_time <= availability_time <= ascertainment_time",
+    "scoring_eligibility": "missing, partial, censored or selected outcomes are excluded from binary scoring and retained as explicit non-eligible states",
+    "revision_rule": "revision identity must be preserved; a revised outcome must not silently overwrite a previously evaluated observation",
+    "intervention_rule": "intervention_exposure_id is recorded when applicable; intervention-exposed outcomes are not interpreted as untreated counterfactual outcomes"
+  },
+  "metrics": {
+    "primary": ["Brier score", "log loss"],
+    "calibration": ["mean predicted probability", "observed event rate", "calibration gap"],
+    "discrimination": "not estimated by the current aggregate endpoint; requires outcome population and paired negative/positive labels across an evaluation window",
+    "baseline_comparison": "required before claiming comparative predictive utility; comparator must be registered at forecast origin and evaluated on the same eligible population",
+    "inference": "descriptive only until a dependence-aware inferential procedure is predeclared and validated"
+  },
+  "baseline": {
+    "registration_required": true,
+    "origin_time_validity": "baseline inputs must be restricted to the same information set available at forecast origin",
+    "leakage_forbidden": true,
+    "retrospective_outcome_derived_baseline": false,
+    "paired_comparison": "model and baseline must be evaluated on the same eligible outcome records"
+  },
+  "dependence": {
+    "repeated_forecasts": "allowed as observations but not assumed independent",
+    "current_inference": "descriptive aggregate only; no confidence interval or hypothesis test is emitted",
+    "required_future_extension": "clustered or time-aware uncertainty accounting if inferential claims are introduced"
+  },
+  "regime_and_feedback": {
+    "regime_label_required": "prospective evaluation records should retain declared OOD/distribution-shift and intervention state where available",
+    "intervention_feedback": "forecast -> decision -> action -> outcome is a distinct feedback path; predictive validity and intervention effectiveness are separate estimands",
+    "distribution_shift": "monitor or stratify by predeclared regime labels; do not reinterpret retrospective regime changes as prospective validation"
+  },
+  "missing_outcomes": {
+    "policy": "exclude outcomes that are not yet eligible; do not impute them as observed",
+    "selection_warning": "ascertainment selection remains an explicit limitation even when selected records are excluded from scoring"
+  },
+  "prospective_validity": {
+    "status": "NOT_ESTABLISHED",
+    "reason": "Software fixtures and historical replay do not establish real-world prospective predictive validity.",
+    "minimum_evidence": "A predeclared evaluation window with prospectively generated forecasts, prospectively ascertained outcomes, complete point-in-time eligibility records, predefined target/horizon population, registered baseline, and a locked evaluation procedure."
+  },
+  "causal_validity": {
+    "status": "NOT_ESTABLISHED",
+    "reason": "Prediction error metrics do not identify intervention effects or causal benefit."
+  }
+}

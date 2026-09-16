@@ -17,8 +17,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
           cache: pip
@@ -29,7 +29,7 @@ jobs:
       - name: Inventory current metrics module
         run: python scripts/inventory_metrics_symbols.py --output metrics-symbol-inventory.json
       - name: Upload current metrics inventory
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v4
         with:
           name: metrics-symbol-inventory-${{ github.sha }}
           path: metrics-symbol-inventory.json

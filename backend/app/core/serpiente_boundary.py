@@ -1,10 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from hashlib import sha256
-import json
 from math import isfinite
-
 from pydantic import BaseModel, Field, field_validator
 
 
@@ -45,7 +42,3 @@ class SerpientePredictionEnvelope(BaseModel):
             raise ValueError("SERPIENTE prediction is from the future relative to decision time")
         if self.lower > self.upper:
             raise ValueError("SERPIENTE prediction interval is invalid")
-
-    def canonical_hash(self) -> str:
-        canonical = json.dumps(self.model_dump(mode="json"), sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False)
-        return sha256(canonical.encode("utf-8")).hexdigest()

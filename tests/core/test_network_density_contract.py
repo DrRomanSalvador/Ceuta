@@ -9,7 +9,7 @@ def test_network_density_rejects_more_edges_than_simple_graph_allows():
 
 
 def test_network_density_rejects_negative_and_fractional_edge_counts():
-    with pytest.raises(MetricInputError, match="tamaños|edge_count"):
+    with pytest.raises(MetricInputError, match="edge_count"):
         network_density(4, -1)
     with pytest.raises(MetricInputError, match="edge_count"):
         network_density(4, 2.5)

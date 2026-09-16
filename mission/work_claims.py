@@ -1,11 +1,17 @@
-"""Persistent work-claim/lease ledger for multi-mission coordination."""
+"""Persistent, concurrency-safe work-claim/lease ledger."""
 from __future__ import annotations
 import json
 import os
 import tempfile
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterator
+
+try:
+    import fcntl
+except ImportError:  # pragma: no cover - Windows fallback
+    fcntl = None
 
 
 def utc_now() -> str:
@@ -18,9 +24,9 @@ def _parse_time(value: str) -> datetime:
 
 def load_claims(path: Path) -> dict[str, Any]:
     if not path.exists():
-        return {"schema_version": "1.1.0", "claims": {}}
+        return {"schema_version": "1.2.0", "claims": {}, "history": []}
     data = json.loads(path.read_text(encoding="utf-8"))
-    if not isinstance(data.get("claims"), dict):
+    if not isinstance(data.get("claims"), dict) or not isinstance(data.get("history", []), list):
         raise ValueError("Invalid work-claim ledger")
     return data
 
@@ -43,6 +49,21 @@ def _atomic_write(path: Path, data: dict[str, Any]) -> None:
         raise
 
 
+@contextmanager
+def _locked(path: Path) -> Iterator[None]:
+    """Serialize read-modify-write operations on POSIX runners."""
+    lock_path = path.with_suffix(path.suffix + ".lock")
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    with lock_path.open("a+", encoding="utf-8") as lock:
+        if fcntl is not None:
+            fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            if fcntl is not None:
+                fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
+
+
 def _active_and_unexpired(claim: dict[str, Any], now: datetime) -> bool:
     return claim.get("status") == "ACTIVE" and _parse_time(claim["lease_expires_at"]) > now
 
@@ -54,35 +75,41 @@ def acquire(path: Path, *, work_id: str, mission_id: str, actor: str, lease_id: 
     expiry = _parse_time(lease_expires_at)
     if expiry <= current_time:
         raise ValueError("Lease must expire in the future")
-    data = load_claims(path)
-    existing = data["claims"].get(work_id)
-    if existing and _active_and_unexpired(existing, current_time):
-        raise RuntimeError(f"Work {work_id} already has an active unexpired claim")
-    if existing and existing.get("status") == "ACTIVE":
-        existing = {**existing, "status": "EXPIRED", "expired_at": utc_now()}
-        data["claims"][work_id] = existing
-    claim = {
-        "work_id": work_id,
-        "mission_id": mission_id,
-        "actor": actor,
-        "lease_id": lease_id,
-        "status": "ACTIVE",
-        "acquired_at": now or utc_now(),
-        "lease_expires_at": lease_expires_at,
-    }
-    data["claims"][work_id] = claim
-    _atomic_write(path, data)
-    return claim
+    with _locked(path):
+        data = load_claims(path)
+        existing = data["claims"].get(work_id)
+        if existing and _active_and_unexpired(existing, current_time):
+            raise RuntimeError(f"Work {work_id} already has an active unexpired claim")
+        if existing:
+            terminal = dict(existing)
+            if terminal.get("status") == "ACTIVE":
+                terminal["status"] = "EXPIRED"
+                terminal["expired_at"] = now or utc_now()
+            data["history"].append(terminal)
+        claim = {
+            "work_id": work_id,
+            "mission_id": mission_id,
+            "actor": actor,
+            "lease_id": lease_id,
+            "status": "ACTIVE",
+            "acquired_at": now or utc_now(),
+            "lease_expires_at": lease_expires_at,
+        }
+        data["claims"][work_id] = claim
+        _atomic_write(path, data)
+        return claim
 
 
-def release(path: Path, *, work_id: str, actor: str) -> dict[str, Any]:
-    data = load_claims(path)
-    claim = data["claims"].get(work_id)
-    if not claim or claim.get("status") != "ACTIVE":
-        raise ValueError(f"No active claim for {work_id}")
-    if claim.get("actor") != actor:
-        raise PermissionError("Only the claiming actor may release the claim")
-    claim = {**claim, "status": "RELEASED", "released_by": actor, "released_at": utc_now()}
-    data["claims"][work_id] = claim
-    _atomic_write(path, data)
-    return claim
+def release(path: Path, *, work_id: str, actor: str, now: str | None = None) -> dict[str, Any]:
+    with _locked(path):
+        data = load_claims(path)
+        claim = data["claims"].get(work_id)
+        if not claim or claim.get("status") != "ACTIVE":
+            raise ValueError(f"No active claim for {work_id}")
+        if claim.get("actor") != actor:
+            raise PermissionError("Only the claiming actor may release the claim")
+        released = {**claim, "status": "RELEASED", "released_by": actor, "released_at": now or utc_now()}
+        data["history"].append(released)
+        data["claims"][work_id] = released
+        _atomic_write(path, data)
+        return released

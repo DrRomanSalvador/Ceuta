@@ -110,6 +110,7 @@ cases:
       debt_id: debt-001
       kind: EPISTEMIC
       created_at: "2026-09-16T00:00:00Z"
+      ageing_days: 0
       cause: UNVALIDATED_MODEL
       affected_refs: [claim-9, model-4]
       evidence_gap: "Prospective validation is absent"
@@ -118,3 +119,4 @@ cases:
       owner_ref: null
       status: CREATED
       validation_required: true
+      repayment_strategy: "Run prospective validation before promotion"

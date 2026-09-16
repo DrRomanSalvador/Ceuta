@@ -37,7 +37,7 @@ class ScientificNormativeIntegrationTests(unittest.TestCase):
             "available_at",
             "forecast -> alert -> decision -> action -> exposure -> outcome -> evaluation",
             "EXISTE -> REUTILIZAR",
-            "NO_JUSTIFICADO -> RECHAZAR",
+            "NO JUSTIFICADO -> RECHAZAR",
             "FIXED_POINT",
         )
         for marker in required:

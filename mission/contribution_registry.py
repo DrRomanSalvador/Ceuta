@@ -6,6 +6,7 @@ import tempfile
 from pathlib import Path
 from typing import Any
 from .shared_standard import validate_attribution
+from .event_log import append_payload
 
 REQUIRED = ("contribution_id", "artifact", "claim_or_change", "evidence", "timestamp")
 
@@ -24,7 +25,7 @@ def _write(path: Path, data: dict[str, Any]) -> None:
         raise
 
 
-def record(path: Path, contribution: dict[str, Any]) -> dict[str, Any]:
+def record(path: Path, contribution: dict[str, Any], *, event_log: Path | None = None, actor: str = "SYSTEM") -> dict[str, Any]:
     missing=[field for field in REQUIRED if field not in contribution or contribution[field] in (None, "", [])]
     if missing: raise ValueError(f"Contribution missing required fields: {missing}")
     validate_attribution(contribution, require_authorization=True)
@@ -33,6 +34,10 @@ def record(path: Path, contribution: dict[str, Any]) -> dict[str, Any]:
     items=data.setdefault("items", [])
     if any(x.get("contribution_id") == contribution["contribution_id"] for x in items):
         raise ValueError("Duplicate contribution_id")
-    items.append(dict(contribution))
+    item=dict(contribution)
+    if event_log is not None:
+        event=append_payload(event_log, event_type="MISSION_CONTRIBUTION", mission_id=contribution.get("mission_id", "UNKNOWN"), actor=actor, timestamp=contribution["timestamp"], payload=item)
+        item["mutation_event_id"] = event["event_id"]
+    items.append(item)
     _write(path, data)
-    return contribution
+    return item

@@ -23,8 +23,8 @@ class CausalGraph:
         return tuple(self._edges.values())
 
     def add(self, edge: CausalEdge) -> None:
-        if self.would_create_cycle(edge.cause, edge.effect):
-            raise ValueError("Causal graph must remain acyclic; represent feedback as a lagged edge")
+        if self.would_create_cycle(edge.cause, edge.effect, candidate_lag=edge.lag):
+            raise ValueError("Causal graph must remain acyclic; temporal feedback requires every edge in the cycle to be lagged")
         self._edges[(edge.cause, edge.effect)] = edge
 
     def parents(self, node: str) -> tuple[str, ...]:
@@ -55,16 +55,36 @@ class CausalGraph:
             stack.extend(self.children(current))
         return frozenset(found)
 
-    def would_create_cycle(self, cause: str, effect: str) -> bool:
+    def would_create_cycle(self, cause: str, effect: str, *, candidate_lag: float | None = None) -> bool:
         if cause == effect:
             return True
-        return cause in self.ancestors(effect)
+        # A contemporaneous cycle is forbidden. A dynamic feedback cycle is
+        # representable only when the candidate edge and every edge on the
+        # return path have strictly positive lags, corresponding to a
+        # time-unrolled DAG rather than an instantaneous cyclic graph.
+        stack: list[tuple[str, bool]] = [(cause, candidate_lag is not None and candidate_lag > 0)]
+        visited: set[tuple[str, bool]] = set()
+        while stack:
+            node, all_lagged = stack.pop()
+            state = (node, all_lagged)
+            if state in visited:
+                continue
+            visited.add(state)
+            if node == effect:
+                if not all_lagged:
+                    return True
+                continue
+            for child in self.children(node):
+                edge = self._edges[(node, child)]
+                edge_lagged = edge.lag is not None and edge.lag > 0
+                stack.append((child, all_lagged and edge_lagged))
+        return False
 
     def backdoor_candidates(self, exposure: str, outcome: str) -> tuple[str, ...]:
         """Return all observed ancestors of exposure that can open a backdoor path.
 
         Immediate parents are insufficient: a confounder may reach the exposure
-        through one or more intermediate ancestors.  This conservative candidate
+        through one or more intermediate ancestors. This conservative candidate
         set intentionally over-includes ancestors; identification still requires
         explicit declaration and data/design assumptions in ``CausalIdentifier``.
         """

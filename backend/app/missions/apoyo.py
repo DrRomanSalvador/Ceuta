@@ -6,12 +6,17 @@ from .apoyo_core import ApoyoError, ApoyoRuntime as _ApoyoRuntime, Collaboration
 
 
 class ApoyoRuntime(_ApoyoRuntime):
-    """APOYO runtime with corrected live-slot and stale-writer invariants."""
+    """APOYO runtime with corrected live-slot, event and stale-writer invariants."""
 
     @staticmethod
     def _instance_is_live(state_or_instance: Mapping[str, Any], instance_id: str | None = None) -> bool:
         item = state_or_instance.get(instance_id) if instance_id is not None else state_or_instance
         return isinstance(item, Mapping) and item.get("state") not in {None, "WAITING", "RETIRED", "FINISHED"}
+
+    def _event(self, state: dict[str, Any], event_type: str, **payload: Any) -> None:
+        if "state" in payload:
+            payload["agent_state"] = payload.pop("state")
+        super()._event(state, event_type, **payload)
 
     def _persist(self, state: dict[str, Any]) -> None:
         with self._lock():

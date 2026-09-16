@@ -58,7 +58,9 @@ class CausalGraph:
     def would_create_cycle(self, cause: str, effect: str) -> bool:
         if cause == effect:
             return True
-        return cause in self.ancestors(effect)
+        # Adding cause -> effect closes a cycle exactly when an existing path
+        # already connects effect -> ... -> cause.
+        return effect in self.ancestors(cause)
 
     def backdoor_candidates(self, exposure: str, outcome: str) -> tuple[str, ...]:
         """Return all observed ancestors of exposure that can open a backdoor path.

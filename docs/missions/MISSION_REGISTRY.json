@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.4",
+  "schema_version": "1.5",
   "registry_type": "multi_mission_control_plane",
   "status": "ACTIVE",
   "constitution": {
@@ -10,6 +10,17 @@
     "version": "1.0"
   },
   "discovery_contract": "docs/missions/MISSION_INVOCATION_CONTRACT.md",
+  "autonomous_chain": {
+    "architecture": "docs/missions/AUTONOMOUS_MISSION_CHAIN_ARCHITECTURE.md",
+    "requirements": "docs/missions/AUTONOMOUS_MISSION_CHAIN_REQUIREMENTS.yaml",
+    "activation_policy": "docs/missions/MISSION_ACTIVATION_POLICY.yaml",
+    "state_machine": "docs/missions/MISSION_CHAIN_STATE_MACHINE.yaml",
+    "coherence_guard": "docs/missions/SCIENTIFIC_COHERENCE_GUARD.yaml",
+    "fixed_point": "docs/missions/SCIENTIFIC_FIXED_POINT_SPECIFICATION.md",
+    "global_scientific_specification": "docs/missions/GLOBAL_SCIENTIFIC_SPECIFICATION.yaml",
+    "implementation": "backend/app/missions/autonomous_chain.py",
+    "status": "DESIGN_READY_LOCAL_PRIMITIVES_IMPLEMENTED"
+  },
   "active_handoffs": [
     {
       "handoff_id": "NOTARIO-HANDOFF-RUNTIME-001",
@@ -21,6 +32,17 @@
       "artifact": "docs/missions/handoffs/NOTARIO_RUNTIME_INTEGRATION_HANDOFF.yaml",
       "mission_completion_impact": "BLOCKING_FOR_H1_H5_CLOSURE",
       "automatic_activation": "NOT_ESTABLISHED"
+    },
+    {
+      "handoff_id": "NOTARIO-HANDOFF-AUTONOMOUS-CHAIN-001",
+      "origin_mission": "MISSION-13",
+      "origin_name": "NOTARIO",
+      "owner_mission": "MISSION-01",
+      "owner_name": "INGENIERO",
+      "status": "HANDOFF_READY_FOR_ACCEPTANCE",
+      "artifact": "docs/missions/AUTONOMOUS_ORCHESTRATION_HANDOFF.yaml",
+      "mission_completion_impact": "NON_BLOCKING_FOR_NOTARIO_SPECIFICATION_CLOSURE",
+      "automatic_activation": "NOT_ESTABLISHED"
     }
   ],
   "control_plane_capabilities": {
@@ -31,6 +53,13 @@
       "documentation": "docs/missions/MISSION_EVOLUTION_ENGINE.md",
       "authority": ["CAN_DISCOVER", "CAN_READ", "CAN_PROPOSE", "CAN_AUTHORIZE", "CAN_VALIDATE", "CAN_INVOKE"],
       "purpose": "Admission, creation, validation, lifecycle review and retirement governance for permanent missions."
+    },
+    "AUTONOMOUS_MISSION_CHAIN": {
+      "status": "DESIGN_READY_LOCAL_PRIMITIVES_IMPLEMENTED",
+      "implementation": "backend/app/missions/autonomous_chain.py",
+      "contract": "docs/missions/MISSION_ACTIVATION_POLICY.yaml",
+      "authority": ["CAN_DISCOVER", "CAN_READ", "CAN_INVOKE"],
+      "purpose": "Evidence-gated task qualification, deterministic existing-mission selection, scientific consequence validation, circuit breaking and fixed-point evaluation."
     }
   },
   "architecture_amendments": ["docs/missions/ROMAN_ARCHITECTURE_INTEGRATION.md"],
@@ -50,31 +79,6 @@
     {"mission_id":"MISSION-13","canonical_name":"NOTARIO","mission_type":"EPISTEMOLOGY_PROVENANCE","status":"DEFINED","contract":"docs/missions/MISSION_BOOTSTRAPS.md#mission-13--notario"},
     {"mission_id":"MISSION-14","canonical_name":"ABISMO","mission_type":"EXTREMES_TAIL_RISK","status":"DEFINED","contract":"docs/missions/MISSION_BOOTSTRAPS.md#mission-14--abismo"},
     {"mission_id":"MISSION-15","canonical_name":"CIBERSEGURIDAD","mission_type":"SECURITY_GOVERNANCE","status":"ACTIVE","contract":"docs/security/CYBERSECURITY_MISSION_CONTRACT.md"},
-    {
-      "mission_id":"ROMAN",
-      "canonical_name":"ROMÁN",
-      "mission_type":"AUTHORIAL_INTELLECTUAL_FORENSIC",
-      "purpose":"Reconstruct, audit, model and preserve the observed authorial voice, intellectual architecture, scientific reasoning, systems thinking, narrative architecture, evolution and distinctive patterns of Román Iglesias Salvador using only authorized traceable evidence.",
-      "scope":["authorial forensics","intellectual architecture","scientific reasoning analysis","systems thinking analysis","style analysis","narrative analysis","metaphor analysis","rhetorical analysis","evolution analysis","contradiction analysis","authenticity analysis","anti-style analysis","generation support"],
-      "non_scope":["global system personality","psychological diagnosis or speculation","invented biography","untraceable memory as fact","political spokesperson role","substitution for the human author","treating generated text as authentic source"],
-      "owner":"ROMÁN mission domain; control-plane coordination remains with the common mission governance layer",
-      "authority":"Analyze and maintain the authorial/intellectual model within evidence and provenance constraints; cannot alter another mission identity or promote inference to fact.",
-      "status":"ACTIVE",
-      "inputs":"docs/missions/roman/ROMAN_INVOCATION_CONTRACT.json",
-      "outputs":"docs/missions/roman/ROMAN_HANDOFF_CONTRACT.json",
-      "dependencies":["common mission registry","evidence/provenance controls","mission authority model"],
-      "optional_dependencies":["BIBLIOTECARIO","ESPÍA","FORJA","GROK","NOTARIO"],
-      "handoffs_in":["BIBLIOTECARIO","ESPÍA","FORJA","GROK","NOTARIO"],
-      "handoffs_out":["ESPÍA","FORJA","GROK","INGENIERO","NOTARIO"],
-      "invocation_contract":"docs/missions/roman/ROMAN_INVOCATION_CONTRACT.json",
-      "bootstrap":"docs/missions/roman/ROMAN_BOOTSTRAP.md",
-      "state_location":"docs/missions/roman/ROMAN_MISSION_STATE.json",
-      "evidence_location":"docs/missions/roman/ROMAN_SOURCE_CORPUS.json",
-      "validation_location":"docs/missions/roman/ROMAN_VALIDATION_RESULTS.json",
-      "adversarial_tests":"docs/missions/roman/ROMAN_ADVERSARIAL_TESTS.json",
-      "current_state":"REGISTERED_DISCOVERABLE_INVOCABLE_EXECUTION_VALIDATION_PENDING",
-      "next_authorized_action":"Run the canonical discovery/invocation tests and validate the state/provenance/concurrency controls against an external multi-session orchestrator.",
-      "completion_criteria":"docs/missions/roman/ROMAN_INTEGRATION_STATUS.json"
-    }
+    {"mission_id":"ROMAN","canonical_name":"ROMÁN","mission_type":"AUTHORIAL_INTELLECTUAL_FORENSIC","status":"ACTIVE","contract":"docs/missions/roman/ROMAN_INVOCATION_CONTRACT.json"}
   ]
 }

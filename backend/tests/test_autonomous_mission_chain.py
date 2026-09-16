@@ -1,8 +1,11 @@
 from backend.app.missions.autonomous_chain import (
     AutonomousChainError,
     AutonomousMissionChain,
+    FixedPointState,
     MissionCandidate,
+    ProcessObservation,
     TaskCandidate,
+    WorkQueue,
 )
 
 
@@ -90,7 +93,55 @@ def test_circuit_breaker_fails_closed_on_provenance_or_authority_loss() -> None:
     assert not AutonomousMissionChain.circuit_break("normal", recursion_depth=1, task_count=2)
 
 
-def test_fixed_point_requires_all_zero_conditions() -> None:
+def test_running_process_is_active_and_requires_reobservation() -> None:
+    process = ProcessObservation(
+        process_id="ci-672",
+        process_type="CI",
+        started_at="2026-09-16T11:00:00Z",
+        current_status="RUNNING",
+        last_observed_at="2026-09-16T11:05:00Z",
+        expected_result="workflow conclusion",
+        dependencies=("commit-1",),
+        dependent_tasks=("post-ci-reaudit",),
+        independent_tasks_available=("architecture-audit",),
+        next_observation_condition="workflow conclusion or failure",
+    )
+    assert AutonomousMissionChain.observe_process(process).current_status == "RUNNING"
+
+
+def test_work_queue_never_treats_running_as_waiting() -> None:
+    queue = WorkQueue(running=("ci-672",), executable_now=())
+    assert AutonomousMissionChain.queue_state(queue) == "ACTIVE"
+    assert not queue.waiting_is_valid
+
+
+def test_work_queue_rejects_duplicate_work_items() -> None:
+    queue = WorkQueue(running=("ci-672",), delegated=("ci-672",))
+    try:
+        queue.validate()
+    except AutonomousChainError as exc:
+        assert "WORK_QUEUE_DUPLICATE" in str(exc)
+    else:
+        raise AssertionError("a work item cannot occupy two queue states")
+
+
+def test_full_fixed_point_includes_processes_contradictions_and_discovery() -> None:
+    closed = FixedPointState(
+        executable_open_work=0,
+        unprocessed_derived_work=0,
+        unintegrated_completed_work=0,
+        unreconciled_state=0,
+        unverified_internal_repair=0,
+        untested_executable_change=0,
+        unfollowed_active_handoff=0,
+    )
+    assert AutonomousMissionChain.fixed_point_state(closed)
+    assert not AutonomousMissionChain.fixed_point_state(
+        FixedPointState(**{**closed.__dict__, "active_internal_processes": 1})
+    )
+
+
+def test_fixed_point_legacy_arguments_remain_compatible() -> None:
     assert AutonomousMissionChain.fixed_point(
         executable_open_work=0,
         unprocessed_derived_work=0,

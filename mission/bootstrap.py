@@ -70,6 +70,12 @@ def validate_shared_standard():
     if not validate_autonomous_continuation(authorized=True, scientifically_justified=True, technically_feasible=True, controlled=True, in_scope=True): raise ValueError("Autonomous continuation gate unexpectedly denies a fully authorized action")
     validate_attribution({field:"BOOTSTRAP" for field in ("DISCOVERED_BY","PROPOSED_BY","IMPLEMENTED_BY","REVIEWED_BY","VALIDATED_BY","AUTHORIZED_BY")}, require_authorization=True)
 
+def _validate_event_backing(records:list[dict], event_ids:set[str], label:str) -> None:
+    for record in records:
+        mutation_event_id=record.get("mutation_event_id")
+        if not mutation_event_id: raise ValueError(f"{label} record lacks canonical mutation_event_id: {record.get('id') or record.get('handoff_id') or record.get('contribution_id') or record.get('conflict_id') or record.get('work_id')}")
+        if mutation_event_id not in event_ids: raise ValueError(f"{label} record references missing mutation event: {mutation_event_id}")
+
 def validate_control_plane():
     try:
         from .control_plane import ControlPlaneContract,MissionState,validate_handoff,validate_waiting_policy,validate_mission_contract,validate_registry_consistency
@@ -106,7 +112,12 @@ def validate_control_plane():
             if admission.get("status")!="ADMITTED_REPOSITORY_RUNTIME_PENDING": raise ValueError("ROMAN admission must remain runtime-pending until live validation")
             if admission.get("authorized_by")!="MISSION-01" or not admission.get("evidence"): raise ValueError("ROMAN admission lacks owner/authority evidence")
             if admission.get("contract",{}).get("operating_standard_version")!="MISSION_SYSTEM_CONSTITUTION_1.0": raise ValueError("ROMAN does not explicitly inherit the canonical operating standard")
-    events=load_jsonl(EVENT_LOG_PATH); last_hash=validate_chain(events)
+    events=load_jsonl(EVENT_LOG_PATH); last_hash=validate_chain(events); event_ids={e["event_id"] for e in events}
+    _validate_event_backing(hr["items"],event_ids,"handoff")
+    _validate_event_backing(contributions["items"],event_ids,"contribution")
+    _validate_event_backing(contradictions["items"],event_ids,"contradiction")
+    _validate_event_backing(lifecycle["admissions"]+lifecycle["retirements"]+lifecycle["recoveries"]+lifecycle["conflicts"],event_ids,"lifecycle")
+    history=[*claims.get("history",[]),*claims.get("claims",{}).values()]; _validate_event_backing(history,event_ids,"work-claim")
     return {"mission_count":len(cp["missions"]),"handoff_count":len(hr["items"]),"queue_count":len(queue["items"]),"claim_count":len(claims["claims"]),"contribution_count":len(contributions["items"]),"contradiction_count":len(contradictions["items"]),"lifecycle_admissions":len(lifecycle["admissions"]),"lifecycle_retirements":len(lifecycle["retirements"]),"event_count":len(events),"event_head":last_hash,"status":cp["status"]}
 
 def main()->int:

@@ -12,6 +12,8 @@ on:
       - "backend/app/core/runtime/decision_lifecycle.py"
       - "tests/core/test_scientific_*.py"
       - "tests/core/test_epistemic_contracts.py"
+      - "backend/tests/test_epistemic_contracts.py"
+      - "backend/tests/test_governance_contracts.py"
       - "tests/core/test_cross_repo_*.py"
       - "tests/core/test_crossrepo_*.py"
       - "tests/core/test_global_audit_persistence.py"
@@ -44,4 +46,4 @@ jobs:
         env:
           PYTHONPATH: ${{ github.workspace }}/backend:${{ github.workspace }}
           SERPIENTE_ROOT: ${{ runner.temp }}/SERPIENTE
-        run: python -m pytest -c /dev/null --import-mode=importlib tests/core/test_scientific_traceability.py tests/core/test_scientific_method_catalog.py tests/core/test_scientific_method_registry.py tests/core/test_scientific_runtime_contract.py tests/core/test_scientific_runtime_lifecycle_integration.py tests/core/test_cross_repo_scientific_adversarial.py tests/core/test_cross_repo_transport_integration.py tests/core/test_cross_repo_producer_consumer.py tests/core/test_crossrepo_decision_endpoint.py tests/core/test_global_audit_persistence.py tests/core/test_intervention_independent_validation.py tests/core/test_intervention_validation_lifecycle.py tests/core/test_nonstationarity.py tests/core/test_nonstationarity_lifecycle_integration.py tests/core/test_prediction_outcome_evaluation.py tests/core/test_scientific_product_runtime.py tests/core/test_response_closure.py tests/core/test_scientific_limitation_controls.py tests/core/test_prediction_evaluation_dependence.py tests/core/test_causal_identification.py tests/core/test_epistemic_contracts.py -q
+        run: python -m pytest -c /dev/null --import-mode=importlib tests/core/test_scientific_traceability.py tests/core/test_scientific_method_catalog.py tests/core/test_scientific_method_registry.py tests/core/test_scientific_runtime_contract.py tests/core/test_scientific_runtime_lifecycle_integration.py tests/core/test_cross_repo_scientific_adversarial.py tests/core/test_cross_repo_transport_integration.py tests/core/test_cross_repo_producer_consumer.py tests/core/test_crossrepo_decision_endpoint.py tests/core/test_global_audit_persistence.py tests/core/test_intervention_independent_validation.py tests/core/test_intervention_validation_lifecycle.py tests/core/test_nonstationarity.py tests/core/test_nonstationarity_lifecycle_integration.py tests/core/test_prediction_outcome_evaluation.py tests/core/test_scientific_product_runtime.py tests/core/test_response_closure.py tests/core/test_scientific_limitation_controls.py tests/core/test_prediction_evaluation_dependence.py tests/core/test_causal_identification.py tests/core/test_epistemic_contracts.py backend/tests/test_epistemic_contracts.py backend/tests/test_governance_contracts.py -q

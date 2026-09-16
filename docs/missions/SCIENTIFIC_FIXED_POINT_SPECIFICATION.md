@@ -17,9 +17,17 @@ A fixed point requires:
 - `UNVERIFIED_INTERNAL_REPAIR = 0`
 - `UNTESTED_EXECUTABLE_CHANGE = 0`
 - `UNFOLLOWED_ACTIVE_HANDOFF = 0`
+- `ACTIVE_INTERNAL_PROCESSES = 0`
+- `UNRESOLVED_CRITICAL_CONTRADICTIONS = 0`
+- `UNPROCESSED_HIGH_VALUE_DISCOVERY = 0`
+- `REQUIRED_INTEGRATION_PENDING = 0`
+- `REPAIRABLE_REGRESSION = 0`
+- `MATERIAL_CAPABILITY_GAP = 0`
 - no material contradiction is silently unresolved;
 - no activation exists without a closure/continuation decision;
 - no local task is deferred merely because ownership differs.
+
+A `RUNNING` process is an active process and therefore prevents the fixed point. `WAITING` is permitted only when no executable, running, blocked or delegated internal work remains.
 
 ## Candidate-work test
 
@@ -28,6 +36,14 @@ Every discovered candidate is classified:
 `MATERIAL_EXECUTABLE | NON_MATERIAL | REDUNDANT | EXTERNAL | HUMAN_AUTHORITY | NOT_JUSTIFIED`.
 
 Only `MATERIAL_EXECUTABLE` can prevent the fixed point. `EXTERNAL` and `HUMAN_AUTHORITY` must include explicit evidence that the property cannot be executed under current authority/infrastructure.
+
+## Queue semantics
+
+The persisted queue is disjoint and explicit:
+
+`executable_now | running | blocked | delegated | external | completed | cancelled`.
+
+`executable_now` must be drained before quiescence. `running` must be observed. `delegated` must be followed. `blocked` must receive unblock attempts. `external` requires demonstrated externality. Only `completed` is closed work.
 
 ## Reopening rule
 

@@ -34,16 +34,13 @@ def _callee_name(node: ast.Call) -> tuple[str, str] | None:
     return None
 
 
-def _intentional_contract_violation(node: ast.Call, parents: dict[ast.AST, ast.AST]) -> bool:
-    """Recognize negative contract tests, including helpers called by assertRaises tests."""
+def _intentional_contract_violation(node: ast.Call, parents: dict[ast.AST, ast.AST], path: Path) -> bool:
+    """Recognize negative contract tests, including helpers used by assertRaises."""
     current: ast.AST | None = node
     enclosing_function: ast.FunctionDef | ast.AsyncFunctionDef | None = None
     for _ in range(16):
         current = parents.get(current)
         if current is None:
-            break
-        if isinstance(current, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            enclosing_function = current
             break
         if isinstance(current, ast.With):
             for item in current.items:
@@ -57,24 +54,16 @@ def _intentional_contract_violation(node: ast.Call, parents: dict[ast.AST, ast.A
                     and context.args[0].id in {"TypeError", "ValueError"}
                 ):
                     return True
+        if isinstance(current, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            enclosing_function = current
             break
 
     if enclosing_function is None:
         return False
 
-    # Test-only helper whose sole purpose is to invoke the callable with a
-    # deliberately incomplete contract. The helper is reached from an
-    # assertRaises(TypeError) test, so the direct call is itself intentional.
-    if (
-        enclosing_function.name.startswith("_call_missing")
-        and enclosing_function.name != "compare_and_swap_mission"
-        and "test_" in str(getattr(enclosing_function, "lineno", ""))
-    ):
-        module = parents
-        del module
-        return True
-
-    return False
+    # This helper intentionally omits required actor/timestamp arguments and
+    # is only used by the negative contract test above.
+    return path.name == "test_materialized_state.py" and enclosing_function.name == "_call_missing"
 
 
 def audit(root: Path) -> dict:
@@ -102,7 +91,7 @@ def audit(root: Path) -> dict:
                 column=node.col_offset,
                 form=callee[1],
                 event_backed=event_backed,
-                intentional_contract_violation=(not event_backed) and _intentional_contract_violation(node, parents),
+                intentional_contract_violation=(not event_backed) and _intentional_contract_violation(node, parents, path),
             ))
 
     legacy = [call for call in calls if not call.event_backed and not call.intentional_contract_violation]

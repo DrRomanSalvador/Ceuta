@@ -8,6 +8,8 @@ from typing import Any
 
 from .shared_standard import require_fields
 
+OPERATING_STANDARD_VERSION = "MISSION_SYSTEM_CONSTITUTION_1.0"
+
 
 def load_ledger(path: Path) -> dict[str, Any]:
     data = json.loads(path.read_text(encoding="utf-8"))
@@ -33,16 +35,20 @@ def _write(path: Path, data: dict[str, Any]) -> None:
 
 
 def admit(path: Path, contract: dict[str, Any], *, authorized_by: str, evidence: list[str]) -> dict[str, Any]:
-    required=("mission_id","mission_name","purpose","scope","authority","owner","inputs","outputs","dependencies","handoff_contract","validation_contract","recovery_policy","retirement_conditions")
+    required=("mission_id","mission_name","purpose","scope","authority","owner","inputs","outputs","dependencies","handoff_contract","validation_contract","recovery_policy","retirement_conditions","operating_standard_version")
     require_fields(contract, required, "mission admission")
     if not evidence or not authorized_by:
         raise ValueError("Admission requires evidence and authorizer")
-    if contract["mission_id"].startswith("MISSION-") is False:
-        raise ValueError("Operational mission IDs must use MISSION-* namespace")
+    mission_id = contract["mission_id"]
+    if not (mission_id.startswith("MISSION-") or mission_id == "ROMAN"):
+        raise ValueError("Operational mission IDs must use MISSION-* or the canonical ROMAN namespace")
+    if contract["operating_standard_version"] != OPERATING_STANDARD_VERSION:
+        raise ValueError("Mission must explicitly inherit the canonical operating standard")
     data=load_ledger(path)
-    if any(x["mission_id"]==contract["mission_id"] and x["status"]=="ADMITTED" for x in data["admissions"]):
+    if any(x["mission_id"]==mission_id and x["status"] in {"ADMITTED","ADMITTED_REPOSITORY_RUNTIME_PENDING"} for x in data["admissions"]):
         raise ValueError("Mission is already admitted")
-    record={"mission_id":contract["mission_id"],"status":"ADMITTED","contract":contract,"authorized_by":authorized_by,"evidence":evidence}
+    status = "ADMITTED_REPOSITORY_RUNTIME_PENDING" if mission_id == "ROMAN" else "ADMITTED"
+    record={"mission_id":mission_id,"status":status,"contract":contract,"authorized_by":authorized_by,"evidence":evidence}
     data["admissions"].append(record); _write(path,data); return record
 
 

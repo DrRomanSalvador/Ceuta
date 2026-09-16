@@ -6,7 +6,7 @@ from .apoyo_core import ApoyoError, ApoyoRuntime as _ApoyoRuntime, Collaboration
 
 
 class ApoyoRuntime(_ApoyoRuntime):
-    """APOYO runtime with corrected live-slot, event and stale-writer invariants."""
+    """APOYO runtime with corrected live-slot, event, handoff and stale-writer invariants."""
 
     @staticmethod
     def _instance_is_live(state_or_instance: Mapping[str, Any], instance_id: str | None = None) -> bool:
@@ -40,3 +40,16 @@ class ApoyoRuntime(_ApoyoRuntime):
             finally:
                 if os.path.exists(tmp_name):
                     os.unlink(tmp_name)
+
+    def return_control(self, request_id: str, *, result: str, evidence_refs: Any) -> dict[str, Any]:
+        completed = super().return_control(request_id, result=result, evidence_refs=evidence_refs)
+        state = self.load()
+        instance_id = state["instance_id"]
+        state["state"] = "WAITING_AT_MEETING_POINT"
+        state["meeting_point"]["availability_state"] = "WAITING"
+        state["meeting_point"]["current_instance"] = instance_id
+        state["instances"][instance_id]["state"] = "WAITING_AT_MEETING_POINT"
+        state["instances"][instance_id]["meeting_point_status"] = "OCCUPIED"
+        self._event(state, "RETURNED_TO_MEETING_POINT", instance_id=instance_id, request_id=request_id)
+        self._persist(state)
+        return completed

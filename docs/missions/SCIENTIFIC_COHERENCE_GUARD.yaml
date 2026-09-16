@@ -1,0 +1,46 @@
+schema_version: "1.0"
+status: ACTIVE_DESIGN
+owner: MISSION-13
+purpose: Prevent locally successful mission work from silently becoming globally accepted science or architecture.
+classification:
+  compatible: result fits active thesis, ontology, constraints and validation domain
+  extends: result adds capability without invalidating active constraints
+  modifies: result requires an explicit change to an active specification or model
+  contradicts: result conflicts with an active claim, constraint or mission output
+  refutes: result falsifies an active hypothesis/claim within its declared domain
+  inconclusive: evidence is insufficient to decide
+required_checks:
+  - thesis_compatibility
+  - epistemic_level
+  - provenance_completeness
+  - assumption_delta
+  - ontology_delta
+  - dependency_delta
+  - contradiction_scan
+  - scientific_debt_delta
+  - technical_debt_delta
+  - capability_delta
+  - regression_obligations
+  - downstream_tasks
+promotion_rules:
+  generated_text_is_evidence: false
+  local_test_is_operational_validation: false
+  historical_replay_is_prospective_validation: false
+  prediction_is_causation: false
+  consensus_is_truth: false
+  unresolved_contradiction_may_be_silently_discarded: false
+failure_actions:
+  provenance_loss: CIRCUIT_BREAK
+  authority_conflict: CIRCUIT_BREAK
+  critical_contradiction: PRESERVE_AND_BLOCK_PROMOTION
+  material_regression: REVALIDATE_AND_BLOCK_CLOSURE
+  unsupported_scope_expansion: REJECT_SCOPE_CHANGE
+outputs:
+  - coherence_classification
+  - evidence_level
+  - affected_claim_refs
+  - affected_capability_refs
+  - revalidation_obligation_refs
+  - scientific_debt_refs
+  - downstream_task_refs
+  - closure_decision

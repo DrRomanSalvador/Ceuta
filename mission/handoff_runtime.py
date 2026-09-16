@@ -13,7 +13,7 @@ except ImportError:  # pragma: no cover
     fcntl=None
 
 from .control_plane import HandoffState, validate_handoff
-from .event_log import append_payload
+from .event_log import append_payload, load_jsonl
 
 @contextmanager
 def _locked(path: Path) -> Iterator[None]:
@@ -41,6 +41,13 @@ def _load(path: Path) -> dict[str,Any]:
     if not isinstance(data.get("handoffs"),dict): raise ValueError("Invalid handoff registry")
     return data
 
+def _matching_event(event_log: Path, *, mission_id: str, actor: str, timestamp: str, payload: dict[str,Any]) -> dict[str,Any] | None:
+    if not event_log.exists(): return None
+    for event in load_jsonl(event_log):
+        if event.get("event_type")=="HANDOFF_LIFECYCLE" and event.get("mission_id")==mission_id and event.get("actor")==actor and event.get("timestamp")==timestamp and event.get("payload")==payload:
+            return event
+    return None
+
 def transition(path: Path, event_log: Path, handoff: dict[str,Any], *, target_status: HandoffState, actor: str, timestamp: str, evidence: list[str]) -> dict[str,Any]:
     current=HandoffState(handoff["status"])
     candidate=dict(handoff)
@@ -51,10 +58,15 @@ def transition(path: Path, event_log: Path, handoff: dict[str,Any], *, target_st
     if not evidence: raise ValueError("Handoff transition requires evidence")
     with _locked(path):
         data=_load(path); existing=data["handoffs"].get(handoff["handoff_id"],candidate)
-        if HandoffState(existing["status"]) != current: raise ValueError("Handoff registry is stale; reconcile before retry")
-        record={**existing,"status":target_status.value,"last_actor":actor,"last_timestamp":timestamp,"last_evidence":evidence}
+        if HandoffState(existing["status"]) != current:
+            matching=_matching_event(event_log,mission_id=existing["destination_mission"],actor=actor,timestamp=timestamp,payload={"handoff_id":existing["handoff_id"],"from":current.value,"to":target_status.value,"evidence":evidence})
+            if matching is not None and HandoffState(existing["status"]) == target_status:
+                return {**existing,"mutation_event_id":matching["event_id"]}
+            raise ValueError("Handoff registry is stale; reconcile before retry")
+        payload={"handoff_id":existing["handoff_id"],"from":current.value,"to":target_status.value,"evidence":evidence}
+        event=_matching_event(event_log,mission_id=existing["destination_mission"],actor=actor,timestamp=timestamp,payload=payload)
+        if event is None: event=append_payload(event_log,event_type="HANDOFF_LIFECYCLE",mission_id=existing["destination_mission"],actor=actor,timestamp=timestamp,payload=payload)
+        record={**existing,"status":target_status.value,"last_actor":actor,"last_timestamp":timestamp,"last_evidence":evidence,"mutation_event_id":event["event_id"]}
         if target_status is HandoffState.VERIFIED: record["verification_state"]=HandoffState.VERIFIED.value
         if target_status is HandoffState.INTEGRATED: record["integrated_at"]=timestamp; record["verification_state"]=HandoffState.VERIFIED.value
-        event=append_payload(event_log,event_type="HANDOFF_LIFECYCLE",mission_id=existing["destination_mission"],actor=actor,timestamp=timestamp,payload={"handoff_id":existing["handoff_id"],"from":current.value,"to":target_status.value,"evidence":evidence})
-        record["mutation_event_id"]=event["event_id"]
         data["handoffs"][handoff["handoff_id"]]=record; _write(path,data); return record

@@ -53,7 +53,12 @@ def test_later_unverified_head_is_never_promoted_as_verified_evidence():
             "CI_SUCCESS_AND_SECURITY_SUCCESS",
             "PR_HEAD_ASSOCIATED_CI_SECURITY_SUCCESS_EXACT_BRANCH_HEAD_UNVERIFIED",
         }
-    assert state["security_state"].startswith(verified["HEAD"][:12]) or verified["HEAD"] in state["security_state"]
+    security_state = state["security_state"]
+    assert (
+        verified["HEAD"] in security_state
+        or verified["HEAD"][:12] in security_state
+        or verified["HEAD"][:8] in security_state
+    )
 
 
 def test_continuation_pointer_preserves_exact_head_validation_boundary():

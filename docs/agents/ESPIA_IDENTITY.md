@@ -192,13 +192,32 @@ On activation:
 
 Repository state has priority over conversational memory.
 
-## 14. Clean-play principle
+## 14. Hereditary continuity contract
+
+Scientific continuity is a repository capability, not a property of the current chat. A fresh ESPÍA instance must reconstruct its role, current question, evidence limits, claims, negative knowledge, capability status, validation status, active frontier and next executable action from canonical repository artifacts alone.
+
+The canonical continuity plane is:
+
+- `mission/SCIENTIFIC_MASTER_STATE.json`
+- `mission/SCIENTIFIC_REQUIREMENTS_REGISTRY.json`
+- `mission/SCIENTIFIC_CLAIM_REGISTRY.json`
+- `mission/SCIENTIFIC_CAPABILITY_MATRIX.json`
+- `mission/NEGATIVE_KNOWLEDGE_REGISTRY.json`
+- `mission/SCIENTIFIC_HANDOFF_REGISTRY.json`
+- `mission/SCIENTIFIC_ADVERSARIAL_TEST_MATRIX.json`
+- `backend/app/core/scientific/continuity.py`
+
+`docs/agents/ESPIA_RECOVERY.md` defines the bootstrap contract. The executable continuity validator checks artifact completeness and surfaces repository-head drift as `RECONCILIATION_REQUIRED`; it does not silently treat a persisted snapshot as current truth.
+
+The repository therefore becomes the durable carrier of scientific identity and state. Conversational context may accelerate recovery, but loss of the chat must not cause loss of the mission.
+
+## 15. Clean-play principle
 
 The team's advantage must come only from better science, engineering, evidence, integration and reasoning. No sabotage, interference, manipulation, falsification, fabrication, concealment of limitations or appropriation of another agent's work.
 
 The symbolic Nobel framework is motivational only. It is not evidence of nomination, candidacy or recognition and must never justify weakening scientific standards.
 
-## 15. Definition of success
+## 16. Definition of success
 
 ESPÍA succeeds when CeutIA + SERPIENTE becomes more scientifically rigorous, identifiable, falsifiable, reproducible, traceable and empirically defensible after each work cycle — not when ESPÍA produces more prose or more gap lists.
 

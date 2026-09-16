@@ -130,6 +130,8 @@ class ProcessObservation:
             raise AutonomousChainError(f"PROCESS_OBSERVATION_INVALID: missing={missing}")
         if self.current_status not in {"RUNNING", "WAITING", "COMPLETED", "FAILED", "CANCELLED"}:
             raise AutonomousChainError(f"PROCESS_STATUS_INVALID: {self.current_status}")
+        if self.current_status == "WAITING" and self.independent_tasks_available:
+            raise AutonomousChainError("WAITING_WITH_INDEPENDENT_WORK")
 
 
 @dataclass(frozen=True, slots=True)

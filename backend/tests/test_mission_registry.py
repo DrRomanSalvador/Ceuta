@@ -36,7 +36,11 @@ def test_evolution_engine_is_registered_as_control_plane_capability() -> None:
     capability = registry.get_control_plane_capability("MISSION_EVOLUTION_ENGINE")
 
     assert capability["status"] == "ACTIVE"
-    assert capability["implementation"] == "backend/app/missions/evolution.py"
+    assert capability["implementation"] == [
+        "backend/app/missions/evolution.py",
+        "backend/app/missions/evolution_runtime.py",
+        "backend/app/missions/lifecycle.py",
+    ]
 
 
 def test_roman_invocation_requires_authority_and_uses_contract_operation() -> None:

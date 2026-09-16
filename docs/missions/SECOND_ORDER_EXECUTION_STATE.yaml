@@ -1,37 +1,43 @@
-schema_version: "1.0"
+schema_version: "1.1"
 mission: MISSION_13_NOTARIO
 state: IN_PROGRESS
-phase: VALIDATING
+phase: RE-AUDITING
 closure_allowed: false
-basis: "Audit findings are not completion; five critical handoffs now have machine-readable contracts and negative/positive vectors, but runtime integration and re-audit remain pending."
+basis: "H1-H5 remain active. Contracts/vectors are specified, an executable runtime handoff is now registered, CI has returned two concrete failures, and no runtime execution evidence for H1-H5 exists yet."
 previous_audit_pr: 45
 execution_pr: 46
+latest_known_head: a16cf484994c822caee004943cf6cf6a88bf4927
 critical_work:
   H1_knowledge_impact_graph:
     status: SPECIFIED
     contract: contracts/v1/knowledge-impact-graph.schema.json
     acceptance: "Changed upstream node yields downstream traversal and proportional revalidation obligations."
     runtime_verified: false
+    handoff_status: HANDOFF_ACTIVE
   H2_discovery_funnel:
     status: SPECIFIED
     contract: contracts/v1/discovery-candidate.schema.json
     acceptance: "Anomaly remains candidate, enters rival hypotheses/falsification, and cannot become supported without evidence."
     runtime_verified: false
+    handoff_status: HANDOFF_ACTIVE
   H3_disagreement_lifecycle:
     status: SPECIFIED
     contract: contracts/v1/disagreement-lifecycle.schema.json
     acceptance: "Typed disagreement preserves positions/minority/history and supports discriminative testing."
     runtime_verified: false
+    handoff_status: HANDOFF_ACTIVE
   H4_capability_regression:
     status: SPECIFIED
     contract: contracts/v1/capability-benchmark.schema.json
     acceptance: "Reference-vs-observed revision detects capability gain/loss/change/fragility."
     runtime_verified: false
+    handoff_status: HANDOFF_ACTIVE
   H5_scientific_epistemic_debt:
     status: SPECIFIED
     contract: contracts/v1/scientific-epistemic-debt.schema.json
     acceptance: "Material unvalidated knowledge creates distinct debt linked to affected knowledge and validation."
     runtime_verified: false
+    handoff_status: HANDOFF_ACTIVE
 research:
   external_literature_reviewed: true
   contrary_evidence_sought: true
@@ -43,15 +49,50 @@ research:
   status: PARTIAL
 validation:
   contract_vectors_created: true
-  ci_run_observed: false
+  ci_run_observed: true
+  ci_run_id: 35087848624
+  ci_run_number: 661
+  ci_status: FAILED
+  ci_result: "581 passed, 2 failed"
   runtime_integration_observed: false
   post_integration_reaudit: false
-  status: PENDING
+  status: BLOCKED_PENDING_RUNTIME_AND_CI_REPAIR
+active_work:
+  - "Verify and repair/reconcile CI-001 Mission Evolution registry representation mismatch through owner handoff."
+  - "Verify and repair/reconcile CI-002 SERPIENTE prediction evidence-reference identity mismatch through owner handoff."
+  - "Execute H1-H5 runtime integration when owner evidence becomes available."
+  - "Continue independent provenance, discovery, disagreement, regression and debt falsification."
+  - "Re-audit every material integration and open derived gaps into this active workset."
+blocked_work:
+  - "Production runtime integration by existing engineering owner."
+waiting_for_evidence:
+  - "INGENIERO runtime implementation and execution traces."
+ready_for_review: []
+completed_work:
+  - "Second-order system quality audit."
+  - "External literature review and contrary-evidence search."
+  - "H1-H5 machine-readable contracts."
+  - "Positive/negative contract test vectors."
+  - "Executable runtime handoff registration."
 blockers:
   - id: EXT-RUNTIME-INTEGRATION
     task: "Wire contracts into persistent runtime surfaces and execute acceptance vectors."
-    why_blocked: "NOTARIO can define and validate scientific contracts; production runtime integration belongs to existing engineering owners."
-    what_has_been_done: "Complete critical-contract definitions and test vectors; ownership and acceptance conditions recorded in PR 46."
-    what_can_continue: "Scientific re-audit, redundancy analysis, research, and adversarial contract review can continue independently."
-    external_dependency: "Existing engineering/runtime owners."
-    acceptance_condition: "Runtime persists, traverses, and enforces all five contracts with passing positive/negative tests."
+    owner_mission: MISSION-01
+    owner_name: INGENIERO
+    status: HANDOFF_ACTIVE
+    handoff: docs/missions/handoffs/NOTARIO_RUNTIME_INTEGRATION_HANDOFF.yaml
+    automatic_activation: NOT_ESTABLISHED
+    why_blocked: "Repository contracts define mission discovery/invocation but explicitly require an external host/orchestrator for true multi-process execution and transactional live-state writes; no evidence establishes automatic activation from this context."
+    what_has_been_done: "Contracts, vectors, acceptance criteria, existing primitive map, required return evidence, non-goals and CI blockers are persisted."
+    what_can_continue: "NOTARIO continues scientific re-audit, falsification, redundancy analysis, research and review of returned evidence."
+    acceptance_condition: "Runtime persists, traverses and enforces all five contracts with reproducible positive/negative evidence; NOTARIO then verifies and falsifies the result."
+  - id: CI-001
+    task: "Reconcile Mission Evolution Engine registry implementation representation with its test contract."
+    owner_mission: MISSION-01
+    status: OPEN
+    evidence: "CI run 35087848624 / backend/tests/test_mission_registry.py::test_evolution_engine_is_registered_as_control_plane_capability"
+  - id: CI-002
+    task: "Reconcile canonical SERPIENTE prediction evidence-reference identity between runtime and test."
+    owner_mission: MISSION-01
+    status: OPEN
+    evidence: "CI run 35087848624 / backend/tests/test_serpiente_prediction_consumer.py::test_serpiente_prediction_is_consumed_by_epistemic_decision_gate"

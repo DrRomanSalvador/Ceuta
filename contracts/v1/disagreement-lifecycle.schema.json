@@ -4,11 +4,12 @@
   "title": "Scientific Disagreement Lifecycle",
   "type": "object",
   "additionalProperties": false,
-  "required": ["disagreement_id", "type", "position_refs", "shared_premise_refs", "status", "history", "minority_preserved"],
+  "required": ["disagreement_id", "type", "position_refs", "source_refs", "shared_premise_refs", "status", "history", "minority_preserved"],
   "properties": {
     "disagreement_id": {"type": "string", "minLength": 1},
     "type": {"enum": ["FACTUAL", "METHODOLOGICAL", "STATISTICAL", "EPISTEMOLOGICAL", "SEMANTIC", "TEMPORAL", "CAUSAL", "MODEL_BASED", "SOURCE_BASED", "STRATEGIC", "IMPLEMENTATION", "UNCERTAINTY"]},
     "position_refs": {"type": "array", "minItems": 2, "items": {"type": "string", "minLength": 1}},
+    "source_refs": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
     "shared_premise_refs": {"type": "array", "items": {"type": "string", "minLength": 1}},
     "assumption_refs": {"type": "array", "items": {"type": "string", "minLength": 1}},
     "discriminative_evidence_refs": {"type": "array", "items": {"type": "string", "minLength": 1}},

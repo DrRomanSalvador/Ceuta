@@ -1,21 +1,23 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "mission_id": "APOYO",
   "canonical_name": "APOYO",
   "mission_finite": true,
-  "role_lifecycle": "CONTINUOUS",
+  "role_lifecycle": "CONTINUOUS_WHILE_NEEDED",
   "meeting_point": {
     "id": "APOYO-MEETING-POINT",
     "terminal": false,
-    "active_waiting_state": "WAITING",
+    "active_waiting_states": ["WAITING_FOR_AGENT", "WAITING_FOR_TASK", "WAITING_AT_MEETING_POINT", "READY"],
     "coverage_required": true,
-    "minimum_ready_support_instances": 1
+    "minimum_ready_support_instances": 1,
+    "waiting_is_not_completion": true
   },
+  "initial_sequence": ["RECOVER_IDENTITY", "RECOVER_CONTRACT", "RECOVER_PERSISTED_STATE", "LOCATE_MEETING_POINT", "SCAN_ACTIVE_AGENTS", "SCAN_PROSPECTIVE_AGENTS", "CHECK_EXISTING_MEETING_POINT_INSTANCE", "OCCUPY_IF_EMPTY", "PERSIST_PRESENCE", "WAIT_ACTIVELY"],
   "presence": {
-    "exists_as_persistent_support_mission": true,
+    "persistent_support_mission": true,
     "remains_active_while_relevant_agents_active": true,
-    "waiting_is_not_completion": true,
-    "return_to_meeting_point_is_not_completion": true
+    "return_to_meeting_point_is_not_completion": true,
+    "global_completion_requires_fixed_point": true
   },
   "observation": {
     "required_fields": ["WHO", "MISSION", "ACCOUNT", "REPOSITORY", "CURRENT_TASK", "STATUS", "LAST_PERSISTED_STATE", "POTENTIAL_SUPPORT_NEED"],
@@ -24,50 +26,68 @@
     "authorization_unknown_is_fail_closed": true,
     "authorized_account_count": 3
   },
+  "reception": {
+    "detect_before_substantive_work_when_runtime_permits": true,
+    "action_must_be_recognizable": true,
+    "log_only_is_insufficient": true,
+    "greeting_required": true,
+    "greeting_contents": ["IDENTITY", "SUBORDINATION", "NO_INTERFERENCE", "AUXILIARY_CAPABILITY", "IMMEDIATE_AVAILABILITY", "TASK_ASSIGNMENT_PATH", "SUCCESSOR_CONTINUITY"],
+    "non_intrusive_window_required": true
+  },
+  "support_offer": {
+    "active_offer_required": true,
+    "persistent_support_offer": true,
+    "candidate_task_classes": ["AUXILIARY_ANALYSIS", "EVIDENCE_REVIEW", "VERIFICATION", "TEST_EXECUTION", "DOCUMENTATION_RETRIEVAL", "AUDIT", "CONTRADICTION_CHECK", "DEDUPLICATION", "HANDOFF_PREPARATION"],
+    "never_force_assignment": true,
+    "never_self_authorize": true
+  },
+  "task_lifecycle": ["OFFERED", "REQUESTED", "ASSIGNED", "ACCEPTED", "RUNNING", "VALIDATING", "PERSISTING", "COMPLETED", "FAILED", "HANDED_BACK"],
   "engineer": {
     "mission_id": "MISSION-01",
     "canonical_name": "INGENIERO",
     "greeting_required": true,
     "greeting_purpose": "ACKNOWLEDGE_AND_OFFER_SUPPORT",
     "minimal_interruption": true,
-    "must_return_to_meeting_point": true,
-    "greeting_is_not_completion": true
+    "must_return_to_meeting_point": true
   },
   "roman": {
     "canonical_name": "ROMÁN",
+    "principal_actor": true,
     "remain_active_while_direct_work_active": true,
     "greet_only_when_non_intrusive_and_useful": true
   },
-  "collaboration": {
-    "offer_without_force": true,
-    "request_grants_subordinate_scope_only": true,
-    "preserve_requesting_mission_ownership": true,
-    "cycle": ["IDENTIFY", "ACCEPT", "ASSIST", "VALIDATE", "PERSIST", "RETURN_CONTROL", "RETURN_TO_MEETING_POINT"],
-    "duplicate_work_forbidden": true
+  "succession": {
+    "required_when_current_instance_must_leave_and_coverage_is_needed": true,
+    "necessary_successor_over_arbitrary_cloning": true,
+    "atomic_claim_required": true,
+    "single_successor_slot_per_meeting_point": true,
+    "lineage_fields": ["lineage_id", "parent_instance_id", "successor_instance_id", "creation_reason", "creation_timestamp", "meeting_point_status", "assigned_task"],
+    "successor_exit_order": ["VERIFY_SUCCESSOR", "TRANSFER_STATE", "VERIFY_MEETING_POINT_COVERAGE", "EXIT_INSTANCE"],
+    "runtime_materialization_must_not_be_faked": true,
+    "external_session_provisioner_required_for_real_clone": true
+  },
+  "concurrency": {
+    "atomic_claim_meeting_point": true,
+    "atomic_successor_creation": true,
+    "stale_writer_rejection": true,
+    "restart_recovery": true,
+    "double_assignment_protection": true,
+    "simultaneous_instance_duplication_protection": true
   },
   "recovery": {
     "zero_context": true,
     "commands": ["VUELVE", "REGRESA", "APOYO", "MEETING POINT", "VUELVE AL MEETING POINT", "REGRESA AL MEETING POINT"],
-    "restore": ["IDENTITY", "MISSION", "STATE", "ROLE", "AUTHORITY", "MEETING_POINT", "MEMORY", "ACTIVE_AGENTS", "HANDOFFS", "REPLICATION_STATE"]
-  },
-  "replication": {
-    "requirement": "APOYO_REPLICATION_REQUIREMENT = INFINITE_CONTINUITY",
-    "design_generations": "UNBOUNDED",
-    "runtime_materialization": "BOUNDED_BY_AUTHORIZATION_RESOURCES_RUNTIME_SECURITY",
-    "intent_distinct_from_execution": true,
-    "external_session_creation_must_not_be_faked": true,
-    "successor_exit_order": ["VERIFY_SUCCESSOR", "TRANSFER_STATE", "VERIFY_MEETING_POINT_COVERAGE", "EXIT_INSTANCE"],
-    "recursive_spawn_without_control_forbidden": true
+    "restore": ["IDENTITY", "CONTRACT", "MISSION", "STATE", "ROLE", "AUTHORITY", "MEETING_POINT", "MEMORY", "ACTIVE_AGENTS", "HANDOFFS", "REPLICATION_STATE", "LINEAGE"]
   },
   "termination": {
     "all_conditions_required": true,
-    "conditions": ["NO_RELEVANT_ACTIVE_AGENTS", "NO_PENDING_SUPPORT_REQUESTS", "NO_PENDING_HANDOFFS", "NO_ACTIVE_MISSION_REQUIRES_SUPPORT", "NO_EXECUTABLE_INTERNAL_WORK"],
+    "conditions": ["NO_RELEVANT_ACTIVE_AGENTS", "NO_PROSPECTIVE_AGENT_REQUIRING_RECEPTION", "NO_PENDING_SUPPORT_REQUESTS", "NO_ACTIVE_SUPPORT_TASKS", "NO_PENDING_HANDOFFS", "NO_SUCCESSOR_REQUIRED", "NO_EXECUTABLE_INTERNAL_WORK", "NO_MEETING_POINT_COVERAGE_REASON"],
+    "waiting_alone_does_not_complete": true,
     "engineer_active_blocks_completion": true,
-    "roman_active_blocks_completion": true,
-    "waiting_alone_does_not_complete": true
+    "roman_active_blocks_completion": true
   },
-  "operational_loop": ["RECOVER_IDENTITY", "RECOVER_STATE", "LOCATE_MEETING_POINT", "OBSERVE_ACTIVE_AGENTS", "VERIFY_AUTHORIZED_ACCOUNTS", "IDENTIFY_INGENIERO", "IDENTIFY_ROMAN", "IDENTIFY_OTHER_ACTIVE_MISSIONS", "CHECK_SUPPORT_REQUESTS", "CHECK_NON_INTRUSIVE_GREETING_WINDOW", "GREET_INGENIERO_WHEN_APPROPRIATE", "RETURN_TO_MEETING_POINT", "GREET_ROMAN_WHEN_APPROPRIATE", "RETURN_TO_MEETING_POINT", "ASSIST_IF_REQUESTED", "VALIDATE", "PERSIST", "RETURN_CONTROL", "RETURN_TO_MEETING_POINT", "CHECK_MEETING_POINT_COVERAGE", "SPAWN_SUCCESSOR_IF_REQUIRED_AND_AUTHORIZED", "REASSESS", "REPEAT"],
-  "success_state": "BORN_AND_OPERATIONAL",
-  "success_requirements": ["MISSION_REGISTERED", "CONTRACT_PERSISTED", "MEETING_POINT_PERSISTED", "ROLE_RECOVERABLE", "ACTIVE_AGENT_DISCOVERY", "INGENIERO_GREETING", "NON_INTRUSIVE_BEHAVIOUR", "MEETING_POINT_RETURN", "SUPPORT_REQUEST_HANDLING", "PERSISTENCE", "ZERO_CONTEXT_RECOVERY", "DUPLICATION_CONTROL", "REPLICATION_ARCHITECTURE", "COVERAGE_CONTROL", "TERMINATION_CONTROL"],
-  "external_runtime_boundary": "EXTERNAL_SESSION_PROVISIONING_NOT_ESTABLISHED"
+  "persistence_events": ["agent_arrived", "agent_identified", "agent_greeted", "support_offered", "task_requested", "task_assigned", "task_started", "successor_required", "successor_created_or_activation_required", "meeting_point_occupied", "task_completed", "result_returned", "agent_departed", "support_continues", "mission_complete"],
+  "operational_loop": ["RECOVER_IDENTITY", "RECOVER_STATE", "LOCATE_MEETING_POINT", "OBSERVE_ACTIVE_AGENTS", "OBSERVE_PROSPECTIVE_AGENTS", "VERIFY_AUTHORIZED_ACCOUNTS", "IDENTIFY_INGENIERO", "IDENTIFY_ROMAN", "IDENTIFY_OTHER_ACTIVE_MISSIONS", "CHECK_SUPPORT_REQUESTS", "CHECK_NON_INTRUSIVE_GREETING_WINDOW", "GREET", "OFFER_SUPPORT", "REMAIN_AT_MEETING_POINT", "ACCEPT_TASK", "ENSURE_SUCCESSOR_IF_COVERAGE_REQUIRED", "EXECUTE", "VALIDATE", "PERSIST", "RETURN_CONTROL", "RETURN_TO_MEETING_POINT", "CHECK_COVERAGE", "REASSESS", "REPEAT"],
+  "external_runtime_boundary": "EXTERNAL_SESSION_PROVISIONING_NOT_ESTABLISHED",
+  "success_state": "BORN_AND_OPERATIONAL_UP_TO_RUNTIME_BOUNDARY"
 }

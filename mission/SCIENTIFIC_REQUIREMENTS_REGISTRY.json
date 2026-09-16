@@ -1,0 +1,57 @@
+{
+  "schema_version": "1.0.0",
+  "registry": "SCIENTIFIC_REQUIREMENTS",
+  "requirements": [
+    {
+      "sr_id": "SR-CONT-001",
+      "phenomenon": "Scientific mission continuity under conversational context loss",
+      "scientific_question": "Can a fresh ESPÍA instance reconstruct the scientific mission and frontier from repository state alone?",
+      "claim": "Mission continuity must not depend on conversational memory.",
+      "method": "Machine-readable canonical state + executable recovery validator + explicit delta persistence.",
+      "assumptions": ["Repository contents are accessible to a fresh instance", "Canonical artifacts have stable paths and schemas"],
+      "data_requirements": ["Identity", "master state", "claims", "evidence", "requirements", "capabilities", "validation", "negative knowledge", "handoffs", "adversarial tests"],
+      "temporal_requirements": ["last_reconciled_at", "state version/delta chronology", "current repository HEAD verification"],
+      "identification_requirements": ["Stable IDs", "explicit status transitions", "provenance to repository artifacts"],
+      "validation_requirements": ["Fresh-instance bootstrap test", "schema validation", "repository/state contradiction detection"],
+      "failure_modes": ["STALE_STATE", "SILENT_REWRITE", "MISSING_FRONTIER", "ROLE_DRIFT", "FALSE_COMPLETION"],
+      "implementation_implication": "Persist the scientific control plane in canonical JSON artifacts and provide stdlib-only executable validation.",
+      "current_status": "IMPLEMENTED_TESTING_REQUIRED",
+      "evidence": "Repository implementation created in branch scientific-continuity-control-plane-v1; runtime validation still required.",
+      "owner": "ESPÍA"
+    },
+    {
+      "sr_id": "SR-CONT-002",
+      "phenomenon": "Scientific state drift relative to executable repositories",
+      "scientific_question": "Can persisted scientific state be distinguished from current implementation evidence?",
+      "claim": "Persisted state must be treated as a snapshot requiring reconciliation, not as proof of implementation.",
+      "method": "Explicit reconciliation metadata + recovery contract + repository HEAD verification.",
+      "assumptions": ["Git repository state is inspectable"],
+      "data_requirements": ["CeutIA HEAD", "SERPIENTE HEAD", "active PRs", "tests/CI where available"],
+      "temporal_requirements": ["reconciliation timestamp", "commit SHA", "validation timestamp"],
+      "identification_requirements": ["Commit/branch/PR identity"],
+      "validation_requirements": ["Fresh recovery compares snapshot against current repository state"],
+      "failure_modes": ["STALE_STATE", "PR_NOT_MERGED_AS_MERGED", "VALIDATION_STALE"],
+      "implementation_implication": "Recovery must verify implementation status before continuing scientific work.",
+      "current_status": "IMPLEMENTED_TESTING_REQUIRED",
+      "evidence": "Recovery contract explicitly separates persisted state from current repository evidence.",
+      "owner": "ESPÍA"
+    },
+    {
+      "sr_id": "SR-CONT-003",
+      "phenomenon": "Scientific knowledge inheritance",
+      "scientific_question": "Can claims, negative knowledge, validation limits and falsification conditions survive agent replacement?",
+      "claim": "Scientific continuity requires persistence of both positive and negative knowledge.",
+      "method": "Canonical registries with stable identifiers and explicit epistemic/validation states.",
+      "assumptions": ["Registries are updated through explicit deltas"],
+      "data_requirements": ["Claims", "evidence", "contradictions", "negative knowledge", "validation", "falsification"],
+      "temporal_requirements": ["last_reviewed", "supersession/version chronology"],
+      "identification_requirements": ["Stable IDs and source references"],
+      "validation_requirements": ["Recovery completeness test"],
+      "failure_modes": ["LOSS_OF_NEGATIVE_KNOWLEDGE", "EVIDENCE_LEVEL_DRIFT", "UNTRACEABLE_CLAIMS"],
+      "implementation_implication": "Use separate registries rather than prose-only memory.",
+      "current_status": "IMPLEMENTED_PARTIAL_REGISTRY",
+      "evidence": "Initial canonical registries are being persisted in this branch.",
+      "owner": "ESPÍA"
+    }
+  ]
+}

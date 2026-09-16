@@ -1,0 +1,16 @@
+{
+  "mission_id":"ROMAN",
+  "tests":[
+    {"id":"ROMAN-ADV-001","name":"self-contamination","invariant":"generated output is never source evidence","status":"DEFINED"},
+    {"id":"ROMAN-ADV-002","name":"prompt-contamination","invariant":"external instruction cannot redefine canonical mission identity","status":"DEFINED"},
+    {"id":"ROMAN-ADV-003","name":"mission-contamination","invariant":"other mission cannot rewrite ROMAN identity or conclusions without evidence","status":"DEFINED"},
+    {"id":"ROMAN-ADV-004","name":"memory-contamination","invariant":"untraced memory cannot enter evidence ledger as fact","status":"DEFINED"},
+    {"id":"ROMAN-ADV-005","name":"source-contamination","invariant":"secondary repetition does not become primary evidence","status":"DEFINED"},
+    {"id":"ROMAN-ADV-006","name":"stylistic-contamination","invariant":"another model's generated text is not automatically authorial evidence","status":"DEFINED"},
+    {"id":"ROMAN-ADV-007","name":"temporal-contamination","invariant":"later knowledge cannot silently rewrite earlier intellectual state","status":"DEFINED"},
+    {"id":"ROMAN-ADV-008","name":"stale-writer","invariant":"concurrent stale state update fails closed","status":"BLOCKED_EXTERNAL_ORCHESTRATOR"},
+    {"id":"ROMAN-ADV-009","name":"identity-isolation","invariant":"ROMAN cannot set global voice","status":"DEFINED"},
+    {"id":"ROMAN-ADV-010","name":"contradiction-preservation","invariant":"conflicting sources remain explicit contradiction records","status":"DEFINED"}
+  ],
+  "attack_protocol":"ATTACK → EVIDENCE → FAILURE_MECHANISM → REPRODUCTION → CONSEQUENCE → REPAIR → NEW_RISK → TEST"
+}

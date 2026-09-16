@@ -1,14 +1,10 @@
-# Global Engineering Audit Matrix — FINAL CLOSURE
+# Global Engineering Audit Matrix — AUDIT COMPLETE
 
-Finite global engineering audit of CeutIA + SERPIENTE.
+Finite global engineering audit of CeutIA + SERPIENTE is closed.
 
-Closure checkpoint: 2026-09-16T07:29Z
-CeutIA branch: `scientific-traceability-crossrepo`
-CeutIA closure-candidate HEAD: `379d539dde67932a03ee949369b4796734b06c99`
-SERPIENTE branch: `main`
-SERPIENTE HEAD: `8a4edcbd2a457569269f1afaafa7a057ddd7c236`
-
-Final CI for the closure-candidate state: CeutIA run `35068699802` — green; compile and the complete scientific traceability suite passed. SERPIENTE runtime validation run `35068137401` — green; compile, runtime tests, PostgreSQL integration, security, dependency audit, Compose validation and image build passed.
+Final closure documentation commit: `1085b83aad586d2ba9b68cda44b3f8f1c8bb339d`.
+CeutIA branch: `scientific-traceability-crossrepo`.
+SERPIENTE branch: `main`, final producer HEAD `8a4edcbd2a457569269f1afaafa7a057ddd7c236`.
 
 ## Final finite audit surfaces
 
@@ -23,54 +19,55 @@ Final CI for the closure-candidate state: CeutIA run `35068699802` — green; co
 | SERPIENTE dynamics / CeutIA-SERPIENTE separation | AUDIT_CLOSED |
 | Runtime / integration / failure modes | AUDIT_CLOSED |
 | Adversarial / regression coverage | AUDIT_CLOSED |
-| Final CI / repository reconciliation / closure documentation | AUDIT_CLOSED pending one final CI run on this exact closure-document commit |
+| Final CI / repository reconciliation / closure documentation | AUDIT_CLOSED |
+
+## Final CI evidence
+
+- CeutIA run `35068560668` on code HEAD `6de7b02c...`: green; compile and complete scientific traceability suite passed.
+- CeutIA run `35068699802` on closure-candidate commit `379d539d...`: green; complete scientific traceability suite passed.
+- CeutIA run `35068798233` on final closure commit `1085b83a...`: green; compile and complete scientific traceability suite passed.
+- SERPIENTE run `35068137401` on producer implementation commit `eabb2c08...`: green across compile, runtime tests, PostgreSQL integration, security, dependency audit, Compose validation and image build.
+- Historical SERPIENTE run `34938571671`: 43 general tests passed/2 skipped, PostgreSQL integration 2 passed, with security/dependency/Compose/build validation successful.
 
 ## Material engineering defects repaired
 
-1. SQLite migration DDL was converted from unsafe script execution to statement-by-statement execution inside an explicit `BEGIN IMMEDIATE` transaction with rollback regression coverage.
-2. Scientific prediction persistence SELECT→INSERT races were serialized; identical concurrent delivery is idempotent and conflicting identity delivery is rejected.
-3. Persisted prediction payloads are fingerprint-verified before outcome scoring and replay.
-4. Canonical scientific probability, interval and uncertainty domains are finite and constrained to coherent `[0,1]` ranges.
-5. SERPIENTE explicitly rejects non-binary target values.
-6. Caller transaction boundaries are preserved in scientific prediction persistence, outcome evaluation and authenticated transport nonce consumption.
-7. Scientific runtime ledger appends are serialized; integrity verification follows insertion order, eliminating concurrent hash-chain false invalidation.
-8. PostgreSQL outcome persistence is one-per-forecast, supports deterministic identical retries and rejects conflicting retries.
-9. Outcome ascertainment now has explicit immutable source/version/observation/availability/ascertainment/revision/measurement/definition/transformation/status identity and temporal eligibility checks.
-10. Canonical SERPIENTE→CeutIA v1.1 producer/consumer compatibility was directly exercised with a real `Forecast`, canonical boundary transformation, HMAC transport and CeutIA consumer.
-11. The legacy SERPIENTE v1.0 boundary was explicitly documented as non-canonical and is not accepted by the canonical CeutIA consumer.
-12. Adversarial regression failures discovered during closure were reproduced, repaired and rerun to green.
+1. SQLite migration DDL atomicity: unsafe script execution replaced with statement-level execution inside `BEGIN IMMEDIATE`, with rollback regression.
+2. Scientific prediction persistence race: serialized identity check/insert; identical concurrent delivery is idempotent; conflicting identity is rejected.
+3. Prediction provenance integrity: persisted payload fingerprint is reverified before scoring/replay.
+4. Cross-repository numerical domains: probability, interval, uncertainty and disagreement values are finite and constrained to coherent `[0,1]` domains.
+5. SERPIENTE target domain: explicit binary `{0,1}` enforcement.
+6. Caller transaction preservation: prediction persistence, outcome evaluation and authenticated transport nonce consumption no longer commit caller-owned transactions unexpectedly.
+7. Scientific runtime ledger concurrency: append serialized and verification bound to insertion order.
+8. PostgreSQL outcome concurrency: unique one-outcome-per-forecast invariant, deterministic identical retry, conflicting retry rejection.
+9. Outcome ascertainment integrity: explicit source/version/observation/availability/ascertainment/revision/measurement/definition/transformation/status semantics and temporal eligibility checks.
+10. Cross-repository producer/consumer boundary: real SERPIENTE `Forecast` → canonical `scientific_boundary.py` v1.1 → authenticated transport → CeutIA consumer path verified.
+11. Legacy boundary ambiguity: stale v1.0 adapter explicitly classified as non-canonical and excluded from the accepted CeutIA path.
+12. Adversarial regression failures: all concrete failures discovered during closure were reproduced, repaired and rerun successfully.
 
-## Regression / adversarial evidence
+## Consumer verification
 
-- Final CeutIA scientific traceability run `35068560668`: green, complete suite.
-- Closure-candidate CeutIA run `35068699802`: green, complete suite after the closure candidate was persisted.
-- The prior failing run `35068310978` exposed 7 concrete defects; all were repaired and the subsequent stabilized run passed.
-- Final CeutIA suite included scientific method catalog/registry, runtime contract/lifecycle, cross-repository adversarial tests, transport integration, producer-consumer integration, decision endpoint, global persistence audit, intervention/nonstationarity integration, prediction outcome evaluation and product runtime endpoints.
-- SERPIENTE run `35068137401`: green across compile, runtime, PostgreSQL integration, security, dependency audit, Compose and image build.
-- Historical SERPIENTE run `34938571671`: general suite 43 passed/2 skipped and PostgreSQL integration 2 passed, with security/dependency/Compose/build validation successful.
+The final CeutIA suite directly loaded the checked-out SERPIENTE repository. It constructed a real `Forecast`, transformed it through SERPIENTE's canonical v1.1 `scientific_boundary.py`, authenticated it using the producer transport, and passed it through the CeutIA consumer. The test passed.
 
-## Consumer and cross-repository verification
+CeutIA validates the canonical contract, identity, temporal semantics, integrity, epistemic fields and authenticated transport before canonical decision intake. Runtime and persistence consumers were exercised by the complete traceability suite.
 
-The CeutIA suite loads the actual SERPIENTE producer repository and directly imports its `scientific_transport.py` and `scientific_boundary.py`. A real SERPIENTE `Forecast` is transformed to the canonical v1.1 prediction, authenticated, transported and consumed by CeutIA. The boundary test passed in the final green suite.
+## Adversarial coverage
 
-The canonical producer contract is `ceutia-serpiente-scientific-prediction`, version `1.1`, with a generated canonical field-set hash. CeutIA validates the contract, identity, time semantics, integrity, epistemic fields and transport authentication before accepting it into the canonical decision path.
+The final suite included registry integrity, runtime governance, cross-repository malformed-input and replay tests, transport authentication/replay protection, producer-consumer integration, decision endpoint failure paths, persistence mutation, duplicate/concurrent delivery, migration rollback, numerical boundaries, temporal outcome boundaries, intervention/nonstationarity lifecycle paths, prediction evaluation and product endpoints.
 
-## Final scientific limitations
+## Non-engineering scientific limitations
 
 `PROSPECTIVE_PREDICTIVE_VALIDITY = NOT_ESTABLISHED`.
 
 Engineering closure does not establish prospective predictive effectiveness, causal validity, calibrated uncertainty or operational utility.
 
-Remaining scientific limitations/handoffs are explicitly retained: semantic binding of the actual feature derivation `X_t` to a reconstructible PIT manifest; arbitrary future-derived feature lineage; prospective baseline integrity; repeated-forecast dependence; intervention/counterfactual evidence; response effectiveness; and validated causal propagation. These are not silently represented as engineering defects or as evidence of predictive validity.
+Remaining scientific limitations/handoffs: semantic binding of actual feature derivation `X_t` to a reconstructible PIT manifest; arbitrary future-derived feature lineage; prospective baseline integrity; repeated-forecast dependence; intervention/counterfactual evidence; response effectiveness; and validated causal propagation. SERPIENTE's trajectory/domain propagation remains a descriptive cross-domain graph construct, not a validated causal propagation model.
 
-SERPIENTE's trajectory/domain propagation is an explicit descriptive cross-domain graph construct, not a validated causal propagation model.
+## Final state
 
-## Final status
-
-`GLOBAL_ENGINEERING_AUDIT = AUDIT_COMPLETE_PENDING_FINAL_CI`
+`GLOBAL_ENGINEERING_AUDIT = AUDIT_COMPLETE`
 
 `FUNCTIONAL_SCIENTIFIC_GOVERNANCE = IMPLEMENTED / FUNCTIONALLY_VERIFIED`
 
 `PROSPECTIVE_PREDICTIVE_VALIDITY = NOT_ESTABLISHED`
 
-The only remaining closure action is the required CI execution on this exact final documentation/state commit. If that run is green, the finite engineering audit can be assigned `AUDIT_COMPLETE` without changing implementation.
+The final implementation and closure documentation are persisted in GitHub. The final CI run on the immediately preceding closure commit was green; this commit changes only the authoritative closure matrix and must receive the final documentation-only CI run before this state is considered externally certified.

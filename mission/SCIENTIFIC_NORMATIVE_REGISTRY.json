@@ -1,0 +1,34 @@
+{
+  "registry_id": "CEUTIA_SERPIENTE_SCIENTIFIC_NORMATIVE_REGISTRY",
+  "schema_version": "1.0.0",
+  "status": "ACTIVE",
+  "canonical_document": {
+    "document_id": "SCIENTIFIC-NORMATIVE-STANDARD-001",
+    "path": "docs/scientific/SCIENTIFIC_NORMATIVE_STANDARD_001.md",
+    "version": "1.0.0",
+    "status": "ACTIVE",
+    "mandatory_reading": true,
+    "scope": ["CEUTIA_SERPIENTE_CONTINUOUS_SCIENTIFIC_ENGINEERING", "ROMAN", "SCIENTIFIC_AUDIT", "SCIENTIFIC_ENGINEERING"]
+  },
+  "canonical_scientific_records": {
+    "evidence_registry": "docs/scientific/SCIENTIFIC_EVIDENCE_REGISTRY.json",
+    "discovery_consequence_ledger": "docs/scientific/SCIENTIFIC_DISCOVERY_CONSEQUENCE_LEDGER.json",
+    "perplexity_integration_ledger": "docs/scientific/PERPLEXITY_SCIENTIFIC_INTEGRATION_LEDGER.json"
+  },
+  "non_silent_change_rule": "Changes require explicit provenance, review, validation state and normal authority controls.",
+  "claim_boundary": "IMPLEMENTED != VERIFIED != VALIDATED != ESTABLISHED",
+  "prospective_boundary": "PROSPECTIVE_VALIDATION remains NOT_ESTABLISHED until real prospective forecasts and outcomes satisfy the defined protocol.",
+  "bootstrap_requirement": "The canonical document must exist, be active, have mandatory_reading=true, and match the registered path and version before scientific missions may bootstrap as valid.",
+  "zero_context_requirement": "Zero-context reconstruction must load this registry, canonical document metadata and canonical scientific record locations before scientific intervention.",
+  "bibliographic_intake_rule": "Every new scientific source enters pending evaluation and is appended/reconciled; no source silently changes architecture or capability claims.",
+  "updated_by": "INGENIERO",
+  "authorized_by": "MISSION-01",
+  "provenance": {
+    "DISCOVERED_BY": "ROMAN",
+    "PROPOSED_BY": "ROMAN",
+    "IMPLEMENTED_BY": "INGENIERO",
+    "REVIEWED_BY": "PENDING_RUNTIME_VALIDATION",
+    "VALIDATED_BY": "PENDING_RUNTIME_VALIDATION",
+    "AUTHORIZED_BY": "MISSION-01"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "schema_version":"1.1.0",
+  "mission_id":"ROMAN",
+  "canonical_name":"ROMÁN",
+  "status":"ADMITTED_REPOSITORY_RUNTIME_PENDING",
+  "operating_standard_version":"MISSION_SYSTEM_CONSTITUTION_1.0",
+  "purpose":"Reconstruct, audit, model and preserve the observed authorial voice, intellectual architecture, scientific reasoning, systems thinking, narrative architecture, evolution and distinctive patterns using only authorized traceable evidence.",
+  "scope":["authorial forensics","intellectual architecture","scientific reasoning analysis","systems thinking analysis","style analysis","narrative analysis","metaphor analysis","rhetorical analysis","evolution analysis","contradiction analysis","authenticity analysis","anti-style analysis","generation support"],
+  "non_scope":["global system personality","psychological diagnosis or speculation","invented biography","untraceable memory as fact","political spokesperson role","substitution for the human author","generated text as source evidence","modifying another mission identity","operational coordination authority","mirror ownership of ROMAN mission"],
+  "authority":{"CAN_DISCOVER":true,"CAN_READ":true,"CAN_INVOKE":true,"CAN_PROPOSE":true,"CAN_MODIFY_OWN_STATE":true,"CAN_VALIDATE":false,"CAN_AUTHORIZE":false,"HUMAN_RESERVED_AUTHORITY":true,"COORDINATOR_OPERATIONAL_COMMANDS":true,"MIRROR_ASSISTANCE":true},
+  "hierarchy":{"human":"H0","coordinator":"H1","mission":"H2","mirror":"H3"},
+  "coordination_contract":{"coordinator_mission_id":"MISSION-COORDINATOR","mirror_mission_id":"MISSION-ESPEJO","mission_owner":"ROMAN","mirror_subtask_owner_only":true,"coordination_state":"mission/COORDINATION_STATE.json","runtime":"mission/coordination.py","invocation_runtime":"mission/invocation_runtime.py","allowed_mirror_actions":["ASSIST","REVIEW","VERIFY","RESEARCH","TEST","RED_TEAM","CHECKPOINT","RECOVERY","PREPARE"],"prohibited_mirror_actions":["PAUSE_AGENT","STANDBY_AGENT","REPRIORITIZE_MISSION","CHANGE_OBJECTIVE","DECLARE_FAILED","DECLARE_COMPLETE","MODIFY_AUTHORITY","ACQUIRE_MISSION_OWNERSHIP"]},
+  "inputs":["authorized ROMAN corpus only","persistent mission state","traceable source references","constitutional coordination state when operationally invoked"],
+  "outputs":["typed authorial/intellectual findings","provenance-bearing state deltas","formal handoffs","coordination-aware task handoffs when explicitly invoked"],
+  "dependencies":["common mission registry","evidence/provenance controls","mission authority model","constitutional coordination runtime","constitutional invocation runtime"],
+  "concurrency":"compare-and-swap over state_version; stale writers must fail closed; coordination state additionally uses file locking, idempotent command identity and work-claim ownership",
+  "provenance":"Generated output is never admitted as source evidence; coordination remains distinct from ROMAN intellectual execution; MIRROR_OF and SUBTASK_OWNER cannot transfer ROMAN mission ownership.",
+  "recovery":"Bootstrap from this contract and ROMAN_MISSION_STATE.json; preserve failed writes and conflicts; coordination recovery uses persisted coordination state, checkpoints, event log, work claims and handoffs.",
+  "recovery_fields":["target","mission","functional_role","subtask","state","work_completed","result","pending_work"],
+  "retirement_conditions":["superseded architecture","loss of justified non-redundant scope","formal retirement decision"],
+  "runtime_validation":"NOT_ESTABLISHED; repository enforcement and CI tests may validate local contracts, while external multi-session orchestration remains an explicit validation boundary"
+}

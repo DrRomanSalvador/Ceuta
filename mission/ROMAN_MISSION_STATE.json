@@ -1,0 +1,23 @@
+{
+  "schema_version":"1.0.0",
+  "mission_id":"ROMAN",
+  "mission_name":"ROMÁN",
+  "status":"ADMITTED_REPOSITORY_RUNTIME_PENDING",
+  "operating_standard_version":"MISSION_SYSTEM_CONSTITUTION_1.0",
+  "current_task":null,
+  "next_authorized_action":"ZERO_CONTEXT_DISCOVERY_AND_INVOCATION_TEST",
+  "input_snapshot":[],
+  "evidence_ledger":[],
+  "discoveries":[],
+  "hypotheses":[],
+  "rejected_hypotheses":[],
+  "contradictions":[],
+  "handoffs":[],
+  "collaboration_log":[],
+  "repository_impact":[],
+  "validation_status":"REPOSITORY_ADMITTED_DISCOVERABLE_INVOCABLE_CONTRACT_PENDING_RUNTIME_VALIDATION",
+  "limitations":["No authorized ROMAN source corpus is currently admitted as source evidence.","Live multi-session orchestration and transactional concurrent mutation are not established."],
+  "falsification_conditions":["Fresh session cannot discover ROMAN from current registry and contract.","Generated text is admitted as authentic source evidence.","A stale writer overwrites newer ROMAN state.","ROMAN changes another mission identity or global voice.","A source claim cannot be traced to source and passage."],
+  "recovery_policy":"Preserve state and conflicts; bootstrap from canonical contract and this state file.",
+  "retirement_policy":"Retirement preserves state, provenance, contributions and historical outputs."
+}

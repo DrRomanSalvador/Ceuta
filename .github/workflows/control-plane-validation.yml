@@ -1,0 +1,33 @@
+name: CeutIA Control Plane Validation
+
+on:
+  push:
+    branches: [maximum-knowledge-to-capability, scientific-traceability-crossrepo, main]
+  pull_request:
+    branches: [scientific-traceability-crossrepo, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ceutia-control-plane-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  control-plane:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile control-plane sources
+        run: python -m compileall -q mission
+      - name: Run control-plane unit tests
+        run: python -m unittest mission.test_control_plane mission.test_event_log mission.test_work_claims mission.test_shared_standard mission.test_control_plane_runtime mission.test_constitution_adversarial mission.test_lifecycle_governance mission.test_invocation_runtime mission.test_zero_context_replay mission.test_contribution_registry mission.test_repository_integrity mission.test_replay mission.test_control_plane_integration mission.test_handoff_runtime mission.test_event_backing mission.test_coordination mission.test_coordination_validation mission.test_coordination_idempotency mission.test_coordination_controls mission.test_coordination_replay mission.test_coordination_invocation mission.test_roman_coordination_integration mission.test_scientific_normative_integration
+      - name: Validate constitutional coordination registration and persisted state
+        run: python -m mission.coordination_validation
+      - name: Run authoritative bootstrap
+        run: python -m mission.bootstrap

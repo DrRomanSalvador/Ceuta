@@ -1,0 +1,25 @@
+{
+  "schema_version": "1.0.0",
+  "capability_matrix_id": "CEUTIA_SERPIENTE_SCIENTIFIC_CAPABILITY_MATRIX",
+  "owner": "INGENIERO",
+  "status_semantics": ["NOT_DESIGNED", "DESIGNED", "IMPLEMENTED", "TESTED", "VALIDATED", "PROSPECTIVELY_VALIDATED", "EXTERNALLY_VALIDATED", "OPERATIONALLY_VALIDATED"],
+  "capabilities": [
+    {"id":"evidence-ledger","owner":"CeutIA","status":"IMPLEMENTED","scientific_validation":"NOT_ESTABLISHED","implementation":"scientific trace graph + epistemic contracts","evidence_boundary":"software capability only"},
+    {"id":"multidimensional-evidence","owner":"CeutIA","status":"IMPLEMENTED","scientific_validation":"NOT_ESTABLISHED","implementation":"EvidenceAssessment with certainty/external_validity/actionability/residual_uncertainty","evidence_boundary":"dimensions are not collapsed to a truth score"},
+    {"id":"epistemic-promotion-gates","owner":"CeutIA","status":"TESTED","scientific_validation":"NOT_ESTABLISHED","implementation":"adjacent EvidenceLevel promotion contract","evidence_boundary":"gate satisfaction is necessary, not empirical proof"},
+    {"id":"observation-process-model","owner":"CeutIA+SERPIENTE","status":"DESIGNED","scientific_validation":"NOT_ESTABLISHED","implementation":"ObservationProcessModel contract","evidence_boundary":"requires measurement-process data"},
+    {"id":"PIT-prediction-binding","owner":"SERPIENTE","status":"TESTED","scientific_validation":"PROSPECTIVE_VALIDATION_REQUIRED","implementation":"point-in-time fingerprinting and revision-aware history","evidence_boundary":"does not establish deployment performance"},
+    {"id":"forecast-evaluation","owner":"SERPIENTE","status":"IMPLEMENTED","scientific_validation":"PROSPECTIVE_VALIDATION_REQUIRED","implementation":"chronological holdout, calibration, baselines and prospective outcome capture","evidence_boundary":"real-world effectiveness not established"},
+    {"id":"causal-boundary","owner":"CeutIA+SERPIENTE","status":"IMPLEMENTED","scientific_validation":"NOT_ESTABLISHED","implementation":"causal contracts and explicit prediction/causality separation","evidence_boundary":"software gate does not identify effects by itself"},
+    {"id":"decision-contract","owner":"CeutIA","status":"IMPLEMENTED","scientific_validation":"NOT_ESTABLISHED","implementation":"decision lifecycle and decision persistence surfaces","evidence_boundary":"decision validity requires observed decisions/outcomes"},
+    {"id":"intervention-outcome-lineage","owner":"CeutIA+SERPIENTE","status":"PARTIALLY_IMPLEMENTED","scientific_validation":"NOT_ESTABLISHED","implementation":"intervention/outcome contracts exist across repositories","evidence_boundary":"effectiveness requires prospective response data"},
+    {"id":"scientific-debt","owner":"CeutIA","status":"DESIGNED","scientific_validation":"NOT_APPLICABLE","implementation":"typed ScientificDebt contract","evidence_boundary":"governance state, not scientific evidence"},
+    {"id":"VOI","owner":"CeutIA","status":"DESIGNED","scientific_validation":"NOT_IDENTIFIABLE_WITHOUT_UTILITY_AND_COSTS","implementation":"framework required; no fabricated utility/cost","evidence_boundary":"NVOI must remain not identifiable when inputs are missing"},
+    {"id":"continual-learning-change-control","owner":"SERPIENTE","status":"DESIGNED","scientific_validation":"NOT_ESTABLISHED","implementation":"observe->assess->propose->validate->approve->deploy->monitor->rollback","evidence_boundary":"automatic retraining/deployment prohibited"},
+    {"id":"response-effectiveness","owner":"CeutIA+SERPIENTE","status":"DESIGNED","scientific_validation":"PROSPECTIVE_DATA_REQUIRED","implementation":"dual post-alert evaluation target","evidence_boundary":"prediction correctness != intervention effectiveness"},
+    {"id":"external_real_world_predictive_validity","owner":"SERPIENTE","status":"DESIGNED","scientific_validation":"EXTERNAL_PROSPECTIVE_DATA_REQUIRED","implementation":"prospective protocol exists","evidence_boundary":"not established by repository tests"}
+  ],
+  "global_rule": "No capability advances merely because code compiles or CI is green.",
+  "external_limitations": ["real-world prospective data", "external validation populations", "intervention response data", "causal identification inputs", "measurement-process metadata where absent"],
+  "last_reconciled_commit": "PENDING_CI_AFTER_CURRENT_INTEGRATION"
+}

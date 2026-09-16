@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Mapping, Sequence
+from typing import Mapping
 
 
 class EpistemicLevel(str, Enum):
@@ -55,6 +55,13 @@ class CausalHypothesis:
     moderators: tuple[str, ...] = ()
     negative_controls: tuple[str, ...] = ()
     assumptions: tuple[str, ...] = ()
+    population: str | None = None
+    time_zero: str | None = None
+    consistency_declared: bool = False
+    positivity_declared: bool = False
+    interference_addressed: bool = False
+    time_varying_confounding_addressed: bool = False
+    transportability_addressed: bool = False
     epistemic_level: EpistemicLevel = EpistemicLevel.ASSOCIATIONAL
 
     def __post_init__(self) -> None:

@@ -30,14 +30,7 @@ class MissionRegistry:
     work. A host/orchestrator owns execution, leases, transactions and persistence.
     """
 
-    REQUIRED_FIELDS = {
-        "mission_id",
-        "canonical_name",
-        "mission_type",
-        "status",
-        "invocation_contract",
-        "state_location",
-    }
+    COMMON_REQUIRED_FIELDS = {"mission_id", "canonical_name", "mission_type", "status"}
 
     def __init__(self, repository_root: Path | str) -> None:
         self.repository_root = Path(repository_root).resolve()
@@ -73,7 +66,10 @@ class MissionRegistry:
 
     def load_contract(self, mission_id: str) -> dict[str, Any]:
         mission = self.get(mission_id)
-        contract_path = self.repository_root / mission["invocation_contract"]
+        contract_ref = mission.get("invocation_contract")
+        if not contract_ref:
+            raise MissionRegistryError(f"Mission has no machine-readable invocation contract: {mission_id}")
+        contract_path = self.repository_root / contract_ref
         try:
             contract = json.loads(contract_path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as exc:
@@ -120,8 +116,8 @@ class MissionRegistry:
             raise MissionRegistryError("Mission registry contains no missions")
         ids: set[str] = set()
         for mission in missions:
-            if not isinstance(mission, dict) or not cls.REQUIRED_FIELDS.issubset(mission):
-                raise MissionRegistryError("Mission registry entry is missing required fields")
+            if not isinstance(mission, dict) or not cls.COMMON_REQUIRED_FIELDS.issubset(mission):
+                raise MissionRegistryError("Mission registry entry is missing common required fields")
             mission_id = mission["mission_id"]
             if not isinstance(mission_id, str) or mission_id in ids:
                 raise MissionRegistryError("Mission IDs must be unique strings")
@@ -129,6 +125,9 @@ class MissionRegistry:
         roman = next((m for m in missions if m.get("mission_id") == "ROMAN"), None)
         if roman is None:
             raise MissionRegistryError("ROMAN is not registered")
+        for field in ("invocation_contract", "state_location", "bootstrap", "adversarial_tests"):
+            if not roman.get(field):
+                raise MissionRegistryError(f"ROMAN missing required integration field: {field}")
         if roman.get("canonical_name") != "ROMÁN":
             raise MissionRegistryError("ROMAN canonical identity is invalid")
         if roman.get("mission_type") != "AUTHORIAL_INTELLECTUAL_FORENSIC":

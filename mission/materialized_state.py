@@ -65,69 +65,7 @@ def read_mission(path: Path, mission_id: str) -> dict[str, Any]:
     return dict(record)
 
 
-def compare_and_swap_mission(
-    path: Path,
-    mission_id: str,
-    expected_revision: int,
-    new_projection: dict[str, Any],
-    *,
-    event_log: Path,
-    actor: str,
-    timestamp: str,
-) -> dict[str, Any]:
-    """Apply one canonical event-backed materialized-state mutation.
-
-    The event is persisted before the projection. If projection persistence is
-    interrupted after the event append, ``recover_materialized_state`` can
-    deterministically rebuild the projection from the canonical event stream.
-    """
-    if not mission_id:
-        raise ValueError("mission_id is required")
-    if expected_revision < 0:
-        raise ValueError("expected_revision cannot be negative")
-    if not actor:
-        raise ValueError("actor is required")
-    if not timestamp:
-        raise ValueError("timestamp is required")
-
-    with _locked(path):
-        data = _load(path)
-        current = data["missions"].get(
-            mission_id,
-            {"mission_id": mission_id, "revision": 0, "projection": {}},
-        )
-        if current["revision"] != expected_revision:
-            raise ValueError(
-                f"Stale materialized-state writer for {mission_id}: "
-                f"expected {expected_revision}, current {current['revision']}"
-            )
-
-        new_revision = expected_revision + 1
-        event = append_payload(
-            event_log,
-            event_type="MATERIALIZED_STATE_CAS",
-            mission_id=mission_id,
-            actor=actor,
-            timestamp=timestamp,
-            payload={
-                "expected_revision": expected_revision,
-                "new_revision": new_revision,
-                "projection": dict(new_projection),
-            },
-        )
-        updated = {
-            "mission_id": mission_id,
-            "revision": new_revision,
-            "projection": dict(new_projection),
-            "mutation_event_id": event["event_id"],
-        }
-        data["missions"][mission_id] = updated
-        _atomic_write(path, data)
-        return updated
-
-
-def recover_materialized_state(path: Path, event_log: Path) -> dict[str, Any]:
-    """Rebuild materialized state from canonical CAS events."""
+def _recover_projection_from_events(event_log: Path) -> dict[str, dict[str, Any]]:
     events = load_jsonl(event_log)
     validate_chain(events)
     missions: dict[str, dict[str, Any]] = {}
@@ -147,7 +85,63 @@ def recover_materialized_state(path: Path, event_log: Path) -> dict[str, Any]:
             "projection": dict(payload["projection"]),
             "mutation_event_id": event["event_id"],
         }
+    return missions
 
-    recovered = {"schema_version": "1.1.0", "missions": missions}
+
+def compare_and_swap_mission(
+    path: Path,
+    mission_id: str,
+    expected_revision: int,
+    new_projection: dict[str, Any],
+    *,
+    event_log: Path,
+    actor: str,
+    timestamp: str,
+) -> dict[str, Any]:
+    """Apply one canonical event-backed materialized-state mutation.
+
+    Before allocating a new mutation event, reconcile the projection with the
+    canonical event stream. This makes a retry after an interrupted projection
+    write recover the already-persisted mutation instead of creating a duplicate.
+    """
+    if not mission_id:
+        raise ValueError("mission_id is required")
+    if expected_revision < 0:
+        raise ValueError("expected_revision cannot be negative")
+    if not actor:
+        raise ValueError("actor is required")
+    if not timestamp:
+        raise ValueError("timestamp is required")
+
+    with _locked(path):
+        data = _load(path)
+        if event_log.exists():
+            recovered = _recover_projection_from_events(event_log)
+            if recovered:
+                data["missions"].update(recovered)
+        current = data["missions"].get(mission_id, {"mission_id": mission_id, "revision": 0, "projection": {}})
+        if current["revision"] != expected_revision:
+            raise ValueError(
+                f"Stale materialized-state writer for {mission_id}: "
+                f"expected {expected_revision}, current {current['revision']}"
+            )
+        new_revision = expected_revision + 1
+        event = append_payload(
+            event_log,
+            event_type="MATERIALIZED_STATE_CAS",
+            mission_id=mission_id,
+            actor=actor,
+            timestamp=timestamp,
+            payload={"expected_revision": expected_revision, "new_revision": new_revision, "projection": dict(new_projection)},
+        )
+        updated = {"mission_id": mission_id, "revision": new_revision, "projection": dict(new_projection), "mutation_event_id": event["event_id"]}
+        data["missions"][mission_id] = updated
+        _atomic_write(path, data)
+        return updated
+
+
+def recover_materialized_state(path: Path, event_log: Path) -> dict[str, Any]:
+    """Rebuild materialized state from canonical CAS events."""
+    recovered = {"schema_version": "1.1.0", "missions": _recover_projection_from_events(event_log)}
     _atomic_write(path, recovered)
     return recovered

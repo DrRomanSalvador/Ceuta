@@ -45,9 +45,10 @@ def _write(path:Path,data:dict[str,Any])->None:
         raise
 
 def validate_response_record(record:dict[str,Any])->None:
-    required={"response_id","warning_presence","warning_or_prediction_identity","decision_identity","decision_time","action_identity","execution_time","responsible_actor","response_eligibility","intended_mechanism","response_delay","intervention_exposure_intensity","implementation_failure","resource_capacity_constraints","outcome_ascertainment_identity","response_horizon","counterfactual_causal_status","execution_status","causal_status"}
+    required={"mission_id","response_id","warning_presence","warning_or_prediction_identity","decision_identity","decision_time","action_identity","execution_time","responsible_actor","response_eligibility","intended_mechanism","response_delay","intervention_exposure_intensity","implementation_failure","resource_capacity_constraints","outcome_ascertainment_identity","response_horizon","counterfactual_causal_status","execution_status","causal_status"}
     missing=required-set(record)
     if missing: raise ValueError(f"Response record missing fields: {sorted(missing)}")
+    if not record["mission_id"] or not record["response_id"]: raise ValueError("mission_id and response_id are required")
     if record["warning_presence"] not in {"PRESENT","ABSENT"}: raise ValueError("warning_presence must be PRESENT or ABSENT")
     if record["warning_presence"]=="PRESENT" and not record["warning_or_prediction_identity"]: raise ValueError("A present warning requires a canonical prediction identity")
     if record["warning_presence"]=="ABSENT" and record["warning_or_prediction_identity"] is not None: raise ValueError("Absent warning cannot carry a warning identity")
@@ -71,6 +72,6 @@ def append_response(path:Path,event_log:Path,record:dict[str,Any],*,actor:str,ti
     with _locked(path):
         data=_load(path)
         if any(x.get("response_id")==record["response_id"] for x in data["records"]): raise ValueError("Duplicate response_id")
-        event=append_payload(event_log,event_type="RESPONSE_COUPLING_RECORDED",mission_id=record["response_id"],actor=actor,timestamp=timestamp,payload=dict(record))
+        event=append_payload(event_log,event_type="RESPONSE_COUPLING_RECORDED",mission_id=record["mission_id"],actor=actor,timestamp=timestamp,payload=dict(record))
         persisted={**record,"mutation_event_id":event["event_id"]}
         data["records"].append(persisted); _write(path,data); return persisted

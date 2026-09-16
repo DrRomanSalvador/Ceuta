@@ -3,10 +3,10 @@ mission: MISSION_13_NOTARIO
 state: IN_PROGRESS
 phase: RE-AUDITING
 closure_allowed: false
-basis: "H1-H5 remain active. Contracts/vectors are specified, an executable runtime handoff is now registered, CI has returned two concrete failures, and no runtime execution evidence for H1-H5 exists yet."
+basis: "H1-H5 remain active. Contracts/vectors are specified, an executable runtime handoff is registered and discoverable from the canonical mission registry, CI has returned two concrete failures, and no runtime execution evidence for H1-H5 exists yet."
 previous_audit_pr: 45
 execution_pr: 46
-latest_known_head: a16cf484994c822caee004943cf6cf6a88bf4927
+latest_known_head: ba16c4e5d14e5594dd01548e46d6c786aa1939b8
 critical_work:
   H1_knowledge_impact_graph:
     status: SPECIFIED
@@ -73,7 +73,7 @@ completed_work:
   - "External literature review and contrary-evidence search."
   - "H1-H5 machine-readable contracts."
   - "Positive/negative contract test vectors."
-  - "Executable runtime handoff registration."
+  - "Executable runtime handoff registration and canonical registry discoverability."
 blockers:
   - id: EXT-RUNTIME-INTEGRATION
     task: "Wire contracts into persistent runtime surfaces and execute acceptance vectors."
@@ -83,7 +83,7 @@ blockers:
     handoff: docs/missions/handoffs/NOTARIO_RUNTIME_INTEGRATION_HANDOFF.yaml
     automatic_activation: NOT_ESTABLISHED
     why_blocked: "Repository contracts define mission discovery/invocation but explicitly require an external host/orchestrator for true multi-process execution and transactional live-state writes; no evidence establishes automatic activation from this context."
-    what_has_been_done: "Contracts, vectors, acceptance criteria, existing primitive map, required return evidence, non-goals and CI blockers are persisted."
+    what_has_been_done: "Contracts, vectors, acceptance criteria, existing primitive map, required return evidence, non-goals, CI blockers and canonical registry discoverability are persisted."
     what_can_continue: "NOTARIO continues scientific re-audit, falsification, redundancy analysis, research and review of returned evidence."
     acceptance_condition: "Runtime persists, traverses and enforces all five contracts with reproducible positive/negative evidence; NOTARIO then verifies and falsifies the result."
   - id: CI-001

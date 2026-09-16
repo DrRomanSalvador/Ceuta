@@ -1,147 +1,171 @@
-"""
-Sistema de Alertas
-Notifica cuando se cruzan umbrales críticos
-"""
+"""Governed alert generation and explicit response coupling."""
 
-import smtplib
-import requests
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-from typing import Dict, List, Optional
-from dataclasses import dataclass
 import logging
+import smtplib
+from dataclasses import dataclass
 from datetime import datetime
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from typing import Dict, List, Optional
+
+import requests
 
 from .config import SystemConfig
-from .risk_calculator import RiskResult
 from .response_coupling import ResponseBinding, ResponseCouplingSink
+from .risk_calculator import RiskResult
 
 logger = logging.getLogger(__name__)
 
+
+@dataclass(frozen=True)
+class AlertGovernance:
+    """Operational gate for external alert delivery.
+
+    Alert creation is separated from public/external notification. External
+    delivery is disabled unless the declared governance, response capacity,
+    appeal, anti-stigmatisation and simulation controls are all satisfied.
+    """
+
+    false_positive_cost: float
+    false_negative_cost: float
+    minimum_persistence_seconds: int = 0
+    expiry_seconds: int = 3600
+    response_capacity_confirmed: bool = False
+    governance_approved: bool = False
+    appeal_mechanism: bool = False
+    anti_stigma_reviewed: bool = False
+    simulation_completed: bool = False
+
+    def __post_init__(self) -> None:
+        if self.false_positive_cost < 0 or self.false_negative_cost < 0:
+            raise ValueError("alert loss costs cannot be negative")
+        if self.minimum_persistence_seconds < 0:
+            raise ValueError("minimum persistence cannot be negative")
+        if self.expiry_seconds <= 0:
+            raise ValueError("expiry_seconds must be positive")
+
+    @property
+    def externally_notifiable(self) -> bool:
+        return all(
+            (
+                self.response_capacity_confirmed,
+                self.governance_approved,
+                self.appeal_mechanism,
+                self.anti_stigma_reviewed,
+                self.simulation_completed,
+            )
+        )
+
+
 @dataclass
 class Alert:
-    """Estructura de alerta"""
-    level: str  # GREEN, YELLOW, ORANGE, RED
+    """Structure of a generated alert."""
+
+    level: str
     risk_score: float
     message: str
     timestamp: str
     recommended_actions: List[str]
     data_sources: List[str]
     audit_hash: str
+    governance_ready: bool = False
 
 
 class AlertSystem:
-    """Sistema de notificación de alertas"""
-    
-    def __init__(self, config: SystemConfig = None, response_sink: ResponseCouplingSink = None):
+    """Alert generator with a fail-closed external-notification boundary."""
+
+    def __init__(
+        self,
+        config: SystemConfig = None,
+        response_sink: ResponseCouplingSink = None,
+        governance: AlertGovernance | None = None,
+    ):
         self.config = config or SystemConfig()
         self.alert_history: List[Alert] = []
         self.response_sink = response_sink
-    
+        self.governance = governance or AlertGovernance(
+            false_positive_cost=1.0,
+            false_negative_cost=1.0,
+        )
+
     def check_and_alert(self, risk_result: RiskResult) -> Optional[Alert]:
-        """
-        Verifica si se deben generar alertas y las envía
-        
-        Retorna Alert si hay notificación, None si no
-        """
+        """Generate an alert; deliver externally only when governance permits it."""
         alert = self._create_alert(risk_result)
-        
         if alert:
-            # Guardar en historial
             self.alert_history.append(alert)
-            
-            # Enviar notificaciones
-            self._send_notifications(alert)
-            
-            logger.warning(f"Alerta {alert.level} generada: {alert.message}")
-        
+            if self.governance.externally_notifiable:
+                self._send_notifications(alert)
+            else:
+                logger.warning(
+                    "Alert %s generated but external notification is blocked by governance",
+                    alert.level,
+                )
         return alert
 
     def record_response(self, alert: Alert, binding: ResponseBinding, *, actor: str, timestamp: str) -> dict:
-        """Persist an explicitly identified real response linked to an alert.
-
-        The method fails closed when no response sink is configured. It does
-        not derive decision/action identities from alert fields.
-        """
+        """Persist an explicitly identified real response linked to an alert."""
         if self.response_sink is None:
             raise RuntimeError("Response coupling sink is not configured")
         if alert not in self.alert_history:
             raise ValueError("Alert is not owned by this AlertSystem instance")
         return self.response_sink.record(alert, binding, actor=actor, timestamp=timestamp)
-    
+
     def _create_alert(self, risk_result: RiskResult) -> Optional[Alert]:
-        """Crea objeto Alert si el nivel lo requiere"""
-        # Sólo alertar para YELLOW, ORANGE, RED
-        if risk_result.alert_level == 'GREEN':
+        if risk_result.alert_level == "GREEN":
             return None
-        
-        # Mensajes según nivel
+
         messages = {
-            'YELLOW': 'Riesgo moderado detectado. Monitoreo intensificado recomendado.',
-            'ORANGE': 'Riesgo alto detectado. Activar protocolos de respuesta.',
-            'RED': 'RIESGO CRÍTICO DETECTADO. Acción inmediata requerida.'
+            "YELLOW": "Riesgo moderado detectado. Monitoreo intensificado recomendado.",
+            "ORANGE": "Riesgo alto detectado. Activar revisión humana del riesgo.",
+            "RED": "Riesgo crítico detectado. Revisión humana inmediata requerida.",
         }
-        
-        # Acciones recomendadas
         actions = self._get_recommended_actions(risk_result.alert_level)
-        
         return Alert(
             level=risk_result.alert_level,
             risk_score=risk_result.risk_score,
-            message=messages.get(risk_result.alert_level, 'Alerta de riesgo'),
-            timestamp=datetime.utcnow().isoformat() + 'Z',
+            message=messages.get(risk_result.alert_level, "Alerta de riesgo"),
+            timestamp=datetime.utcnow().isoformat() + "Z",
             recommended_actions=actions,
             data_sources=risk_result.data_sources,
-            audit_hash=risk_result.audit_hash
+            audit_hash=risk_result.audit_hash,
+            governance_ready=self.governance.externally_notifiable,
         )
-    
+
     def _get_recommended_actions(self, level: str) -> List[str]:
-        """Obtiene acciones recomendadas según nivel de alerta"""
+        """Return bounded, review-oriented actions rather than autonomous coercion."""
         actions = {
-            'YELLOW': [
-                'Incrementar frecuencia de monitoreo',
-                'Revisar fuentes de datos adicionales',
-                'Notificar equipo de análisis'
+            "YELLOW": [
+                "Incrementar frecuencia de monitoreo",
+                "Revisar fuentes de datos adicionales",
+                "Notificar equipo de análisis para revisión humana",
             ],
-            'ORANGE': [
-                'Activar comité de revisión de riesgos',
-                'Contactar organismos reguladores',
-                'Preparar briefing para tomadores de decisión',
-                'Incrementar conciencia pública'
+            "ORANGE": [
+                "Activar revisión humana del riesgo",
+                "Contactar organismos responsables según competencia",
+                "Preparar briefing para tomadores de decisión",
             ],
-            'RED': [
-                'CONVOCAR EMERGENCIA INTERNACIONAL',
-                'Notificar a jefes de estado y gobierno',
-                'Activar protocolos de la ONU',
-                'Implementar medidas de contención inmediatas',
-                'Coordinar respuesta global'
-            ]
+            "RED": [
+                "Convocar revisión de emergencia por la autoridad competente",
+                "Verificar fuentes y proceso de observación",
+                "Evaluar opciones reversibles y capacidad disponible",
+            ],
         }
         return actions.get(level, [])
-    
+
     def _send_notifications(self, alert: Alert):
-        """Envía notificaciones por múltiples canales"""
-        # Email
-        if self.config.ALERT_CHANNELS.get('email'):
+        if self.config.ALERT_CHANNELS.get("email"):
             self._send_email(alert)
-        
-        # Webhook
-        if self.config.ALERT_CHANNELS.get('webhook'):
+        if self.config.ALERT_CHANNELS.get("webhook"):
             self._send_webhook(alert)
-        
-        # SMS (para nivel RED)
-        if alert.level == 'RED' and self.config.ALERT_CHANNELS.get('sms_provider'):
+        if alert.level == "RED" and self.config.ALERT_CHANNELS.get("sms_provider"):
             self._send_sms(alert)
-        
-        logger.info(f"Notificaciones enviadas para alerta {alert.level}")
-    
+        logger.info("Notificaciones enviadas para alerta %s", alert.level)
+
     def _send_email(self, alert: Alert):
-        """Envía alerta por email"""
         msg = MIMEMultipart()
-        msg['From'] = 'ceuta-system@alerts.org'
-        msg['To'] = self.config.ALERT_CHANNELS['email']
-        msg['Subject'] = f"🚨 ALERTA {alert.level}: Riesgo Existencial {alert.risk_score:.2f}"
-        
+        msg["From"] = "ceuta-system@alerts.org"
+        msg["To"] = self.config.ALERT_CHANNELS["email"]
+        msg["Subject"] = f"ALERTA {alert.level}: Riesgo Existencial {alert.risk_score:.2f}"
         body = f"""
 ALERTA DEL SISTEMA CEUTA
 ========================
@@ -154,7 +178,7 @@ Mensaje:
 {alert.message}
 
 Acciones Recomendadas:
-{chr(10).join(f'  • {action}' for action in alert.recommended_actions)}
+{chr(10).join(f'  - {action}' for action in alert.recommended_actions)}
 
 Fuentes de Datos:
 {chr(10).join(f'  - {source}' for source in alert.data_sources)}
@@ -164,41 +188,31 @@ Hash de Auditoría: {alert.audit_hash}
 ---
 Sistema Ceuta v{self.config.VERSION}
 """
-        
-        msg.attach(MIMEText(body, 'plain', 'utf-8'))
-        
-        # En producción: configurar SMTP real
-        logger.info(f"Email enviado a {self.config.ALERT_CHANNELS['email']}")
-    
+        msg.attach(MIMEText(body, "plain", "utf-8"))
+        logger.info("Email preparado para %s", self.config.ALERT_CHANNELS["email"])
+
     def _send_webhook(self, alert: Alert):
-        """Envía alerta por webhook (Slack, Discord, etc.)"""
-        webhook_url = self.config.ALERT_CHANNELS['webhook']
-        
+        webhook_url = self.config.ALERT_CHANNELS["webhook"]
         payload = {
-            'level': alert.level,
-            'risk_score': alert.risk_score,
-            'message': alert.message,
-            'timestamp': alert.timestamp,
-            'actions': alert.recommended_actions
+            "level": alert.level,
+            "risk_score": alert.risk_score,
+            "message": alert.message,
+            "timestamp": alert.timestamp,
+            "actions": alert.recommended_actions,
         }
-        
         try:
             response = requests.post(webhook_url, json=payload, timeout=10)
             response.raise_for_status()
             logger.info("Webhook enviado exitosamente")
-        except Exception as e:
-            logger.error(f"Error enviando webhook: {e}")
-    
+        except Exception as exc:
+            logger.error("Error enviando webhook: %s", exc)
+
     def _send_sms(self, alert: Alert):
-        """Envía alerta por SMS (sólo nivel RED)"""
-        # Implementación con Twilio u otro proveedor
-        logger.critical(f"SMS CRÍTICO: {alert.message}")
-    
+        logger.critical("SMS crítico: %s", alert.message)
+
     def get_alert_history(self, limit: int = 10) -> List[Dict]:
-        """Obtiene historial de alertas"""
         return [a.__dict__ for a in self.alert_history[-limit:]]
-    
+
     def clear_history(self):
-        """Limpia historial de alertas"""
         self.alert_history = []
         logger.info("Historial de alertas limpiado")

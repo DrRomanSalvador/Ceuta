@@ -72,12 +72,12 @@ def validate_shared_standard():
 
 def validate_control_plane():
     try:
-        from .control_plane import ControlPlaneContract,MissionState,validate_handoff,validate_waiting_policy,validate_mission_contract
+        from .control_plane import ControlPlaneContract,MissionState,validate_handoff,validate_waiting_policy,validate_mission_contract,validate_registry_consistency
         from .event_log import load_jsonl,validate_chain
         from .shared_standard import validate_contradiction,validate_attribution
         from .invocation_runtime import discover
     except ImportError:
-        from control_plane import ControlPlaneContract,MissionState,validate_handoff,validate_waiting_policy,validate_mission_contract
+        from control_plane import ControlPlaneContract,MissionState,validate_handoff,validate_waiting_policy,validate_mission_contract,validate_registry_consistency
         from event_log import load_jsonl,validate_chain
         from shared_standard import validate_contradiction,validate_attribution
         from invocation_runtime import discover
@@ -89,8 +89,7 @@ def validate_control_plane():
     for q in queue["items"]: validate_waiting_policy(q)
     for m in cp["missions"]: validate_mission_contract(m)
     if len(cp["missions"])!=cp["mission_registry_source_evidence"]["mission_count_evidenced_in_source"]: raise ValueError("Control-plane mission projection count mismatch")
-    if registry["discovery_status"]=="COMPLETE" and registry.get("repository_verified_mission_count")!=len(cp["missions"]): raise ValueError("Legacy registry falsely claims complete discovery")
-    if registry.get("repository_verified_mission_count")!=len(registry.get("missions",[])): raise ValueError("Repository verified mission count does not match registry entries")
+    validate_registry_consistency(registry, projected_count=cp["mission_registry_source_evidence"]["mission_count_evidenced_in_source"])
     roman=discover(registry,mission_id="ROMAN")
     if roman.get("current_status")!="ADMITTED_REPOSITORY_RUNTIME_PENDING": raise ValueError("ROMAN current registry status is incorrectly promoted")
     if roman.get("invocation_contract")!=str(Path("mission/ROMAN_INVOCATION_CONTRACT.json")): raise ValueError("ROMAN invocation contract reference is incorrect")

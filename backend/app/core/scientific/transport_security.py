@@ -25,25 +25,17 @@ def sign_transport(payload: dict[str, object], *, secret: str, timestamp: str, n
 
 
 def ensure_transport_schema(connection: sqlite3.Connection) -> None:
+    owns_transaction = not connection.in_transaction
     connection.execute("""CREATE TABLE IF NOT EXISTS scientific_transport_nonces (
         nonce TEXT PRIMARY KEY,
         timestamp TEXT NOT NULL,
         consumed_at TEXT NOT NULL
     )""")
-    connection.commit()
+    if owns_transaction:
+        connection.commit()
 
 
-def verify_and_consume_transport(
-    connection: sqlite3.Connection,
-    payload: dict[str, object],
-    *,
-    secret: str,
-    timestamp: str,
-    nonce: str,
-    signature: str,
-    now: datetime | None = None,
-    max_skew: timedelta = DEFAULT_MAX_SKEW,
-) -> None:
+def verify_and_consume_transport(connection: sqlite3.Connection, payload: dict[str, object], *, secret: str, timestamp: str, nonce: str, signature: str, now: datetime | None = None, max_skew: timedelta = DEFAULT_MAX_SKEW) -> None:
     if not secret:
         raise ValueError("producer transport secret is not configured")
     if not nonce or len(nonce) < 16 or len(nonce) > 200:
@@ -63,16 +55,20 @@ def verify_and_consume_transport(
     expected = sign_transport(payload, secret=secret, timestamp=timestamp, nonce=nonce)
     if not hmac.compare_digest(signature, expected):
         raise ValueError("transport signature verification failed")
+    owns_transaction = not connection.in_transaction
     ensure_transport_schema(connection)
-    connection.execute("BEGIN IMMEDIATE")
+    if owns_transaction:
+        connection.execute("BEGIN IMMEDIATE")
     try:
         row = connection.execute("SELECT nonce FROM scientific_transport_nonces WHERE nonce=?", (nonce,)).fetchone()
         if row is not None:
             raise ValueError("transport nonce has already been consumed")
         connection.execute("INSERT INTO scientific_transport_nonces(nonce,timestamp,consumed_at) VALUES(?,?,?)", (nonce, timestamp, current.isoformat()))
-        connection.commit()
+        if owns_transaction:
+            connection.commit()
     except Exception:
-        connection.rollback()
+        if owns_transaction:
+            connection.rollback()
         raise
 
 
@@ -81,10 +77,4 @@ def new_transport_credentials(*, now: datetime | None = None) -> tuple[str, str]
     return timestamp, secrets.token_urlsafe(24)
 
 
-__all__ = [
-    "DEFAULT_MAX_SKEW",
-    "canonical_transport_message",
-    "sign_transport",
-    "verify_and_consume_transport",
-    "new_transport_credentials",
-]
+__all__ = ["DEFAULT_MAX_SKEW", "canonical_transport_message", "sign_transport", "verify_and_consume_transport", "new_transport_credentials"]

@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import Any
 from .event_log import load_jsonl, validate_chain
 
-
 @dataclass
 class ReplayState:
     missions: dict[str, dict[str, Any]] = field(default_factory=dict)
@@ -13,6 +12,7 @@ class ReplayState:
     handoffs: dict[str, dict[str, Any]] = field(default_factory=dict)
     contributions: dict[str, dict[str, Any]] = field(default_factory=dict)
     contradictions: dict[str, dict[str, Any]] = field(default_factory=dict)
+    responses: dict[str, dict[str, Any]] = field(default_factory=dict)
     lifecycle: list[dict[str, Any]] = field(default_factory=list)
     mission_states: dict[str, str] = field(default_factory=dict)
     last_event_id: str | None = None
@@ -20,7 +20,6 @@ class ReplayState:
 
 
 def _payload_record(payload: dict[str, Any]) -> dict[str, Any]:
-    """Normalize event payloads that may wrap the materialized record."""
     record = payload.get("claim") if isinstance(payload.get("claim"), dict) else payload
     return dict(record)
 
@@ -54,6 +53,10 @@ def apply_event(state: ReplayState, event: dict[str, Any]) -> None:
     elif kind in {"MISSION_CONTRADICTION", "CONTRADICTION_RECORDED"}:
         contradiction_id=payload["conflict_id"] if "conflict_id" in payload else payload["contradiction_id"]
         state.contradictions[contradiction_id]={**payload,"event_id":event["event_id"]}
+    elif kind == "RESPONSE_COUPLING_RECORDED":
+        response_id=payload["response_id"]
+        if response_id in state.responses: raise ValueError(f"Duplicate response replay: {response_id}")
+        state.responses[response_id]={**payload,"event_id":event["event_id"]}
     elif kind.startswith("MISSION_LIFECYCLE_") or kind in {"MISSION_RETIREMENT", "MISSION_RECOVERY"}:
         state.lifecycle.append({**payload,"event_id":event["event_id"],"event_type":kind})
     else:

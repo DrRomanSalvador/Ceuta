@@ -179,7 +179,7 @@ class MissionEvolutionEngine:
             return AdmissionDecision("DO_NOT_CREATE", tuple(f"Gate {name} is not satisfied." for name in failed), failed, ("NEW_MISSION",), proposal)
         if proposal is None:
             raise EvolutionError("A proposal is required when all admission gates pass")
-        if proposal.centrality and dict(proposal.centrality) != assessed_centrality:
+        if proposal.centrality and dict(proposal.centrality) != {k: v for k, v in assessed_centrality.items() if k != "assessment_status"}:
             raise EvolutionError("Proposal centrality does not match the assessed centrality")
         return AdmissionDecision("ADMIT", ("All six mandatory admission gates are satisfied with explicit evidence.",), (), ("NEW_MISSION",), proposal)
 

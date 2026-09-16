@@ -1,0 +1,104 @@
+schema_version: "1.0"
+status: ACTIVE_PROJECTION
+purpose: >-
+  Queryable specification of the global scientific objective and the constraints
+  that autonomous mission chaining must preserve.
+objective: >-
+  Build a traceable scientific system that can observe reality, construct and
+  evaluate evidence, model dynamics and interactions, predict with explicit
+  uncertainty, support decisions/interventions, learn from outcomes, revise
+  models and ontology, and reopen observation when evidence demands it.
+scientific_chain:
+  - REALITY
+  - OBSERVATION
+  - MEASUREMENT
+  - DATA
+  - EVIDENCE
+  - STATE
+  - DYNAMICS
+  - INTERACTIONS
+  - TRAJECTORIES
+  - PREDICTION
+  - UNCERTAINTY
+  - DECISION
+  - INTERVENTION
+  - RESULT
+  - EVALUATION
+  - LEARNING
+  - MODEL_REVISION
+  - ONTOLOGY_REVISION
+  - NEW_OBSERVATION
+principles:
+  - evidence_precedes_promotion
+  - provenance_is_persistent
+  - uncertainty_is_explicit
+  - prediction_is_not_causation
+  - model_output_is_not_evidence
+  - historical_replay_is_not_prospective_validation
+  - consensus_is_not_truth
+  - contradictions_are_preserved_until_resolved
+  - authority_is_capability_specific
+  - scientific_and_engineering_state_are_reconcilable
+hypotheses: []
+ontology_refs:
+  - docs/missions/SCIENTIFIC_MISSION_ARCHITECTURE.md
+capability_targets:
+  - scientific_discovery
+  - evidence_integration
+  - falsifiable_hypothesis_management
+  - temporal_dynamics
+  - spatial_population_dynamics
+  - interaction_networks
+  - forecasting
+  - change_detection
+  - decision_science
+  - epistemic_provenance
+  - extreme_event_and_tail_risk
+constraints:
+  - preserve source and derivation lineage
+  - preserve minority/disagreement history
+  - no silent scope expansion
+  - no duplicate control-plane architecture
+  - fail closed on stale state and authority conflict
+falsifiers:
+  - systematic provenance loss
+  - unrecoverable contradiction suppression
+  - materially false validation promotion
+  - persistent global regression caused by integration
+  - inability to reconstruct activation chains without conversation context
+metrics:
+  - capability_coverage
+  - validated_capability_count
+  - unresolved_material_contradictions
+  - scientific_epistemic_debt
+  - provenance_completeness
+  - regression_rate
+  - calibration_and_forecast_quality_where_applicable
+  - downstream_task_closure
+validation_required:
+  implementation: COMPUTATIONALLY_TESTED
+  internal_integration: INTERNALLY_VALIDATED
+  replay: REPLAY_VALIDATED
+  prospective: PROSPECTIVELY_VALIDATED_WHEN_APPLICABLE
+  operational: OPERATIONALLY_VALIDATED_WHEN_INFRASTRUCTURE_EXISTS
+non_demonstrated:
+  - autonomous multi-host orchestration
+  - prospective scientific discovery performance without future observations
+  - causal validity of predictive outputs without identification evidence
+authority_boundaries:
+  human_required:
+    - constitutional_change
+    - privileged_access
+    - irreversible_action
+    - protected_mission_contract_change
+    - explicitly designated critical scientific decisions
+automation_allowed:
+  - ordinary task discovery
+  - capability matching
+  - mission selection within authority
+  - invocation scheduling
+  - validation scheduling
+  - persistence and reconciliation
+  - downstream chaining
+  - circuit breaking
+  - fixed-point evaluation

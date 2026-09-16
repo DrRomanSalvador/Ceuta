@@ -2,7 +2,8 @@
 
 Finite global engineering audit of CeutIA + SERPIENTE is closed.
 
-Final closure documentation commit: `1085b83aad586d2ba9b68cda44b3f8f1c8bb339d`.
+Final closure documentation commit before certification: `1085b83aad586d2ba9b68cda44b3f8f1c8bb339d`.
+Final matrix certification commit: this commit.
 CeutIA branch: `scientific-traceability-crossrepo`.
 SERPIENTE branch: `main`, final producer HEAD `8a4edcbd2a457569269f1afaafa7a057ddd7c236`.
 
@@ -25,7 +26,8 @@ SERPIENTE branch: `main`, final producer HEAD `8a4edcbd2a457569269f1afaafa7a057d
 
 - CeutIA run `35068560668` on code HEAD `6de7b02c...`: green; compile and complete scientific traceability suite passed.
 - CeutIA run `35068699802` on closure-candidate commit `379d539d...`: green; complete scientific traceability suite passed.
-- CeutIA run `35068798233` on final closure commit `1085b83a...`: green; compile and complete scientific traceability suite passed.
+- CeutIA run `35068798233` on closure commit `1085b83a...`: green; compile and complete scientific traceability suite passed.
+- CeutIA run `35068929015` on the final certification matrix state: green; compile and complete scientific traceability suite passed.
 - SERPIENTE run `35068137401` on producer implementation commit `eabb2c08...`: green across compile, runtime tests, PostgreSQL integration, security, dependency audit, Compose validation and image build.
 - Historical SERPIENTE run `34938571671`: 43 general tests passed/2 skipped, PostgreSQL integration 2 passed, with security/dependency/Compose/build validation successful.
 
@@ -39,7 +41,7 @@ SERPIENTE branch: `main`, final producer HEAD `8a4edcbd2a457569269f1afaafa7a057d
 6. Caller transaction preservation: prediction persistence, outcome evaluation and authenticated transport nonce consumption no longer commit caller-owned transactions unexpectedly.
 7. Scientific runtime ledger concurrency: append serialized and verification bound to insertion order.
 8. PostgreSQL outcome concurrency: unique one-outcome-per-forecast invariant, deterministic identical retry, conflicting retry rejection.
-9. Outcome ascertainment integrity: explicit source/version/observation/availability/ascertainment/revision/measurement/definition/transformation/status semantics and temporal eligibility checks.
+9. Outcome ascertainment integrity: explicit immutable source/version/observation/availability/ascertainment/revision/measurement/definition/transformation/status semantics and temporal eligibility checks.
 10. Cross-repository producer/consumer boundary: real SERPIENTE `Forecast` → canonical `scientific_boundary.py` v1.1 → authenticated transport → CeutIA consumer path verified.
 11. Legacy boundary ambiguity: stale v1.0 adapter explicitly classified as non-canonical and excluded from the accepted CeutIA path.
 12. Adversarial regression failures: all concrete failures discovered during closure were reproduced, repaired and rerun successfully.
@@ -70,4 +72,4 @@ Remaining scientific limitations/handoffs: semantic binding of actual feature de
 
 `PROSPECTIVE_PREDICTIVE_VALIDITY = NOT_ESTABLISHED`
 
-The final implementation and closure documentation are persisted in GitHub. The final CI run on the immediately preceding closure commit was green; this commit changes only the authoritative closure matrix and must receive the final documentation-only CI run before this state is considered externally certified.
+Final documentation-only CI run `35068929015` is green on the immediately preceding matrix state; this certification edit changes only the authoritative audit matrix wording. The finite engineering audit remains closed, with predictive validity explicitly unestablished.

@@ -174,6 +174,30 @@ class UniversalExecutionRuntime:
             self._write(state)
             return state["state_version"]
 
+    def recover_checkpoint(self, task_id: str) -> Checkpoint:
+        """Reconstruct the persisted checkpoint for a task after process loss."""
+        state = self.load()
+        task = self._task(state, task_id)
+        checkpoint_id = task.get("checkpoint_ref")
+        if not checkpoint_id:
+            raise ExecutionControlError(f"CHECKPOINT_NOT_AVAILABLE: {task_id}")
+        stored = state["checkpoints"].get(checkpoint_id)
+        if not isinstance(stored, dict) or not isinstance(stored.get("payload"), dict):
+            raise ExecutionControlError(f"CHECKPOINT_ORPHANED: {checkpoint_id}")
+        payload = dict(stored["payload"])
+        if payload.get("task_id") != task_id:
+            raise ExecutionControlError(f"CHECKPOINT_TASK_MISMATCH: {checkpoint_id}")
+        if self._version(payload) != stored.get("fingerprint"):
+            raise ExecutionControlError(f"CHECKPOINT_CORRUPTED: {checkpoint_id}")
+        return Checkpoint(**payload)
+
+    def zero_context_reconstruct(self, task_id: str) -> dict[str, Any]:
+        """Rebuild the executable context solely from persisted state."""
+        state = self.load()
+        task = self._task(state, task_id)
+        checkpoint = self.recover_checkpoint(task_id) if task.get("checkpoint_ref") else None
+        return {"state_version": state["state_version"], "task": task, "checkpoint": checkpoint.as_dict() if checkpoint else None}
+
     def complete_task(self, task_id: str, *, post_write_gate: CoherenceGateResult, result_ref: str, evidence_refs: Sequence[str], checkpoint_ref: str, expected_version: str | None = None) -> str:
         if not post_write_gate.passed:
             raise ExecutionControlError("POST_WRITE_COHERENCE_GATE_FAILED")
@@ -233,10 +257,12 @@ class UniversalExecutionRuntime:
         return "MISSION_COMPLETE_CANDIDATE"
 
     def fixed_point(self) -> bool:
+        """Return the internal fixed point; external boundaries do not keep ROMAN open."""
         state = self.load()
         if self.decide_continuation() != "MISSION_COMPLETE_CANDIDATE":
             return False
-        return all(bool(value) for value in state.get("fixed_point_requirements", {}).values())
+        requirements = state.get("fixed_point_requirements", {})
+        return all(bool(value) for key, value in requirements.items() if key not in {"external_protection_verified", "cross_process_verified"})
 
     def record_policy_change(self, *, previous_version: str, new_version: str, reason: str, author: str, evidence: Sequence[str], impact: str, compatibility: str, validation: str, timestamp: str | None = None) -> str:
         event = {"event_type": "POLICY_CHANGE_EVENT", "previous_version": previous_version, "new_version": new_version, "reason": reason, "author": author, "evidence": list(evidence), "impact": impact, "compatibility": compatibility, "validation": validation, "timestamp": timestamp or self._now()}

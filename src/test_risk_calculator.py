@@ -1,5 +1,5 @@
 import unittest
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 
 from backend.app.core.epistemology_p0.epistemology.states import EpistemicStatus
 from backend.app.core.p0_contracts import EvidenceContract, SourceRelation, Uncertainty
@@ -52,11 +52,31 @@ class RiskCalculatorTests(unittest.TestCase):
         )
         self.assertEqual(result.event_rate, 0.02)
         self.assertEqual(result.denominator_id, "D-CEUTA-2026")
+        self.assertIsNotNone(result.event_rate_interval)
+        self.assertLess(result.event_rate_interval[0], result.event_rate)
+        self.assertGreater(result.event_rate_interval[1], result.event_rate)
 
     def test_event_rate_cannot_be_built_from_numerator_alone(self):
         with self.assertRaises(ValueError):
             RiskCalculator().calculate_risk(
                 [self._evidence(EpistemicStatus.OBSERVED_FACT)], event_count=20
+            )
+
+    def test_event_rate_cannot_exceed_denominator(self):
+        denominator = DynamicDenominator(
+            denominator_id="D-1",
+            population_definition="population at risk",
+            population_at_risk=10,
+            period_start=datetime(2026, 1, 1, tzinfo=UTC),
+            period_end=datetime(2026, 2, 1, tzinfo=UTC),
+            geography="CEUTA",
+            definition_version="1",
+        )
+        with self.assertRaises(ValueError):
+            RiskCalculator().calculate_risk(
+                [self._evidence(EpistemicStatus.OBSERVED_FACT)],
+                event_count=11,
+                denominator=denominator,
             )
 
     def test_unknown_evidence_cannot_be_promoted_into_risk(self):

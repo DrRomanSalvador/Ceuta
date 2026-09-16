@@ -1,0 +1,55 @@
+{
+  "schema_version": "1.0",
+  "component_id": "MISSION_EVOLUTION_ENGINE",
+  "status": "ACTIVE",
+  "purpose": "Continuously determine whether a concrete system task requires an existing capability, an extension, cross-mission collaboration, a temporary task force, or a genuinely new permanent mission.",
+  "control_plane_role": "ADMISSION_AND_LIFECYCLE_GOVERNANCE",
+  "principle": "NEW_MISSION_IS_LAST_RESORT",
+  "required_gates": ["NECESSITY", "NON_REDUNDANCY", "MARGINAL_VALUE", "COHERENCE", "INTEGRABILITY", "VALIDATABILITY"],
+  "precedence": ["EXISTING_CAPABILITY", "EXISTING_MISSION_EXTENSION", "CROSS_MISSION_COLLABORATION", "TEMPORARY_TASK_FORCE", "NEW_MISSION"],
+  "operations": [
+    "AUDIT_MISSIONS",
+    "EVALUATE_ACTION",
+    "ASSESS_CENTRALITY",
+    "ASSESS_MARGINAL_VALUE",
+    "BUILD_ADMISSION_PROPOSAL",
+    "AUTHORIZE_ADMISSION",
+    "GENERATE_CONTRACT",
+    "GENERATE_CANONICAL_PROMPT",
+    "VALIDATE_ZERO_CONTEXT",
+    "REVIEW_LIFECYCLE",
+    "PROPOSE_RETIREMENT"
+  ],
+  "authority": {
+    "CAN_DISCOVER": true,
+    "CAN_READ": true,
+    "CAN_PROPOSE": true,
+    "CAN_AUTHORIZE": true,
+    "CAN_MODIFY": false,
+    "CAN_VALIDATE": true,
+    "CAN_INVOKE": true
+  },
+  "decision_rule": "Do not create a mission unless all six required gates pass and the precedence path reaches NEW_MISSION.",
+  "evidence_rule": "Every gate must have explicit evidence references and limitations. Absence of evidence is not evidence of necessity.",
+  "proliferation_controls": [
+    "No mission for novelty, enthusiasm, speculative future utility or superficial similarity.",
+    "No duplicate capability without documented material difference.",
+    "No artificial splitting when an existing mission remains coherent.",
+    "No permanent mission when a temporary task force is sufficient.",
+    "No orphaned mission without active value or lifecycle review."
+  ],
+  "concurrency": "Admission and registry writes must be versioned and conflict-safe; stale writers fail closed. The repository contract does not simulate live multi-process leases.",
+  "zero_context_requirement": "A newly admitted mission is not operationally integrated until a context-free agent can discover identity, purpose, contract, state, invocation method, current task, authority and limitations, then execute through the host.",
+  "provider_agnostic": true,
+  "conversation_is_not_state": true,
+  "artifact_boundary": {
+    "proposal": "MISSION_ADMISSION_PROPOSAL",
+    "contract": "machine-readable mission contract",
+    "prompt": "canonical provider-neutral execution prompt",
+    "state": "persistent versioned mission state",
+    "evidence": "traceable evidence store"
+  },
+  "lifecycle": ["PROPOSED", "AUDITED", "ADMITTED", "REGISTERED", "DISCOVERABLE", "INVOCABLE", "EXECUTABLE", "VALIDATED", "ACTIVE", "REVIEW", "RETIRED"],
+  "failure_state": "NOT_OPERATIONALLY_INTEGRATED",
+  "external_runtime_dependency": "A deployment orchestrator is required for live leases, transactional persistence and true multi-session zero-context execution."
+}

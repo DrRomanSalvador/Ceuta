@@ -1,0 +1,11 @@
+{
+  "mission_id":"FOUNDER",
+  "status":"REGISTERED_PENDING_VALIDATION",
+  "registry_version":"ADMISSION-REGISTRY-1.0",
+  "current_task":null,
+  "next_authorized_action":"ZERO_CONTEXT_DISCOVERY_TEST",
+  "provenance_required":true,
+  "state_version":1,
+  "readiness":"NOT_READY",
+  "readiness_reasons":["runtime invocation validation pending","interruption/recovery validation pending","adversarial readiness validation pending"]
+}

@@ -1,0 +1,63 @@
+{
+  "mission_id": "MISSION-13",
+  "mission_name": "NOTARIO",
+  "mission_version": "1.0",
+  "constitution_version": "1.0",
+  "status": "WAITING",
+  "state_semantics": "WAITING_IS_PRODUCTIVE",
+  "purpose": "Forge and verify the permanent mission-control-plane constitution without creating a competing governance subsystem.",
+  "owner": "NOTARIO",
+  "authority": ["NORMATIVE_REQUIREMENTS", "EVIDENCE_PROVENANCE_GOVERNANCE", "CONSTITUTIONAL_ACCEPTANCE_CRITERIA"],
+  "source_of_truth": [
+    "00_GOVERNANCE/AI_MANDATORY_SYSTEM_CONSTITUTION.md",
+    "docs/missions/CONSTITUTION.md",
+    "docs/missions/CONSTITUTION_MANIFEST.yaml",
+    "docs/missions/MISSION_GOVERNANCE_PROTOCOLS.md",
+    "docs/missions/EVOLUTION_ENGINE_CONTRACT.json"
+  ],
+  "completed_material_work": [
+    "Inspected real main branch state before modification.",
+    "Confirmed an existing mandatory system constitution; did not create a competing normative constitution.",
+    "Created zero-context constitutional entrypoint.",
+    "Created machine-readable constitutional projection.",
+    "Created canonical mission contract schema.",
+    "Created canonical mission state machine.",
+    "Created adversarial constitutional test matrix.",
+    "Bound Mission Evolution Engine contract to constitutional artifacts.",
+    "Registered constitutional artifacts in the mission registry.",
+    "Created bounded INGENIERO runtime-enforcement handoff."
+  ],
+  "evidence": [
+    "main branch inspected at commit 47bdd7db9089884a28ced56fd04e6b7f7be18233",
+    "existing MISSION_GOVERNANCE_PROTOCOLS.md confirms cross-mission governance rules",
+    "existing EVOLUTION_ENGINE_CONTRACT.json and runtime confirm admission/lifecycle infrastructure already exists"
+  ],
+  "blockers": [
+    "Runtime enforcement changes belong to INGENIERO and are not authorized for NOTARIO implementation.",
+    "Repository-local test execution is not available in this agent environment; constitutional test matrix is therefore NOT_EXECUTED until CI/runtime executes it."
+  ],
+  "handoffs": [
+    "docs/missions/MISSION_13_NOTARIO_ENGINEERING_HANDOFF.md"
+  ],
+  "next_action": "Continue with non-blocked constitutional verification: inspect CI/test infrastructure, verify zero-context discovery surfaces, reconcile any remaining contract contradictions, then validate the INGENIERO handoff when runtime evidence becomes available.",
+  "success_criteria": [
+    "Constitution is discoverable without conversation.",
+    "Single normative source is explicit.",
+    "Mission contracts and state machine are canonical and versioned.",
+    "Evolution Engine consumes constitutional requirements without a second admission mechanism.",
+    "Constitutional invariants are executable/testable.",
+    "Runtime enforcement is independently implemented and verified by INGENIERO.",
+    "Adversarial tests pass and zero-context recovery succeeds."
+  ],
+  "validation_status": "PARTIALLY_VERIFIED_RUNTIME_PENDING",
+  "provenance": {
+    "DISCOVERED_BY": "MISSION-13-NOTARIO",
+    "PROPOSED_BY": "MISSION-13-NOTARIO",
+    "IMPLEMENTED_BY": "MISSION-13-NOTARIO (governance artifacts only)",
+    "REVIEWED_BY": null,
+    "VALIDATED_BY": null,
+    "INTEGRATED_BY": null,
+    "AUTHORIZED_BY": null
+  },
+  "last_verified_repository_commit": "a6bedadf58a7166f962f69bc9571356b8d8b5d66"
+}

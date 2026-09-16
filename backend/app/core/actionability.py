@@ -1,9 +1,7 @@
 """Governed evidence-to-actionability contract for CEUTIA PERSONA and ESTADO.
 
-This module is an orchestration/semantic contract. It does not implement a
-second decision engine. Decision ranking remains the responsibility of the
-existing decision subsystem; this contract records whether its inputs and
-outputs are sufficiently contextualized to be treated as actionability.
+This is a semantic/orchestration contract, not a second decision engine.
+Decision ranking remains in the existing decision subsystem.
 """
 from __future__ import annotations
 
@@ -11,7 +9,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
 from math import isfinite
-from typing import Mapping, Sequence
+from typing import Mapping
 
 
 class ActionabilityClient(StrEnum):
@@ -38,7 +36,7 @@ class ProbabilityStatus(StrEnum):
 
 @dataclass(frozen=True, slots=True)
 class ActionabilityOption:
-    """A candidate action, not an authorization to execute it."""
+    """Candidate action, never an authorization to execute it."""
 
     option_id: str
     description: str
@@ -63,9 +61,8 @@ class ActionabilityOption:
 class ActionabilityAssessment:
     """Traceable actionability state shared by PERSONA and ESTADO.
 
-    The object deliberately stores decision-support semantics rather than
-    selecting or authorizing an action. Missing mandatory epistemic or
-    authority information causes validation to fail closed.
+    The contract records contextualized decision support. It never selects,
+    authorizes, executes, or declares efficacy of an intervention.
     """
 
     assessment_id: str
@@ -133,7 +130,7 @@ class ActionabilityAssessment:
             raise ValueError("at least one evidence reference is required")
         if not self.provenance:
             raise ValueError("provenance is required")
-        if not 0.0 <= self.risk_uncertainty <= 1.0 or not isfinite(self.risk_uncertainty):
+        if not isfinite(self.risk_uncertainty) or not 0.0 <= self.risk_uncertainty <= 1.0:
             raise ValueError("risk_uncertainty must be finite and in [0, 1]")
         if self.risk_probability is not None:
             if not isfinite(self.risk_probability) or not 0.0 <= self.risk_probability <= 1.0:
@@ -146,7 +143,7 @@ class ActionabilityAssessment:
             raise ValueError("information_cutoff cannot be later than assessment creation")
         if self.expiry is not None and self.expiry <= self.created_at:
             raise ValueError("expiry must be later than assessment creation")
-        self._validate_temporal_order()
+        self._validate_timestamps()
         if self.client_type is ActionabilityClient.ESTADO and not self.denominator_id:
             raise ValueError("ESTADO assessments require an explicit denominator_id")
         if self.status in {
@@ -154,9 +151,8 @@ class ActionabilityAssessment:
             ActionabilityStatus.OPERATIONALLY_ACTIONABLE,
             ActionabilityStatus.PROSPECTIVELY_EVALUABLE,
             ActionabilityStatus.OUTCOME_VALIDATED,
-        }:
-            if not self.outcome_definition or not self.evaluation_plan:
-                raise ValueError("intervention-relevant or stronger status requires outcome and evaluation definitions")
+        } and (not self.outcome_definition or not self.evaluation_plan):
+            raise ValueError("intervention-relevant or stronger status requires outcome and evaluation definitions")
         if self.status in {
             ActionabilityStatus.OPERATIONALLY_ACTIONABLE,
             ActionabilityStatus.PROSPECTIVELY_EVALUABLE,
@@ -164,18 +160,27 @@ class ActionabilityAssessment:
         } and not self.decision_authority:
             raise ValueError("operationally actionable status requires explicit decision authority")
 
-    def _validate_temporal_order(self) -> None:
-        ordered = (
-            ("event_time", self.event_time),
-            ("observation_time", self.observation_time),
-            ("publication_time", self.publication_time),
-            ("revision_time", self.revision_time),
-            ("ingestion_time", self.ingestion_time),
-        )
-        present = [(name, value) for name, value in ordered if value is not None]
-        for (left_name, left), (right_name, right) in zip(present, present[1:]):
-            if left > right:
-                raise ValueError(f"temporal order violation: {left_name} > {right_name}")
+    def _validate_timestamps(self) -> None:
+        """Validate timestamp shape without inventing a false total ordering.
+
+        Event, observation, publication, revision and ingestion times have
+        different semantics. A revision can legitimately occur after the
+        original ingestion; an observation can precede its publication; and
+        ingestion order is not a substitute for event time.
+        """
+        timestamps = {
+            "created_at": self.created_at,
+            "information_cutoff": self.information_cutoff,
+            "expiry": self.expiry,
+            "event_time": self.event_time,
+            "observation_time": self.observation_time,
+            "publication_time": self.publication_time,
+            "revision_time": self.revision_time,
+            "ingestion_time": self.ingestion_time,
+        }
+        for name, value in timestamps.items():
+            if value is not None and (value.tzinfo is None or value.utcoffset() is None):
+                raise ValueError(f"{name} must be timezone-aware")
 
     def can_claim_actionability(self) -> bool:
         return self.status is not ActionabilityStatus.NON_ACTIONABLE
@@ -198,7 +203,7 @@ class ActionabilityAssessment:
 
 @dataclass(frozen=True, slots=True)
 class ActionabilityTrace:
-    """Minimum chain required to distinguish decision support from outcome."""
+    """Minimum chain needed to distinguish support from observed outcome."""
 
     assessment_id: str
     decision_ref: str | None = None
@@ -226,7 +231,7 @@ def validate_actionability_chain(
     assessment: ActionabilityAssessment,
     trace: ActionabilityTrace,
 ) -> tuple[str, ...]:
-    """Return explicit deficiencies; never infer missing stages."""
+    """Return deficiencies; never infer missing stages."""
 
     errors: list[str] = []
     if assessment.assessment_id != trace.assessment_id:

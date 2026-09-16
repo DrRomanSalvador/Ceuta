@@ -15,6 +15,7 @@ from .control_plane import (
     validate_handoff,
     validate_mission_contract,
     validate_no_self_authorization,
+    validate_registry_consistency,
 )
 
 
@@ -52,6 +53,10 @@ class ControlPlaneTests(unittest.TestCase):
             validate_dependency_graph(missions, [{"source": "MISSION-01", "target": "MISSION-03"}])
         with self.assertRaises(ValueError):
             validate_dependency_graph(missions, [{"source": "MISSION-01", "target": "MISSION-02"}, {"source": "MISSION-02", "target": "MISSION-01"}])
+
+    def test_registry_consistency_rejects_false_count(self):
+        with self.assertRaises(ValueError):
+            validate_registry_consistency({"missions": [{"mission_id": "MISSION-01"}], "repository_verified_mission_count": 2})
 
     def test_handoff_cannot_be_integrated_without_integrated_at(self):
         handoff = {

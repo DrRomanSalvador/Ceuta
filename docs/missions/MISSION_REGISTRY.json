@@ -1,8 +1,18 @@
 {
-  "schema_version": "1.1",
+  "schema_version": "1.2",
   "registry_type": "multi_mission_control_plane",
   "status": "ACTIVE",
   "discovery_contract": "docs/missions/MISSION_INVOCATION_CONTRACT.md",
+  "control_plane_capabilities": {
+    "MISSION_EVOLUTION_ENGINE": {
+      "status": "ACTIVE",
+      "contract": "docs/missions/EVOLUTION_ENGINE_CONTRACT.json",
+      "implementation": "backend/app/missions/evolution.py",
+      "documentation": "docs/missions/MISSION_EVOLUTION_ENGINE.md",
+      "authority": ["CAN_DISCOVER", "CAN_READ", "CAN_PROPOSE", "CAN_AUTHORIZE", "CAN_VALIDATE", "CAN_INVOKE"],
+      "purpose": "Admission, creation, validation, lifecycle review and retirement governance for permanent missions."
+    }
+  },
   "architecture_amendments": ["docs/missions/ROMAN_ARCHITECTURE_INTEGRATION.md"],
   "missions": [
     {"mission_id":"MISSION-01","canonical_name":"INGENIERO","mission_type":"ENGINEERING_SYSTEMS_INTEGRATION","status":"ACTIVE","contract":"docs/missions/MISSION_BOOTSTRAPS.md#mission-01--ingeniero"},

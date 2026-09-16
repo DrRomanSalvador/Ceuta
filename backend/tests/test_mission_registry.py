@@ -30,6 +30,15 @@ def test_roman_contract_is_separate_from_engineering_and_scientific_missions() -
     assert contract["model_generation_separation"]["generated_text_is_authentic_source"] is False
 
 
+def test_evolution_engine_is_registered_as_control_plane_capability() -> None:
+    registry = MissionRegistry(REPOSITORY_ROOT)
+
+    capability = registry.get_control_plane_capability("MISSION_EVOLUTION_ENGINE")
+
+    assert capability["status"] == "ACTIVE"
+    assert capability["implementation"] == "backend/app/missions/evolution.py"
+
+
 def test_roman_invocation_requires_authority_and_uses_contract_operation() -> None:
     registry = MissionRegistry(REPOSITORY_ROOT)
 

@@ -64,6 +64,12 @@ class MissionRegistry:
             raise MissionRegistryError(f"Mission not uniquely discoverable: {mission_id}")
         return matches[0]
 
+    def get_control_plane_capability(self, capability_id: str) -> dict[str, Any]:
+        capability = self.load().get("control_plane_capabilities", {}).get(capability_id)
+        if not isinstance(capability, dict):
+            raise MissionRegistryError(f"Control-plane capability is not registered: {capability_id}")
+        return dict(capability)
+
     def load_contract(self, mission_id: str) -> dict[str, Any]:
         mission = self.get(mission_id)
         contract_ref = mission.get("invocation_contract")
@@ -122,6 +128,9 @@ class MissionRegistry:
             if not isinstance(mission_id, str) or mission_id in ids:
                 raise MissionRegistryError("Mission IDs must be unique strings")
             ids.add(mission_id)
+        capabilities = registry.get("control_plane_capabilities")
+        if not isinstance(capabilities, dict) or "MISSION_EVOLUTION_ENGINE" not in capabilities:
+            raise MissionRegistryError("Mission Evolution Engine is not registered as a control-plane capability")
         roman = next((m for m in missions if m.get("mission_id") == "ROMAN"), None)
         if roman is None:
             raise MissionRegistryError("ROMAN is not registered")

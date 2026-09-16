@@ -1,53 +1,13 @@
 {
-  "schema_version": "1.0.0",
-  "queue_id": "CEUTIA_SERPIENTE_AUTONOMOUS_WORK_QUEUE",
-  "mission_id": "CEUTIA_SERPIENTE_CONTINUOUS_SCIENTIFIC_ENGINEERING",
-  "rule": "WAITING is line-specific and never means mission IDLE or DONE. If one item is blocked, executable non-blocked work remains active.",
-  "items": [
-    {
-      "work_id": "LEGACY-001",
-      "mission": "CHAT1_LEGACY_EXTRACTION_RECONSTRUCTION_ZERO_CONTEXT_BOOTSTRAP",
-      "description": "Complete repository-backed zero-context legacy reconstruction and expose all critical missing state as explicit gaps.",
-      "scientific_reason": "Scientific continuity depends on preserving epistemic status, limitations, validation boundaries and rationale across agent instances.",
-      "technical_reason": "A future instance must reconstruct actionable state without conversation history.",
-      "priority": "CRITICAL",
-      "centrality": 1.0,
-      "owner": "INGENIERO_CEUTIA",
-      "status": "ACTIVE",
-      "blocker": null,
-      "blocking_dependency": null,
-      "prerequisites": ["Current Git inspection", "Mission-state inspection", "Mission artifact discovery"],
-      "expected_artifact": "mission/MISSION_MASTER_STATE.json plus mission registry, bootstrap contract, audit and queue updates",
-      "verification_method": "Repository-only reconstruction test + bootstrap validator + Git/PR/CI reconciliation",
-      "handoff_target": "F14-001"
-    },
-    {
-      "work_id": "F14-001",
-      "mission": "CEUTIA_SERPIENTE_CONTINUOUS_SCIENTIFIC_ENGINEERING",
-      "description": "Inspect warning, decision and action consumers and existing persistence before designing or adding response-coupling ledger functionality.",
-      "scientific_reason": "Operational effectiveness cannot be evaluated without linking warning, decision, response exposure and outcome ascertainment.",
-      "technical_reason": "Avoid duplicate state and preserve existing producer/consumer contracts.",
-      "priority": "HIGH",
-      "centrality": 0.98,
-      "owner": "INGENIERO_CEUTIA",
-      "status": "PENDING",
-      "blocker": null,
-      "blocking_dependency": null,
-      "prerequisites": ["Legacy reconstruction sufficient to identify relevant surfaces"],
-      "expected_artifact": "Response-coupling audit and, only if justified, response ledger implementation/tests",
-      "verification_method": "Source inspection + contract audit + ordinary and adversarial tests + scientific consistency audit",
-      "handoff_target": "NEXO/FORJA only if a distinct mathematical or interaction-model gap is demonstrated"
-    }
+  "schema_version":"1.1.0",
+  "queue_id":"CEUTIA_SERPIENTE_AUTONOMOUS_WORK_QUEUE",
+  "mission_id":"CEUTIA_SERPIENTE_CONTINUOUS_SCIENTIFIC_ENGINEERING",
+  "rule":"WAITING is line-specific and never means mission IDLE or DONE. Blocked work registers its dependency and the mission continues with the highest-priority non-blocked item.",
+  "items":[
+    {"work_id":"CP-REALITY-001","mission":"MISSION-01","mission_owner":"MISSION-01","surface":"mission/control-plane state and registry","objective":"Reconcile current feature-branch state with source-main 15-mission evidence and current Git/PR/CI state.","problem":"Control-plane documentation and 15-mission source architecture are not yet proven current on the same branch.","priority":"CRITICAL","centrality":1.0,"dependencies":[],"blocking_dependencies":[],"non_blocking_dependencies":["main-branch source evidence"],"status":"ACTIVE","authorized_action":"Inspect current branch, source-main mission architecture, PR #35 and CI; persist explicit source-of-truth reconciliation.","acceptance_criteria":["No mission claimed operational solely from stale docs","Canonical branch/source relationship persisted","Current CI state recorded"],"validation_method":"Git ref/commit inspection + registry validation + CI/PR inspection + persisted reconciliation","evidence_required":["current branch HEAD","source-main mission registry","PR #35 state","CI status"],"created_at":"2026-09-16","updated_at":"2026-09-16","last_verified_commit":"f6286429564e0bc5485c9b3713ff75819d76629c"},
+    {"work_id":"CP-EVENT-001","mission":"MISSION-01","mission_owner":"MISSION-01","surface":"mission event/audit lineage","objective":"Implement persistent append-only contribution/state-transition event lineage.","problem":"Control-plane events are currently validated in memory but not persisted as an executable event log.","priority":"CRITICAL","centrality":0.99,"dependencies":["CP-REALITY-001"],"blocking_dependencies":["CP-REALITY-001"],"non_blocking_dependencies":[],"status":"PENDING","authorized_action":"Design and implement minimal append-only event record compatible with contribution schema and mission transitions.","acceptance_criteria":["events persist","actor and evidence are preserved","history is not silently rewritten","replay is possible"],"validation_method":"unit + adversarial tamper/order/replay tests","evidence_required":["schema","implementation","tests","CI"],"created_at":"2026-09-16","updated_at":"2026-09-16","last_verified_commit":"f6286429564e0bc5485c9b3713ff75819d76629c"},
+    {"work_id":"CP-REPLAY-001","mission":"MISSION-01","mission_owner":"MISSION-01","surface":"mission/bootstrap.py + control-plane state","objective":"Make zero-context bootstrap execute control-plane validation and replay checks rather than merely describing them.","problem":"Bootstrap currently validates state but does not yet reconstruct the full multi-mission lifecycle from event/claim/handoff history.","priority":"HIGH","centrality":0.97,"dependencies":["CP-EVENT-001"],"blocking_dependencies":["CP-EVENT-001"],"non_blocking_dependencies":[],"status":"PENDING","authorized_action":"Extend bootstrap after event lineage exists to replay mission registry, claims, handoffs and transitions and fail closed on divergence.","acceptance_criteria":["fresh instance can reconstruct operational state","stale/conflicting state is detected","next action is reproducible"],"validation_method":"fresh-process replay + corruption fixtures + CI","evidence_required":["replay implementation","fixtures","tests","CI"],"created_at":"2026-09-16","updated_at":"2026-09-16","last_verified_commit":"f6286429564e0bc5485c9b3713ff75819d76629c"},
+    {"work_id":"F14-001","mission":"CEUTIA_SERPIENTE_CONTINUOUS_SCIENTIFIC_ENGINEERING","mission_owner":"MISSION-01","surface":"warning/decision/action persistence","objective":"Inspect existing warning, decision and action consumers before implementing response-coupling ledger functionality.","problem":"Operational effectiveness requires linking warning, decision, response exposure and outcome ascertainment without duplicating existing contracts.","priority":"HIGH","centrality":0.96,"dependencies":["CP-REALITY-001"],"blocking_dependencies":["CP-REALITY-001"],"non_blocking_dependencies":[],"status":"PENDING","authorized_action":"Source-inspect warning/decision/action consumers and existing persistence; produce response-coupling audit and only then implement justified ledger changes.","acceptance_criteria":["existing producer/consumer contracts identified","duplicate state avoided","required response fields mapped"],"validation_method":"source inspection + contract audit + adversarial tests + scientific consistency audit","evidence_required":["source references","audit","tests if implementation follows"],"created_at":"2026-09-16","updated_at":"2026-09-16","last_verified_commit":"f6286429564e0bc5485c9b3713ff75819d76629c"}
   ],
-  "waiting_policy": {
-    "when_blocked": [
-      "Register blocker and exact blocking dependency.",
-      "Continue the highest-priority non-blocked queue item.",
-      "Maintain explicit recheck condition.",
-      "Reassess dependency during every bootstrap/reconciliation cycle.",
-      "Resume blocked item automatically when dependency is resolved."
-    ],
-    "forbidden_transition": "BLOCKED -> WAIT -> DONE",
-    "required_transition": "BLOCKED -> REGISTERED_DEPENDENCY -> NON_BLOCKED_WORK -> RECHECK -> RESUME"
-  }
+  "waiting_policy":{"when_blocked":["Register blocker and exact dependency","continue highest-priority non-blocked work","maintain recheck condition","reassess on every bootstrap/reconciliation cycle","resume when dependency resolves"],"forbidden_transition":"BLOCKED -> WAIT -> DONE","required_transition":"BLOCKED -> REGISTERED_DEPENDENCY -> NON_BLOCKED_WORK -> RECHECK -> RESUME","done_terminal_state":"FORBIDDEN_WHILE_JUSTIFIED_WORK_REMAINS"}
 }

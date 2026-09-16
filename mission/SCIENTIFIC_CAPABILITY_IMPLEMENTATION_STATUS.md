@@ -41,3 +41,9 @@ SERPIENTE previously derived cross-domain propagation by constructing a complete
 The internally executable scientific subset now includes temporal eligibility/vintage representation, observation-process representation, dynamic denominator binding, denominator-bound rate uncertainty, identifiability preservation, rolling-origin baselines, probabilistic scoring/calibration diagnostics, incremental comparison, decision-loss computation, explicit scientific execution provenance, canonical persistence/replay, causal non-identifiability boundaries, digital-twin boundaries, and fail-closed alert governance.
 
 The remaining scientific frontier is not safely fabricable: empirical parameter identification, real historical vintages, validated population/mobility denominators, real outcome definitions, prospective outcomes, identified causal estimands, intervention utility, operational alert validation, and client validation require appropriate data, design, authority, or real-world operation. They remain explicitly unvalidated rather than being promoted by engineering status.
+
+## Verified engineering checkpoint
+
+The branch was at `b3af7d8e3169547b45ab3dcef9baa08fa0e03901` when CeutIA CI run `35125790123` completed SUCCESS. That run verified compileall, direct-CAS audit, canonical event replay audit, 168-unit-test execution including the scientific suites, and authoritative bootstrap. SERPIENTE CI run `35125274186` also completed SUCCESS, including runtime tests, PostgreSQL persistence integration, security checks, dependency audit, Compose validation, and runtime image build.
+
+This checkpoint is technical evidence only. It does not promote any scientific capability to `SCIENTIFICALLY_VALIDATED`, `PROSPECTIVELY_VALIDATED`, `OPERATIONALLY_VALIDATED`, `CLIENT_VALIDATED`, or `ESTABLISHED`.

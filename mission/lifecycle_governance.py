@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from .shared_standard import require_fields
-from .event_log import append_payload
+from .event_log import append_payload, load_jsonl
 
 OPERATING_STANDARD_VERSION = "MISSION_SYSTEM_CONSTITUTION_1.0"
 
@@ -49,30 +49,20 @@ def _event(
 ) -> dict[str, Any]:
     if not path or not actor or not timestamp:
         raise ValueError("Lifecycle mutation requires event_log, actor and timestamp")
-    return append_payload(
-        path,
-        event_type=event_type,
-        mission_id=mission_id,
-        actor=actor,
-        timestamp=timestamp,
-        payload=payload,
-    )
+    for event in load_jsonl(path):
+        if (
+            event.get("event_type") == event_type
+            and event.get("mission_id") == mission_id
+            and event.get("actor") == actor
+            and event.get("timestamp") == timestamp
+            and event.get("payload") == payload
+        ):
+            return event
+    return append_payload(path, event_type=event_type, mission_id=mission_id, actor=actor, timestamp=timestamp, payload=payload)
 
 
-def admit(
-    path: Path,
-    contract: dict[str, Any],
-    *,
-    authorized_by: str,
-    evidence: list[str],
-    event_log: Path,
-    timestamp: str,
-) -> dict[str, Any]:
-    required = (
-        "mission_id", "mission_name", "purpose", "scope", "authority", "owner", "inputs", "outputs",
-        "dependencies", "handoff_contract", "validation_contract", "recovery_policy",
-        "retirement_conditions", "operating_standard_version",
-    )
+def admit(path: Path, contract: dict[str, Any], *, authorized_by: str, evidence: list[str], event_log: Path, timestamp: str) -> dict[str, Any]:
+    required = ("mission_id", "mission_name", "purpose", "scope", "authority", "owner", "inputs", "outputs", "dependencies", "handoff_contract", "validation_contract", "recovery_policy", "retirement_conditions", "operating_standard_version")
     require_fields(contract, required, "mission admission")
     if not evidence or not authorized_by:
         raise ValueError("Admission requires evidence and authorizer")
@@ -93,17 +83,7 @@ def admit(
     return record
 
 
-def retire(
-    path: Path,
-    *,
-    mission_id: str,
-    owner: str,
-    authorized_by: str,
-    evidence: list[str],
-    reason: str,
-    event_log: Path,
-    timestamp: str,
-) -> dict[str, Any]:
+def retire(path: Path, *, mission_id: str, owner: str, authorized_by: str, evidence: list[str], reason: str, event_log: Path, timestamp: str) -> dict[str, Any]:
     if not all((mission_id, owner, authorized_by, reason)) or not evidence:
         raise ValueError("Retirement requires owner, authorizer, reason and evidence")
     if owner != mission_id:
@@ -117,17 +97,7 @@ def retire(
     return record
 
 
-def recover(
-    path: Path,
-    *,
-    mission_id: str,
-    trigger: str,
-    evidence: list[str],
-    restored_state: str,
-    event_log: Path,
-    actor: str,
-    timestamp: str,
-) -> dict[str, Any]:
+def recover(path: Path, *, mission_id: str, trigger: str, evidence: list[str], restored_state: str, event_log: Path, actor: str, timestamp: str) -> dict[str, Any]:
     require_fields({"mission_id": mission_id, "trigger": trigger, "restored_state": restored_state}, ("mission_id", "trigger", "restored_state"), "recovery")
     if not evidence:
         raise ValueError("Recovery requires evidence")
@@ -140,20 +110,7 @@ def recover(
     return record
 
 
-def record_conflict(
-    path: Path,
-    *,
-    conflict_id: str,
-    claim_a: str,
-    claim_b: str,
-    category: str,
-    owner: str,
-    evidence_a: list[str],
-    evidence_b: list[str],
-    event_log: Path,
-    actor: str,
-    timestamp: str,
-) -> dict[str, Any]:
+def record_conflict(path: Path, *, conflict_id: str, claim_a: str, claim_b: str, category: str, owner: str, evidence_a: list[str], evidence_b: list[str], event_log: Path, actor: str, timestamp: str) -> dict[str, Any]:
     if claim_a == claim_b:
         raise ValueError("Conflict requires distinct claims")
     if not evidence_a or not evidence_b:

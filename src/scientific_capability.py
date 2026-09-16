@@ -3,8 +3,8 @@
 These objects operationalize scientific gates without claiming scientific
 validation. They enforce temporal eligibility, observation/denominator
 semantics, identifiability state, baseline comparisons, probabilistic
-forecast metrics, observation-process transformations, decision utility, and
-simple rolling-origin baseline evaluation on explicit inputs.
+forecast metrics, observation-process transformations, decision utility,
+rolling-origin baselines, and rate uncertainty on explicit inputs.
 """
 
 from __future__ import annotations
@@ -305,6 +305,19 @@ def mean_absolute_error(predictions: Sequence[float], observations: Sequence[flo
     if not predictions:
         raise ValueError("at least one prediction is required")
     return sum(abs(p - y) for p, y in zip(predictions, observations)) / len(predictions)
+
+
+def wilson_interval(successes: int, trials: int, z: float = 1.96) -> tuple[float, float]:
+    """Wilson score interval for a binomial proportion."""
+    if trials <= 0 or successes < 0 or successes > trials:
+        raise ValueError("successes must satisfy 0 <= successes <= trials and trials > 0")
+    if z <= 0:
+        raise ValueError("z must be positive")
+    p = successes / trials
+    denominator = 1 + z * z / trials
+    center = (p + z * z / (2 * trials)) / denominator
+    half = z * sqrt((p * (1 - p) / trials) + z * z / (4 * trials * trials)) / denominator
+    return max(0.0, center - half), min(1.0, center + half)
 
 
 def brier_score(probabilities: Sequence[float], outcomes: Sequence[int]) -> float:

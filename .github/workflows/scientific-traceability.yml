@@ -16,6 +16,7 @@ on:
       - "tests/core/test_global_audit_persistence.py"
       - "tests/core/test_*nonstationarity*.py"
       - "tests/core/test_*intervention*.py"
+      - "tests/core/test_response_closure.py"
       - ".github/workflows/scientific-traceability.yml"
   workflow_dispatch:
 
@@ -42,4 +43,4 @@ jobs:
         env:
           PYTHONPATH: ${{ github.workspace }}/backend:${{ github.workspace }}
           SERPIENTE_ROOT: ${{ runner.temp }}/SERPIENTE
-        run: python -m pytest -c /dev/null --import-mode=importlib tests/core/test_scientific_traceability.py tests/core/test_scientific_method_catalog.py tests/core/test_scientific_method_registry.py tests/core/test_scientific_runtime_contract.py tests/core/test_scientific_runtime_lifecycle_integration.py tests/core/test_cross_repo_scientific_adversarial.py tests/core/test_cross_repo_transport_integration.py tests/core/test_cross_repo_producer_consumer.py tests/core/test_crossrepo_decision_endpoint.py tests/core/test_global_audit_persistence.py tests/core/test_intervention_independent_validation.py tests/core/test_intervention_validation_lifecycle.py tests/core/test_nonstationarity.py tests/core/test_nonstationarity_lifecycle_integration.py tests/core/test_prediction_outcome_evaluation.py tests/core/test_scientific_product_runtime.py -q
+        run: python -m pytest -c /dev/null --import-mode=importlib tests/core/test_scientific_traceability.py tests/core/test_scientific_method_catalog.py tests/core/test_scientific_method_registry.py tests/core/test_scientific_runtime_contract.py tests/core/test_scientific_runtime_lifecycle_integration.py tests/core/test_cross_repo_scientific_adversarial.py tests/core/test_cross_repo_transport_integration.py tests/core/test_cross_repo_producer_consumer.py tests/core/test_crossrepo_decision_endpoint.py tests/core/test_global_audit_persistence.py tests/core/test_intervention_independent_validation.py tests/core/test_intervention_validation_lifecycle.py tests/core/test_nonstationarity.py tests/core/test_nonstationarity_lifecycle_integration.py tests/core/test_prediction_outcome_evaluation.py tests/core/test_scientific_product_runtime.py tests/core/test_response_closure.py -q

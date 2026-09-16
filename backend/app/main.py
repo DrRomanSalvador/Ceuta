@@ -64,7 +64,7 @@ def _final_epistemic_assessment(payload,evidence):
     provenance_refs=tuple(ref for item in evidence for ref in item.provenance_refs)
     if prediction is not None: provenance_refs=tuple(dict.fromkeys(provenance_refs + tuple(prediction.provenance) + (f"serpiente:prediction:{prediction.prediction_id}",)))
     external_evidence_refs=tuple(item.evidence_id for item in evidence)
-    if prediction is not None: external_evidence_refs=tuple(dict.fromkeys(external_evidence_refs + (f"serpiente:{prediction.prediction_id}",)))
+    if prediction is not None: external_evidence_refs=tuple(dict.fromkeys(external_evidence_refs + (f"serpiente:prediction:{prediction.prediction_id}",)))
     independent_refs=tuple(item.evidence_id for item in evidence if item.assessment.independent_origin)
     global_doubt=(not evidence or not independent_refs or any(item.assessment.disposition is not EvidenceDisposition.ACCEPT for item in evidence) or any(item.assessment.contradiction_weight>0.5 for item in evidence))
     condition=FalsificationCondition(condition_id=f"{payload.decision_id}:evidence-integrity",target_id=payload.decision_id,expected_observation="cited evidence and any SERPIENTE forecast remain temporally valid, provenance-complete and decision-eligible",falsifying_observation="material contradiction, provenance failure, temporal invalidity or future SERPIENTE prediction is detected",independent_evidence_refs=independent_refs,assumptions=("bitemporal validity is enforced before decision execution","SERPIENTE forecasts are predictive rather than causal"),testable=bool(independent_refs))

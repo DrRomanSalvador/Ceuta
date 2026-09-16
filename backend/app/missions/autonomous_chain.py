@@ -69,6 +69,96 @@ class ScientificConsequence:
     material: bool
 
 
+@dataclass(frozen=True, slots=True)
+class ProcessObservation:
+    """Persistable observation of an asynchronous activity and its dependencies."""
+
+    process_id: str
+    process_type: str
+    started_at: str
+    current_status: str
+    last_observed_at: str
+    expected_result: str
+    dependencies: tuple[str, ...]
+    dependent_tasks: tuple[str, ...]
+    independent_tasks_available: tuple[str, ...]
+    next_observation_condition: str
+
+    def validate(self) -> None:
+        required = {
+            "process_id": self.process_id,
+            "process_type": self.process_type,
+            "started_at": self.started_at,
+            "current_status": self.current_status,
+            "last_observed_at": self.last_observed_at,
+            "expected_result": self.expected_result,
+            "next_observation_condition": self.next_observation_condition,
+        }
+        missing = [name for name, value in required.items() if not str(value).strip()]
+        if missing:
+            raise AutonomousChainError(f"PROCESS_OBSERVATION_INVALID: missing={missing}")
+        if self.current_status not in {"RUNNING", "WAITING", "COMPLETED", "FAILED", "CANCELLED"}:
+            raise AutonomousChainError(f"PROCESS_STATUS_INVALID: {self.current_status}")
+
+
+@dataclass(frozen=True, slots=True)
+class WorkQueue:
+    """Explicit queue projection preventing running work from being mistaken for waiting."""
+
+    executable_now: tuple[str, ...] = ()
+    running: tuple[str, ...] = ()
+    blocked: tuple[str, ...] = ()
+    delegated: tuple[str, ...] = ()
+    external: tuple[str, ...] = ()
+    completed: tuple[str, ...] = ()
+    cancelled: tuple[str, ...] = ()
+
+    @property
+    def active(self) -> bool:
+        return bool(self.executable_now or self.running or self.blocked or self.delegated)
+
+    @property
+    def waiting_is_valid(self) -> bool:
+        return not self.active
+
+    def validate(self) -> None:
+        buckets = {
+            "executable_now": self.executable_now,
+            "running": self.running,
+            "blocked": self.blocked,
+            "delegated": self.delegated,
+            "external": self.external,
+            "completed": self.completed,
+            "cancelled": self.cancelled,
+        }
+        seen: dict[str, str] = {}
+        for bucket, items in buckets.items():
+            for item in items:
+                if not item.strip():
+                    raise AutonomousChainError(f"WORK_QUEUE_INVALID: empty item in {bucket}")
+                prior = seen.get(item)
+                if prior is not None:
+                    raise AutonomousChainError(f"WORK_QUEUE_DUPLICATE: {item} in {prior} and {bucket}")
+                seen[item] = bucket
+
+
+@dataclass(frozen=True, slots=True)
+class FixedPointState:
+    executable_open_work: int
+    unprocessed_derived_work: int
+    unintegrated_completed_work: int
+    unreconciled_state: int
+    unverified_internal_repair: int
+    untested_executable_change: int
+    unfollowed_active_handoff: int
+    active_internal_processes: int = 0
+    unresolved_critical_contradictions: int = 0
+    unprocessed_high_value_discovery: int = 0
+    required_integration_pending: int = 0
+    repairable_regression: int = 0
+    material_capability_gap: int = 0
+
+
 class AutonomousMissionChain:
     """Deterministic, evidence-gated routing primitives for the mission control plane."""
 
@@ -139,16 +229,67 @@ class AutonomousMissionChain:
         return (not provenance_ok) or (not authority_ok) or recursion_depth >= max_recursion_depth or task_count >= max_tasks
 
     @staticmethod
+    def observe_process(process: ProcessObservation) -> ProcessObservation:
+        """Validate a live process observation; RUNNING remains active work, never passive waiting."""
+        process.validate()
+        if process.current_status == "RUNNING" and not process.next_observation_condition.strip():
+            raise AutonomousChainError("RUNNING_PROCESS_REQUIRES_OBSERVATION_CONDITION")
+        return process
+
+    @staticmethod
+    def queue_state(queue: WorkQueue) -> str:
+        queue.validate()
+        if queue.executable_now:
+            return "EXECUTABLE"
+        if queue.running or queue.blocked or queue.delegated:
+            return "ACTIVE"
+        if queue.external:
+            return "EXTERNAL_ONLY"
+        return "QUIESCENT"
+
+    @staticmethod
+    def fixed_point_state(state: FixedPointState) -> bool:
+        values = (
+            state.executable_open_work,
+            state.unprocessed_derived_work,
+            state.unintegrated_completed_work,
+            state.unreconciled_state,
+            state.unverified_internal_repair,
+            state.untested_executable_change,
+            state.unfollowed_active_handoff,
+            state.active_internal_processes,
+            state.unresolved_critical_contradictions,
+            state.unprocessed_high_value_discovery,
+            state.required_integration_pending,
+            state.repairable_regression,
+            state.material_capability_gap,
+        )
+        if any(value < 0 for value in values):
+            raise AutonomousChainError("FIXED_POINT_COUNTS_MUST_BE_NON_NEGATIVE")
+        return all(value == 0 for value in values)
+
+    @staticmethod
     def fixed_point(*, executable_open_work: int, unprocessed_derived_work: int,
                     unintegrated_completed_work: int, unreconciled_state: int,
                     unverified_internal_repair: int, untested_executable_change: int,
-                    unfollowed_active_handoff: int) -> bool:
-        return all(value == 0 for value in (
-            executable_open_work,
-            unprocessed_derived_work,
-            unintegrated_completed_work,
-            unreconciled_state,
-            unverified_internal_repair,
-            untested_executable_change,
-            unfollowed_active_handoff,
+                    unfollowed_active_handoff: int, active_internal_processes: int = 0,
+                    unresolved_critical_contradictions: int = 0,
+                    unprocessed_high_value_discovery: int = 0,
+                    required_integration_pending: int = 0,
+                    repairable_regression: int = 0,
+                    material_capability_gap: int = 0) -> bool:
+        return AutonomousMissionChain.fixed_point_state(FixedPointState(
+            executable_open_work=executable_open_work,
+            unprocessed_derived_work=unprocessed_derived_work,
+            unintegrated_completed_work=unintegrated_completed_work,
+            unreconciled_state=unreconciled_state,
+            unverified_internal_repair=unverified_internal_repair,
+            untested_executable_change=untested_executable_change,
+            unfollowed_active_handoff=unfollowed_active_handoff,
+            active_internal_processes=active_internal_processes,
+            unresolved_critical_contradictions=unresolved_critical_contradictions,
+            unprocessed_high_value_discovery=unprocessed_high_value_discovery,
+            required_integration_pending=required_integration_pending,
+            repairable_regression=repairable_regression,
+            material_capability_gap=material_capability_gap,
         ))

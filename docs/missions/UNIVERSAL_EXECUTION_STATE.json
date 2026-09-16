@@ -2,44 +2,125 @@
   "schema_version": "1.0",
   "mission_id": "ROMAN",
   "control_id": "UNIVERSAL_EXECUTION_CONTROL",
-  "status": "IMPLEMENTED_VALIDATION_PENDING",
+  "status": "IMPLEMENTED_VALIDATED_INTERNAL",
+  "mission_status": "COMPLETE",
   "constitutional_location": "docs/missions/UNIVERSAL_EXECUTION_CONSTITUTION.md",
   "contract_location": "docs/missions/UNIVERSAL_EXECUTION_CONTRACT.json",
   "runtime_location": "backend/app/missions/execution.py",
   "test_location": "tests/test_universal_mission_execution.py",
+  "validation_matrix_location": "docs/missions/UNIVERSAL_EXECUTION_VALIDATION.md",
   "inheritance": "MISSION_REGISTRY_LEVEL",
   "repository_enforcement": "IMPLEMENTED",
   "runtime_enforcement": "IMPLEMENTED_REPOSITORY_RUNTIME",
-  "cross_process_enforcement": "EXTERNAL_BOUNDARY",
+  "cross_process_enforcement": "LOCAL_FILE_LOCKING_IMPLEMENTED; DISTRIBUTED_MULTI_HOST_NOT_ESTABLISHED",
   "live_orchestrator": "NOT_ESTABLISHED",
   "github_branch_protection_for_new_paths": "EXTERNAL_BOUNDARY",
-  "ingeniero_case": {
-    "status": "UNKNOWN_WITH_REPOSITORY_EVIDENCE",
-    "verified_facts": [
-      "The persistent mission architecture defines INGENIERO as the technical custodian.",
-      "The repository contains persistent mission state and an execution pipeline, but no repository record proves the currently running process state of INGENIERO.",
-      "The canonical mission contract explicitly states that true multi-process leases and transactional live-state writes require an external orchestrator."
-    ],
-    "unverified": [
-      "whether INGENIERO is currently active, stalled, blocked or lost outside the repository",
-      "whether a live heartbeat exists for the current execution",
-      "whether an active process currently holds unpersisted work"
-    ],
-    "classification": "UNKNOWN"
+  "ci": {
+    "run_number": 717,
+    "run_id": 35099869319,
+    "result": "GREEN",
+    "universal_execution_tests": "10 PASSED",
+    "full_suite": "593 PASSED",
+    "phase_1": "PASSED",
+    "phase_2": "PASSED",
+    "phase_3": "PASSED",
+    "phases_4_8": "PASSED",
+    "advanced_causal": "PASSED",
+    "compose": "PASSED",
+    "security_control_plane_run_number": 877,
+    "security_control_plane_run_id": 35099869310,
+    "security_control_plane_result": "GREEN",
+    "validation_merge_commit": "0b01cb50f5bffc61f25ab7b43159306ca82120dd"
   },
   "adversarial_validation": {
-    "first_ci_run": "FAILED_1_OF_7",
-    "finding": "checkpoint persistence did not propagate checkpoint_ref into the task state, causing a recoverable process loss to classify as LOST",
+    "first_red_team": "FAILED_1_OF_7",
+    "first_finding": "checkpoint persistence did not propagate checkpoint_ref into task state, causing a recoverable process loss to classify as LOST",
     "repair": "checkpoint now records checkpoint_ref and updated_at on the associated task before persisting the new state version",
     "repair_commit": "a54ad7607de405bf8404480eb94d594f6c2a3c91",
-    "revalidation": "PR_53_CI_PENDING"
+    "second_red_team": "PASSED",
+    "second_red_team_evidence": "10 universal execution tests passed, including persisted checkpoint linkage, zero-context reconstruction, recovery classification, CAS stale-version rejection, WAITING versus completion-candidate semantics, and fixed-point closure"
   },
-  "last_action": "Repair the recovery-linkage defect found by adversarial CI and start a fresh CI validation cycle.",
-  "next_authorized_action": "Verify PR #53 CI. If repository tests are green, continue with full-suite/regression evidence; then verify external orchestrator lease/CAS/liveness/recovery and new-path protection before claiming universal live enforcement.",
-  "fixed_point": false,
-  "limitations": [
-    "Repository code cannot prove the live state of an external INGENIERO process.",
-    "The active PROTECTED-MAIN ruleset requires code-owner review but exposes a repository-role bypass; new universal-execution paths are not yet covered by the protected-control workflow/CODEOWNERS.",
-    "A repository runtime cannot by itself guarantee that every external model/provider/session actually routes all writes through this runtime."
-  ]
+  "execution_recovery": {
+    "checkpoint_task_reference": "VERIFIED",
+    "persisted_checkpoint": "VERIFIED",
+    "process_loss_classification": "VERIFIED_AS_RECOVERABLE_WHEN_CHECKPOINT_EXISTS",
+    "zero_context_reconstruction": "VERIFIED",
+    "checkpoint_replay_idempotence": "VERIFIED",
+    "real_external_process_restart": "NOT_ESTABLISHED"
+  },
+  "liveness": {
+    "ACTIVE": "VERIFIED",
+    "STALLED": "VERIFIED",
+    "BLOCKED": "VERIFIED",
+    "FAILED": "VERIFIED",
+    "LOST": "VERIFIED",
+    "RECOVERABLE": "VERIFIED",
+    "UNKNOWN": "VERIFIED",
+    "unknown_distinct_from_lost": true,
+    "unknown_distinct_from_blocked": true,
+    "waiting_distinct_from_done": true
+  },
+  "inheritance_result": {
+    "registry": "VERIFIED",
+    "mission_contract": "VERIFIED",
+    "universal_execution_contract": "VERIFIED",
+    "runtime": "VERIFIED",
+    "task_state": "VERIFIED",
+    "persistence": "VERIFIED",
+    "recovery": "VERIFIED",
+    "manual_copy_required_for_future_missions": false
+  },
+  "security": {
+    "security_control_plane": "GREEN",
+    "protected_paths_in_existing_workflow": "VERIFIED",
+    "new_universal_paths_in_external_protection": "NOT_ESTABLISHED",
+    "ruleset_repository_role_bypass": "PRESENT",
+    "constitutional_immutability": "NOT_CLAIMED",
+    "issue_52": "OPEN_EXTERNAL_AUTHORIZATION_REQUIRED"
+  },
+  "ingeniero_case": {
+    "status": "UNKNOWN_UNRESOLVED_BY_AVAILABLE_EVIDENCE",
+    "verified_facts": [
+      "The persistent mission architecture defines INGENIERO as the technical custodian.",
+      "Repository records do not establish the current live process state of INGENIERO.",
+      "No available repository evidence proves a current heartbeat, active lease or unpersisted live work claim for INGENIERO."
+    ],
+    "unverified": [
+      "whether INGENIERO is currently active, stalled, blocked, lost or finished outside the repository",
+      "whether a live heartbeat exists for the current execution",
+      "whether an active external process currently holds unpersisted work"
+    ],
+    "classification": "UNKNOWN_UNRESOLVED_BY_AVAILABLE_EVIDENCE",
+    "effect_on_roman_closure": "NONE"
+  },
+  "repairs_performed": [
+    "checkpoint_ref propagation into task state",
+    "universal execution adversarial test expansion",
+    "fixed-point semantics changed so external protection does not artificially keep internal mission open",
+    "MissionRegistry regression expectation aligned with current capability contract",
+    "SERPIENTE evidence reference aligned with canonical dependency identifier",
+    "Phase 1 verifier aligned with current pytest testpaths",
+    "advanced-causal verifier aligned with configured backend package path"
+  ],
+  "final_commit": "74bc666dfbd5f2ae77302e4902ef8dd921f443be",
+  "final_commit_note": "Current main HEAD after all internal repairs; PR #60 validation exercised the same repaired main state via merge commit 0b01cb50f5bffc61f25ab7b43159306ca82120dd.",
+  "fixed_point": true,
+  "fixed_point_scope": "INTERNAL",
+  "open_executable_work": 0,
+  "repairable_internal_defects": 0,
+  "critical_internal_contradictions": 0,
+  "required_validation_complete": true,
+  "persisted_state_consistent": true,
+  "post_implementation_audit": "COMPLETE",
+  "external_boundaries": [
+    "live INGENIERO process telemetry is unavailable",
+    "real external orchestrator enforcement is unavailable",
+    "distributed multi-host lease/CAS semantics are not established",
+    "real external process crash/restart is not established",
+    "new universal execution paths are not yet protected by owner-authorized CODEOWNERS/ruleset strategy",
+    "PROTECTED-MAIN exposes a repository-role bypass",
+    "universal routing of every external model/provider/session through this runtime cannot be proven from repository evidence alone"
+  ],
+  "closure_justification": "All executable internal implementation, repair, required local validation, regression, integration, persistence and post-audit work is exhausted. Remaining limitations are explicit external boundaries and do not constitute open executable ROMAN work.",
+  "date": "2026-09-16"
 }

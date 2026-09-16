@@ -19,6 +19,9 @@ on:
       - "tests/core/test_*nonstationarity*.py"
       - "tests/core/test_*intervention*.py"
       - "tests/core/test_response_closure.py"
+      - "docs/scientific/**"
+      - "mission/SCIENTIFIC_NORMATIVE_REGISTRY.json"
+      - "mission/SCIENTIFIC_MISSION_MEMORY.json"
       - ".github/workflows/scientific-traceability.yml"
   workflow_dispatch:
 
@@ -41,6 +44,8 @@ jobs:
         env:
           PYTHONPATH: ${{ github.workspace }}/backend:${{ github.workspace }}
         run: python -m compileall -q backend/app/main.py backend/app/core/scientific backend/app/core/decision/persistence.py backend/app/core/runtime/decision_lifecycle.py
+      - name: Validate canonical scientific normative integration
+        run: python -m unittest mission.test_scientific_normative_integration
       - name: Run scientific traceability suites
         env:
           PYTHONPATH: ${{ github.workspace }}/backend:${{ github.workspace }}

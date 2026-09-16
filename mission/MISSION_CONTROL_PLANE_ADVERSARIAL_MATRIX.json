@@ -1,5 +1,5 @@
 {
-  "schema_version":"1.1.0",
+  "schema_version":"1.2.0",
   "status":"EXECUTABLE_TESTS_PARTIALLY_IMPLEMENTED",
   "scenarios":[
     {"id":"ADV-01","scenario":"unknown mission declares complete","expected":"reject impossible transition","test":"test_01_unknown_cannot_complete","status":"EXECUTED_IN_CI"},
@@ -7,7 +7,7 @@
     {"id":"ADV-03","scenario":"two missions claim same work","expected":"second claim rejected","test":"test_claim_persists_and_duplicate_is_rejected","status":"EXECUTED_IN_CI"},
     {"id":"ADV-04","scenario":"handoff sent but never accepted","expected":"remains non-integrated","test":"test_04_unaccepted_handoff_is_not_integrated","status":"EXECUTED_IN_CI"},
     {"id":"ADV-05","scenario":"master state stale","expected":"claim frozen and reconciliation required","test":"test_05_stale_state_freezes_claim","status":"EXECUTED_IN_CI"},
-    {"id":"ADV-06","scenario":"mission removed from registry","expected":"bootstrap detects registry/state discrepancy","test":"bootstrap registry validation","status":"PARTIALLY_EXECUTED"},
+    {"id":"ADV-06","scenario":"mission removed from registry","expected":"registry/state discrepancy rejected","test":"test_06_registry_removal_or_count_drift_is_rejected","status":"EXECUTED_IN_CI"},
     {"id":"ADV-07","scenario":"dependency blocked indefinitely","expected":"non-blocked work selected","test":"test_07_blocked_line_does_not_block_nonblocked_work","status":"EXECUTED_IN_CI"},
     {"id":"ADV-08","scenario":"CI red while state says green","expected":"state claim frozen","test":"test_08_ci_failure_is_not_a_verified_claim","status":"EXECUTED_IN_CI"},
     {"id":"ADV-09","scenario":"agent invents dependency","expected":"orphan dependency rejected","test":"test_09_invented_dependency_is_rejected","status":"EXECUTED_IN_CI"},
@@ -18,9 +18,9 @@
     {"id":"ADV-14","scenario":"checkpoint lost","expected":"recover from prior persisted state/event chain","test":"test_recovery_is_persistent + lifecycle replay","status":"EXECUTED_IN_CI"},
     {"id":"ADV-15","scenario":"work marked DONE without evidence","expected":"reject completion claim","test":"test_completion_rejects_unexecuted_tests","status":"EXECUTED_IN_CI"},
     {"id":"ADV-16","scenario":"artifact created but not validated","expected":"remain non-validated","test":"test_16_artifact_without_validation_stays_below_operational","status":"EXECUTED_IN_CI"},
-    {"id":"ADV-17","scenario":"mission continues after authorization loss","expected":"transition to recovery/suspension","test":"human-reserved contract authorization gate; full runtime loss simulation pending","status":"PARTIALLY_EXECUTED"},
+    {"id":"ADV-17","scenario":"mission continues after authorization loss","expected":"transition to recovery/suspension","test":"test_17_authorization_loss_transitions_to_recovery + invocation authorization-loss test","status":"EXECUTED_IN_CI"},
     {"id":"ADV-18","scenario":"mission elevates its own authority","expected":"reject","test":"test_18_self_elevation_is_rejected_by_authority_boundary","status":"EXECUTED_IN_CI"},
     {"id":"ADV-19","scenario":"two master states incompatible","expected":"preserve both and reconcile","test":"test_19_incompatible_master_states_require_reconciliation","status":"EXECUTED_IN_CI"},
-    {"id":"ADV-20","scenario":"repository modified outside protocol","expected":"detect via Git/reconciliation/event divergence","test":"Git-integrity runtime detector pending","status":"NOT_EXECUTED"}
+    {"id":"ADV-20","scenario":"repository modified outside protocol","expected":"detect via Git/reconciliation/event divergence","test":"test_changed_head_without_protocol_evidence_requires_reconciliation","status":"EXECUTED_IN_CI"}
   ]
 }

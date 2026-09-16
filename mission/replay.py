@@ -14,6 +14,7 @@ class ReplayState:
     contradictions: dict[str, dict[str, Any]] = field(default_factory=dict)
     responses: dict[str, dict[str, Any]] = field(default_factory=dict)
     materialized_state: dict[str, dict[str, Any]] = field(default_factory=dict)
+    scientific_executions: dict[str, dict[str, Any]] = field(default_factory=dict)
     lifecycle: list[dict[str, Any]] = field(default_factory=list)
     mission_states: dict[str, str] = field(default_factory=dict)
     last_event_id: str | None = None
@@ -58,6 +59,13 @@ def apply_event(state: ReplayState, event: dict[str, Any]) -> None:
         if previous["revision"] != expected: raise ValueError(f"Materialized-state replay divergence for {mission_id}: expected {previous['revision']}, got {expected}")
         if new_revision != expected + 1: raise ValueError(f"Invalid materialized-state revision transition for {mission_id}")
         state.materialized_state[mission_id]={"revision":new_revision,"projection":dict(payload["projection"]),"event_id":event["event_id"]}
+    elif kind == "SCIENTIFIC_EXECUTION":
+        execution_id=payload["record"]["execution_id"]
+        if execution_id in state.scientific_executions and state.scientific_executions[execution_id] != payload["record"]:
+            raise ValueError(f"Scientific execution replay divergence: {execution_id}")
+        if execution_id in state.scientific_executions:
+            raise ValueError(f"Duplicate scientific execution replay: {execution_id}")
+        state.scientific_executions[execution_id]={**payload["record"],"event_id":event["event_id"]}
     elif kind.startswith("MISSION_LIFECYCLE_") or kind in {"MISSION_RETIREMENT", "MISSION_RECOVERY"}:
         state.lifecycle.append({**payload,"event_id":event["event_id"],"event_type":kind})
     else: raise ValueError(f"Unknown replay event type: {kind}")

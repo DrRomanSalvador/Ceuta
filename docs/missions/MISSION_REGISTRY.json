@@ -79,6 +79,31 @@
     {"mission_id":"MISSION-13","canonical_name":"NOTARIO","mission_type":"EPISTEMOLOGY_PROVENANCE","status":"DEFINED","contract":"docs/missions/MISSION_BOOTSTRAPS.md#mission-13--notario"},
     {"mission_id":"MISSION-14","canonical_name":"ABISMO","mission_type":"EXTREMES_TAIL_RISK","status":"DEFINED","contract":"docs/missions/MISSION_BOOTSTRAPS.md#mission-14--abismo"},
     {"mission_id":"MISSION-15","canonical_name":"CIBERSEGURIDAD","mission_type":"SECURITY_GOVERNANCE","status":"ACTIVE","contract":"docs/security/CYBERSECURITY_MISSION_CONTRACT.md"},
-    {"mission_id":"ROMAN","canonical_name":"ROMÁN","mission_type":"AUTHORIAL_INTELLECTUAL_FORENSIC","status":"ACTIVE","contract":"docs/missions/roman/ROMAN_INVOCATION_CONTRACT.json"}
+    {
+      "mission_id":"ROMAN",
+      "canonical_name":"ROMÁN",
+      "mission_type":"AUTHORIAL_INTELLECTUAL_FORENSIC",
+      "purpose":"Reconstruct, audit, model and preserve the observed authorial voice, intellectual architecture, scientific reasoning, systems thinking, narrative architecture, evolution and distinctive patterns of Román Iglesias Salvador using only authorized traceable evidence.",
+      "scope":["authorial forensics","intellectual architecture","scientific reasoning analysis","systems thinking analysis","style analysis","narrative analysis","metaphor analysis","rhetorical analysis","evolution analysis","contradiction analysis","authenticity analysis","anti-style analysis","generation support"],
+      "non_scope":["global system personality","psychological diagnosis or speculation","invented biography","untraceable memory as fact","political spokesperson role","substitution for the human author","treating generated text as authentic source"],
+      "owner":"ROMÁN mission domain; control-plane coordination remains with the common mission governance layer",
+      "authority":"Analyze and maintain the authorial/intellectual model within evidence and provenance constraints; cannot alter another mission identity or promote inference to fact.",
+      "status":"ACTIVE",
+      "inputs":"docs/missions/roman/ROMAN_INVOCATION_CONTRACT.json",
+      "outputs":"docs/missions/roman/ROMAN_HANDOFF_CONTRACT.json",
+      "dependencies":["common mission registry","evidence/provenance controls","mission authority model"],
+      "optional_dependencies":["BIBLIOTECARIO","ESPÍA","FORJA","GROK","NOTARIO"],
+      "handoffs_in":["BIBLIOTECARIO","ESPÍA","FORJA","GROK","NOTARIO"],
+      "handoffs_out":["ESPÍA","FORJA","GROK","INGENIERO","NOTARIO"],
+      "invocation_contract":"docs/missions/roman/ROMAN_INVOCATION_CONTRACT.json",
+      "bootstrap":"docs/missions/roman/ROMAN_BOOTSTRAP.md",
+      "state_location":"docs/missions/roman/ROMAN_MISSION_STATE.json",
+      "evidence_location":"docs/missions/roman/ROMAN_SOURCE_CORPUS.json",
+      "validation_location":"docs/missions/roman/ROMAN_VALIDATION_RESULTS.json",
+      "adversarial_tests":"docs/missions/roman/ROMAN_ADVERSARIAL_TESTS.json",
+      "current_state":"REGISTERED_DISCOVERABLE_INVOCABLE_EXECUTION_VALIDATION_PENDING",
+      "next_authorized_action":"Run the canonical discovery/invocation tests and validate the state/provenance/concurrency controls against an external multi-session orchestrator.",
+      "completion_criteria":"docs/missions/roman/ROMAN_INTEGRATION_STATUS.json"
+    }
   ]
 }

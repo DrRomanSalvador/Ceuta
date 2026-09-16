@@ -2,8 +2,14 @@
 from __future__ import annotations
 import hashlib
 import json
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterator
+
+try:
+    import fcntl
+except ImportError:  # pragma: no cover - Windows fallback
+    fcntl = None
 
 GENESIS_HASH = "0" * 64
 
@@ -52,11 +58,29 @@ def load_jsonl(path: Path) -> list[dict[str, Any]]:
     return events
 
 
+@contextmanager
+def _locked(path: Path) -> Iterator[None]:
+    lock_path = path.with_suffix(path.suffix + ".lock")
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    with lock_path.open("a+", encoding="utf-8") as lock:
+        if fcntl is not None:
+            fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            if fcntl is not None:
+                fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
+
+
 def append_event(path: Path, event: dict[str, Any]) -> str:
-    events=load_jsonl(path)
-    last=validate_chain(events)
-    if event["previous_hash"] != last: raise ValueError("Event does not extend current chain")
-    validate_chain(events+[event])
-    with path.open("a", encoding="utf-8") as handle:
-        handle.write(json.dumps(event, sort_keys=True, separators=(",", ":"), ensure_ascii=False) + "\n")
-    return event["hash"]
+    """Validate and append while serializing concurrent writers."""
+    with _locked(path):
+        events=load_jsonl(path)
+        last=validate_chain(events)
+        if event["previous_hash"] != last: raise ValueError("Event does not extend current chain; caller must reload and retry")
+        validate_chain(events+[event])
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(event, sort_keys=True, separators=(",", ":"), ensure_ascii=False) + "\n")
+            handle.flush()
+        return event["hash"]

@@ -208,6 +208,23 @@ class AutonomousMissionChain:
             "Hard gates passed; selected by evidence-backed fit, activation cost, duplication risk, unresolved dependencies and stable mission ID.",
         )
 
+    @classmethod
+    def replay_selection_trace(
+        cls,
+        tasks: Sequence[TaskCandidate],
+        candidates_by_task: Mapping[str, Sequence[MissionCandidate]],
+    ) -> tuple[ActivationDecision, ...]:
+        """Replay routing deterministically from persisted task/candidate inputs without live state."""
+        decisions: list[ActivationDecision] = []
+        seen: set[str] = set()
+        for task in tasks:
+            if task.task_id in seen:
+                raise AutonomousChainError(f"REPLAY_DUPLICATE_TASK: {task.task_id}")
+            seen.add(task.task_id)
+            candidates = candidates_by_task.get(task.task_id, ())
+            decisions.append(cls.select_existing(task, candidates))
+        return tuple(decisions)
+
     @staticmethod
     def consequence(*, consequence_id: str, source_result_refs: Sequence[str], classification: str,
                     downstream_task_refs: Sequence[str], revalidation_refs: Sequence[str], material: bool) -> ScientificConsequence:

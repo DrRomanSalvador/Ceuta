@@ -55,7 +55,7 @@ def main() -> None:
     workflow = read_utf8(".github/workflows/ci.yml")
 
     assert_contains(pyproject, 'package-dir = { "" = "backend" }', "pyproject.toml")
-    assert_contains(pyproject, 'testpaths = ["tests"]', "pyproject.toml")
+    assert_contains(pyproject, 'testpaths = ["tests", "backend/tests"]', "pyproject.toml")
     assert_contains(pyproject, 'include = ["app", "app.*"]', "pyproject.toml")
     assert_contains(pyproject, 'python_version = "3.12"', "pyproject.toml")
     assert_contains(pyproject, "strict = true", "pyproject.toml")

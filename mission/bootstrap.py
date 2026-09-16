@@ -74,11 +74,13 @@ def validate_control_plane():
     try:
         from .control_plane import ControlPlaneContract,MissionState,validate_handoff,validate_waiting_policy,validate_mission_contract,validate_registry_consistency
         from .event_log import load_jsonl,validate_chain
+        from .replay import replay
         from .shared_standard import validate_contradiction,validate_attribution
         from .invocation_runtime import discover
     except ImportError:
         from control_plane import ControlPlaneContract,MissionState,validate_handoff,validate_waiting_policy,validate_mission_contract,validate_registry_consistency
         from event_log import load_jsonl,validate_chain
+        from replay import replay
         from shared_standard import validate_contradiction,validate_attribution
         from invocation_runtime import discover
     cp=load_json(CONTROL_PLANE_STATE_PATH); sm=load_json(STATE_MACHINE_PATH); hr=load_json(HANDOFF_REGISTRY_PATH); registry=load_json(REGISTRY_PATH); queue=load_json(QUEUE_PATH); claims=load_json(CLAIMS_PATH); contributions=load_json(CONTRIBUTION_PATH); contradictions=load_json(CONTRADICTION_PATH); lifecycle=load_json(LIFECYCLE_PATH); roman_contract=load_json(ROMAN_CONTRACT_PATH); roman_state=load_json(ROMAN_STATE_PATH)
@@ -107,10 +109,15 @@ def validate_control_plane():
             if admission.get("authorized_by")!="MISSION-01" or not admission.get("evidence"): raise ValueError("ROMAN admission lacks owner/authority evidence")
             if admission.get("contract",{}).get("operating_standard_version")!="MISSION_SYSTEM_CONSTITUTION_1.0": raise ValueError("ROMAN does not explicitly inherit the canonical operating standard")
     events=load_jsonl(EVENT_LOG_PATH); last_hash=validate_chain(events)
-    return {"mission_count":len(cp["missions"]),"handoff_count":len(hr["items"]),"queue_count":len(queue["items"]),"claim_count":len(claims["claims"]),"contribution_count":len(contributions["items"]),"contradiction_count":len(contradictions["items"]),"lifecycle_admissions":len(lifecycle["admissions"]),"lifecycle_retirements":len(lifecycle["retirements"]),"event_count":len(events),"event_head":last_hash,"status":cp["status"]}
+    replayed=replay(EVENT_LOG_PATH)
+    replayed_roman=replayed.missions.get("ROMAN")
+    if not replayed_roman: raise ValueError("Canonical replay did not reconstruct ROMAN admission")
+    if replayed_roman.get("status")!=roman_state.get("status"): raise ValueError("Replay/materialized ROMAN status divergence")
+    if replayed.last_hash!=last_hash: raise ValueError("Replay/event-chain head divergence")
+    return {"mission_count":len(cp["missions"]),"handoff_count":len(hr["items"]),"queue_count":len(queue["items"]),"claim_count":len(claims["claims"]),"contribution_count":len(contributions["items"]),"contradiction_count":len(contradictions["items"]),"lifecycle_admissions":len(lifecycle["admissions"]),"lifecycle_retirements":len(lifecycle["retirements"]),"event_count":len(events),"event_head":last_hash,"replay_event_head":replayed.last_hash,"replay_mission_count":len(replayed.missions),"status":cp["status"]}
 
 def main()->int:
     s=load_state(); m=load_memory(); r=load_current_reconciliation(); validate_state(s); validate_memory(m); validate_repository_layout(); validate_current_reconciliation(r); validate_shared_standard(); cp=validate_control_plane()
-    print(f"MISSION_ID={s['mission_id']}"); print(f"AGENT_ROLE={s['mission_identity']['agent_role']}"); print(f"ENGINEERING_STATUS={s['current_state']['ENGINEERING_STATUS']}"); print(f"SCIENTIFIC_LIMITATION_RESOLUTION={s['current_state']['SCIENTIFIC_LIMITATION_RESOLUTION']}"); print(f"PROSPECTIVE_PREDICTIVE_VALIDITY={s['current_state']['PROSPECTIVE_PREDICTIVE_VALIDITY']}"); print(f"CONTROL_PLANE={cp['status']}"); print(f"CONTROL_PLANE_MISSIONS={cp['mission_count']}"); print(f"CONTROL_PLANE_HANDOFFS={cp['handoff_count']}"); print(f"CONTROL_PLANE_CLAIMS={cp['claim_count']}"); print(f"CONTROL_PLANE_CONTRIBUTIONS={cp['contribution_count']}"); print(f"CONTROL_PLANE_CONTRADICTIONS={cp['contradiction_count']}"); print(f"CONTROL_PLANE_LIFECYCLE_ADMISSIONS={cp['lifecycle_admissions']}"); print(f"CONTROL_PLANE_LIFECYCLE_RETIREMENTS={cp['lifecycle_retirements']}"); print(f"CONTROL_PLANE_EVENTS={cp['event_count']}"); print(f"EVENT_CHAIN_HEAD={cp['event_head']}"); print("SHARED_STANDARD=LOADED_AND_EXECUTABLE"); print("ROMAN_DISCOVERY=REGISTERED_REPOSITORY_RUNTIME_PENDING"); print("RESPONSE_COUPLING=ACTIVE_FRONTIER"); print("MISSION_STATE=VALID"); return 0
+    print(f"MISSION_ID={s['mission_id']}"); print(f"AGENT_ROLE={s['mission_identity']['agent_role']}"); print(f"ENGINEERING_STATUS={s['current_state']['ENGINEERING_STATUS']}"); print(f"SCIENTIFIC_LIMITATION_RESOLUTION={s['current_state']['SCIENTIFIC_LIMITATION_RESOLUTION']}"); print(f"PROSPECTIVE_PREDICTIVE_VALIDITY={s['current_state']['PROSPECTIVE_PREDICTIVE_VALIDITY']}"); print(f"CONTROL_PLANE={cp['status']}"); print(f"CONTROL_PLANE_MISSIONS={cp['mission_count']}"); print(f"CONTROL_PLANE_HANDOFFS={cp['handoff_count']}"); print(f"CONTROL_PLANE_CLAIMS={cp['claim_count']}"); print(f"CONTROL_PLANE_CONTRIBUTIONS={cp['contribution_count']}"); print(f"CONTROL_PLANE_CONTRADICTIONS={cp['contradiction_count']}"); print(f"CONTROL_PLANE_LIFECYCLE_ADMISSIONS={cp['lifecycle_admissions']}"); print(f"CONTROL_PLANE_LIFECYCLE_RETIREMENTS={cp['lifecycle_retirements']}"); print(f"CONTROL_PLANE_EVENTS={cp['event_count']}"); print(f"EVENT_CHAIN_HEAD={cp['event_head']}"); print(f"REPLAY_EVENT_HEAD={cp['replay_event_head']}"); print(f"REPLAY_MISSIONS={cp['replay_mission_count']}"); print("SHARED_STANDARD=LOADED_AND_EXECUTABLE"); print("ROMAN_DISCOVERY=REGISTERED_REPOSITORY_RUNTIME_PENDING"); print("RESPONSE_COUPLING=ACTIVE_FRONTIER"); print("MISSION_STATE=VALID"); return 0
 
 if __name__=="__main__":raise SystemExit(main())

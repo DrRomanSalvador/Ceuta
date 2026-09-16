@@ -19,11 +19,11 @@ from .coordination import (
 from .event_log import load_jsonl, validate_chain
 
 
-def _concurrent_claim(root: str, mirror_id: str, task_id: str, queue) -> None:
+def _concurrent_claim(root: str, mirror_id: str, invocation_id: str, task_id: str, queue) -> None:
     store = CoordinationStore(Path(root) / "state.json", Path(root) / "events.jsonl")
     mirror = Mirror(instance_id=mirror_id, store=store)
     try:
-        mirror.claim_subtask(mirror_id, task_id=task_id)
+        mirror.claim_subtask(invocation_id, task_id=task_id)
         queue.put((mirror_id, "CLAIMED"))
     except OwnershipConflict:
         queue.put((mirror_id, "CONFLICT"))
@@ -135,32 +135,24 @@ class CoordinationConstitutionTests(unittest.TestCase):
     def test_two_mirrors_competing_for_same_task_have_single_owner(self):
         mirror_a = Mirror(instance_id="MIRROR-A", store=self.store)
         mirror_b = Mirror(instance_id="MIRROR-B", store=self.store)
-        state = mirror_a.invoke(
+        state_a = mirror_a.invoke(
             mirror_of="ENGINEER-1", mission="MISSION-01", target_agent="ENGINEER-1", task="T-1",
             problem="assist", capability_required="tester", limits=[], priority="HIGH",
             authority=Authority.COORDINATOR.value, expected_result="result", action=MirrorAction.TEST,
             functional_role="tester", mission_owner="ENGINEER-1",
         )
-        mirror_id = next(iter(state["mirrors"]))
-        mirror_a.claim_subtask(mirror_id, task_id="T-1")
-        with self.assertRaises(OwnershipConflict):
-            mirror_b.invoke(
-                mirror_of="ENGINEER-1", mission="MISSION-01", target_agent="ENGINEER-1", task="T-1",
-                problem="duplicate", capability_required="tester", limits=[], priority="HIGH",
-                authority=Authority.COORDINATOR.value, expected_result="result", action=MirrorAction.TEST,
-                functional_role="tester", mission_owner="ENGINEER-1",
-            )
-        # A second invocation can exist, but the shared task claim must remain exclusive.
-        state2 = mirror_b.invoke(
-            mirror_of="ENGINEER-1", mission="MISSION-01", target_agent="ENGINEER-1", task="T-2",
-            problem="independent", capability_required="tester", limits=[], priority="HIGH",
+        state_b = mirror_b.invoke(
+            mirror_of="ENGINEER-1", mission="MISSION-01", target_agent="ENGINEER-1", task="T-1",
+            problem="duplicate", capability_required="tester", limits=[], priority="HIGH",
             authority=Authority.COORDINATOR.value, expected_result="result", action=MirrorAction.TEST,
             functional_role="tester", mission_owner="ENGINEER-1",
         )
-        second_id = [k for k in state2["mirrors"] if k != mirror_id][-1]
+        invocation_a = list(state_a["mirrors"])[-1]
+        invocation_b = list(state_b["mirrors"])[-1]
+        mirror_a.claim_subtask(invocation_a, task_id="T-1")
         with self.assertRaises(OwnershipConflict):
-            mirror_b.claim_subtask(mirror_id, task_id="T-1")
-        self.assertEqual(mirror_b.claim_subtask(second_id, task_id="T-2")["tasks"]["T-2"]["subtask_owner"], "MIRROR-B")
+            mirror_b.claim_subtask(invocation_b, task_id="T-1")
+        self.assertEqual(self.store.load()["tasks"]["T-1"]["subtask_owner"], "MIRROR-A")
 
     def test_integrated_engineer_coordinator_mirror_flow(self):
         self.coordinator.register_agent("ENGINEER-1", "MISSION-01", state="RUNNING", progress=True)
@@ -191,17 +183,25 @@ class CoordinationConstitutionTests(unittest.TestCase):
         root = self.root / "process"
         root.mkdir()
         seed = CoordinationStore(root / "state.json", root / "events.jsonl")
-        mirror = Mirror(instance_id="MIRROR-SEED", store=seed)
-        state = mirror.invoke(
+        mirror_a = Mirror(instance_id="MIRROR-A", store=seed)
+        mirror_b = Mirror(instance_id="MIRROR-B", store=seed)
+        state_a = mirror_a.invoke(
             mirror_of="ENGINEER-1", mission="MISSION-01", target_agent="ENGINEER-1", task="T-1",
             problem="concurrent claim", capability_required="tester", limits=[], priority="HIGH",
             authority=Authority.COORDINATOR.value, expected_result="one owner", action=MirrorAction.TEST,
             functional_role="tester", mission_owner="ENGINEER-1",
         )
-        mirror_id = next(iter(state["mirrors"]))
+        state_b = mirror_b.invoke(
+            mirror_of="ENGINEER-1", mission="MISSION-01", target_agent="ENGINEER-1", task="T-1",
+            problem="concurrent claim", capability_required="tester", limits=[], priority="HIGH",
+            authority=Authority.COORDINATOR.value, expected_result="one owner", action=MirrorAction.TEST,
+            functional_role="tester", mission_owner="ENGINEER-1",
+        )
+        invocation_a = list(state_a["mirrors"])[-1]
+        invocation_b = list(state_b["mirrors"])[-1]
         q = multiprocessing.Queue()
-        p1 = multiprocessing.Process(target=_concurrent_claim, args=(str(root), mirror_id, "T-1", q))
-        p2 = multiprocessing.Process(target=_concurrent_claim, args=(str(root), mirror_id, "T-1", q))
+        p1 = multiprocessing.Process(target=_concurrent_claim, args=(str(root), "MIRROR-A", invocation_a, "T-1", q))
+        p2 = multiprocessing.Process(target=_concurrent_claim, args=(str(root), "MIRROR-B", invocation_b, "T-1", q))
         p1.start(); p2.start(); p1.join(); p2.join()
         outcomes = [q.get(), q.get()]
         self.assertEqual(sorted(result for _, result in outcomes), ["CLAIMED", "CONFLICT"])

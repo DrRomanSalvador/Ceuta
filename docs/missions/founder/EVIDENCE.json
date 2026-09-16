@@ -1,0 +1,10 @@
+{
+  "schema_version":"1.0",
+  "mission_id":"FOUNDER",
+  "evidence":[],
+  "rule":"FOUNDER-generated hypotheses, forecasts and system outputs are not independent evidence.",
+  "provenance_chain":"SOURCE → PASSAGE/OBJECT → OBSERVATION → PATTERN → INFERENCE → CONFIDENCE",
+  "allowed_classes":["EXTERNAL_EVIDENCE","CUSTOMER_ASSERTION","CUSTOMER_BEHAVIOUR","TRANSACTIONAL_EVIDENCE","THIRD_PARTY_EVIDENCE","INTERNAL_ANALYSIS","FOUNDER_GENERATED_HYPOTHESIS","FOUNDER_GENERATED_FORECAST","SYSTEM_OUTPUT"],
+  "independence_rule":"No internal analysis or generated output may self-validate as independent external evidence.",
+  "freshness_rule":"Commercial facts require temporal metadata and must not silently remain current after their declared freshness boundary."
+}

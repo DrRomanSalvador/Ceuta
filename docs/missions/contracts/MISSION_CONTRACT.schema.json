@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "CEUTIA-MISSION-CONTRACT-1.0",
+  "title": "CeutIA Canonical Mission Contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "MISSION_ID", "MISSION_VERSION", "CONSTITUTION_VERSION", "PURPOSE", "SCOPE", "NON_SCOPE",
+    "OWNER", "AUTHORITY", "PARENT_MISSION", "DEPENDENCIES", "INPUTS", "OUTPUTS",
+    "EVIDENCE_REQUIREMENTS", "QUALITY_REQUIREMENTS", "SUCCESS_CRITERIA", "VALIDATION_REQUIREMENTS",
+    "STATE", "BLOCKERS", "HANDOFFS", "PROVENANCE", "CREATION_JUSTIFICATION",
+    "LAST_VERIFIED_STATE", "NEXT_ACTION", "REPOSITORY_COMMIT", "REPRODUCTION_INSTRUCTIONS"
+  ],
+  "properties": {
+    "MISSION_ID": {"type": "string", "minLength": 1},
+    "MISSION_VERSION": {"type": "string", "minLength": 1},
+    "CONSTITUTION_VERSION": {"type": "string", "minLength": 1},
+    "PURPOSE": {"type": "string", "minLength": 1},
+    "SCOPE": {"type": "array", "items": {"type": "string"}},
+    "NON_SCOPE": {"type": "array", "items": {"type": "string"}},
+    "OWNER": {"type": "string", "minLength": 1},
+    "AUTHORITY": {"type": "array", "items": {"type": "string"}},
+    "PARENT_MISSION": {"type": ["string", "null"]},
+    "DEPENDENCIES": {"type": "array", "items": {"type": "string"}},
+    "INPUTS": {"type": "array", "items": {"type": "string"}},
+    "OUTPUTS": {"type": "array", "items": {"type": "string"}},
+    "EVIDENCE_REQUIREMENTS": {"type": "array", "items": {"type": "string"}},
+    "QUALITY_REQUIREMENTS": {"type": "array", "items": {"type": "string"}},
+    "SUCCESS_CRITERIA": {"type": "array", "items": {"type": "string"}},
+    "VALIDATION_REQUIREMENTS": {"type": "array", "items": {"type": "string"}},
+    "STATE": {"type": "string", "enum": ["NOT_STARTED", "ACTIVE", "WAITING", "BLOCKED", "DONE", "ABORTED", "SUPERSEDED", "MERGED", "RETIRED"]},
+    "BLOCKERS": {"type": "array", "items": {"type": "string"}},
+    "HANDOFFS": {"type": "array", "items": {"type": "string"}},
+    "PROVENANCE": {"type": "object", "additionalProperties": false, "required": ["DISCOVERED_BY", "PROPOSED_BY", "IMPLEMENTED_BY", "REVIEWED_BY", "VALIDATED_BY", "INTEGRATED_BY", "AUTHORIZED_BY"], "properties": {
+      "DISCOVERED_BY": {"type": ["string", "null"]},
+      "PROPOSED_BY": {"type": ["string", "null"]},
+      "IMPLEMENTED_BY": {"type": ["string", "null"]},
+      "REVIEWED_BY": {"type": ["string", "null"]},
+      "VALIDATED_BY": {"type": ["string", "null"]},
+      "INTEGRATED_BY": {"type": ["string", "null"]},
+      "AUTHORIZED_BY": {"type": ["string", "null"]}
+    }},
+    "CREATION_JUSTIFICATION": {"type": "object", "additionalProperties": false, "required": ["NEED", "GAP", "NON_COVERAGE", "MATERIALITY", "NO_ALTERNATIVE"], "properties": {
+      "NEED": {"type": "string"},
+      "GAP": {"type": "string"},
+      "NON_COVERAGE": {"type": "string"},
+      "MATERIALITY": {"type": "string"},
+      "NO_ALTERNATIVE": {"type": "string"}
+    }},
+    "LAST_VERIFIED_STATE": {"type": "string", "minLength": 1},
+    "NEXT_ACTION": {"type": "string", "minLength": 1},
+    "REPOSITORY_COMMIT": {"type": "string", "minLength": 1},
+    "REPRODUCTION_INSTRUCTIONS": {"type": "array", "items": {"type": "string"}}
+  },
+  "allOf": [
+    {"if": {"properties": {"STATE": {"const": "BLOCKED"}}}, "then": {"properties": {"BLOCKERS": {"minItems": 1}}}},
+    {"if": {"properties": {"STATE": {"const": "DONE"}}}, "then": {"properties": {"SUCCESS_CRITERIA": {"minItems": 1}, "VALIDATION_REQUIREMENTS": {"minItems": 1}}}},
+    {"if": {"properties": {"STATE": {"const": "SUPERSEDED"}}}, "then": {"properties": {"HANDOFFS": {"minItems": 1}}}},
+    {"if": {"properties": {"STATE": {"const": "MERGED"}}}, "then": {"properties": {"PARENT_MISSION": {"type": ["string", "null"]}}}}
+  ]
+}

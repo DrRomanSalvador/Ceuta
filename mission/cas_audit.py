@@ -35,15 +35,21 @@ def _callee_name(node: ast.Call) -> tuple[str, str] | None:
 
 
 def _intentional_contract_violation(node: ast.Call, parents: dict[ast.AST, ast.AST]) -> bool:
-    parent = parents.get(node)
-    if not isinstance(parent, ast.Call):
-        return False
-    if not isinstance(parent.func, ast.Attribute) or parent.func.attr != "assertRaises":
-        return False
-    if not parent.args:
-        return False
-    exception = parent.args[0]
-    return isinstance(exception, ast.Name) and exception.id in {"TypeError", "ValueError"}
+    current: ast.AST | None = node
+    for _ in range(8):
+        current = parents.get(current)
+        if current is None:
+            return False
+        if isinstance(current, ast.With):
+            for item in current.items:
+                context = item.context_expr
+                if isinstance(context, ast.Call) and isinstance(context.func, ast.Attribute) and context.func.attr == "assertRaises":
+                    if context.args and isinstance(context.args[0], ast.Name) and context.args[0].id in {"TypeError", "ValueError"}:
+                        return True
+            return False
+        if isinstance(current, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            return False
+    return False
 
 
 def audit(root: Path) -> dict:
@@ -70,12 +76,12 @@ def audit(root: Path) -> dict:
                 column=node.col_offset,
                 form=callee[1],
                 event_backed=event_backed,
-                intentional_contract_violation=_intentional_contract_violation(node, parents),
+                intentional_contract_violation=(not event_backed) and _intentional_contract_violation(node, parents),
             ))
 
     legacy = [call for call in calls if not call.event_backed and not call.intentional_contract_violation]
     result = {
-        "schema_version": "1.1.0",
+        "schema_version": "1.2.0",
         "writer": CAS_NAME,
         "python_files_scanned": sum(1 for _ in _python_files(root)),
         "call_sites": [asdict(call) for call in calls],

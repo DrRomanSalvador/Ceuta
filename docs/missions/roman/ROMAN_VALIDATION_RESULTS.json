@@ -1,22 +1,22 @@
 {
   "mission_id":"ROMAN",
-  "validation_version":"1.0",
-  "overall_status":"PARTIALLY_VALIDATED",
+  "validation_version":"1.1",
+  "overall_status":"REPOSITORY_RUNTIME_VALIDATED_EXTERNAL_BOUNDARIES_PENDING",
   "tests":{
-    "discovery_test":"PENDING_RUNTIME_EXECUTION",
-    "invocation_test":"CONTRACT_DEFINED_RUNTIME_PENDING",
-    "identity_test":"DEFINED_AND_STATIC",
-    "scope_test":"CONTRACT_DEFINED",
-    "persistence_test":"REPOSITORY_PERSISTENCE_ESTABLISHED; LIVE_STATE_PERSISTENCE_PENDING",
-    "provenance_test":"CONTRACT_DEFINED; SOURCE_CORPUS_EMPTY",
-    "concurrency_test":"NOT_ESTABLISHED_EXTERNAL_ORCHESTRATOR_REQUIRED",
-    "contamination_test":"CONTRACT_DEFINED; AUTOMATED_RUNTIME_TEST_PENDING",
-    "authority_test":"CONTRACT_DEFINED",
-    "recovery_test":"BOOTSTRAP_DEFINED",
-    "handoff_test":"CONTRACT_DEFINED",
-    "regression_test":"CI_PENDING"
+    "discovery_test":"VERIFIED_REPOSITORY_CI_736",
+    "invocation_test":"VERIFIED_REPOSITORY_CI_736",
+    "identity_test":"VERIFIED_REPOSITORY_CI_736",
+    "scope_test":"VERIFIED_BY_CANONICAL_CONTRACT_AND_AUTHORITY_SCOPE",
+    "persistence_test":"REPOSITORY_PERSISTENCE_ESTABLISHED; LIVE_EXTERNAL_STATE_PERSISTENCE_PENDING",
+    "provenance_test":"SOURCE_POLICY_VERIFIED; AUTHORIZED_SOURCE_CORPUS_EMPTY",
+    "concurrency_test":"REPOSITORY_CAS_VERIFIED; DISTRIBUTED_EXTERNAL_ORCHESTRATOR_NOT_ESTABLISHED",
+    "contamination_test":"ZERO_CONTEXT_SOURCE_BOUNDARY_VERIFIED; FULL_ADVERSARIAL_CONTAMINATION_SUITE_PENDING",
+    "authority_test":"VERIFIED_REPOSITORY_CI_736",
+    "recovery_test":"VERIFIED_REPOSITORY_CI_736_AND_FRESH_RUNTIME_TEST",
+    "handoff_test":"CONTRACT_DEFINED; EXTERNAL_LIVE_HANDOFF_NOT_ESTABLISHED",
+    "regression_test":"CI_736_SUCCESS_ON_E5E60CEE; CURRENT_HEAD_STATE_SYNC_D5E0CDD_PENDING_CI"
   },
-  "verified_facts":["ROMAN is present in the canonical mission registry on this branch.","ROMAN has a machine-readable invocation contract and persistent state artifact.","ROMAN is not nested under INGENIERO or ESPÍA.","The repository does not expose an already-existing live universal multi-session mission orchestrator in the inspected mission architecture."],
-  "not_verified":["live new-chat execution through an external agent host","true concurrent live-state transactions/leases","authorized ROMAN corpus ingestion","empirical authenticity or authorial-model validity"],
-  "next_action":"Execute the repository-level discovery/contract tests and, if green, integrate with the external mission host for live invocation and transactional persistence."
+  "verified_facts":["ROMAN is present in the canonical mission registry on this branch.","ROMAN has a machine-readable invocation contract and persistent state artifact.","ROMAN is not nested under INGENIERO or ESPÍA.","Canonical invocation authority rejects CAN_INVOKE=false.","Fresh runtime reconstruction recovers a ROMAN task/checkpoint and classifies missing process as RECOVERABLE.","Stale state-version writes are rejected and checkpoint-id collisions are rejected.","Zero-context bootstrap preserves canonical identity, contract, mission state and source-boundary policy.","CI #736 and Security Control Plane #940 succeeded on e5e60cee4131b94f69cd4010507583f7b35d2abe."],
+  "not_verified":["current-head CI/security result after checkpoint/state synchronization commit d5e0cdd70e07a10c78d642044d2f1d8912234bab","live new-chat execution through an external agent host","true concurrent distributed live-state transactions/leases","authorized ROMAN corpus ingestion","empirical authenticity or authorial-model validity","real external process crash/restart"],
+  "next_action":"Reconcile current-head CI/security on d5e0cdd70e07a10c78d642044d2f1d8912234bab; then execute the remaining independent provenance/contamination regression sweep while preserving external boundaries."
 }

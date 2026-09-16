@@ -9,6 +9,37 @@ class AutonomousChainError(ValueError):
 
 
 @dataclass(frozen=True, slots=True)
+class ScientificWorkEvent:
+    """Durable scientific signal used to derive work; it is not evidence by itself."""
+
+    event_id: str
+    event_type: str
+    source_refs: tuple[str, ...]
+    scientific_reason: str
+    affected_refs: tuple[str, ...]
+    capability_implications: tuple[str, ...]
+    validation_status: str
+    provenance_refs: tuple[str, ...]
+    state_version: str
+    emitted_at: str
+
+    def validate(self) -> None:
+        required = {
+            "event_id": self.event_id,
+            "event_type": self.event_type,
+            "scientific_reason": self.scientific_reason,
+            "validation_status": self.validation_status,
+            "state_version": self.state_version,
+            "emitted_at": self.emitted_at,
+        }
+        missing = [name for name, value in required.items() if not str(value).strip()]
+        if missing or not self.source_refs or not self.provenance_refs:
+            raise AutonomousChainError(f"SCIENTIFIC_EVENT_INVALID: missing={missing}")
+        if self.validation_status not in {"UNVALIDATED", "VALIDATED", "REQUIRES_REVALIDATION", "REJECTED"}:
+            raise AutonomousChainError(f"SCIENTIFIC_EVENT_STATUS_INVALID: {self.validation_status}")
+
+
+@dataclass(frozen=True, slots=True)
 class TaskCandidate:
     task_id: str
     why_this_task: str
@@ -169,6 +200,12 @@ class AutonomousMissionChain:
         "TEMPORARY_TASK_FORCE",
         "NEW_MISSION",
     )
+
+    @staticmethod
+    def emit_scientific_event(event: ScientificWorkEvent) -> ScientificWorkEvent:
+        """Validate a durable trigger before it can enter work discovery."""
+        event.validate()
+        return event
 
     @staticmethod
     def validate_task(task: TaskCandidate) -> None:

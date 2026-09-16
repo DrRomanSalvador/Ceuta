@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.5",
+  "schema_version": "1.6",
   "registry_type": "multi_mission_control_plane",
   "status": "ACTIVE",
   "constitution": {
@@ -19,7 +19,8 @@
     "fixed_point": "docs/missions/SCIENTIFIC_FIXED_POINT_SPECIFICATION.md",
     "global_scientific_specification": "docs/missions/GLOBAL_SCIENTIFIC_SPECIFICATION.yaml",
     "implementation": "backend/app/missions/autonomous_chain.py",
-    "status": "DESIGN_READY_LOCAL_PRIMITIVES_IMPLEMENTED"
+    "execution_state": "docs/missions/AUTONOMOUS_CHAIN_EXECUTION_STATE.yaml",
+    "status": "ASYNC_CONTINUITY_PRIMITIVES_IMPLEMENTED"
   },
   "active_handoffs": [
     {
@@ -55,11 +56,11 @@
       "purpose": "Admission, creation, validation, lifecycle review and retirement governance for permanent missions."
     },
     "AUTONOMOUS_MISSION_CHAIN": {
-      "status": "DESIGN_READY_LOCAL_PRIMITIVES_IMPLEMENTED",
+      "status": "ASYNC_CONTINUITY_PRIMITIVES_IMPLEMENTED",
       "implementation": "backend/app/missions/autonomous_chain.py",
       "contract": "docs/missions/MISSION_ACTIVATION_POLICY.yaml",
       "authority": ["CAN_DISCOVER", "CAN_READ", "CAN_INVOKE"],
-      "purpose": "Evidence-gated task qualification, deterministic existing-mission selection, scientific consequence validation, circuit breaking and fixed-point evaluation."
+      "purpose": "Evidence-gated task qualification, deterministic existing-mission selection, scientific consequence validation, live-process observation, explicit work-queue semantics, zero-context replay, circuit breaking and full fixed-point evaluation."
     }
   },
   "architecture_amendments": ["docs/missions/ROMAN_ARCHITECTURE_INTEGRATION.md"],

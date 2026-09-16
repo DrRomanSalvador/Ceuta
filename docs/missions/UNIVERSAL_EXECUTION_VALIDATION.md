@@ -12,7 +12,7 @@
 | liveness | ACTIVE/STALLED/BLOCKED/FAILED/LOST/RECOVERABLE/UNKNOWN tests | real process telemetry | REPOSITORY-VERIFIED CLASSIFIER; LIVE TELEMETRY EXTERNAL |
 | zero-context recovery | persisted state reconstruction + checkpoint replay | external session host | REPOSITORY-VERIFIED |
 | mission inheritance | registry composition test | external host routing | REPOSITORY-VERIFIED AT REGISTRY BOUNDARY |
-| CI | explicit universal test step | live PR run | PENDING CURRENT RUN |
+| CI | universal suite + full suite + Phase 1-8 gates | live PR run | RERUN REQUIRED AFTER ADVANCED-CAUSAL VERIFIER REPAIR |
 | deletion/downgrade protection | non-weakening contract | CODEOWNERS/ruleset | EXTERNAL_BOUNDARY |
 | INGENIERO live status | repository records | live orchestrator/process telemetry | UNKNOWN_UNRESOLVED_BY_AVAILABLE_EVIDENCE |
 | crash recovery | restart/checkpoint simulation | real process termination/restart | REPOSITORY-SIMULATION VERIFIED; REAL PROCESS BOUNDARY EXTERNAL |

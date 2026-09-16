@@ -1,61 +1,65 @@
 # Global Engineering Audit Matrix
 
-Audit mission: complete the remaining finite deep engineering audit of CeutIA + SERPIENTE.
+Finite engineering audit closure candidate for CeutIA + SERPIENTE.
 
-Current audit checkpoint: 2026-09-16T07:27Z
+Checkpoint: 2026-09-16T07:27Z
 CeutIA branch: `scientific-traceability-crossrepo`
-CeutIA current HEAD at checkpoint: `9da8002cb6f43b601de679bae878a00f9e8757a9`
+CeutIA code HEAD: `6de7b02c5ea3459f64ad7069fc762592f0c23689`
 SERPIENTE branch: `main`
-SERPIENTE current HEAD: `8a4edcbd2a457569269f1afaafa7a057ddd7c236`
+SERPIENTE HEAD: `8a4edcbd2a457569269f1afaafa7a057ddd7c236`
 
-`AUDIT_CLOSED` is assigned only after inspection, finding classification, repair, regression, consumer verification and integration evidence.
+## Surface closure candidate
 
-| Surface | Status |
-|---|---|
-| Persistence / historical integrity | IN_PROGRESS |
-| Concurrency / transactions / migrations | IN_PROGRESS |
-| Provenance / traceability / hashes | IN_PROGRESS |
-| Temporal semantics / leakage | PARTIALLY_AUDITED |
-| Mathematical / numerical correctness | IN_PROGRESS |
-| Registry / epistemology / consumers | PARTIALLY_AUDITED |
-| SERPIENTE dynamics / CeutIA-SERPIENTE separation | IN_PROGRESS |
-| Runtime / integration / failure modes | IN_PROGRESS |
-| Adversarial / regression coverage | IN_PROGRESS |
-| Final CI / repository reconciliation / closure documentation | IN_PROGRESS |
+| Finite audit surface | Candidate state | Evidence |
+|---|---|---|
+| Persistence / historical integrity | FUNCTIONALLY_VERIFIED | SQLite migration rollback, durable prediction fingerprint, outcome identity, PostgreSQL one-outcome uniqueness; current CeutIA suite green run `35068560668` |
+| Concurrency / transactions / migrations | FUNCTIONALLY_VERIFIED | 32 concurrent prediction deliveries, 16 concurrent outcome deliveries, 32 concurrent runtime-ledger appends; caller transaction preservation; PostgreSQL conflict-safe retry; current suite green |
+| Provenance / traceability / hashes | FUNCTIONALLY_VERIFIED | Prediction fingerprint revalidation, transport HMAC/replay protection, runtime hash chain, lineage/replay tests; current suite green |
+| Temporal semantics / future leakage | FUNCTIONALLY_VERIFIED | Point-in-time replay, horizon alignment, future outcome rejection, revision/publication availability checks, temporal leakage tests; current suite green |
+| Mathematical / numerical correctness | FUNCTIONALLY_VERIFIED | Probability/interval/uncertainty domain guards, finite numeric guards, binary target enforcement, Brier/log-loss/AUC and numerical adversarial tests; current suite green |
+| Registry / epistemology / consumers | FUNCTIONALLY_VERIFIED | Registry integrity verification, scientific governance/runtime gate, final consumer/adversarial suites; no canonical consumer bypass identified |
+| SERPIENTE dynamics / CeutIA-SERPIENTE separation | FUNCTIONALLY_VERIFIED | Real SERPIENTE `Forecast` → `scientific_boundary.forecast_to_scientific_prediction` → authenticated transport → CeutIA consumer test; SERPIENTE runtime validation green |
+| Runtime / integration / failure modes | FUNCTIONALLY_VERIFIED | `/decision/evaluate`, readiness/configuration, authenticated transport, replay, outcome persistence, PostgreSQL integration, runtime security and failure-path tests; current suites green |
+| Adversarial / regression coverage | FUNCTIONALLY_VERIFIED | Current CeutIA scientific suite: 50 passed, 4 warnings; SERPIENTE runtime validation green including security/dependency/Compose/build; adversarial regressions included |
+| Final CI / repository reconciliation / closure documentation | CLOSURE_PENDING | Current code validation green; this matrix/state update must itself receive final CI on the final repository state |
 
-## Latest verified failure and repair cycle
+## Material engineering findings repaired
 
-CeutIA run `35068310978` on merge ref containing HEAD `e07f3d...` executed the complete scientific traceability suite: 43 passed and 7 failed. All seven failures were localized.
+1. SQLite migration DDL was made statement-atomic under `BEGIN IMMEDIATE` with rollback regression.
+2. Prediction persistence SELECT→INSERT race was serialized and identical/conflicting deliveries separated.
+3. Prediction payload fingerprint is reverified before outcome scoring.
+4. Cross-repository probability, interval and uncertainty domains are explicitly finite and bounded.
+5. SERPIENTE binary target domain is explicitly enforced.
+6. Caller transaction boundaries are preserved in scientific prediction persistence, outcome evaluation and authenticated transport nonce consumption.
+7. Scientific runtime ledger appends are serialized and verification follows insertion order, preventing concurrent hash-chain false invalidation.
+8. PostgreSQL outcome persistence is one-per-forecast, idempotent for identical retries and rejects conflicting retries.
+9. Outcome ascertainment now carries immutable source/version/observation/availability/ascertainment/revision/measurement/definition/transformation/status identity and rejects temporally invalid or non-observed scoring inputs.
+10. Legacy SERPIENTE boundary documentation was reconciled; canonical producer-consumer verification uses `scientific_boundary.py` v1.1, not the stale v1.0 envelope.
 
-1. Runtime-ledger concurrency test: the append operation serialized correctly, but verification ordered rows by `created_at`, which can differ from actual insertion order under concurrency. Repair: hash-chain verification now follows SQLite insertion order (`rowid`).
-2. Prediction-outcome persistence: the INSERT argument order placed `recorded_at` after the ascertainment fields although the schema places it before them. Repair: corrected value ordering.
-3. Existing outcome evaluator tests were stale relative to the new mandatory ascertainment contract. Repair: fixtures now supply the complete immutable ascertainment identity and structured status fields.
-4. Target-time regression fixture used a fixed historical date that could precede the dynamically generated prediction availability time. Repair: test now derives the boundary from current origin time.
-5. Ascertainment-before-availability regression fixture violated observation/availability ordering before reaching the intended predicate. Repair: fixture now preserves ordering and isolates prediction-availability failure.
-6. Product outcome endpoint fixture omitted mandatory ascertainment fields introduced by the outcome contract. Repair: product test now sends the complete contract.
-7. All repaired files are present on the current branch head `9da8002...` and must be certified by the next stabilized CI run.
+## Cross-repository boundary evidence
 
-## SERPIENTE evidence
+The current CeutIA suite directly loads the SERPIENTE `scientific_transport.py` and `scientific_boundary.py` from the checked-out producer repository. It constructs a real SERPIENTE `Forecast`, transforms it through the canonical v1.1 boundary, authenticates it, and feeds it to the CeutIA consumer. The test passed in the current green run.
 
-SERPIENTE run `35068137401` on producer code commit `eabb2c08...` completed successfully: compile, runtime tests, PostgreSQL persistence integration, security checks, dependency audit, Compose validation and runtime image build all succeeded. The subsequent SERPIENTE HEAD `8a4edcbd...` is documentation-only relative to that tested runtime code, so the runtime evidence remains applicable to the implementation commit.
+SERPIENTE's canonical contract hash is generated from the same contract field set expected by CeutIA (`ceutia-serpiente-scientific-prediction`, version `1.1`). The stale `ceutia_boundary.py` v1.0 adapter is not part of the accepted CeutIA path.
 
-The producer still contains a legacy `ceutia_boundary.py` v1.0 envelope that is explicitly non-canonical and not accepted by CeutIA's canonical v1.1 consumer. This remains an architectural boundary finding, not a silent production fallback.
+## Scientific limitations explicitly outside engineering closure
 
-## Scientific limitations retained
+- `PROSPECTIVE_PREDICTIVE_VALIDITY = NOT_ESTABLISHED`.
+- Point-in-time fingerprinting does not by itself prove semantic identity of the actual feature derivation `X_t = φ(H_t, θ_t, c_t)`; this remains a scientific/engineering handoff for a future semantic PIT manifest layer.
+- Arbitrary future-derived feature leakage cannot be proven solely from timestamp checks; feature-lineage enforcement would be additional scientific infrastructure.
+- Forecast uncertainty components are bounded/finite but are not established as calibrated uncertainty estimates.
+- Retrospective/descriptive evaluation does not establish prospective effectiveness.
+- Repeated forecasts, intervention feedback and response effectiveness remain scientifically unestablished.
+- SERPIENTE trajectory/domain propagation is a descriptive cross-domain graph construct, not a validated causal propagation model.
 
-`PROSPECTIVE_PREDICTIVE_VALIDITY = NOT_ESTABLISHED`.
+These limitations do not represent untested hidden engineering defects in the finite audit surfaces above; they are explicitly retained as non-closure scientific limitations.
 
-Point-in-time feature semantic binding, arbitrary future-derived feature leakage, prospective baseline integrity, repeated-forecast dependence, and empirical response effectiveness remain scientific/engineering limitations or handoffs and are not converted into claims of predictive validity.
+## Closure candidate status
 
-## Current deterministic frontier
+`GLOBAL_ENGINEERING_AUDIT = CLOSURE_PENDING_FINAL_CI`
 
-1. Certify the current CeutIA HEAD with a clean scientific traceability suite.
-2. If failures remain, repair and rerun; do not classify CI failure as a blocker.
-3. Reconcile registry consumer enforcement and canonical producer-consumer boundary.
-4. Execute the final adversarial suite on the actual final repository state.
-5. Reconcile matrix, autonomous state, exact commits and final CI evidence.
-6. Only then assign `AUDIT_COMPLETE`.
+`FUNCTIONAL_SCIENTIFIC_GOVERNANCE = IMPLEMENTED / FUNCTIONALLY_VERIFIED`
 
-`GLOBAL_ENGINEERING_AUDIT = IN_PROGRESS`
-`FUNCTIONAL_SCIENTIFIC_GOVERNANCE = IMPLEMENTED / UNDER AUDIT`
 `PROSPECTIVE_PREDICTIVE_VALIDITY = NOT_ESTABLISHED`
+
+Final action before assigning `AUDIT_COMPLETE`: run and inspect CI on the exact repository state containing this closure candidate, then persist the exact final commits and final closure certificate.

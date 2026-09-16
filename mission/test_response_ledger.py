@@ -9,7 +9,7 @@ from .response_ledger import append_response, validate_response_record
 
 def base_record():
     return {
-        "response_id":"R1","warning_presence":"PRESENT","warning_or_prediction_identity":"PRED-1",
+        "mission_id":"MISSION-A","response_id":"R1","warning_presence":"PRESENT","warning_or_prediction_identity":"PRED-1",
         "decision_identity":"DEC-1","decision_time":"2026-09-16T12:00:00Z","action_identity":"ACT-1",
         "execution_time":"2026-09-16T12:10:00Z","responsible_actor":"ORG-1","response_eligibility":{"eligible":True,"window":"PT1H"},
         "intended_mechanism":"reduce declared outcome risk","response_delay":600,"intervention_exposure_intensity":{"level":1},

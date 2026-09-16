@@ -17,9 +17,10 @@ from .scientific_capability import (
     mean_absolute_error,
     mean_crps,
     normal_crps,
-    point_in_time_filter,
     persistence_forecast,
+    point_in_time_filter,
     rolling_origin_persistence,
+    wilson_interval,
 )
 
 
@@ -147,6 +148,13 @@ class ScientificCapabilityTests(unittest.TestCase):
         self.assertEqual(outcomes, [4.0, 7.0])
         self.assertAlmostEqual(mean_absolute_error(forecasts, outcomes), 2.5)
         self.assertEqual(persistence_forecast([1, 2, 4], horizon=3), [4.0, 4.0, 4.0])
+
+    def test_wilson_interval_contains_observed_proportion(self):
+        low, high = wilson_interval(20, 1000)
+        self.assertLess(low, 0.02)
+        self.assertGreater(high, 0.02)
+        self.assertGreaterEqual(low, 0.0)
+        self.assertLessEqual(high, 1.0)
 
 
 if __name__ == "__main__":

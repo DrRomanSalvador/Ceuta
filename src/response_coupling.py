@@ -8,6 +8,7 @@ EXECUTION_STATES = {"NO_RESPONSE", "EXECUTED", "DELAYED_OUTSIDE_WINDOW", "NOT_EX
 CAUSAL_STATUSES = {"NOT_ASSESSED", "DESCRIPTIVE_ONLY", "IDENTIFICATION_INSUFFICIENT", "IDENTIFICATION_SUPPORTED"}
 COUNTERFACTUAL_STATUSES = {"ABSENT", "UNDEFINED", "INSUFFICIENT", "SUPPORTED"}
 
+
 @dataclass(frozen=True)
 class ResponseBinding:
     response_id: str
@@ -28,6 +29,7 @@ class ResponseBinding:
     counterfactual_causal_status: str
     execution_status: str
     causal_status: str
+    causal_method: Optional[str] = None
 
     def validate(self) -> None:
         if not self.response_id: raise ValueError("response_id is required")
@@ -42,8 +44,11 @@ class ResponseBinding:
         if self.execution_status in {"EXECUTED", "DELAYED_OUTSIDE_WINDOW"}:
             if not self.action_identity or not self.execution_time: raise ValueError("Executed response requires action identity and execution time")
             if self.response_delay is None: raise ValueError("Executed response requires response delay")
+        if self.execution_status == "NOT_EXECUTED" and self.implementation_failure in (None, ""):
+            raise ValueError("NOT_EXECUTED response requires implementation_failure")
         if self.execution_status == "NO_RESPONSE" and self.action_identity: raise ValueError("action_identity cannot be supplied for NO_RESPONSE")
         if self.causal_status == "IDENTIFICATION_SUPPORTED":
+            if not self.causal_method: raise ValueError("Causal effectiveness requires a declared causal method")
             if self.counterfactual_causal_status != "SUPPORTED": raise ValueError("Causal effectiveness requires supported counterfactual status")
             if not self.outcome_ascertainment_identity: raise ValueError("Causal effectiveness requires outcome ascertainment identity")
             if self.intervention_exposure_intensity is None: raise ValueError("Causal effectiveness requires intervention exposure/intensity")
@@ -52,7 +57,8 @@ class ResponseBinding:
     def to_record(self, *, mission_id: str, alert: Any) -> dict[str, Any]:
         if not mission_id: raise ValueError("mission_id is required")
         self.validate()
-        return {"mission_id":mission_id,"response_id":self.response_id,"warning_presence":"PRESENT","warning_or_prediction_identity":self.prediction_identity,"decision_identity":self.decision_identity,"decision_time":self.decision_time,"action_identity":self.action_identity,"execution_time":self.execution_time,"responsible_actor":self.responsible_actor,"response_eligibility":dict(self.response_eligibility),"intended_mechanism":self.intended_mechanism,"response_delay":self.response_delay,"intervention_exposure_intensity":self.intervention_exposure_intensity,"implementation_failure":self.implementation_failure,"resource_capacity_constraints":self.resource_capacity_constraints,"outcome_ascertainment_identity":self.outcome_ascertainment_identity,"response_horizon":self.response_horizon,"counterfactual_causal_status":self.counterfactual_causal_status,"execution_status":self.execution_status,"causal_status":self.causal_status,"warning_audit_hash":alert.audit_hash,"warning_timestamp":alert.timestamp}
+        return {"mission_id":mission_id,"response_id":self.response_id,"warning_presence":"PRESENT","warning_or_prediction_identity":self.prediction_identity,"decision_identity":self.decision_identity,"decision_time":self.decision_time,"action_identity":self.action_identity,"execution_time":self.execution_time,"responsible_actor":self.responsible_actor,"response_eligibility":dict(self.response_eligibility),"intended_mechanism":self.intended_mechanism,"response_delay":self.response_delay,"intervention_exposure_intensity":self.intervention_exposure_intensity,"implementation_failure":self.implementation_failure,"resource_capacity_constraints":self.resource_capacity_constraints,"outcome_ascertainment_identity":self.outcome_ascertainment_identity,"response_horizon":self.response_horizon,"counterfactual_causal_status":self.counterfactual_causal_status,"execution_status":self.execution_status,"causal_status":self.causal_status,"causal_method":self.causal_method,"warning_audit_hash":alert.audit_hash,"warning_timestamp":alert.timestamp}
+
 
 class ResponseCouplingSink:
     def __init__(self, writer: Callable[..., dict[str, Any]], mission_id: str):

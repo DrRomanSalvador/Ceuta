@@ -2,6 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from threading import Barrier, Thread
+from unittest.mock import patch
 
 from .event_log import GENESIS_HASH, append_event, load_jsonl, make_event, validate_chain
 
@@ -19,6 +20,14 @@ class EventLogTests(unittest.TestCase):
             bad = make_event(event_id="E2", event_type="TEST", mission_id="MISSION-01", actor="MISSION-01", timestamp="2026-09-16T00:01:00Z", payload={}, previous_hash=GENESIS_HASH)
             with self.assertRaises(ValueError):
                 append_event(path, bad)
+
+    def test_append_fsyncs_event_before_returning(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "events.jsonl"
+            event = make_event(event_id="E1", event_type="GENESIS", mission_id="MISSION-01", actor="MISSION-01", timestamp="2026-09-16T00:00:00Z", payload={})
+            with patch("mission.event_log.os.fsync") as fsync:
+                append_event(path, event)
+            fsync.assert_called_once()
 
     def test_tampering_breaks_chain(self):
         first = make_event(event_id="E1", event_type="GENESIS", mission_id="MISSION-01", actor="MISSION-01", timestamp="2026-09-16T00:00:00Z", payload={})

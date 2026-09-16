@@ -4,10 +4,12 @@
   "title": "Longitudinal Capability Benchmark Result",
   "type": "object",
   "additionalProperties": false,
-  "required": ["benchmark_id", "capability_id", "reference_revision", "observed_revision", "test_results", "regression", "impact", "revalidation_required"],
+  "required": ["benchmark_id", "capability_id", "capability_definition", "invariant_refs", "reference_revision", "observed_revision", "test_results", "regression", "impact", "revalidation_required"],
   "properties": {
     "benchmark_id": {"type": "string", "minLength": 1},
     "capability_id": {"type": "string", "minLength": 1},
+    "capability_definition": {"type": "string", "minLength": 1},
+    "invariant_refs": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
     "reference_revision": {"type": "string", "minLength": 1},
     "observed_revision": {"type": "string", "minLength": 1},
     "test_results": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/test"}},

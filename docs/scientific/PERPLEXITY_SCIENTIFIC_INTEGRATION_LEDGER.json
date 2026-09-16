@@ -1,0 +1,34 @@
+{
+  "schema_version": "1.0.0",
+  "ledger_id": "PERPLEXITY_SCIENTIFIC_INTEGRATION_LEDGER",
+  "mission_owner": "INGENIERO",
+  "integration_principle": "new_fragment -> parse -> reconcile -> classify -> architectural impact -> implement/design/research/reject -> validate -> persist",
+  "source_of_truth": ["repository", "contracts", "code", "tests", "persisted_state", "versioned_scientific_docs", "provenance", "CI", "reproducible_results"],
+  "dossier_claim_is_system_capability": false,
+  "scientific_recommendation_is_validation": false,
+  "external_perplexity_artifact_status": "NOT_PRESENT_AS_REPOSITORY_ARTIFACT",
+  "current_input": {
+    "fragment_id": "INGENIERO-INTEGRATION-CONTRACT-2026-09-16",
+    "fragment_type": "EXECUTIVE_SCIENTIFIC_INTEGRATION_CONTRACT",
+    "source_reference": "USER_MISSION_INGENIERO_001",
+    "relation_to_prior": "EXTENDS",
+    "note": "The current instruction establishes the integration contract. It is not itself external empirical evidence and must not be represented as such. Future Perplexity fragments are appended and reconciled here rather than replacing this record."
+  },
+  "required_final_statuses": ["IMPLEMENTED", "IMPLEMENTED_AND_VALIDATED", "DESIGNED_PENDING_DATA", "DESIGNED_PENDING_EXTERNAL_CAPABILITY", "RESEARCH_REQUIRED", "EXPERIMENTAL", "REJECTED_WITH_REASON", "ALREADY_COVERED", "SUPERSEDED", "DUPLICATE"],
+  "items": [
+    {"id":"REQ-A01","proposition":"Evidence ledger SOURCE->OBSERVATION->MEASUREMENT->EVIDENCE->CLAIM must be reconstructible.","class":"A","status":"IMPLEMENTED","repo_support":"backend/app/core/scientific/scientific_traceability.py","gap":"Typed domain contracts and multidimensional evidence semantics are newly added; durable cross-repo linkage remains active work.","next":"Bind evidence/claim contracts to existing trace graph without creating a second registry."},
+    {"id":"REQ-A02","proposition":"Temporal and point-in-time semantics must prevent future/revised-data leakage.","class":"A","status":"ALREADY_COVERED","repo_support":"SERPIENTE PIT infrastructure; CeutIA scientific traceability and cross-repo runtime","gap":"Full semantic audit of every prediction path remains required.","next":"Audit all prediction constructors and replay paths against PredictionContract."},
+    {"id":"REQ-A03","proposition":"Exploratory and confirmatory reasoning must be explicitly separated.","class":"A","status":"IMPLEMENTED","repo_support":"backend/app/core/scientific/epistemic_contracts.py HypothesisContract","gap":"Runtime registration/freeze lifecycle still needs integration with hypothesis persistence.","next":"Add persistence and adversarial tests for frozen hypotheses."},
+    {"id":"REQ-A04","proposition":"Benchmarks are mandatory for model evaluation, with justified exclusions.","class":"A","status":"PARTIALLY_IMPLEMENTED","repo_support":"scientific method registry and SERPIENTE baseline infrastructure","gap":"No single cross-repository benchmark contract currently governs every model.","next":"Create benchmark contract and model-to-baseline coverage matrix."},
+    {"id":"REQ-A05","proposition":"Intervention and outcome registries must remain separate from alerts/predictions.","class":"A","status":"PARTIALLY_IMPLEMENTED","repo_support":"CeutIA decision lifecycle; SERPIENTE outcomes","gap":"End-to-end response lineage requires persistent cross-repo decision/intervention/outcome binding.","next":"Integrate response lineage and dual post-alert evaluation."},
+    {"id":"REQ-B01","proposition":"Observation process must be distinguished from latent territorial state.","class":"B","status":"DESIGNED","repo_support":"Scientific mission memory source-process intelligence","gap":"No generic executable observation-process model spans both repositories.","next":"Implement ObservationProcessModel persistence and tests before inference."},
+    {"id":"REQ-B02","proposition":"Claim review/blast-radius engine must propagate source changes to dependent models, forecasts, decisions and interventions.","class":"B","status":"DESIGNED","repo_support":"ScientificTraceGraph provides graph primitives","gap":"No complete impact-analysis/revalidation engine.","next":"Implement dependency traversal plus revalidation obligations."},
+    {"id":"REQ-B03","proposition":"VOI/EVPI/EVSI must be framework-only until utility and cost inputs are identifiable.","class":"B","status":"DESIGNED_PENDING_DATA","repo_support":"Mission scientific memory contains VOI formalization","gap":"No defensible utility/cost functions admitted yet.","next":"Implement typed VOI input contract returning NVOI_NOT_IDENTIFIABLE when required inputs are absent."},
+    {"id":"REQ-B04","proposition":"Alert evaluation must separate signal, prediction, uncertainty, decision, action and outcome.","class":"B","status":"PARTIALLY_IMPLEMENTED","repo_support":"SERPIENTE Forecast/Alert/Outcome contracts; CeutIA response closure","gap":"No universal cross-repo response ledger contract yet.","next":"Implement response lineage contract and dual evaluation."},
+    {"id":"REQ-C01","proposition":"Active sensing, Bayesian model discrimination, POMDP/dual control and automated hypothesis generation are experimental.","class":"C","status":"EXPERIMENTAL","repo_support":"Not claimed as deployed capability","gap":"Requires domain-specific data, utility and prospective validation.","next":"Keep isolated behind explicit experimental contracts."},
+    {"id":"REQ-D01","proposition":"Full autonomy, autonomous policy recommendation, autonomous causal discovery as decision engine, digital twin, single deterioration index, opaque multimodal models and uncontrolled continual learning are not to be implemented now.","class":"D","status":"REJECTED_WITH_REASON","repo_support":"Architectural prohibitions in mission contract","gap":"None until scientific/governance prerequisites materially change.","next":"Preserve prohibition tests."},
+    {"id":"REQ-E01","proposition":"Correlation, model agreement, simulation, backtest, citation count or green CI cannot substitute for scientific validity.","class":"E","status":"ALREADY_COVERED","repo_support":"Existing scientific runtime contracts and mission memory","gap":"Regression tests must continuously enforce the negative knowledge.","next":"Add adversarial regression suite covering every prohibited promotion."}
+  ],
+  "reconciliation_rules": ["NEW", "DUPLICATE", "CONTRADICTS", "REFINES", "EXTENDS", "SUPERSEDES"],
+  "future_fragment_rule": "Never delete prior propositions silently. A changed proposition requires explicit relation and preserves the old record."
+}

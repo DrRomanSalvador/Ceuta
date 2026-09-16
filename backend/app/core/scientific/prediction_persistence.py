@@ -19,6 +19,7 @@ def _fingerprint(payload: dict[str, Any]) -> str:
 
 
 def ensure_prediction_schema(connection: sqlite3.Connection) -> None:
+    owns_transaction = not connection.in_transaction
     connection.execute("""CREATE TABLE IF NOT EXISTS scientific_predictions (
         prediction_id TEXT PRIMARY KEY,
         decision_id TEXT,
@@ -30,35 +31,42 @@ def ensure_prediction_schema(connection: sqlite3.Connection) -> None:
         payload_fingerprint TEXT NOT NULL UNIQUE
     )""")
     connection.execute("CREATE INDEX IF NOT EXISTS idx_scientific_predictions_decision ON scientific_predictions(decision_id, available_at)")
-    connection.commit()
+    if owns_transaction:
+        connection.commit()
 
 
 def record_prediction(connection: sqlite3.Connection, payload: dict[str, Any], *, decision_id: str | None = None) -> str:
     scientific_payload = {key: value for key, value in payload.items() if key != "_transport"}
-    ensure_prediction_schema(connection)
     prediction_id = str(scientific_payload["prediction_id"])
     fingerprint = _fingerprint(scientific_payload)
     canonical = _canonical(scientific_payload)
-    connection.execute("BEGIN IMMEDIATE")
+    owns_transaction = not connection.in_transaction
+    ensure_prediction_schema(connection)
+    if owns_transaction:
+        connection.execute("BEGIN IMMEDIATE")
     try:
         row = connection.execute("SELECT payload_fingerprint, payload_json, decision_id FROM scientific_predictions WHERE prediction_id=?", (prediction_id,)).fetchone()
         if row is not None:
             if row[0] != fingerprint or row[1] != canonical or row[2] != decision_id:
                 raise RuntimeError("scientific prediction identity collision: existing prediction differs")
-            connection.commit()
+            if owns_transaction:
+                connection.commit()
             return fingerprint
         try:
             connection.execute("INSERT INTO scientific_predictions(prediction_id,decision_id,available_at,origin_time,contract_id,contract_version,payload_json,payload_fingerprint) VALUES(?,?,?,?,?,?,?,?)", (prediction_id, decision_id, str(scientific_payload["available_at"]), str(scientific_payload["origin_time"]), str(scientific_payload["contract_id"]), str(scientific_payload["schema_version"]), canonical, fingerprint))
-            connection.commit()
+            if owns_transaction:
+                connection.commit()
             return fingerprint
         except sqlite3.IntegrityError:
             row = connection.execute("SELECT payload_fingerprint, payload_json, decision_id FROM scientific_predictions WHERE prediction_id=?", (prediction_id,)).fetchone()
             if row is not None and row[0] == fingerprint and row[1] == canonical and row[2] == decision_id:
-                connection.commit()
+                if owns_transaction:
+                    connection.commit()
                 return fingerprint
             raise RuntimeError("scientific prediction identity collision: concurrent delivery differs")
     except Exception:
-        connection.rollback()
+        if owns_transaction:
+            connection.rollback()
         raise
 
 

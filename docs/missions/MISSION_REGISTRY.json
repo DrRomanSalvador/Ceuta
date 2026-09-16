@@ -3,6 +3,7 @@
   "registry_type": "multi_mission_control_plane",
   "status": "ACTIVE",
   "discovery_contract": "docs/missions/MISSION_INVOCATION_CONTRACT.md",
+  "architecture_amendments": ["docs/missions/ROMAN_ARCHITECTURE_INTEGRATION.md"],
   "missions": [
     {"mission_id":"MISSION-01","canonical_name":"INGENIERO","mission_type":"ENGINEERING_SYSTEMS_INTEGRATION","status":"ACTIVE","contract":"docs/missions/MISSION_BOOTSTRAPS.md#mission-01--ingeniero"},
     {"mission_id":"MISSION-02","canonical_name":"ESPÍA","mission_type":"SCIENTIFIC_INTEGRATION","status":"ACTIVE","contract":"docs/missions/MISSION_BOOTSTRAPS.md#mission-02--espía"},
@@ -36,6 +37,7 @@
       "handoffs_in":["BIBLIOTECARIO","ESPÍA","FORJA","GROK","NOTARIO"],
       "handoffs_out":["ESPÍA","FORJA","GROK","INGENIERO","NOTARIO"],
       "invocation_contract":"docs/missions/roman/ROMAN_INVOCATION_CONTRACT.json",
+      "bootstrap":"docs/missions/roman/ROMAN_BOOTSTRAP.md",
       "state_location":"docs/missions/roman/ROMAN_MISSION_STATE.json",
       "evidence_location":"docs/missions/roman/ROMAN_SOURCE_CORPUS.json",
       "validation_location":"docs/missions/roman/ROMAN_VALIDATION_RESULTS.json",

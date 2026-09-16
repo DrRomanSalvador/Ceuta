@@ -17,6 +17,47 @@ class ReplayTests(unittest.TestCase):
             self.assertEqual(state.missions["ROMAN"]["status"],"ADMITTED_REPOSITORY_RUNTIME_PENDING")
             self.assertEqual(state.last_event_id,"EV-0002")
 
+    def test_replay_reconstructs_response_coupling(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path=Path(tmp)/"events.jsonl"
+            append_payload(path,event_type="CONTROL_PLANE_GENESIS",mission_id="MISSION-01",actor="MISSION-01",timestamp="2026-09-16T00:00:00Z",payload={})
+            record={
+                "mission_id":"MISSION-01",
+                "response_id":"RESP-1",
+                "warning_presence":"PRESENT",
+                "warning_or_prediction_identity":"PRED-1",
+                "decision_identity":"DEC-1",
+                "decision_time":"2026-09-16T12:00:00Z",
+                "action_identity":"ACT-1",
+                "execution_time":"2026-09-16T12:10:00Z",
+                "responsible_actor":"ORG-1",
+                "response_eligibility":{"eligible":True},
+                "intended_mechanism":"declared",
+                "response_delay":600,
+                "intervention_exposure_intensity":{"level":1},
+                "implementation_failure":None,
+                "resource_capacity_constraints":[],
+                "outcome_ascertainment_identity":None,
+                "response_horizon":"PT24H",
+                "counterfactual_causal_status":"INSUFFICIENT",
+                "execution_status":"EXECUTED",
+                "causal_status":"IDENTIFICATION_INSUFFICIENT",
+            }
+            append_payload(path,event_type="RESPONSE_COUPLING_RECORDED",mission_id="MISSION-01",actor="ORG-1",timestamp="2026-09-16T12:11:00Z",payload=record)
+            state=replay(path)
+            self.assertEqual(state.responses["RESP-1"]["action_identity"],"ACT-1")
+            self.assertEqual(state.responses["RESP-1"]["decision_identity"],"DEC-1")
+            self.assertEqual(state.responses["RESP-1"]["warning_or_prediction_identity"],"PRED-1")
+
+    def test_replay_rejects_duplicate_response_id(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path=Path(tmp)/"events.jsonl"
+            append_payload(path,event_type="CONTROL_PLANE_GENESIS",mission_id="MISSION-01",actor="MISSION-01",timestamp="2026-09-16T00:00:00Z",payload={})
+            record={"response_id":"RESP-1"}
+            append_payload(path,event_type="RESPONSE_COUPLING_RECORDED",mission_id="MISSION-01",actor="ORG-1",timestamp="2026-09-16T12:00:00Z",payload=record)
+            append_payload(path,event_type="RESPONSE_COUPLING_RECORDED",mission_id="MISSION-01",actor="ORG-1",timestamp="2026-09-16T12:01:00Z",payload=record)
+            with self.assertRaises(ValueError): replay(path)
+
     def test_replay_rejects_unknown_event_type(self):
         with tempfile.TemporaryDirectory() as tmp:
             path=Path(tmp)/"events.jsonl"

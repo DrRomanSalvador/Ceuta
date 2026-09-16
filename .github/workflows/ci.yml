@@ -32,6 +32,9 @@ jobs:
       - name: Install project and test dependencies
         run: python -m pip install --upgrade pip && python -m pip install '.[dev]'
 
+      - name: Run universal execution control tests
+        run: python -m pytest tests/test_universal_mission_execution.py -q
+
       - name: Run full test suite
         run: python -m pytest
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from backend.app.core.causal.advanced import (
+from app.core.causal.advanced import (
     ActiveCausalLearning,
     ActiveCausalQuery,
     CausalModel,

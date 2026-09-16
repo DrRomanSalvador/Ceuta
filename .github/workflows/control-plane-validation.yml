@@ -27,7 +27,9 @@ jobs:
         run: python -m pip install --upgrade pip && python -m pip install -e .
       - name: Compile control-plane sources
         run: python -m compileall -q mission src
+      - name: Audit all direct CAS call sites
+        run: python -m mission.cas_audit
       - name: Run control-plane unit tests
-        run: python -m unittest mission.test_control_plane mission.test_event_log mission.test_work_claims mission.test_shared_standard mission.test_control_plane_runtime mission.test_constitution_adversarial mission.test_lifecycle_governance mission.test_invocation_runtime mission.test_zero_context_replay mission.test_contribution_registry mission.test_repository_integrity mission.test_replay mission.test_control_plane_integration mission.test_handoff_runtime mission.test_response_ledger mission.test_materialized_state mission.test_response_coupling_integration src.test_response_coupling src.test_core_formula src.test_risk_calculator
+        run: python -m unittest mission.test_control_plane mission.test_event_log mission.test_work_claims mission.test_shared_standard mission.test_control_plane_runtime mission.test_constitution_adversarial mission.test_lifecycle_governance mission.test_invocation_runtime mission.test_zero_context_replay mission.test_contribution_registry mission.test_repository_integrity mission.test_replay mission.test_control_plane_integration mission.test_handoff_runtime mission.test_response_ledger mission.test_materialized_state mission.test_response_coupling_integration mission.test_cas_audit src.test_response_coupling src.test_core_formula src.test_risk_calculator
       - name: Run authoritative bootstrap
         run: python -m mission.bootstrap

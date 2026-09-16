@@ -56,10 +56,11 @@ class RomanCoordinationIntegrationTests(unittest.TestCase):
         final_state = mirror.complete(mirror_id, result="validated", validated=True)
         invocation = final_state["mirrors"][mirror_id]
         handoff = final_state["handoffs"][-1]
-        self.assertEqual(invocation["identity"], "ESPEJO")
+        self.assertEqual(mirror.IDENTITY, "ESPEJO")
         self.assertEqual(invocation["mission_owner"], "ROMAN")
         self.assertEqual(invocation["subtask_owner"], "ESPEJO-ROMAN-TEST")
         self.assertEqual(invocation["mirror_of"], "ROMAN-TEST")
+        self.assertEqual(invocation["provenance"]["MIRROR_OF"], "ROMAN-TEST")
         self.assertEqual(handoff["mission_owner"], "ROMAN")
         self.assertEqual(handoff["subtask_owner"], "ESPEJO-ROMAN-TEST")
         self.assertTrue(handoff["control_returned"])

@@ -14,6 +14,7 @@ from datetime import datetime
 
 from .config import SystemConfig
 from .risk_calculator import RiskResult
+from .response_coupling import ResponseBinding, ResponseCouplingSink
 
 logger = logging.getLogger(__name__)
 
@@ -32,9 +33,10 @@ class Alert:
 class AlertSystem:
     """Sistema de notificación de alertas"""
     
-    def __init__(self, config: SystemConfig = None):
+    def __init__(self, config: SystemConfig = None, response_sink: ResponseCouplingSink = None):
         self.config = config or SystemConfig()
         self.alert_history: List[Alert] = []
+        self.response_sink = response_sink
     
     def check_and_alert(self, risk_result: RiskResult) -> Optional[Alert]:
         """
@@ -54,6 +56,18 @@ class AlertSystem:
             logger.warning(f"Alerta {alert.level} generada: {alert.message}")
         
         return alert
+
+    def record_response(self, alert: Alert, binding: ResponseBinding, *, actor: str, timestamp: str) -> dict:
+        """Persist an explicitly identified real response linked to an alert.
+
+        The method fails closed when no response sink is configured. It does
+        not derive decision/action identities from alert fields.
+        """
+        if self.response_sink is None:
+            raise RuntimeError("Response coupling sink is not configured")
+        if alert not in self.alert_history:
+            raise ValueError("Alert is not owned by this AlertSystem instance")
+        return self.response_sink.record(alert, binding, actor=actor, timestamp=timestamp)
     
     def _create_alert(self, risk_result: RiskResult) -> Optional[Alert]:
         """Crea objeto Alert si el nivel lo requiere"""

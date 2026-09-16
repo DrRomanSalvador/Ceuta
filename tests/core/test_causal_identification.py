@@ -45,10 +45,14 @@ def test_unaddressed_backdoor_candidate_still_blocks_identification() -> None:
     assert "unaddressed_backdoor_candidates" in assessment.blockers
 
 
-def test_temporal_feedback_cycle_requires_positive_lags() -> None:
+def test_lagged_feedback_still_requires_time_unrolling_for_dag_identification() -> None:
     graph = CausalGraph([CausalEdge("x", "y", lag=1.0)])
-    graph.add(CausalEdge("y", "x", relation="feedback", lag=1.0))
-    assert len(graph.edges) == 2
+    try:
+        graph.add(CausalEdge("y", "x", relation="feedback", lag=1.0))
+    except ValueError as exc:
+        assert "time-indexed" in str(exc)
+    else:
+        raise AssertionError("cyclic feedback was accepted into a DAG causal graph")
 
 
 def test_instantaneous_feedback_cycle_is_rejected() -> None:
@@ -56,6 +60,6 @@ def test_instantaneous_feedback_cycle_is_rejected() -> None:
     try:
         graph.add(CausalEdge("y", "x", relation="feedback"))
     except ValueError as exc:
-        assert "lagged" in str(exc)
+        assert "time-indexed" in str(exc)
     else:
         raise AssertionError("instantaneous feedback cycle was accepted")

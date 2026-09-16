@@ -3,7 +3,7 @@
 ## Authoritative branch state
 
 - Branch: `maximum-knowledge-to-capability`
-- HEAD at checkpoint creation: `3b9afb46d2db8b0512840a20b31709c1c22dc4e8`
+- HEAD at checkpoint creation: `e2324c10df295ed96e0135a5ba8c2ca0dd56962b`
 - PR: #65 remains open.
 - No merge or scientific-validation promotion is claimed.
 
@@ -37,3 +37,7 @@
 - Reconcile the autonomous queue with the actual branch evidence.
 
 `INTERNAL_WORK_EXHAUSTED = FALSE`
+
+## Recovery marker
+
+This checkpoint is a recovery marker only. It is not a mission-completion condition.

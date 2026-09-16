@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0",
+  "mission_id": "APOYO",
+  "mission_version": "1.0",
+  "state": "REGISTERED",
+  "instance_id": "APOYO-ROOT",
+  "parent_instance": null,
+  "generation": 0,
+  "meeting_point": {
+    "mission_id": "APOYO",
+    "meeting_point_id": "APOYO-MEETING-POINT",
+    "purpose": "Canonical logical discovery and invocation point for collaboration support",
+    "discovery_method": "MISSION_REGISTRY_BY_CANONICAL_MISSION_ID",
+    "invocation_method": "EXPLICIT_COLLABORATION_REQUEST",
+    "availability_state": "WAITING",
+    "current_instance": "APOYO-ROOT",
+    "active_collaborations": [],
+    "last_checkpoint": null,
+    "memory_reference": "docs/missions/apoyo/APOYO_MISSION_STATE.json",
+    "authority_reference": "docs/missions/apoyo/APOYO_INVOCATION_CONTRACT.json"
+  },
+  "identity": {
+    "purpose": "Increase execution, coordination, continuity and collaboration capacity without appropriating the assisted mission.",
+    "authority": "SUBORDINATE_TO_REQUESTING_MISSION",
+    "capabilities": [],
+    "limits": ["no_self_authorization", "no_identity_redefinition", "no_authority_transfer", "no_fake_sessions", "no_fake_accounts", "no_fake_runtime_validation"]
+  },
+  "active_collaborations": {},
+  "completed_collaborations": {},
+  "handoffs": [],
+  "instances": {
+    "APOYO-ROOT": {
+      "instance_id": "APOYO-ROOT",
+      "parent_instance": null,
+      "generation": 0,
+      "state": "WAITING",
+      "assigned_scope": null,
+      "current_task": null,
+      "memory_checkpoint": null,
+      "collaboration_history": []
+    }
+  },
+  "replication_history": [],
+  "events": [],
+  "state_version": "GENESIS"
+}

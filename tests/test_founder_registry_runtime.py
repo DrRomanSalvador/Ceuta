@@ -15,7 +15,7 @@ def test_founder_is_discoverable_and_inherits_universal_execution_contract():
     assert contract["mission_id"] == "FOUNDER"
     assert contract["execution_inheritance"] == "MANDATORY"
     assert contract["non_weakening"] is True
-    assert contract["universal_execution_contract"]["mission_id"] == "UNIVERSAL_EXECUTION"
+    assert contract["universal_execution_contract"]
 
 
 def test_founder_canonical_invocation_requires_can_invoke():

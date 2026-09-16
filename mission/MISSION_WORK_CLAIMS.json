@@ -1,0 +1,7 @@
+{
+  "schema_version": "1.1.0",
+  "registry_id": "CEUTIA_SERPIENTE_MISSION_WORK_CLAIMS",
+  "status": "ACTIVE",
+  "claims": {},
+  "rule": "An active unexpired claim prevents duplicate execution; expired claims may be reclaimed and retain their historical status. Claim ownership never grants authority outside the mission contract."
+}

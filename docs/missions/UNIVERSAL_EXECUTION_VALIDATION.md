@@ -12,7 +12,7 @@
 | liveness | ACTIVE/STALLED/BLOCKED/FAILED/LOST/RECOVERABLE/UNKNOWN tests | real process telemetry | REPOSITORY-VERIFIED CLASSIFIER; LIVE TELEMETRY EXTERNAL |
 | zero-context recovery | persisted state reconstruction + checkpoint replay | external session host | REPOSITORY-VERIFIED |
 | mission inheritance | registry composition test | external host routing | REPOSITORY-VERIFIED AT REGISTRY BOUNDARY |
-| CI | explicit universal test step | live PR run | PENDING CURRENT RUN |
+| CI | universal suite + full suite + Phase 1-8 gates + Compose | live PR run #60 | GREEN — 717 |
 | deletion/downgrade protection | non-weakening contract | CODEOWNERS/ruleset | EXTERNAL_BOUNDARY |
 | INGENIERO live status | repository records | live orchestrator/process telemetry | UNKNOWN_UNRESOLVED_BY_AVAILABLE_EVIDENCE |
 | crash recovery | restart/checkpoint simulation | real process termination/restart | REPOSITORY-SIMULATION VERIFIED; REAL PROCESS BOUNDARY EXTERNAL |
@@ -22,4 +22,4 @@
 
 The internal fixed point is reached when no executable internal task, repair, required local validation, regression, contradiction, integration or persistence inconsistency remains. External boundaries are recorded separately and do not keep ROMÁN open when the internal closure conditions are satisfied.
 
-No stronger claim is permitted until the corresponding evidence exists.
+Current closure evidence: CI run #717 passed 10/10 universal execution tests, 593/593 full tests, Phase 1, Phase 2, Phase 3, Phases 4-8, advanced causal verification and Compose validation. Security Control Plane run #877 passed. These results validate the repository-side implementation, not external process telemetry or administrative protection.

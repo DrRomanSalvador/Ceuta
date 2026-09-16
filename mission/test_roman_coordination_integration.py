@@ -1,19 +1,26 @@
 import json
+import tempfile
 import unittest
 from pathlib import Path
 
-from .coordination import Authority, Coordinator, Mirror, MirrorAction
+from .coordination import Authority, CoordinationStore, Coordinator, Mirror, MirrorAction
 
 
 class RomanCoordinationIntegrationTests(unittest.TestCase):
     def setUp(self):
         self.root = Path(__file__).parent
         self.registry = json.loads((self.root / "MISSION_REGISTRY.json").read_text(encoding="utf-8"))
+        self.tmp = tempfile.TemporaryDirectory()
+        temp_root = Path(self.tmp.name)
+        self.store = CoordinationStore(temp_root / "state.json", temp_root / "events.jsonl")
+
+    def tearDown(self):
+        self.tmp.cleanup()
 
     def test_roman_can_be_target_of_coordinator_and_mirror_without_ownership_transfer(self):
         roman = next(m for m in self.registry["missions"] if m["mission_id"] == "ROMAN")
         self.assertEqual(roman["mission_id"], "ROMAN")
-        coordinator = Coordinator(instance_id="COORD-ROMAN-TEST")
+        coordinator = Coordinator(instance_id="COORD-ROMAN-TEST", store=self.store)
         coordinator.register_agent("ROMAN-TEST", "ROMAN", state="RUNNING", progress=True)
         self.assertEqual(coordinator.detect_execution("ROMAN-TEST"), "LONG_RUNNING_PROGRESS_CONTINUE")
         command_state = coordinator.request_mirror(
@@ -28,7 +35,7 @@ class RomanCoordinationIntegrationTests(unittest.TestCase):
             expected_result="validated subtask",
         )
         order_id = next(iter(command_state["commands"]))
-        mirror = Mirror(instance_id="ESPEJO-ROMAN-TEST")
+        mirror = Mirror(instance_id="ESPEJO-ROMAN-TEST", store=self.store)
         state = mirror.invoke(
             mirror_of="ROMAN-TEST",
             mission="ROMAN",

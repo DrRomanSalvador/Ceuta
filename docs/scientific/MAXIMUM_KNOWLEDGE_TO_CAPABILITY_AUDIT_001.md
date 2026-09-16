@@ -333,3 +333,55 @@ A candidate extension passes only if:
 `SCIENTIFIC NEED → PHENOMENON → DATA → IDENTIFIABILITY → ASSUMPTIONS → IMPLEMENTABILITY → TESTABILITY → INCREMENTAL VALUE`.
 
 Failure of any element means documentation/research classification rather than unsupported implementation. The mission remains open and cumulative; completion of this audit does not close the mission.
+
+## 20. Adversarial second-order scenarios
+
+| Scenario | Current protection | Residual consequence |
+|---|---|---|
+| authentic PIT + biased measurement | PIT valid | measurement-process data required |
+| correct marginals + changed coupling | marginal monitors may pass | interaction monitor needed for concrete system |
+| independent calibration + wrong joint calibration | individual calibration insufficient | joint target data needed |
+| dependent sources appear corroborative | declared lineage helps | hidden common source not identifiable |
+| source latency creates false decline | availability metadata helps | source-process monitor needed |
+| denominator change creates incidence spike | denominator metadata can expose | valid denominator data required |
+| warning changes intervention regime | response lineage separates | effectiveness/causal analysis remains prospective |
+| source disappears and phenomenon appears to decline | acquisition health can detect | world-state cannot be inferred without alternative measurement |
+| multiple forecasts share one model | forecast provenance can expose identity | dependence-aware evaluation required |
+| uncertainty low because structural uncertainty omitted | disagreement can reveal some risk | model-class adequacy remains empirical |
+| A highly correlated but non-incremental | temporal incremental evaluation rejects | concrete target/evaluation required |
+| true signal disappears under regime change | OOD/regime metadata may warn | prospective adaptation/validation required |
+
+## 21. Final classification
+
+### A — Already implemented and correctly exploited
+PIT binding primitives; provenance/fingerprints; temporal eligibility; time-normalized longitudinal derivatives; calibrated final ensemble; uncertainty metadata; dependence-aware evaluation; immutable baselines; outcome ascertainment metadata; intervention/causal separation; descriptive propagation; prospective protocol; scientific contracts; runtime integrity.
+
+### B — Implemented but still underexploited
+Individual prediction forensic reconstruction; source-process interpretation; multisystem state composition; explicit warning context; model disagreement as a monitoring signal; scientific-validity monitoring as a unified conceptual registry; information-set methodology.
+
+### C — Implementable immediately, but target-specific
+Concrete change-point detection; multivariate/emergent anomaly detection; interaction/coupling drift detection; incremental predictive-value evaluation; source-intelligence automation; VOI calculation; richer warning hysteresis/suppression; physical-time lag features.
+
+### D — Requires internal dependency
+A generic capability requires a registered target phenomenon, explicit data contract, reference distribution or loss function, and corresponding test fixture before implementation. This applies to most advanced model families.
+
+### E — Requires external data
+Continuous source acquisition catalogue; population denominators; observation-process estimation; ascertainment-bias estimation; spatial propagation; intervention exposure; real-world response/outcome data.
+
+### F — Requires prospective evidence
+Predictive validity; calibration transport; superiority to baselines; operational effectiveness; intervention effects; causal validity; causal propagation.
+
+### G — Plausible but not identifiable from current data
+Hidden common upstream sources; absence of undisclosed preprocessing; unmeasured confounding; model-class adequacy from internal uncertainty alone.
+
+### H — Not scientifically justified now
+Generic advanced-model proliferation; automatic observation-frequency features; universal causal propagation; arbitrary composite risk scores; aggregate “health” scores; new microservices without a concrete scientific contract.
+
+### I — Must remain outside architecture
+Claims that CI proves scientific validity; claims that calibrated retrospective probabilities are prospectively valid; claims that descriptive propagation is causal; claims that operational response success proves prediction causality.
+
+## 22. Completion rule for this mission
+
+This document records the maximum current knowledge-to-capability extraction that can be justified from the audited architecture without manufacturing data, claims or complexity. It is not a claim that every future scientific method has been exhausted. It establishes the next implementation frontier and prevents prospective-evidence requirements from being mistaken for engineering blockers.
+
+The mission remains open for implementation of any target-specific capability that subsequently satisfies the immediate implementation gate. No generic advanced method is added solely to enlarge the technology stack.

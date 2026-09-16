@@ -46,6 +46,14 @@ def validate_mission_contract(mission):
     if mission_id=="ROMAN" and mission["mission_status"] not in {"REGISTERED_SOURCE_REQUIRES_ADMISSION","REGISTERED","BOOTSTRAP_PENDING","BOOTSTRAPPED","READY","ACTIVE"}: raise ValueError("ROMAN has an invalid lifecycle status")
     if set(mission["allowed_write_surfaces"]) & set(mission["forbidden_write_surfaces"]): raise ValueError(f"Overlapping write boundaries: {mission_id}")
 
+def validate_registry_consistency(registry, *, projected_count=None):
+    missions=registry.get("missions")
+    count=registry.get("repository_verified_mission_count")
+    if not isinstance(missions,list) or not isinstance(count,int): raise ValueError("Mission registry lacks verifiable mission collection/count")
+    if count != len(missions): raise ValueError("Repository verified mission count does not match registry entries")
+    if registry.get("discovery_status")=="COMPLETE" and projected_count is not None and count != projected_count:
+        raise ValueError("Registry claims complete discovery while projected mission count disagrees")
+
 def validate_handoff(handoff):
     required=("handoff_id","source_mission","destination_mission","timestamp","source_commit","finding","evidence","affected_surface","severity","required_action","proposed_action","constraints","dependencies","validation_required","acceptance_criteria","status")
     require_fields(handoff,required,"handoff")
@@ -116,4 +124,4 @@ class ControlPlaneContract:
         if len(set(self.documented_states))!=len(self.documented_states): raise ValueError("Duplicate control-plane states")
         if "WAITING" not in self.documented_states or "ACTIVE" not in self.documented_states: raise ValueError("Required distinctions missing")
 
-__all__=["MissionState","HandoffState","ControlPlaneContract","transition","validate_mission_contract","validate_handoff","can_modify_surface","acquire_work_claim","release_work_claim","validate_dependency_graph","reconcile","select_next_work","validate_checkpoint","validate_completion_evidence","validate_no_self_authorization"]
+__all__=["MissionState","HandoffState","ControlPlaneContract","transition","validate_mission_contract","validate_registry_consistency","validate_handoff","can_modify_surface","acquire_work_claim","release_work_claim","validate_dependency_graph","reconcile","select_next_work","validate_checkpoint","validate_completion_evidence","validate_no_self_authorization"]

@@ -1,0 +1,17 @@
+{
+  "ledger_id": "CEUTIA_SERPIENTE_SCIENTIFIC_DISCOVERY_CONSEQUENCE_LEDGER",
+  "schema_version": "1.0.0",
+  "status": "ACTIVE",
+  "owner": "INGENIERO",
+  "purpose": "Canonical trace for discovery -> scientific impact -> consequence -> derived work, including contradiction and dependency review.",
+  "distinctions": {
+    "GAP": "Missing or defective element required by an already-known specification, contract or requirement.",
+    "DISCOVERY": "New information that changes or may change knowledge, architecture, hypothesis, validation, interpretation or decision.",
+    "rule": "Do not convert GAP into DISCOVERY or DISCOVERY into GAP without a justified semantic change."
+  },
+  "required_record_fields": ["discovery_id", "trigger", "evidence_ids", "scientific_impact", "affected_objects", "dependency_analysis", "blast_radius", "consequence", "derived_work", "owner", "validation_required", "falsification_criterion", "stopping_rule", "provenance", "status", "historical_state_policy"],
+  "contradiction_flow": ["DISCOVERY", "CONTRADICTION", "DEPENDENCY_ANALYSIS", "BLAST_RADIUS", "CLAIM_REVIEW", "MODEL_FORECAST_REVIEW", "REVISION_LIMITATION_RETIREMENT"],
+  "derived_work_rule": "Create or update work only when a material scientific or technical consequence exists and no equivalent work already represents it.",
+  "task_explosion_controls": ["NO_DUPLICATE", "NO_COSMETIC_VARIANT", "NO_RECURSIVE_TASK_ONLY_OUTPUT", "NO_INFINITE_REAUDIT", "NO_TASK_WITHOUT_MATERIAL_CONSEQUENCE"],
+  "items": []
+}

@@ -1,5 +1,5 @@
 {
-  "schema_version": "2.0",
+  "schema_version": "2.1",
   "mission_state_type": "scientific_multi_mission_overlay",
   "parent_mission": "CEUTIA-SERPIENTE-SCIENTIFIC-MACHINE-001",
   "status": "OPEN_CONTINUOUS_EXECUTION",
@@ -7,6 +7,8 @@
   "audit": "docs/missions/MISSION_ARCHITECTURE_AUDIT.md",
   "governance": "docs/missions/MISSION_GOVERNANCE_PROTOCOLS.md",
   "bootstrap_contracts": "docs/missions/MISSION_BOOTSTRAPS.md",
+  "mission_registry": "docs/missions/MISSION_REGISTRY.json",
+  "invocation_contract": "docs/missions/MISSION_INVOCATION_CONTRACT.md",
   "cybersecurity_mission": "docs/missions/MISSION_15_CIBERSEGURIDAD.md",
   "coverage_matrix": "docs/missions/MISSION_COVERAGE_MATRIX.md",
   "collaboration_graph": "docs/missions/MISSION_COLLABORATION_GRAPH.md",
@@ -16,7 +18,7 @@
   "evidence_custodian": "MISSION-13 / NOTARIO",
   "adversarial_custodian": "MISSION-04 / GROK",
   "security_custodian": "MISSION-15 / CIBERSEGURIDAD",
-  "mission_count": 15,
+  "mission_count": 16,
   "missions": [
     {"id":"MISSION-01","name":"INGENIERO","status":"ACTIVE","owner":"CHAT-1"},
     {"id":"MISSION-02","name":"ESPIA","status":"ACTIVE","owner":"ESPÍA"},
@@ -32,7 +34,8 @@
     {"id":"MISSION-12","name":"ESTRATEGA","status":"DEFINED"},
     {"id":"MISSION-13","name":"NOTARIO","status":"DEFINED"},
     {"id":"MISSION-14","name":"ABISMO","status":"DEFINED"},
-    {"id":"MISSION-15","name":"CIBERSEGURIDAD","status":"DEFINED","owner":"Defensive security mission when activated"}
+    {"id":"MISSION-15","name":"CIBERSEGURIDAD","status":"DEFINED","owner":"Defensive security mission when activated"},
+    {"id":"ROMAN","name":"ROMÁN","status":"ACTIVE","owner":"ROMAN mission domain","type":"AUTHORIAL_INTELLECTUAL_FORENSIC","state":"docs/missions/roman/ROMAN_MISSION_STATE.json"}
   ],
   "current_scientific_frontier": "Acquisition/process integrity and real-source operationalization, followed by point-in-time longitudinal closure, dynamic coupling, multisystem state, uncertainty propagation, scientifically validated early warning and prospective evaluation.",
   "architecture_audit_status": "AUDITED_WITH_CORRECTIONS",
@@ -45,6 +48,7 @@
   "emergency_protocol": "DETECT → PRESERVE EVIDENCE → RECORD INCIDENT → NOTIFY OWNER/CUSTODIAN → MINIMAL CONTAINMENT → TRANSFER CONTROL → RECOVERY VERIFICATION → POST-INCIDENT REVIEW",
   "new_mission_admission": "Distinct method + differentiated interfaces + recurring blind spot + independent failure mode + authority boundary + measurable value + no adequate fusion alternative.",
   "retirement_policy": "Retirement preserves state, provenance, contributions and historical outputs; it is not deletion.",
-  "next_architecture_action": "Hand executable governance enforcement, permission boundaries, bootstrap replay tests and security fixtures to Mission 01; ESPÍA continues scientific frontier work and audits implementation against the governance contract.",
+  "roman_integration_status": "PARTIALLY_INTEGRATED; repository-side registration, discovery contract, state, authority and handoff artifacts established; live external orchestration and concurrent transactional persistence not yet verified.",
+  "next_architecture_action": "Execute repository mission-registry tests; then validate ROMAN through the external mission host with live discovery, invocation, leases/CAS, conflict reconciliation and recovery. ESPÍA continues scientific frontier work independently.",
   "global_completion": false
 }

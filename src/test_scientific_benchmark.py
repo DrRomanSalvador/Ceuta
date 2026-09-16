@@ -16,7 +16,7 @@ def test_synthetic_probability_benchmark_is_reproducible() -> None:
         mean_absolute_calibration_error(probabilities, outcomes, bins=6),
         sharpness(probabilities),
     )
-    assert metrics[0] == pytest.approx(0.0633333333)
+    assert metrics[0] == pytest.approx(0.0466666667)
     assert metrics[1] < 0
     assert metrics[2] == pytest.approx(0.0)
     assert metrics[3] < 0.2

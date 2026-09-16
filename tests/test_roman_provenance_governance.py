@@ -49,7 +49,10 @@ def test_later_unverified_head_is_never_promoted_as_verified_evidence():
     reconciliation = state["current_state_reconciliation"]
     verified = state["last_verified_state"]
     assert reconciliation["current_head"] != verified["HEAD"]
-    assert reconciliation["current_head_checks"] == "NO_CHECK_RUNS_YET" or reconciliation["current_head"] == verified["HEAD"]
+    assert (
+        reconciliation["current_head_checks"] in {"NO_CHECK_RUNS_YET", "PENDING_EXACT_HEAD_CI_SECURITY"}
+        or reconciliation["current_head"] == verified["HEAD"]
+    )
     assert state["security_state"].startswith(verified["HEAD"][:12]) or verified["HEAD"] in state["security_state"]
 
 

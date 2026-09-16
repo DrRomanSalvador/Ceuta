@@ -55,7 +55,7 @@ def main() -> None:
     workflow = read_utf8(".github/workflows/ci.yml")
 
     assert_contains(pyproject, 'package-dir = { "" = "backend" }', "pyproject.toml")
-    assert_contains(pyproject, 'testpaths = ["tests"]', "pyproject.toml")
+    assert_contains(pyproject, 'testpaths = ["tests", "backend/tests"]', "pyproject.toml")
     assert_contains(pyproject, 'include = ["app", "app.*"]', "pyproject.toml")
     assert_contains(pyproject, 'python_version = "3.12"', "pyproject.toml")
     assert_contains(pyproject, "strict = true", "pyproject.toml")
@@ -87,13 +87,14 @@ def main() -> None:
         assert_contains(workflow, term, "CI workflow")
 
     manifest = {
-        "schema_version": 2,
+        "schema_version": 3,
         "phase": "1",
         "repository": "drsalvadorroman-beep/Ceuta",
         "branch": "main",
         "source_root": EXPECTED_SOURCE_ROOT,
         "package_root": EXPECTED_PACKAGE_ROOT,
         "test_root": EXPECTED_TEST_ROOT,
+        "test_paths": ["tests", "backend/tests"],
         "required_existing_paths": list(REQUIRED_EXISTING_PATHS),
         "historical_absent_packages": list(HISTORICAL_ABSENT_PACKAGES),
     }

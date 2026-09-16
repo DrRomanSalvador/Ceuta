@@ -1,0 +1,95 @@
+schema_version: "1.1"
+status: DESIGN_READY
+owner: MISSION-13
+integrator: MISSION-01
+requirements:
+  - id: AMC-001
+    requirement: durable_scientific_work_events
+    class: TRACEABILITY
+    priority: P0
+    existing_capability: mission_registry + provenance + persistent_state
+    action: EXTEND
+    acceptance: every activation and consequence is reconstructible from persisted event/artifact references
+  - id: AMC-002
+    requirement: deterministic_capability_selection
+    class: ORCHESTRATION
+    priority: P0
+    existing_capability: MissionEvolutionEngine + registry
+    action: EXTEND
+    acceptance: selection applies hard compatibility/authority gates and stable evidence-backed tie breaking
+  - id: AMC-003
+    requirement: automatic_result_to_task_chaining
+    class: ORCHESTRATION
+    priority: P0
+    existing_capability: mission handoffs + scientific architecture
+    action: EXTEND
+    acceptance: validated results can emit typed scientific consequences and downstream tasks without human prompting
+  - id: AMC-004
+    requirement: global_scientific_coherence_gate
+    class: EPISTEMIC
+    priority: P0
+    existing_capability: NOTARIO constitution + claims/conflicts/provenance
+    action: EXTEND
+    acceptance: every material result receives compatibility/change/contradiction classification and revalidation obligations
+  - id: AMC-005
+    requirement: impact_scoped_global_regression
+    class: VALIDATION
+    priority: P0
+    existing_capability: knowledge impact graph + capability benchmark contracts
+    action: EXTEND
+    acceptance: integration schedules affected invariants/capabilities and persists pass/fail evidence
+  - id: AMC-006
+    requirement: global_scientific_fixed_point
+    class: TERMINATION
+    priority: P0
+    existing_capability: mission lifecycle + second-order quality controls
+    action: EXTEND
+    acceptance: no executable material non-redundant work remains, no active internal process remains, and no unresolved critical contradiction/high-value discovery/regression/integration/gap remains; only demonstrated external/human boundary may remain
+  - id: AMC-007
+    requirement: anti_loop_circuit_breakers
+    class: SAFETY
+    priority: P0
+    existing_capability: state machine + observability + governance
+    action: EXTEND
+    acceptance: recursion, cycle, task explosion, provenance loss and authority conflict fail closed with resumable state
+  - id: AMC-008
+    requirement: mission_retirement_without_sprawl
+    class: LIFECYCLE
+    priority: P1
+    existing_capability: MissionLifecycleGovernance
+    action: REUSE
+    acceptance: usage/value/complexity/redundancy/coherence/validation evidence can propose revision or retirement
+  - id: AMC-009
+    requirement: global_scientific_specification
+    class: COHERENCE
+    priority: P0
+    existing_capability: scientific mission architecture + constitution
+    action: EXTEND
+    acceptance: purpose, hypotheses, ontology, constraints, target capabilities, falsifiers, metrics, validation and limits are machine-queryable
+  - id: AMC-010
+    requirement: human_authority_boundary
+    class: GOVERNANCE
+    priority: P0
+    existing_capability: constitution + authority model + invocation contract
+    action: REUSE
+    acceptance: automation cannot grant CAN_AUTHORIZE/CAN_MODIFY/CAN_VALIDATE outside declared authority
+  - id: AMC-011
+    requirement: asynchronous_execution_continuity
+    class: ORCHESTRATION
+    priority: P0
+    existing_capability: runtime observability + persistent mission state
+    action: EXTEND
+    acceptance: RUNNING processes are observable active work, independent work is discoverable/executable, and WAITING is permitted only when no internal active work remains
+  - id: AMC-012
+    requirement: zero_context_routing_replay
+    class: REPRODUCIBILITY
+    priority: P1
+    existing_capability: MissionEvolutionRuntime + deterministic policy
+    action: EXTEND
+    acceptance: persisted task/candidate inputs reconstruct identical mission-selection decisions without conversation context
+external_boundaries:
+  - id: AMC-EXT-001
+    capability: true_multi_process_transactional_leases_and_live_invocation
+    status: NOT_ESTABLISHED
+    local_work: registry discovery, contract resolution, admission CAS, POSIX locking, zero-context reconstruction, deterministic policy replay and isolated-process policy execution are testable locally
+    remaining_property: deployment-level cross-process orchestration semantics

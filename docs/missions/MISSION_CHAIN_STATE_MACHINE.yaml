@@ -1,0 +1,107 @@
+schema_version: "1.1"
+status: ACTIVE_DESIGN
+states:
+  - DISCOVERED
+  - QUALIFIED
+  - SELECTED
+  - ACTIVATED
+  - EXECUTING
+  - VALIDATING
+  - INTEGRATING
+  - REGRESSING
+  - RECONCILING
+  - CONTINUING
+  - FIXED_POINT
+  - QUIESCENT_READY
+  - EXTERNAL_BOUNDARY
+  - HUMAN_AUTHORITY_BOUNDARY
+  - CIRCUIT_BROKEN
+  - ABORTED
+transitions:
+  DISCOVERED: [QUALIFIED, ABORTED]
+  QUALIFIED: [SELECTED, ABORTED, CIRCUIT_BROKEN]
+  SELECTED: [ACTIVATED, ABORTED, CIRCUIT_BROKEN]
+  ACTIVATED: [EXECUTING, ABORTED, CIRCUIT_BROKEN]
+  EXECUTING: [VALIDATING, ABORTED, CIRCUIT_BROKEN]
+  VALIDATING: [INTEGRATING, RECONCILING, EXTERNAL_BOUNDARY, HUMAN_AUTHORITY_BOUNDARY, CIRCUIT_BROKEN]
+  INTEGRATING: [REGRESSING, RECONCILING, CIRCUIT_BROKEN]
+  REGRESSING: [RECONCILING, CONTINUING, FIXED_POINT, EXTERNAL_BOUNDARY, HUMAN_AUTHORITY_BOUNDARY, CIRCUIT_BROKEN]
+  RECONCILING: [CONTINUING, FIXED_POINT, EXTERNAL_BOUNDARY, HUMAN_AUTHORITY_BOUNDARY, CIRCUIT_BROKEN]
+  CONTINUING: [DISCOVERED, FIXED_POINT, EXTERNAL_BOUNDARY, HUMAN_AUTHORITY_BOUNDARY]
+  FIXED_POINT: [QUIESCENT_READY]
+  QUIESCENT_READY: [DISCOVERED]
+  EXTERNAL_BOUNDARY: [RECONCILING]
+  HUMAN_AUTHORITY_BOUNDARY: [RECONCILING]
+  CIRCUIT_BROKEN: [RECONCILING, ABORTED]
+  ABORTED: [DISCOVERED]
+invariants:
+  all_states:
+    append_only_history: true
+    provenance_required: true
+    state_version_required: true
+  ACTIVATED:
+    activation_record_required: true
+    authority_verified: true
+    input_refs_resolved: true
+  EXECUTING:
+    running_processes_observable: true
+    running_is_not_waiting: true
+    independent_work_must_be_discovered: true
+  VALIDATING:
+    evidence_level_required: true
+    coherence_gate_required: true
+  INTEGRATING:
+    downstream_impact_required: true
+  REGRESSING:
+    impacted_invariants_required: true
+    capability_regression_check_required: true
+    post_ci_reaudit_required: true
+  RECONCILING:
+    queue_projection_required: true
+    state_reconciliation_required: true
+  CONTINUING:
+    downstream_task_or_new_event_required: true
+    no_owner_scheduling_dependency: true
+  FIXED_POINT:
+    executable_open_work_zero: true
+    unprocessed_derived_work_zero: true
+    unintegrated_completed_work_zero: true
+    unreconciled_state_zero: true
+    unverified_internal_repair_zero: true
+    untested_executable_change_zero: true
+    unfollowed_active_handoff_zero: true
+    active_internal_processes_zero: true
+    unresolved_critical_contradictions_zero: true
+    unprocessed_high_value_discovery_zero: true
+    required_integration_pending_zero: true
+    repairable_regression_zero: true
+    material_capability_gap_zero: true
+  QUIESCENT_READY:
+    fixed_point_verified: true
+    new_evidence_trigger_registered: true
+    waiting_for_user_is_forbidden: true
+  EXTERNAL_BOUNDARY:
+    local_work_exhausted: true
+    remaining_property_explicit: true
+  HUMAN_AUTHORITY_BOUNDARY:
+    authorization_requirement_explicit: true
+  CIRCUIT_BROKEN:
+    breaker_reason_required: true
+    recovery_state_required: true
+    new_work_creation_disabled_for_affected_chain: true
+queue:
+  buckets:
+    - executable_now
+    - running
+    - blocked
+    - delegated
+    - external
+    - completed
+    - cancelled
+  rules:
+    executable_now_must_be_drained_before_waiting: true
+    running_requires_reobservation: true
+    delegated_requires_follow_up: true
+    blocked_requires_unblock_attempt: true
+    external_requires_demonstrated_boundary: true
+    completed_is_closed: true

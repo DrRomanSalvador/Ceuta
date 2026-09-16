@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.4",
+  "schema_version": "1.6",
   "registry_type": "multi_mission_control_plane",
   "status": "ACTIVE",
   "constitution": {
@@ -10,6 +10,18 @@
     "version": "1.0"
   },
   "discovery_contract": "docs/missions/MISSION_INVOCATION_CONTRACT.md",
+  "autonomous_chain": {
+    "architecture": "docs/missions/AUTONOMOUS_MISSION_CHAIN_ARCHITECTURE.md",
+    "requirements": "docs/missions/AUTONOMOUS_MISSION_CHAIN_REQUIREMENTS.yaml",
+    "activation_policy": "docs/missions/MISSION_ACTIVATION_POLICY.yaml",
+    "state_machine": "docs/missions/MISSION_CHAIN_STATE_MACHINE.yaml",
+    "coherence_guard": "docs/missions/SCIENTIFIC_COHERENCE_GUARD.yaml",
+    "fixed_point": "docs/missions/SCIENTIFIC_FIXED_POINT_SPECIFICATION.md",
+    "global_scientific_specification": "docs/missions/GLOBAL_SCIENTIFIC_SPECIFICATION.yaml",
+    "implementation": "backend/app/missions/autonomous_chain.py",
+    "execution_state": "docs/missions/AUTONOMOUS_CHAIN_EXECUTION_STATE.yaml",
+    "status": "ASYNC_CONTINUITY_PRIMITIVES_IMPLEMENTED"
+  },
   "active_handoffs": [
     {
       "handoff_id": "NOTARIO-HANDOFF-RUNTIME-001",
@@ -21,6 +33,17 @@
       "artifact": "docs/missions/handoffs/NOTARIO_RUNTIME_INTEGRATION_HANDOFF.yaml",
       "mission_completion_impact": "BLOCKING_FOR_H1_H5_CLOSURE",
       "automatic_activation": "NOT_ESTABLISHED"
+    },
+    {
+      "handoff_id": "NOTARIO-HANDOFF-AUTONOMOUS-CHAIN-001",
+      "origin_mission": "MISSION-13",
+      "origin_name": "NOTARIO",
+      "owner_mission": "MISSION-01",
+      "owner_name": "INGENIERO",
+      "status": "HANDOFF_READY_FOR_ACCEPTANCE",
+      "artifact": "docs/missions/AUTONOMOUS_ORCHESTRATION_HANDOFF.yaml",
+      "mission_completion_impact": "NON_BLOCKING_FOR_NOTARIO_SPECIFICATION_CLOSURE",
+      "automatic_activation": "NOT_ESTABLISHED"
     }
   ],
   "control_plane_capabilities": {
@@ -31,6 +54,13 @@
       "documentation": "docs/missions/MISSION_EVOLUTION_ENGINE.md",
       "authority": ["CAN_DISCOVER", "CAN_READ", "CAN_PROPOSE", "CAN_AUTHORIZE", "CAN_VALIDATE", "CAN_INVOKE"],
       "purpose": "Admission, creation, validation, lifecycle review and retirement governance for permanent missions."
+    },
+    "AUTONOMOUS_MISSION_CHAIN": {
+      "status": "ASYNC_CONTINUITY_PRIMITIVES_IMPLEMENTED",
+      "implementation": "backend/app/missions/autonomous_chain.py",
+      "contract": "docs/missions/MISSION_ACTIVATION_POLICY.yaml",
+      "authority": ["CAN_DISCOVER", "CAN_READ", "CAN_INVOKE"],
+      "purpose": "Evidence-gated task qualification, deterministic existing-mission selection, scientific consequence validation, live-process observation, explicit work-queue semantics, zero-context replay, circuit breaking and full fixed-point evaluation."
     }
   },
   "architecture_amendments": ["docs/missions/ROMAN_ARCHITECTURE_INTEGRATION.md"],

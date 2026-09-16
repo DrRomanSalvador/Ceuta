@@ -1,0 +1,77 @@
+schema_version: "1.1"
+handoff_id: NOTARIO-HANDOFF-AUTONOMOUS-CHAIN-001
+origin_mission: MISSION-13
+origin_name: NOTARIO
+owner_mission: MISSION-01
+owner_name: INGENIERO
+status: HANDOFF_READY_FOR_ACCEPTANCE
+completion_policy: HANDOFF_IS_NOT_CLOSURE
+objective: Integrate the epistemically constrained autonomous mission-chain layer into the existing control plane without creating duplicate registries, provenance, lifecycle or evidence architectures.
+existing_capabilities:
+  registry: docs/missions/MISSION_REGISTRY.json
+  invocation: docs/missions/MISSION_INVOCATION_CONTRACT.md
+  evolution_engine: backend/app/missions/evolution.py
+  evolution_runtime: backend/app/missions/evolution_runtime.py
+  lifecycle: backend/app/missions/lifecycle.py
+  state_machine: docs/missions/contracts/MISSION_STATE_MACHINE.yaml
+  scientific_architecture: docs/missions/SCIENTIFIC_MISSION_ARCHITECTURE.md
+  second_order_contracts:
+    - contracts/v1/discovery-candidate.schema.json
+    - contracts/v1/knowledge-impact-graph.schema.json
+    - contracts/v1/disagreement-lifecycle.schema.json
+    - contracts/v1/capability-benchmark.schema.json
+    - contracts/v1/scientific-epistemic-debt.schema.json
+artifacts:
+  architecture: docs/missions/AUTONOMOUS_MISSION_CHAIN_ARCHITECTURE.md
+  requirements: docs/missions/AUTONOMOUS_MISSION_CHAIN_REQUIREMENTS.yaml
+  coherence_guard: docs/missions/SCIENTIFIC_COHERENCE_GUARD.yaml
+  activation_policy: docs/missions/MISSION_ACTIVATION_POLICY.yaml
+  chain_state_machine: docs/missions/MISSION_CHAIN_STATE_MACHINE.yaml
+  fixed_point: docs/missions/SCIENTIFIC_FIXED_POINT_SPECIFICATION.md
+  implementation: backend/app/missions/autonomous_chain.py
+  tests: backend/tests/test_autonomous_mission_chain.py
+acceptance:
+  - event-to-task-to-mission activation is deterministic and provenance-linked
+  - activation cannot bypass authority or scientific compatibility gates
+  - validated results produce typed consequences and downstream tasks
+  - coherence gate runs before promotion/integration
+  - impact-scoped global regression runs before closure
+  - circuit breakers fail closed and persist recovery state
+  - fixed-point conditions are machine-checkable
+  - running asynchronous work is observed and does not become passive waiting
+  - executable queue is drained before quiescence
+  - zero-context routing replay is deterministic
+  - isolated-process policy reconstruction is executable
+  - mission evolution precedence remains existing-capability > extension > collaboration > task-force > new-mission
+  - no duplicate registry/provenance/evidence/lifecycle system is introduced
+  - zero-context reconstruction remains possible
+required_validation:
+  - unit tests for selection precedence and deterministic tie breaking
+  - adversarial tests for cycles, task explosion, provenance loss and authority escalation
+  - replay tests for result-to-task chaining
+  - stale-state and idempotency tests
+  - integration tests against MissionEvolutionRuntime and existing registry
+  - asynchronous continuity and queue-state tests
+  - isolated-process reconstruction test
+  - CI verification
+local_validation_completed:
+  - deterministic local routing primitives
+  - zero-context selection replay
+  - isolated-process policy execution test
+  - running-versus-waiting queue semantics
+external_boundary:
+  capability: true multi-process orchestration, distributed leases and transactional live state across independent agent hosts
+  status: NOT_ESTABLISHED
+  local_work_required_before_boundary: NONE_FOR_NOTARIO_LAYER
+  remaining_property: deployment-level cross-host lease/transaction semantics
+return_event:
+  trigger: INGENIERO_INTEGRATION_RESULT
+  required_payload:
+    - integration_status
+    - changed_capabilities
+    - runtime_invocation_evidence
+    - persistence_evidence
+    - regression_results
+    - remaining_external_boundary
+  reauditable: true
+  reaudit_trigger: any material integration change, failure, contradiction or capability regression

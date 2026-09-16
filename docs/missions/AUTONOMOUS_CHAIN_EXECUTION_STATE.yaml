@@ -1,0 +1,128 @@
+schema_version: "1.2"
+mission: MISSION-13_NOTARIO
+task_id: NOTARIO-AUTONOMOUS-CHAIN-001
+parent_task: MISSION-13_FINAL_AUTONOMOUS_COHERENCE
+mission_state: ACTIVE
+execution_state: EXECUTING
+ci_state: RUNNING
+runtime_state: LOCAL_PRIMITIVES_VERIFIED / MULTIHOST_NOT_ESTABLISHED
+scientific_validation_state: NOT_ESTABLISHED_FOR_PROSPECTIVE_OR_OPERATIONAL_CLAIMS
+external_boundary_state: PRESENT_AND_EXPLICIT
+queue_state: ACTIVE
+integration_state: BRANCH_INTEGRATED_PENDING_CI
+fixed_point_state: FALSE
+classification: MATERIAL_CONTROL_PLANE_CAPABILITY
+owner: MISSION-13
+integrator: MISSION-01
+discovered_by: NOTARIO
+why_required: >-
+  Replace manual mission-by-mission prompting with evidence-gated autonomous
+  scientific work chaining while preserving epistemic integrity and authority.
+existing_capability:
+  - MISSION_REGISTRY
+  - MISSION_INVOCATION_CONTRACT
+  - MISSION_EVOLUTION_ENGINE
+  - MISSION_LIFECYCLE_GOVERNANCE
+  - PROVENANCE_AND_EVIDENCE_PRIMITIVES
+  - SECOND_ORDER_EXECUTION_CONTRACTS
+action_taken:
+  - audited existing control-plane primitives before extending architecture
+  - researched autonomous scientific discovery, provenance and dynamic task allocation
+  - created global scientific specification projection
+  - created activation policy, coherence guard, chain state machine and fixed-point specification
+  - implemented deterministic local selection/consequence/circuit-breaker/fixed-point primitives
+  - implemented durable scientific work-event trigger validation
+  - implemented explicit asynchronous process observation and RUNNING-versus-WAITING semantics
+  - implemented disjoint executable/running/blocked/delegated/external/completed/cancelled queue projection
+  - implemented zero-context deterministic routing replay
+  - added isolated-process policy reconstruction test
+  - added adversarial executable tests for provenance, queue, replay, contradictions and fixed point
+  - repaired stale Phase 1 test-path invariant to match the actual two-root test suite
+  - repaired advanced causal verifier import isolation discovered by CI
+  - registered autonomous-chain capability and executable engineering handoff
+failures:
+  - ci_run: 672
+    run_id: 35089688590
+    root_cause: stale Phase 1 verifier expected obsolete single test root
+    status: REPAIRED
+  - ci_run: 683
+    run_id: 35090298965
+    root_cause: advanced causal verifier depended on ambient PYTHONPATH
+    status: REPAIRED
+repairs:
+  - commit: 835bfe881ec5c98f3be09aaa5bc052db7eb21db1
+    change: Phase 1 verifier now validates current test roots and manifest schema
+  - commit: ce20f42ed0760ddf40ba2201b63bfa7675e20cf5
+    change: advanced causal verifier explicitly installs backend root on sys.path
+tests_run:
+  prior_full_suite:
+    status: PASSED
+    ci_run: 683
+    run_id: 35090298965
+    count: 597
+  targeted_autonomous_chain:
+    status: INCLUDED_IN_FULL_SUITE
+    expected_new_cases: 16
+  current_ci:
+    status: PENDING
+    ci_run: 687
+    run_id: 35090408679
+    functional_head: ce20f42ed0760ddf40ba2201b63bfa7675e20cf5
+verification:
+  local_primitives: IMPLEMENTED
+  zero_context_replay: IMPLEMENTED
+  isolated_process_reconstruction: TEST_DEFINED
+  full_suite_on_preceding_functional_head: PASSED_597
+  current_functional_head_ci: RUNNING_OR_PENDING
+integration:
+  registry: PERSISTED
+  engineering_handoff: PERSISTED
+  pull_request: 48
+  functional_head: ce20f42ed0760ddf40ba2201b63bfa7675e20cf5
+  latest_branch_head: ec9ca5d2e8ac359cdad17b9c9cac30194db81d1d
+  latest_branch_head_additional_change: fixed-point documentation only
+active_processes:
+  - process_id: CI-687
+    process_type: GITHUB_ACTIONS_CI
+    started_at: "2026-09-16T11:27:26Z"
+    current_status: PENDING
+    last_observed_at: "2026-09-16T11:27:27Z"
+    expected_result: "compile + full pytest + repository invariants + advanced causal verifier + compose validation"
+    dependencies:
+      - ce20f42ed0760ddf40ba2201b63bfa7675e20cf5
+      - pull_request_48_merge
+    dependent_tasks:
+      - post_ci_reaudit
+      - final_fixed_point_check
+    independent_tasks_available: []
+    next_observation_condition: "workflow starts, completes, or fails"
+queue:
+  executable_now: []
+  running:
+    - CI-687
+  blocked: []
+  delegated:
+    - NOTARIO-HANDOFF-RUNTIME-001
+    - NOTARIO-HANDOFF-AUTONOMOUS-CHAIN-001
+  external:
+    - MULTI_HOST_TRANSACTIONAL_MISSION_HOST
+  completed:
+    - local_architecture_design
+    - local_control_plane_primitives
+    - deterministic_replay
+    - isolated_process_policy_test
+    - ci_672_repair
+    - ci_683_repair
+  cancelled: []
+remaining_external_boundary:
+  status: TRUE
+  capability: distributed multi-process mission host with transactional leases/live state across independent agent hosts
+  reason: existing invocation contract reserves this deployment property to external orchestration infrastructure
+  local_work_exhausted: true
+  local_evidence: registry discovery, invocation contract resolution, admission CAS/POSIX locking, zero-context reconstruction, deterministic policy replay, process observation, queue semantics and isolated-process policy reconstruction are implemented/test-defined
+  does_not_block_local_closure: true
+next_action:
+  executable_now: false
+  reason: all currently identified local executable work has been discharged; CI-687 is the only active validation process and must be observed before post-CI re-audit
+closure_state: NOT_CLOSED_CI_ACTIVE
+updated_at: "2026-09-16"

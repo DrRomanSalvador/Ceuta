@@ -1,6 +1,6 @@
 import unittest
 
-from .alert_system import AlertSystem
+from .alert_system import AlertGovernance, AlertSystem
 from .response_coupling import ResponseBinding, ResponseCouplingSink
 
 
@@ -59,6 +59,26 @@ class ResponseCouplingIntegrationTests(unittest.TestCase):
         alert = system.check_and_alert(_RiskResult())
         with self.assertRaises(RuntimeError):
             system.record_response(alert, _binding(), actor="ORG-1", timestamp="2026-09-16T12:11:00Z")
+
+    def test_alert_external_delivery_is_blocked_without_governance(self):
+        system = AlertSystem()
+        alert = system.check_and_alert(_RiskResult())
+        self.assertFalse(alert.governance_ready)
+        self.assertFalse(system.governance.externally_notifiable)
+
+    def test_alert_external_delivery_requires_all_operational_controls(self):
+        governance = AlertGovernance(
+            false_positive_cost=2.0,
+            false_negative_cost=10.0,
+            response_capacity_confirmed=True,
+            governance_approved=True,
+            appeal_mechanism=True,
+            anti_stigma_reviewed=True,
+            simulation_completed=True,
+        )
+        system = AlertSystem(governance=governance)
+        alert = system.check_and_alert(_RiskResult())
+        self.assertTrue(alert.governance_ready)
 
     def test_unknown_execution_state_fails_closed(self):
         with self.assertRaises(ValueError):

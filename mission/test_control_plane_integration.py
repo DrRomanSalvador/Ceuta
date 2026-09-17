@@ -8,9 +8,10 @@ import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from .control_plane import MissionState
+from .control_plane import HandoffState, MissionState
 from .control_plane_runtime import persist_handoff_event, persist_transition, replay_projection, replay_state
 from .event_log import load_jsonl, validate_chain
+from .handoff_runtime import transition as transition_handoff
 from .lifecycle_governance import record_conflict
 from .replay import replay
 from .work_claims import acquire
@@ -33,6 +34,35 @@ def _transition_worker(root: str, mission_id: str, queue) -> None:
         queue.put((mission_id,"PERSISTED",event["event_id"]))
     except Exception as exc:
         queue.put((mission_id,"REJECTED",type(exc).__name__))
+
+
+def _handoff_worker(root: str, target_status: str, actor: str, queue) -> None:
+    path=Path(root)/"handoffs.json"; event_log=Path(root)/"events.jsonl"
+    handoff={
+        "handoff_id":"H-CONCURRENT",
+        "source_mission":"MISSION-02",
+        "destination_mission":"MISSION-01",
+        "timestamp":"2026-09-16",
+        "source_commit":"main@test",
+        "finding":"concurrency fixture",
+        "evidence":["fixture"],
+        "affected_surface":"mission control plane",
+        "severity":"HIGH",
+        "required_action":"test concurrent lifecycle transition",
+        "proposed_action":"first valid transition wins",
+        "constraints":["no duplication"],
+        "dependencies":[],
+        "validation_required":"event-chain validation",
+        "acceptance_criteria":["one winner","one event"],
+        "status":"READY",
+        "accepted_by":"MISSION-01",
+        "integrated_at":"2026-09-16T12:00:00Z",
+    }
+    try:
+        result=transition_handoff(path,event_log,handoff,target_status=HandoffState(target_status),actor=actor,timestamp="2026-09-16T12:00:01Z",evidence=[f"worker:{actor}"])
+        queue.put((actor,"PERSISTED",result.get("mutation_event_id"),result["status"]))
+    except Exception as exc:
+        queue.put((actor,"REJECTED",type(exc).__name__,str(exc)))
 
 
 class ControlPlaneIntegrationTests(unittest.TestCase):
@@ -72,6 +102,29 @@ class ControlPlaneIntegrationTests(unittest.TestCase):
             self.assertEqual(len(events),2)
             validate_chain(events)
             self.assertEqual(replay(Path(tmp)/"events.jsonl").mission_states,{"MISSION-A":"ACTIVE","MISSION-B":"ACTIVE"})
+
+    def test_conflicting_handoff_transitions_have_one_winner_and_one_stale_writer(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp); (root/"handoffs.json").write_text(json.dumps({"schema_version":"1.0.0","handoffs":{ "H-CONCURRENT": {
+                "handoff_id":"H-CONCURRENT","source_mission":"MISSION-02","destination_mission":"MISSION-01","timestamp":"2026-09-16","source_commit":"main@test","finding":"concurrency fixture","evidence":["fixture"],"affected_surface":"mission control plane","severity":"HIGH","required_action":"test concurrent lifecycle transition","proposed_action":"first valid transition wins","constraints":["no duplication"],"dependencies":[],"validation_required":"event-chain validation","acceptance_criteria":["one winner","one event"],"status":"READY","accepted_by":"MISSION-01","integrated_at":"2026-09-16T12:00:00Z"
+            }}},indent=2),encoding="utf-8")
+            ctx=mp.get_context("spawn"); queue=ctx.Queue()
+            ps=[ctx.Process(target=_handoff_worker,args=(tmp,status,f"ACTOR-{status}",queue)) for status in ("ACCEPTED","REJECTED")]
+            for p in ps: p.start()
+            for p in ps: p.join(15)
+            self.assertTrue(all(p.exitcode==0 for p in ps), msg=[p.exitcode for p in ps])
+            results=[queue.get(timeout=3) for _ in ps]
+            self.assertEqual(sum(r[1]=="PERSISTED" for r in results),1)
+            self.assertEqual(sum(r[1]=="REJECTED" for r in results),1)
+            event_log=root/"events.jsonl"; events=load_jsonl(event_log)
+            self.assertEqual(len(events),1)
+            self.assertEqual(events[0]["event_type"],"HANDOFF_LIFECYCLE")
+            validate_chain(events)
+            stored=json.loads((root/"handoffs.json").read_text(encoding="utf-8"))["handoffs"]["H-CONCURRENT"]
+            self.assertIn(stored["status"],["ACCEPTED","REJECTED"])
+            winner=[r for r in results if r[1]=="PERSISTED"][0]
+            self.assertEqual(winner[3],stored["status"])
+            self.assertEqual(winner[2],events[0]["event_id"])
 
     def test_event_chain_rejects_reordered_event(self):
         with tempfile.TemporaryDirectory() as tmp:

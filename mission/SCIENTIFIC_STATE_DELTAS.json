@@ -1,0 +1,17 @@
+{
+  "schema_version": "1.0.0",
+  "registry": "SCIENTIFIC_STATE_DELTAS",
+  "deltas": [
+    {
+      "delta_id": "DELTA-CONT-001",
+      "timestamp": "2026-09-16T09:53:25Z",
+      "trigger": "User requirement: scientific mission must remain inheritable after loss of conversational context.",
+      "previous_state": "Scientific continuity was distributed across identity, engineering state, branch artifacts and conversational context; no executable repository-level recovery validator existed on canonical main.",
+      "change": "Created canonical hereditary continuity artifacts, executable stdlib-only validator, recovery contract, scientific registries and regression tests on branch scientific-continuity-control-plane-v1 / PR #39.",
+      "scientific_effect": "Continuity becomes an explicit scientific requirement and testable repository capability rather than an implicit chat property.",
+      "new_uncertainty": "Fresh-instance recovery and CI execution remain to be empirically validated.",
+      "falsification_condition": "A fresh ESPÍA instance with repository-only access cannot reconstruct the required mission state or reconstructs a materially false state without detecting the discrepancy.",
+      "next_action": "Execute CI/bootstrap recovery, reconcile repository heads, migrate remaining historical scientific artifacts into canonical registries, then persist the next delta."
+    }
+  ]
+}

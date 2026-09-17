@@ -1,0 +1,33 @@
+{
+  "schema_version": "1.0.0",
+  "registry": "NEGATIVE_KNOWLEDGE",
+  "categories": {
+    "what_we_know": [
+      "ESPÍA identity and division of scientific/engineering responsibility are canonically documented.",
+      "PIT binding is implemented and runtime validated in SERPIENTE main according to the persisted engineering state.",
+      "A source-process health implementation exists in SERPIENTE PR #9 but is not yet part of main validation/merged state."
+    ],
+    "what_we_do_not_know": [
+      "Whether the new continuity plane can be recovered by a genuinely fresh ESPÍA instance without conversational assistance.",
+      "Whether all historical scientific artifacts have been reconciled into the canonical registries.",
+      "Whether prospective predictive validity exists for the current system."
+    ],
+    "what_we_cannot_identify": [
+      "Causal effects without an appropriate identification design and outcome ascertainment.",
+      "True world changes when measurement/reporting changes cannot be separated from phenomenon changes."
+    ],
+    "what_we_cannot_predict": [
+      "Operationally validated future outcomes globally across regimes, populations and sources."
+    ],
+    "what_we_have_failed_to_validate": [
+      "Prospective predictive validity of the integrated CeutIA + SERPIENTE system.",
+      "Operational effectiveness of early warnings and interventions."
+    ],
+    "what_requires_new_data": [
+      "Genuinely future-unknown observations for prospective evaluation.",
+      "Real source-process observations for continuous acquisition validation.",
+      "Outcome ascertainment data linked to decisions and interventions."
+    ]
+  },
+  "falsification_rule": "Any item in this registry may be revised only by explicit evidence and a traceable state delta; implementation existence alone does not erase a scientific limitation."
+}

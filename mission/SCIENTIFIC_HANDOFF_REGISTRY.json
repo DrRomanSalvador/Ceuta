@@ -1,0 +1,24 @@
+{
+  "schema_version": "1.0.0",
+  "registry": "SCIENTIFIC_HANDOFFS",
+  "handoffs": [
+    {
+      "handoff_id": "HO-CONT-001",
+      "scientific_finding": "Scientific continuity is a first-class system requirement: the mission must survive loss of conversational context.",
+      "evidence": ["Canonical ESPÍA identity", "Persisted engineering state", "Existing distributed scientific artifacts requiring reconciliation"],
+      "evidence_level": "E5_STRONG_EMPIRICAL_EVIDENCE",
+      "affected_component": "CeutIA scientific control plane",
+      "exact_requirement": "Persist machine-readable identity, master state, claims, requirements, capabilities, negative knowledge, validation limits, handoffs and adversarial tests with stable IDs and explicit state transitions.",
+      "expected_runtime_behaviour": "A fresh ESPÍA bootstrap loads and validates canonical scientific state before selecting a next action.",
+      "failure_condition": "Fresh instance cannot reconstruct role, active question, evidence limits, current capability status, unresolved frontier and next action from repository state.",
+      "validation_criterion": "Automated bootstrap test returns a complete recovery object and rejects missing mandatory artifacts or malformed state.",
+      "variables_and_temporal_semantics": ["state version", "last_reconciled_at", "repository HEAD", "commit SHA", "validation timestamp"],
+      "implementation_consequence": "Add stdlib-only continuity loader/validator and canonical repository artifacts.",
+      "priority": "P0",
+      "dependencies": ["current CeutIA HEAD", "current SERPIENTE HEAD"],
+      "unresolved_uncertainty": "Completeness of historical scientific migration is not yet demonstrated.",
+      "falsification_condition": "A fresh recovery run demonstrably requires unavailable conversational context or reconstructs a materially false scientific state.",
+      "status": "IMPLEMENTED_TESTING_REQUIRED"
+    }
+  ]
+}
